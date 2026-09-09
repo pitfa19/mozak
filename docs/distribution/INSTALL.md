@@ -7,7 +7,7 @@ managed launcher. GitHub CLI is optional and used only as a credential source.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/pitfa19/mozak/main/scripts/install.sh | bash
-mozak doctor "$HOME"
+mozak setup check "$HOME"
 ```
 
 The bootstrap downloads the release through the GitHub API, validates the
@@ -25,11 +25,15 @@ rolling build, `--no-auto-update` disables automatic checks, and `--prefix` and
 sha256sum -c SHA256SUMS
 tar -xzf mozak-<build-id>-linux-x86_64.tar.gz
 ./mozak-<build-id>-linux-x86_64/install.py --prefix "$HOME/.local" --home "$HOME"
-mozak doctor "$HOME"
+mozak setup check "$HOME"
 ```
 
 This leaves automatic updates disabled unless you pass
 `--enable-auto --channel stable|main`.
+
+`mozak doctor "$HOME"` additionally checks optional integrations, including
+the external `termaid` graph renderer. It exits `2` when one is absent even
+though the installed CLI, MCP server, and managed skill are ready.
 
 ## Update and roll back
 

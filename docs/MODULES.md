@@ -40,8 +40,8 @@ could outrank it.
 **Id** `research` · **Files** `research.rs` `adapter_workflow.rs` `landmark.rs` `case_study.rs` · **Commands** `mozak research`, `mozak adapter`, `mozak case`
 
 Bounded observation, either of the outside world through an adapter or of your
-own finished work as a case. This module owns the only network boundary in
-MOZAK, and everything it produces is proposal-only.
+own finished work as a case. Adapters own any declared network access outside
+the MOZAK core, and everything they produce is proposal-only.
 
 ### Runs and adapters
 

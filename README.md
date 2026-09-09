@@ -19,7 +19,7 @@
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/pitfa19/mozak/main/scripts/install.sh | bash
-mozak doctor "$HOME"
+mozak setup check "$HOME"
 ```
 
 Prefer natural language? Tell your coding agent:

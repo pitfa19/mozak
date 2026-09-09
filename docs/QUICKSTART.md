@@ -17,11 +17,11 @@ accepted into your knowledge base without you saying so.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/pitfa19/mozak/main/scripts/install.sh | bash
-mozak doctor "$HOME"
+mozak setup check "$HOME"
 ```
 
 Install also places the MOZAK agent skill where your coding agents look for it:
-`.agents`, `.jcode`, `.claude`, and `.codex`. `doctor` verifies that.
+`.agents`, `.jcode`, `.claude`, and `.codex`. `setup check` verifies that.
 
 Channels, offline installation, update, rollback, and the safety boundary are
 in [`distribution/INSTALL.md`](distribution/INSTALL.md).

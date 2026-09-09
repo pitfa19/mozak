@@ -9,8 +9,8 @@ first, then the exact command, then the rule. `mozak` with no arguments prints
 the authoritative usage.
 
 Read-only routes are safe to ask for at any time. Anything marked **mutation**
-needs your explicit approval, and some need an approval file. Everything is
-offline.
+needs your explicit approval, and some need an approval file. MOZAK core routes
+are offline; configured adapters may use the network and must declare it.
 
 Exit codes: `0` valid, `2` incomplete, `3` invalid, `1` bad invocation.
 
