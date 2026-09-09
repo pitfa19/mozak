@@ -45,7 +45,7 @@ jobs:
             echo 'channel=main' >> "$GITHUB_OUTPUT"
           fi
       - name: Build static binary
-        run: cargo build --release --locked --target x86_64-unknown-linux-musl -p mozak-cli
+        run: cargo build --release --locked --target x86_64-unknown-linux-musl -p mozak-cli -p mozak-mcp
       - name: Build release assets
         run: scripts/build_linux_release.sh target/x86_64-unknown-linux-musl/release/mozak dist '${{ steps.release.outputs.channel }}' "$GITHUB_SHA" "$GITHUB_REPOSITORY"
       - name: Verify archive checksum

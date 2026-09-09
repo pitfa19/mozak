@@ -8,7 +8,97 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.validate_framework_packets import CONTROL_ROOT, ValidationError, load_roadmap, validate_roadmap
+from scripts.validate_framework_packets import (
+    OPTIONAL_PACKET_FIELDS,
+    PACKET_KINDS,
+    PACKET_STATES,
+    REQUIRED_PACKET_FIELDS,
+    ValidationError,
+    validate_roadmap,
+)
+
+
+def make_packet(packet_id: str, goal_id: str, dependencies: list[str]) -> dict:
+    return {
+        "id": packet_id,
+        "version": 1,
+        "title": f"Synthetic packet {packet_id}",
+        "kind": "implementation",
+        "state": "completed",
+        "goal_id": goal_id,
+        "objective": "Exercise the legacy packet-roadmap validator without project-private state.",
+        "dependencies": dependencies,
+        "deliverables": ["synthetic deliverable"],
+        "constraints": ["test fixture only"],
+        "acceptance_checks": [
+            {"id": "AC-01", "behavior": "shape validates", "evidence": "unit test"},
+            {"id": "AC-02", "behavior": "dependencies validate", "evidence": "unit test"},
+            {"id": "AC-03", "behavior": "coverage validates", "evidence": "unit test"},
+        ],
+        "tests": [
+            {
+                "command": "cargo test --lib",
+                "covers": ["AC-01", "AC-02", "AC-03"],
+            }
+        ],
+        "risks": [],
+        "completion_evidence": ["synthetic test evidence"],
+    }
+
+
+def make_roadmap() -> tuple[dict, dict[str, dict]]:
+    goal_packets = [
+        ["PF-0000", "PF-0001"],
+        ["PF-0002", "PF-0003"],
+        ["PF-0004"],
+        ["PF-0005"],
+        ["PF-0006", "PF-0007"],
+        ["PF-0008"],
+    ]
+    goals = {
+        "version": 1,
+        "goals": [
+            {
+                "id": f"G-{index:02d}",
+                "title": f"Synthetic goal {index}",
+                "outcome": "Validator behavior is covered by a public-safe fixture.",
+                "packet_ids": packet_ids,
+                "status": "completed",
+            }
+            for index, packet_ids in enumerate(goal_packets)
+        ],
+    }
+    dependencies = {
+        "PF-0000": [],
+        "PF-0001": ["PF-0000"],
+        "PF-0002": [],
+        "PF-0003": ["PF-0002"],
+        "PF-0004": [],
+        "PF-0005": [],
+        "PF-0006": [],
+        "PF-0007": ["PF-0006"],
+        "PF-0008": [],
+    }
+    packets = {
+        packet_id: make_packet(packet_id, f"G-{goal_index:02d}", dependencies[packet_id])
+        for goal_index, packet_ids in enumerate(goal_packets)
+        for packet_id in packet_ids
+    }
+    return goals, packets
+
+
+def make_schema() -> dict:
+    properties = {field: {} for field in REQUIRED_PACKET_FIELDS | OPTIONAL_PACKET_FIELDS}
+    properties["id"]["pattern"] = r"^PF-[0-9]{4}$"
+    properties["goal_id"]["pattern"] = r"^G-[0-9]{2}$"
+    properties["kind"]["enum"] = sorted(PACKET_KINDS)
+    properties["state"]["enum"] = sorted(PACKET_STATES)
+    return {
+        "type": "object",
+        "properties": properties,
+        "required": sorted(REQUIRED_PACKET_FIELDS),
+        "additionalProperties": False,
+    }
 
 
 class PacketRoadmapValidationTests(unittest.TestCase):
@@ -16,7 +106,7 @@ class PacketRoadmapValidationTests(unittest.TestCase):
         self.temporary = tempfile.TemporaryDirectory()
         self.root = Path(self.temporary.name) / "planning"
         (self.root / "packets").mkdir(parents=True)
-        goals, packets = load_roadmap(CONTROL_ROOT)
+        goals, packets = make_roadmap()
         self.goals = goals
         self.packets = packets
         self.write_roadmap()
@@ -26,7 +116,7 @@ class PacketRoadmapValidationTests(unittest.TestCase):
 
     def write_roadmap(self) -> None:
         (self.root / "goals.json").write_text(json.dumps(self.goals, indent=2) + "\n", encoding="utf-8")
-        schema = json.loads((CONTROL_ROOT / "packet.schema.json").read_text(encoding="utf-8"))
+        schema = make_schema()
         (self.root / "packet.schema.json").write_text(json.dumps(schema, indent=2) + "\n", encoding="utf-8")
         for old_path in (self.root / "packets").glob("*.json"):
             old_path.unlink()
@@ -39,7 +129,7 @@ class PacketRoadmapValidationTests(unittest.TestCase):
             validate_roadmap(self.root)
 
     def test_committed_roadmap_is_valid(self) -> None:
-        self.assertEqual(validate_roadmap(self.root), (24, 31))
+        self.assertEqual(validate_roadmap(self.root), (6, 9))
 
     def test_missing_dependency_fails_closed(self) -> None:
         self.packets["PF-0001"]["dependencies"] = ["PF-9999"]
@@ -85,7 +175,7 @@ class PacketRoadmapValidationTests(unittest.TestCase):
         self.packets["PF-0000"]["state"] = "blocked"
         self.packets["PF-0000"]["blocker"] = "synthetic blocker"
         del self.packets["PF-0000"]["completion_evidence"]
-        self.goals["goals"][0]["status"] = "blocked"
+        self.goals["goals"][0]["status"] = "active"
         self.assert_invalid("PF-0001: completed packet has incomplete dependencies")
 
     def test_boolean_goal_version_fails_closed(self) -> None:
@@ -109,7 +199,7 @@ class PacketRoadmapValidationTests(unittest.TestCase):
         for goal in self.goals["goals"]:
             goal["status"] = "completed"
         self.write_roadmap()
-        self.assertEqual(validate_roadmap(self.root), (24, 31))
+        self.assertEqual(validate_roadmap(self.root), (6, 9))
 
     def test_loose_cargo_filter_fails_closed(self) -> None:
         self.packets["PF-0002"]["tests"][0]["command"] = "cargo test --workspace nonexistent_filter"

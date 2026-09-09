@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.validate_pf0001_contract import CONTRACT, PACKETS, SPEC, ContractError, validate_contract
+from scripts.validate_pf0001_contract import CONTRACT, SPEC, ContractError, validate_contract
 
 class PF0001ContractTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -16,7 +16,13 @@ class PF0001ContractTests(unittest.TestCase):
         self.spec = self.root / "spec"
         self.packets = self.root / "packets"
         shutil.copytree(SPEC, self.spec)
-        shutil.copytree(PACKETS, self.packets)
+        self.packets.mkdir()
+        for number in range(2, 9):
+            packet_id = f"PF-{number:04d}"
+            (self.packets / f"{packet_id}.json").write_text(
+                json.dumps({"id": packet_id}) + "\n",
+                encoding="utf-8",
+            )
         self.contract = self.spec / "contract.json"
 
     def tearDown(self) -> None:
@@ -32,7 +38,7 @@ class PF0001ContractTests(unittest.TestCase):
             validate_contract(self.contract, self.spec, self.packets)
 
     def test_committed_contract_is_valid(self) -> None:
-        self.assertEqual(validate_contract(CONTRACT, SPEC, PACKETS), (36, 12, 8))
+        self.assertEqual(validate_contract(self.contract, self.spec, self.packets), (36, 12, 8))
 
     def test_undefined_packet_term_fails_closed(self) -> None:
         self.mutate(lambda d: d["packet_term_coverage"]["PF-0005"].append("magic edge"))
