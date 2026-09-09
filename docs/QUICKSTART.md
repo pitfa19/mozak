@@ -16,15 +16,12 @@ accepted into your knowledge base without you saying so.
 ## 1. Install
 
 ```bash
-gh auth login
-gh api repos/pitfa19/mozak/contents/scripts/install.sh --jq .content | base64 -d | bash
+curl -fsSL https://raw.githubusercontent.com/pitfa19/mozak/main/scripts/install.sh | bash
 mozak doctor "$HOME"
 ```
 
-The repository is currently private, so the installer is fetched with an
-authenticated GitHub CLI. Install also places the MOZAK agent skill where your
-coding agents look for it: `.agents`, `.jcode`, `.claude`, and `.codex`.
-`doctor` verifies that.
+Install also places the MOZAK agent skill where your coding agents look for it:
+`.agents`, `.jcode`, `.claude`, and `.codex`. `doctor` verifies that.
 
 Channels, offline installation, update, rollback, and the safety boundary are
 in [`distribution/INSTALL.md`](distribution/INSTALL.md).

@@ -5,22 +5,9 @@ managed launcher. GitHub CLI is optional and used only as a credential source.
 
 ## Install
 
-`pitfa19/mozak` is currently **private**, so the installer is fetched with an
-authenticated GitHub CLI:
-
-```bash
-gh auth login
-gh api repos/pitfa19/mozak/contents/scripts/install.sh --jq .content \
-  | base64 -d | bash
-mozak doctor "$HOME"
-```
-
-If the repository is made public, no token or CLI is needed and the one-liner
-works directly. Nothing else changes, because credentials are optional rather
-than required:
-
 ```bash
 curl -fsSL https://raw.githubusercontent.com/pitfa19/mozak/main/scripts/install.sh | bash
+mozak doctor "$HOME"
 ```
 
 The bootstrap downloads the release through the GitHub API, validates the
