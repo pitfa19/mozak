@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/diagrams/mozak-architecture.png" alt="MOZAK brain architecture" width="460">
+  <img src="docs/diagrams/mozak-architecture.png" alt="MOZAK brain architecture" width="100%">
 </p>
 
 <h1 align="center">MOZAK</h1>
