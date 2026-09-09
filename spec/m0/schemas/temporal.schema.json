@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mozak.dev/spec/m0/temporal.schema.json",
+  "title": "MOZAK M0 temporal values",
+  "type": "object",
+  "required": ["valid_time", "transaction_time"],
+  "properties": {
+    "valid_time": {"$ref": "#/$defs/validTime"},
+    "transaction_time": {"type": "string", "format": "date-time"}
+  },
+  "$defs": {
+    "validTime": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {
+        "kind": {"type": "string", "enum": ["unknown", "instant", "interval", "unbounded"]},
+        "at": {"type": "string", "format": "date-time"},
+        "from": {"type": ["string", "null"], "format": "date-time"},
+        "to": {"type": ["string", "null"], "format": "date-time"}
+      },
+      "allOf": [
+        {"if": {"properties": {"kind": {"const": "instant"}}}, "then": {"required": ["at"]}},
+        {"if": {"properties": {"kind": {"const": "interval"}}}, "then": {"required": ["from", "to"]}}
+      ],
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

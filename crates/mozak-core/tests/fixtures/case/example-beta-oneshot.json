@@ -1,0 +1,255 @@
+{
+  "contract_version": 1,
+  "id": "case-example-beta-oneshot",
+  "evaluation_id": "E-MOZAK-ONESHOT-001",
+  "recorded_at": "2026-09-04T00:00:00Z",
+  "subject": {
+    "scope_id": "example-beta",
+    "kind": "project",
+    "baseline_revision": "1111111",
+    "final_revision": "2222222",
+    "mozak_was_used": true,
+    "session_shape": "one_shot",
+    "control": {
+      "kind": "sibling_project_without_planning_history",
+      "scope_id": "example-gamma",
+      "comparable": false,
+      "reason": "The sibling project was worked on in the same sessions but carried no planning history, so it isolates no variable and is not a matched control."
+    }
+  },
+  "method": {
+    "rigor": [
+      "baseline_pinned",
+      "mutation_tested",
+      "layered_acceptance"
+    ],
+    "mutation_count": 11,
+    "mutations_caught": 10,
+    "review": "independent",
+    "notes": "The reviewer rebuilt the baseline from source and diffed rendered markup route by route, injected 11 defects, then added successive live layers. The record is longitudinal: corrective work and a real owner publish happened after the initial report."
+  },
+  "observations": [
+    {
+      "id": "C-001",
+      "observation": "Seven of eight rendered routes matched the baseline after normalizing intended image attributes; the pricing route differed only in the two owner-requested values.",
+      "significance": "The durable scope boundary survived a large migration.",
+      "locator": "source/evaluation.md#E-014",
+      "measured": true
+    },
+    {
+      "id": "C-002",
+      "observation": "A measured WebP conversion was declined because it violated the recorded no-design-change constraint.",
+      "significance": "Written constraints influenced behavior and preserved a negative decision.",
+      "locator": "source/evaluation.md#E-018",
+      "measured": true
+    },
+    {
+      "id": "C-003",
+      "observation": "Ten of eleven injected defects were caught initially with requirement-linked messages.",
+      "significance": "Acceptance traceability supported meaningful mutation testing.",
+      "locator": "source/evaluation.md#E-021",
+      "measured": true
+    },
+    {
+      "id": "C-004",
+      "observation": "All initial goals were marked completed while the production editor returned 503.",
+      "significance": "Repository completion did not establish the user's outcome.",
+      "locator": "source/evaluation.md#E-008",
+      "measured": true
+    },
+    {
+      "id": "C-005",
+      "observation": "Real GitHub API, HTTP, browser, deployment, and owner-publish checks each exposed failure classes that lower layers could not observe.",
+      "significance": "Acceptance must identify and exercise the furthest required observable surface.",
+      "locator": "source/evaluation.md#E-043",
+      "measured": true
+    },
+    {
+      "id": "C-006",
+      "observation": "A superseded plan remained callable through planning next without warning.",
+      "significance": "Recorded lineage is unsafe if public routes do not enforce freshness.",
+      "locator": "source/evaluation.md#E-035",
+      "measured": true
+    },
+    {
+      "id": "C-007",
+      "observation": "Porting the Example Gamma editor carried target-invalid assumptions about runtime behavior, throttling, and deployment identity.",
+      "significance": "Concept transfer must re-derive assumptions in the target Project.",
+      "locator": "source/evaluation.md#E-044",
+      "measured": true
+    },
+    {
+      "id": "C-008",
+      "observation": "A credential probe called a real EmailJS send endpoint and delivered a blank message.",
+      "significance": "Verification and research adapters must declare possible side effects and approval needs.",
+      "locator": "source/evaluation.md#E-045",
+      "measured": true
+    },
+    {
+      "id": "C-009",
+      "observation": "The independent reviewer summarized MOZAK as roughly 30 percent outcome-shaping and 70 percent bookkeeping.",
+      "significance": "A useful qualitative judgment about where the value sat.",
+      "locator": "source/evaluation.md#C-009",
+      "measured": false
+    },
+    {
+      "id": "C-010",
+      "observation": "The final assessment remained B+ after corrective work and live publishing.",
+      "significance": "Strong engineering and rigorous correction did not erase the original overclaim of completion.",
+      "locator": "source/evaluation.md#grade",
+      "measured": false
+    }
+  ],
+  "findings": [
+    {
+      "id": "F-1",
+      "summary": "The editor returned 503 in production because environment variables were never set; the owner's core request did not work.",
+      "severity": "high",
+      "state": "closed",
+      "resolution": "The owner set the required variables and redeployed; a real login and publish then succeeded, which immediately exposed a blocked-deployment bug one layer further out.",
+      "observation_ids": [
+        "C-004",
+        "C-005"
+      ]
+    },
+    {
+      "id": "F-2",
+      "summary": "A test failed 6.4 percent of the time when the code was correct.",
+      "severity": "high",
+      "state": "closed",
+      "resolution": "Fixed in 3333333.",
+      "observation_ids": []
+    },
+    {
+      "id": "F-3",
+      "summary": "The harness could not detect paraphrase in a service website's copy, checking length rather than pinning content.",
+      "severity": "medium",
+      "state": "closed",
+      "resolution": "Fixed in 3333333.",
+      "observation_ids": []
+    },
+    {
+      "id": "F-4",
+      "summary": "No Content Security Policy was ported despite an instruction to carry over the sibling's web concepts.",
+      "severity": "medium",
+      "state": "closed",
+      "resolution": "Fixed and live in 3333333; adding it then exposed a CSP-blocked service-worker cleanup that only a real browser could observe.",
+      "observation_ids": [
+        "C-005",
+        "C-007"
+      ]
+    },
+    {
+      "id": "F-5",
+      "summary": "A build artifact was committed in the same commit that added its pattern to gitignore.",
+      "severity": "low",
+      "state": "closed",
+      "resolution": "Already-tracked files are not re-ignored; required git rm --cached.",
+      "observation_ids": []
+    },
+    {
+      "id": "F-6",
+      "summary": "The 404 page carries implementer-authored copy the owner never approved.",
+      "severity": "low",
+      "state": "accepted",
+      "resolution": "Left in place and recorded as a minor justified violation: navigational chrome rather than a service claim, but decided silently rather than surfaced as a question.",
+      "observation_ids": []
+    },
+    {
+      "id": "F-7",
+      "summary": "Routes remain English on a localized site, unchanged from baseline, but the sitemap now advertises them authoritatively.",
+      "severity": "informational",
+      "state": "open",
+      "resolution": null,
+      "observation_ids": []
+    },
+    {
+      "id": "F-8",
+      "summary": "Two commits landed during the independent review, so HEAD moved under the reviewer.",
+      "severity": "informational",
+      "state": "closed",
+      "resolution": "Recorded as a method limitation rather than a product defect.",
+      "observation_ids": []
+    }
+  ],
+  "calibration": {
+    "supported_claims": [
+      "MOZAK preserved enough intent, provenance, decisions, rejected alternatives, and acceptance criteria for an independent reviewer to challenge a completion claim and drive corrective work.",
+      "A recorded scope boundary survived a large migration and an attractive out-of-scope change was measured, declined, and left reviewable.",
+      "Acceptance identifiers connected requirements to executable failures rather than to source lines.",
+      "Recording lineage without enforcing it on public routes permitted stale use of a superseded plan."
+    ],
+    "unsupported_claims": [
+      "That MOZAK makes an agent smarter or produces better plans.",
+      "That MOZAK improves productivity or quality relative to a non-MOZAK workflow.",
+      "That the goal DAG added scheduling value; on this one-shot task a competent agent could infer the same order.",
+      "Any general effect size, including the reviewer's 30/70 split."
+    ],
+    "requires_comparative_evaluation": [
+      "A matched control or comparable non-MOZAK workflow.",
+      "A multi-session project rather than a one-shot task.",
+      "A research-only Topic producing a Concept.",
+      "A cross-project Concept Translation."
+    ],
+    "limitations": [
+      "One project cannot establish comparative productivity or quality improvement.",
+      "The 30/70 estimate is the reviewer's qualitative interpretation, not a measurement.",
+      "The record includes corrective actions performed after the initial implementation, so it is longitudinal rather than a single frozen test.",
+      "Most implementation quality came from ordinary engineering competence rather than from the framework.",
+      "Flake rate was measured for one test on one machine across 52 runs."
+    ],
+    "generality": "single_case"
+  },
+  "derived_proposals": [
+    {
+      "id": "P-01",
+      "text": "Define an acceptance rule mapping every requirement to the furthest observable interface the user's outcome requires, with honest blocked-state behavior when that interface cannot be exercised.",
+      "observation_ids": [
+        "C-004",
+        "C-005"
+      ],
+      "priority": 1
+    },
+    {
+      "id": "P-02",
+      "text": "Make current-plan selection supersession-aware and require explicit historical access for stale plans.",
+      "observation_ids": [
+        "C-006"
+      ],
+      "priority": 2
+    },
+    {
+      "id": "P-03",
+      "text": "Define Concept and target-owned Concept Translation contracts with assumptions, applicability limits, substitutions, rejected details, and target evidence.",
+      "observation_ids": [
+        "C-007"
+      ],
+      "priority": 3
+    },
+    {
+      "id": "P-04",
+      "text": "Add adapter effect declarations for network use, external writes, dry-run support, and approval requirements.",
+      "observation_ids": [
+        "C-008"
+      ],
+      "priority": 4
+    },
+    {
+      "id": "P-05",
+      "text": "Add a lightweight one-shot planning profile that preserves audit value without unnecessary dependency-graph ceremony.",
+      "observation_ids": [
+        "C-009"
+      ],
+      "priority": 5
+    },
+    {
+      "id": "P-06",
+      "text": "Define a reusable independent case-study protocol with baseline pins, mutation tests, layered acceptance, and claim calibration.",
+      "observation_ids": [
+        "C-010"
+      ],
+      "priority": 6
+    }
+  ],
+  "authority": "proposal_only"
+}

@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "projects": [
+    {"project_id":"beta","release_id":"beta-r1","release_path":"releases/beta-r1.json","release_sha256":"501aac553f37997e17fc8ee8f942bc9081b3500b09c995a7c19bd2c5485c5541"},
+    {"project_id":"alpha","release_id":"alpha-r1","release_path":"releases/alpha-r1.json","release_sha256":"fed9e056626630f150eadfc49a34c9ab8e33f038f49393510c9be45eb129013e","human_overview":{"path":"overviews/alpha.md","sha256":"175ca9bec77d4f49633c073f9c26eb9bd063be8697356d96aca376cc52767ec4"}}
+  ],
+  "relationships": [
+    {"from_project_id":"alpha","to_project_id":"beta","relationship":"informs"}
+  ]
+}

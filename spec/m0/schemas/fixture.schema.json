@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mozak.dev/spec/m0/fixture.schema.json",
+  "title": "MOZAK M0 adversarial fixture",
+  "type": "object",
+  "required": ["id", "case", "description", "events", "expected", "forbidden_outcomes"],
+  "properties": {
+    "id": {"type": "string", "pattern": "^fx_[0-9]{2}_[a-z0-9_]+$"},
+    "case": {"type": "string"},
+    "description": {"type": "string"},
+    "events": {"type": "array", "minItems": 1, "items": {"type": "object"}},
+    "expected": {
+      "type": "object",
+      "required": ["projection", "canonical_hash", "human_diff"],
+      "properties": {
+        "projection": {"type": "object", "required": ["generation", "accepted", "history", "conflicts", "snapshots", "quarantine", "rejected_patches"]},
+        "canonical_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "human_diff": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "forbidden_outcomes": {"type": "array", "minItems": 1, "items": {"type": "string"}}
+  },
+  "additionalProperties": false
+}

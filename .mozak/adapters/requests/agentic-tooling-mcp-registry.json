@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "scope_id": "topic-agentic-systems",
+  "updated_since": "2026-08-01T00:00:00Z",
+  "max_records": 40,
+  "question": "Which MCP servers published recently are candidate tooling for the modules MOZAK expects to keep upgradeable?",
+  "interests": [
+    {"name": "knowledge-memory", "terms": ["memory", "knowledge", "vector", "rag", "retrieval", "graph", "embedding"]},
+    {"name": "agent-orchestration", "terms": ["agent", "orchestrat", "workflow", "multi-agent", "planner", "task"]},
+    {"name": "provenance-evidence", "terms": ["provenance", "audit", "citation", "evidence", "lineage", "trace"]},
+    {"name": "developer-tooling", "terms": ["git", "repository", "code", "lint", "test", "build", "ci"]}
+  ]
+}

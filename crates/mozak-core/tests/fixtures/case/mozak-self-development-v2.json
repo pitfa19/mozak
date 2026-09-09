@@ -1,0 +1,359 @@
+{
+  "contract_version": 2,
+  "id": "case-mozak-self-development-2026-09-v2",
+  "evaluation_id": "E-MOZAK-SELFDEV-003",
+  "recorded_at": "2026-09-08T05:47:00Z",
+  "subject": {
+    "scope_id": "mozak",
+    "kind": "project",
+    "baseline_revision": "bbdfabf",
+    "final_revision": "ab8b043",
+    "mozak_was_used": true,
+    "session_shape": "multi_session",
+    "control": {
+      "kind": "no_control",
+      "scope_id": "none",
+      "comparable": false,
+      "reason": "No comparable control exists. The same work was not attempted without MOZAK, and no second agent-directed session of similar scope ran against a non-MOZAK project in this period. Every efficiency or quality claim below is therefore uncontrolled and is recorded as requiring comparative evaluation rather than as a measured benefit."
+    },
+    "conditions": [
+      {
+        "kind": "agent",
+        "value": "gpt-5.6-sol via the jcode harness, default reasoning effort",
+        "observed_how": "read from the session metadata of the sessions that performed the work"
+      },
+      {
+        "kind": "harness",
+        "value": "jcode v0.84.0 (57d587899)",
+        "observed_how": "reported by the running harness in the session context header"
+      },
+      {
+        "kind": "acceptance_grader",
+        "value": "the project's own cargo test suite plus mozak's contract validation routes",
+        "observed_how": "the commands were run in the sessions and their receipts are in the commit history"
+      },
+      {
+        "kind": "execution_environment",
+        "value": "Acer Nitro AN515-55, Intel i5-10300H, 15.4 GiB RAM, Linux x86_64, no container",
+        "observed_how": "read from the host at the time of recording"
+      },
+      {
+        "kind": "surrounding_tools",
+        "value": "git, cargo, python3, the mozak CLI itself, and the adapter scripts under scripts/adapters",
+        "observed_how": "the tools invoked are visible in the session transcripts and the commit history"
+      }
+    ],
+    "residual_variance": {
+      "sources": [
+        {
+          "source": "Model sampling. The same agent under the same conditions does not produce the same sequence of actions, so which defects were noticed and in what order is not repeatable.",
+          "affected_observation_ids": [
+            "C-001",
+            "C-002",
+            "C-003",
+            "C-004",
+            "C-005",
+            "C-006"
+          ]
+        },
+        {
+          "source": "Session ordering. The work spanned multiple sessions whose order imposed an implicit curriculum, so later observations were made by an agent that had already read earlier context.",
+          "affected_observation_ids": [
+            "C-007",
+            "C-008",
+            "C-009",
+            "C-010",
+            "C-011"
+          ]
+        },
+        {
+          "source": "Upstream sources. The adapter runs read live external repositories, so a rerun at a different time observes different records even under identical settings.",
+          "affected_observation_ids": [
+            "C-009",
+            "C-010"
+          ]
+        }
+      ]
+    }
+  },
+  "method": {
+    "rigor": [
+      "baseline_pinned",
+      "layered_acceptance",
+      "mutation_tested"
+    ],
+    "review": "self_review",
+    "notes": "Rigor markers claim only what applies: the baseline revision bbdfabf was pinned before evaluation, and acceptance was exercised at unit, integration, live-source and CI layers. mutation_tested is deliberately absent because no defects were injected, so the suite's sensitivity is unmeasured and 277 passing tests is a count rather than a strength. Facts were taken from the repository itself rather than from recollection: commit count, test counts, plan lineage depth and accepted-input count were all read from the working tree at the final revision. Each defect claim below is traceable to a commit body in the range bbdfabf..ab8b043 that describes it, so the claim can be checked against what was actually written at the time. The subject of this case is MOZAK's own development, and the record was produced by the same agent that performed that development. That is a self-assessment, not an independent review, and is the single largest limitation here. Re-recorded at contract version 2. The performer and evaluator are named and are the same actor, which is why review remains self_review: the v2 contract refuses an independent claim under those conditions. The conditions the work ran under and the variance surviving them are now recorded rather than left implicit. The version 1 record at .mozak/research/runs/2026-09-07-mozak-self-development-case/case.json is unchanged and remains the original sealed observation. Mutation tested after the fact: 23 defects were injected one at a time, 11 into the v2 case rules against this record, 5 into the Lab contract against the real full-text run, and 7 into the diagram sources, and all 23 were refused while every unmutated baseline stayed valid. Each probe set is rerunnable, in the place its evidence lives: the case-record probes are cargo tests (crates/mozak-core/tests/case_record_mutations.rs), the diagram probes run through scripts/check-diagrams.sh, and the Lab probes run through scripts/check-kb.sh in the knowledge base, because the real Lab runs are recorded there rather than in this source tree and a cargo test cannot reach across repositories. An earlier claim that all three were cargo tests was wrong and is corrected here. This measures that the new checks discriminate, not that the underlying knowledge is correct.",
+    "performed_by": "jcode agent session (gpt-5.6-sol), operated by pitfa",
+    "evaluated_by": "jcode agent session (gpt-5.6-sol), operated by pitfa",
+    "mutation_count": 23,
+    "mutations_caught": 23
+  },
+  "observations": [
+    {
+      "id": "C-001",
+      "observation": "Eighteen commits landed between bbdfabf and ab8b043, each carrying a plan-recorded goal or a defect it resolved.",
+      "significance": "The work was traceable to accepted state rather than accumulating as undocumented change.",
+      "locator": "git log bbdfabf..ab8b043",
+      "measured": true
+    },
+    {
+      "id": "C-002",
+      "observation": "The accepted plan advanced from version 6 to version 12, and twelve plan files now exist in a single superseding lineage with no version presented as current while superseded.",
+      "significance": "MOZAK's own supersession rule held under sustained real use rather than only in tests.",
+      "locator": ".mozak/planning/plans/, project overview latest_valid_plan",
+      "measured": true
+    },
+    {
+      "id": "C-003",
+      "observation": "Requiring a new retention field on accepted inputs at contract version 1 would have invalidated sealed releases in the external Example Alpha project, which pins accepted-input bytes inside published accepted state.",
+      "significance": "The immutability rule caught a change that would have silently broken published history in a different repository. This was found by checking whether the pinned bytes were referenced, not by a test.",
+      "locator": "commit 4444444 body; example-alpha/.mozak/releases/example-alpha-pf-0008-accepted-state-v1.json",
+      "measured": true
+    },
+    {
+      "id": "C-004",
+      "observation": "The first MCP registry adapter implementation stopped fetching once it had enough records and returned forty repositories all named ai.a*, because the registry paginates by name rather than by date, while reporting them as the newest tooling.",
+      "significance": "A fixture-only test would have passed. The defect was visible only because the adapter was run against the live registry and its output was read.",
+      "locator": "commit 42f296f body; scripts/adapters/mcp_registry_fetch.py fetch_pages",
+      "measured": true
+    },
+    {
+      "id": "C-005",
+      "observation": "An attempt to improve Lab step ordering initially placed the precondition in the refresh step, which would have required owner_reviewed state before a run could begin, breaking every new run.",
+      "significance": "The defect was introduced while fixing a different defect and was caught by a probe before commit, not by review.",
+      "locator": "commit be0b541 body; crates/mozak-cli/src/lab_workflow.rs require_state",
+      "measured": true
+    },
+    {
+      "id": "C-006",
+      "observation": "The delivery acceptance test installed with automatic updates enabled and no pinned fixture, so once a real GitHub release existed the launcher updated to it mid-test and invalidated every build assertion.",
+      "significance": "A test that passed for a day became wrong the moment the system it tested started working. Test isolation failed silently until real state existed.",
+      "locator": "commit be0b541 body; scripts/test_delivery_update.py environment",
+      "measured": true
+    },
+    {
+      "id": "C-007",
+      "observation": "Two CI failures on the first push were environment-dependent rather than logic errors: an acceptance test unwrapped a sibling repository present only on the development machine, and both workflows requested a toolchain that rust-toolchain.toml overrode.",
+      "significance": "Local green did not imply reproducible green. These were only observable once CI ran on a clean checkout.",
+      "locator": "commits 2433bbc and dfa7aaa bodies; CI runs 34044644177 and 34044788718",
+      "measured": true
+    },
+    {
+      "id": "C-008",
+      "observation": "The knowledge package contract already satisfied in-toto v1's subject model, requiring immutable subjects identified by digest, while declaring none of its identifiers.",
+      "significance": "An external standard was reachable by adding declarations rather than by redesign. This was found by reading a watched project's specification, which is the mechanism the adapter work was built to enable.",
+      "locator": "Lab run improve-5e5703d38821a0ddb8416ac3, claim-mozak-package-is-a-statement",
+      "measured": true
+    },
+    {
+      "id": "C-009",
+      "observation": "277 Rust tests and 30 Python tests pass at the final revision, with five acceptance scripts covering packaged install, delivery update and rollback, GitHub bootstrap, the self-hosted workflow, and the M0 specification.",
+      "significance": "The contracts are executable rather than documentary, which is what made the defect detections above possible.",
+      "locator": "cargo test --workspace; python3 -m unittest discover -s scripts",
+      "measured": true
+    },
+    {
+      "id": "C-010",
+      "observation": "The Self Improvement Lab had been implemented and documented but never run through its own CLI. The only run on disk was hand-written and mozak lab status rejected it.",
+      "significance": "A contract can be complete and still unexercised. Implementation and use are different states, and MOZAK's own records did not distinguish them.",
+      "locator": "commit be0b541 body; mozak-kb/runs/self-improvement-lab/2026-09-05",
+      "measured": true
+    },
+    {
+      "id": "C-011",
+      "observation": "MOZAK's accepted state had stopped at plan version 6 while adapter, Lab, Scope authoring and kb repin work existed in the repository, so its own project state was stale by four completed bodies of work.",
+      "significance": "The framework did not enforce its own use. Nothing detected that the project was out of date until it was inspected deliberately.",
+      "locator": "commit aceff97 body; plan v6 versus v7 goal list",
+      "measured": true
+    },
+    {
+      "id": "C-012",
+      "observation": "23 injected defects were refused out of 23, across three separately gated areas: 11 case-record rules probed against this record, 5 Lab contract rules probed against the real full-text run, and 7 diagram composition rules probed against the committed sources. Every unmutated baseline remained valid.",
+      "significance": "Before this, the new v2 rules and the diagram gate were supported only by tests written alongside them, which cannot distinguish a rule that fires from a rule that fires on real evidence. Injecting defects into the actual records and sources measures whether the checks discriminate. Each set is rerunnable where its evidence lives, so a later contract change that stopped refusing one of these defects would be caught rather than assumed.",
+      "locator": "crates/mozak-core/tests/case_record_mutations.rs (11 case rules), mozak-kb/scripts/lab_run_mutations.py via check-kb.sh (5 Lab rules), scripts/diagram_mutations.py via check-diagrams.sh (7 diagram rules)",
+      "measured": true
+    }
+  ],
+  "findings": [
+    {
+      "id": "F-1",
+      "summary": "Adding a required field to an accepted-state contract can invalidate sealed releases in other repositories that pin those bytes.",
+      "severity": "high",
+      "state": "closed",
+      "resolution": "Accepted input sets were versioned independently of plans, v1 remains readable, and only v2 requires retention. An undeclared legacy input is treated as a constraint, since an input that never declared its retention cannot be known safe to condense. The external project validates unchanged.",
+      "observation_ids": [
+        "C-003"
+      ]
+    },
+    {
+      "id": "F-2",
+      "summary": "An adapter can report a confidently wrong answer when the upstream ordering assumption is wrong, and fixture tests will not detect it.",
+      "severity": "high",
+      "state": "closed",
+      "resolution": "The adapter now reads the whole filtered window before selecting the newest, and a window exceeding the page ceiling records a high-impact gap stating that unread pages may contain newer entries. A regression test pins that a newest entry sorting last alphabetically is still selected first.",
+      "observation_ids": [
+        "C-004"
+      ]
+    },
+    {
+      "id": "F-3",
+      "summary": "Fixing a contract can introduce a worse defect than the one being fixed.",
+      "severity": "medium",
+      "state": "closed",
+      "resolution": "The misplaced precondition was corrected and both the ordering diagnostic and the refresh-first requirement were pinned by regression tests. The general lesson, that a probe should follow every contract change, is recorded rather than enforced.",
+      "observation_ids": [
+        "C-005"
+      ]
+    },
+    {
+      "id": "F-4",
+      "summary": "A test can silently stop testing what it claims once the system under test becomes real.",
+      "severity": "high",
+      "state": "closed",
+      "resolution": "The delivery test now strips ambient credentials, removes the GitHub CLI from discovery, and exercises the automatic-update path against a pinned fixture. Verified by rerunning with a live token exported, which previously failed.",
+      "observation_ids": [
+        "C-006"
+      ]
+    },
+    {
+      "id": "F-5",
+      "summary": "Local test success did not imply reproducible success on a clean checkout.",
+      "severity": "medium",
+      "state": "closed",
+      "resolution": "The acceptance test now reports an unobservable external subject rather than asserting the development machine's layout, and both workflows request the toolchain the repository pins.",
+      "observation_ids": [
+        "C-007"
+      ]
+    },
+    {
+      "id": "F-6",
+      "summary": "MOZAK does not enforce its own use, so its accepted state can drift far behind its repository without detection.",
+      "severity": "medium",
+      "state": "open",
+      "resolution": "Plan versions 7 through 12 brought the accepted state current, but nothing prevents the same drift recurring. No check compares repository activity against plan currency.",
+      "observation_ids": [
+        "C-011"
+      ]
+    },
+    {
+      "id": "F-7",
+      "summary": "A contract can be fully implemented, documented and tested while never having been used once.",
+      "severity": "medium",
+      "state": "open",
+      "resolution": "The Lab has now been run twice through its own contract, and both runs found real defects. Nothing distinguishes an implemented-but-unexercised contract from an exercised one in MOZAK's own reporting.",
+      "observation_ids": [
+        "C-010"
+      ]
+    },
+    {
+      "id": "F-8",
+      "summary": "This case record is a self-assessment by the agent that performed the work.",
+      "severity": "high",
+      "state": "open",
+      "resolution": "Not resolved. The observations are traceable to repository state and can be independently checked, but the selection of which observations to record, and the judgement of their significance, were made by the same party being assessed.",
+      "observation_ids": [
+        "C-001",
+        "C-009"
+      ]
+    }
+  ],
+  "calibration": {
+    "supported_claims": [
+      "MOZAK's executable contracts detected six specific defects in this period, each traceable to a commit body and to the code or artifact that changed.",
+      "The immutability rule prevented a change that would have invalidated sealed releases in a separate repository, verified by locating the pinned hashes inside published accepted state before making the change.",
+      "Running an adapter against its real source, rather than only against fixtures, was necessary to detect the pagination defect: the fixture tests passed while the output was wrong.",
+      "The plan supersession and validation rules held across six plan versions of sustained real use without producing an invalid or ambiguous lineage.",
+      "The v2 case rules, the Lab read-depth rule and the diagram composition gate each refuse the specific defect they were written for, measured by injecting 23 defects into the real records and sources with 23 refused."
+    ],
+    "unsupported_claims": [
+      "That MOZAK made this work faster. No comparable session without MOZAK was run, and no timing baseline exists.",
+      "That MOZAK made this work higher quality than an unstructured approach would have. The defects it caught are documented, but the defects an alternative approach would have caught are unknown.",
+      "That MOZAK is good, in any general sense. This record covers one project, one period, and one agent, and its author is not independent.",
+      "That 23 of 23 refusals means the checks are complete. The mutants were chosen by the same author who wrote the rules, so they probe anticipated defects and cannot measure the ones nobody thought of."
+    ],
+    "requires_comparative_evaluation": [
+      "Whether the defect detection rate reflects MOZAK's contracts or the practice of running work against real sources and probing it adversarially, which could be applied without MOZAK.",
+      "Whether accepted-state discipline pays for its overhead on a project not authored by the same person who authored the framework.",
+      "Whether a second user, with no prior context, can operate the delivery, adapter and Lab routes from documentation alone.",
+      "Whether the planning-only Lab boundary produces better outcomes than a loop permitted to implement its own findings."
+    ],
+    "limitations": [
+      "Self-assessed: the agent that performed the work also selected and interpreted the evidence.",
+      "No control: no equivalent work was attempted without MOZAK, so every comparative statement is untested.",
+      "Single project: MOZAK's contracts were exercised almost entirely against MOZAK, which is the most favourable possible subject.",
+      "Single period: eighteen commits over roughly two days, with no observation of whether these properties hold over months.",
+      "No mutation testing was performed, so the test suite's actual sensitivity is unmeasured; 277 passing tests is a count, not a strength.",
+      "Two open findings, F-6 and F-7, describe ways MOZAK failed to notice its own neglect, and both were found by inspection rather than by any MOZAK check.",
+      "Re-recorded at contract version 2 by the same agent lineage that performed the work and wrote the version 1 record. The conditions and residual variance added here were reconstructed from session metadata and the commit history at recording time, not captured while the work ran.",
+      "The mutation set was authored by the same agent that wrote the rules being tested, so it measures internal consistency rather than independent adequacy. A defect class absent from the mutant list is untested, not absent.",
+      "The Lab and diagram probes are scripts rather than cargo tests, so they are not run by `cargo test` and can rot unless check-kb.sh and check-diagrams.sh are actually invoked. Only the 11 case-record probes are enforced by the ordinary test run."
+    ],
+    "generality": "single_case",
+    "inconclusive_claims": [
+      {
+        "claim": "That MOZAK's contracts would catch a comparable defect in a project other than MOZAK itself.",
+        "what_was_checked": "Every defect detection in this window was traced to the commit body describing it, and each occurred inside MOZAK.",
+        "missing_evidence": "No defect of a comparable class arose in an external project during the window, so the contracts were never exercised against one. This is not evidence that they would fail there, and it is not evidence that they would succeed."
+      },
+      {
+        "claim": "That the in-toto projection makes a sealed package verifiable by tooling outside MOZAK.",
+        "what_was_checked": "Subject digests were recomputed independently and matched the package's pinned hashes.",
+        "missing_evidence": "No third-party in-toto verifier consumed the output, and the recomputation script was written in the same session, so external interpretability is checked only against itself."
+      }
+    ]
+  },
+  "derived_proposals": [
+    {
+      "id": "P-1",
+      "text": "Add a check that compares repository activity against accepted-plan currency, so plan drift is reported rather than discovered by inspection. Rationale: F-6 shows the framework does not enforce its own use, and the drift persisted across four completed bodies of work before anyone looked.",
+      "observation_ids": [
+        "C-011"
+      ],
+      "priority": 30
+    },
+    {
+      "id": "P-2",
+      "text": "Distinguish an implemented contract from an exercised one in project reporting, for example by recording whether a route has ever completed a real run. Rationale: F-7 shows the Lab was complete and unused, and using it immediately found defects that its own tests had not.",
+      "observation_ids": [
+        "C-010"
+      ],
+      "priority": 40
+    },
+    {
+      "id": "P-3",
+      "text": "Require that a new adapter be exercised against its real source before its goal can be marked complete, not only against fixtures. Rationale: C-004 is the clearest evidence in this record: the fixture suite passed while the adapter reported an alphabetical prefix as the newest tooling.",
+      "observation_ids": [
+        "C-004"
+      ],
+      "priority": 20
+    },
+    {
+      "id": "P-4",
+      "text": "Have an independent party, human or a separate agent with no access to this record, reproduce the observations from repository state alone. Rationale: F-8 is the binding limitation on everything else here. Without it, the supported claims remain plausible rather than established.",
+      "observation_ids": [
+        "C-001",
+        "C-009"
+      ],
+      "priority": 10
+    },
+    {
+      "id": "P-5",
+      "text": "Feed a MOZAK in-toto projection to a third-party verifier such as cosign or an in-toto policy engine and record whether it is accepted. Rationale: The interoperability claim is currently supported only by a script written alongside the projection, which is not an independent check.",
+      "observation_ids": [
+        "C-008"
+      ],
+      "priority": 50
+    },
+    {
+      "id": "P-6",
+      "text": "Run one comparable body of work without MOZAK and record its defect profile, so the efficiency and quality claims move from unsupported to measured. Rationale: Every comparative claim in this record is currently untestable, which is the difference between evidence and advocacy.",
+      "observation_ids": [
+        "C-001",
+        "C-002"
+      ],
+      "priority": 60
+    }
+  ],
+  "authority": "proposal_only"
+}

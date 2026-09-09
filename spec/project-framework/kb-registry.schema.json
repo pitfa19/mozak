@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mozak.dev/project-framework/kb-registry.schema.json",
+  "title": "MOZAK explicit KB registry",
+  "type": "object",
+  "required": ["schema_version", "registrations"],
+  "properties": {
+    "schema_version": {"enum": [1, 2]},
+    "registrations": {"type":"array","minItems":1,"items":{"type":"object","required":["id","path","scope_manifest_sha256"],"properties":{"id":{"type":"string","minLength":1},"path":{"type":"string","minLength":1},"scope_manifest_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}},"additionalProperties":false}},
+    "packages": {"type":"array","default":[],"items":{"type":"object","required":["package_id","project_id","release_id","path"],"properties":{"package_id":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$"},"project_id":{"type":"string","minLength":1},"release_id":{"type":"string","minLength":1},"path":{"type":"string","pattern":"^packages/sha256/[0-9a-f]{64}$"}},"additionalProperties":false}}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"schema_version": {"const": 1}}, "required": ["schema_version"]},
+      "then": {"properties": {"packages": {"maxItems": 0}}}
+    }
+  ],
+  "additionalProperties": false
+}

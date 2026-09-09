@@ -1,0 +1,362 @@
+{
+  "adapter": "adapter-arxiv-v1",
+  "adapter_version": "1",
+  "capability": "research_metadata_retrieval",
+  "clusters": [
+    {
+      "name": "topologies",
+      "records_kept": 20,
+      "search_query": "(cat:cs.AI OR cat:cs.CL OR cat:cs.LG OR cat:cs.SE OR cat:cs.MA) AND submittedDate:[202608280950 TO 202609040950] AND (abs:\"agent topology\" OR ti:\"agent topology\" OR abs:\"multi-agent orchestration\" OR ti:\"multi-agent orchestration\" OR abs:\"agentic workflow\" OR ti:\"agentic workflow\" OR abs:\"agent graph\" OR ti:\"agent graph\" OR abs:\"supervisor-worker\" OR ti:\"supervisor-worker\" OR abs:\"agent scheduler\" OR ti:\"agent scheduler\" OR abs:\"workflow graph\" OR ti:\"workflow graph\")",
+      "terms": [
+        "agent topology",
+        "multi-agent orchestration",
+        "agentic workflow",
+        "agent graph",
+        "supervisor-worker",
+        "agent scheduler",
+        "workflow graph"
+      ],
+      "total_matched": 20,
+      "truncated": false
+    },
+    {
+      "name": "budgets",
+      "records_kept": 54,
+      "search_query": "(cat:cs.AI OR cat:cs.CL OR cat:cs.LG OR cat:cs.SE OR cat:cs.MA) AND submittedDate:[202608280950 TO 202609040950] AND (abs:\"token budget\" OR ti:\"token budget\" OR abs:\"cost-accuracy\" OR ti:\"cost-accuracy\" OR abs:\"budget allocation\" OR ti:\"budget allocation\" OR abs:\"reasoning budget\" OR ti:\"reasoning budget\" OR abs:\"token efficiency\" OR ti:\"token efficiency\" OR abs:\"inference cost\" OR ti:\"inference cost\" OR abs:\"compute budget\" OR ti:\"compute budget\")",
+      "terms": [
+        "token budget",
+        "cost-accuracy",
+        "budget allocation",
+        "reasoning budget",
+        "token efficiency",
+        "inference cost",
+        "compute budget"
+      ],
+      "total_matched": 54,
+      "truncated": false
+    },
+    {
+      "name": "context-memory",
+      "records_kept": 34,
+      "search_query": "(cat:cs.AI OR cat:cs.CL OR cat:cs.LG OR cat:cs.SE OR cat:cs.MA) AND submittedDate:[202608280950 TO 202609040950] AND (abs:\"context compaction\" OR ti:\"context compaction\" OR abs:\"prompt cache\" OR ti:\"prompt cache\" OR abs:\"agent memory\" OR ti:\"agent memory\" OR abs:\"context management\" OR ti:\"context management\" OR abs:\"execution state\" OR ti:\"execution state\" OR abs:\"context window\" OR ti:\"context window\" OR abs:\"long-horizon agent\" OR ti:\"long-horizon agent\")",
+      "terms": [
+        "context compaction",
+        "prompt cache",
+        "agent memory",
+        "context management",
+        "execution state",
+        "context window",
+        "long-horizon agent"
+      ],
+      "total_matched": 34,
+      "truncated": false
+    },
+    {
+      "name": "skills",
+      "records_kept": 19,
+      "search_query": "(cat:cs.AI OR cat:cs.CL OR cat:cs.LG OR cat:cs.SE OR cat:cs.MA) AND submittedDate:[202608280950 TO 202609040950] AND (abs:\"agent skill\" OR ti:\"agent skill\" OR abs:\"skill library\" OR ti:\"skill library\" OR abs:\"skill evolution\" OR ti:\"skill evolution\" OR abs:\"procedural memory\" OR ti:\"procedural memory\" OR abs:\"self-improving agent\" OR ti:\"self-improving agent\" OR abs:\"skill acquisition\" OR ti:\"skill acquisition\")",
+      "terms": [
+        "agent skill",
+        "skill library",
+        "skill evolution",
+        "procedural memory",
+        "self-improving agent",
+        "skill acquisition"
+      ],
+      "total_matched": 19,
+      "truncated": false
+    },
+    {
+      "name": "containment",
+      "records_kept": 25,
+      "search_query": "(cat:cs.AI OR cat:cs.CL OR cat:cs.LG OR cat:cs.SE OR cat:cs.MA) AND submittedDate:[202608280950 TO 202609040950] AND (abs:\"guardrail\" OR ti:\"guardrail\" OR abs:\"sandboxing\" OR ti:\"sandboxing\" OR abs:\"human oversight\" OR ti:\"human oversight\" OR abs:\"agent security\" OR ti:\"agent security\" OR abs:\"agent safety\" OR ti:\"agent safety\" OR abs:\"tool misuse\" OR ti:\"tool misuse\")",
+      "terms": [
+        "guardrail",
+        "sandboxing",
+        "human oversight",
+        "agent security",
+        "agent safety",
+        "tool misuse"
+      ],
+      "total_matched": 25,
+      "truncated": false
+    },
+    {
+      "name": "harness-evidence",
+      "records_kept": 60,
+      "search_query": "(cat:cs.AI OR cat:cs.CL OR cat:cs.LG OR cat:cs.SE OR cat:cs.MA) AND submittedDate:[202608280950 TO 202609040950] AND (abs:\"agent harness\" OR ti:\"agent harness\" OR abs:\"coding agent\" OR ti:\"coding agent\" OR abs:\"agent evaluation\" OR ti:\"agent evaluation\" OR abs:\"agent benchmark\" OR ti:\"agent benchmark\" OR abs:\"software engineering agent\" OR ti:\"software engineering agent\")",
+      "terms": [
+        "agent harness",
+        "coding agent",
+        "agent evaluation",
+        "agent benchmark",
+        "software engineering agent"
+      ],
+      "total_matched": 71,
+      "truncated": true
+    }
+  ],
+  "effects": {
+    "dry_run_available": true,
+    "external_writes": [],
+    "irreversible_effects": [],
+    "mutations_performed": "none",
+    "network_used": true,
+    "owner_approval_required": false
+  },
+  "records_kept": 4,
+  "request": {
+    "categories": [
+      "cs.AI",
+      "cs.CL",
+      "cs.LG",
+      "cs.SE",
+      "cs.MA"
+    ],
+    "max_records": 250,
+    "mode": "query",
+    "search_query": "(cat:cs.AI OR cat:cs.CL OR cat:cs.LG OR cat:cs.SE OR cat:cs.MA) AND submittedDate:[202608280950 TO 202609040950] AND (abs:\"agent topology\" OR ti:\"agent topology\" OR abs:\"multi-agent orchestration\" OR ti:\"multi-agent orchestration\" OR abs:\"agentic workflow\" OR ti:\"agentic workflow\" OR abs:\"agent graph\" OR ti:\"agent graph\" OR abs:\"supervisor-worker\" OR ti:\"supervisor-worker\" OR abs:\"agent scheduler\" OR ti:\"agent scheduler\" OR abs:\"workflow graph\" OR ti:\"workflow graph\") ;; (cat:cs.AI OR cat:cs.CL OR cat:cs.LG OR cat:cs.SE OR cat:cs.MA) AND submittedDate:[202608280950 TO 202609040950] AND (abs:\"token budget\" OR ti:\"token budget\" OR abs:\"cost-accuracy\" OR ti:\"cost-accuracy\" OR abs:\"budget allocation\" OR ti:\"budget allocation\" OR abs:\"reasoning budget\" OR ti:\"reasoning budget\" OR abs:\"token efficiency\" OR ti:\"token efficiency\" OR abs:\"inference cost\" OR ti:\"inference cost\" OR abs:\"compute budget\" OR ti:\"compute budget\") ;; (cat:cs.AI OR cat:cs.CL OR cat:cs.LG OR cat:cs.SE OR cat:cs.MA) AND submittedDate:[202608280950 TO 202609040950] AND (abs:\"context compaction\" OR ti:\"context compaction\" OR abs:\"prompt cache\" OR ti:\"prompt cache\" OR abs:\"agent memory\" OR ti:\"agent memory\" OR abs:\"context management\" OR ti:\"context management\" OR abs:\"execution state\" OR ti:\"execution state\" OR abs:\"context window\" OR ti:\"context window\" OR abs:\"long-horizon agent\" OR ti:\"long-horizon agent\") ;; (cat:cs.AI OR cat:cs.CL OR cat:cs.LG OR cat:cs.SE OR cat:cs.MA) AND submittedDate:[202608280950 TO 202609040950] AND (abs:\"agent skill\" OR ti:\"agent skill\" OR abs:\"skill library\" OR ti:\"skill library\" OR abs:\"skill evolution\" OR ti:\"skill evolution\" OR abs:\"procedural memory\" OR ti:\"procedural memory\" OR abs:\"self-improving agent\" OR ti:\"self-improving agent\" OR abs:\"skill acquisition\" OR ti:\"skill acquisition\") ;; (cat:cs.AI OR cat:cs.CL OR cat:cs.LG OR cat:cs.SE OR cat:cs.MA) AND submittedDate:[202608280950 TO 202609040950] AND (abs:\"guardrail\" OR ti:\"guardrail\" OR abs:\"sandboxing\" OR ti:\"sandboxing\" OR abs:\"human oversight\" OR ti:\"human oversight\" OR abs:\"agent security\" OR ti:\"agent security\" OR abs:\"agent safety\" OR ti:\"agent safety\" OR abs:\"tool misuse\" OR ti:\"tool misuse\") ;; (cat:cs.AI OR cat:cs.CL OR cat:cs.LG OR cat:cs.SE OR cat:cs.MA) AND submittedDate:[202608280950 TO 202609040950] AND (abs:\"agent harness\" OR ti:\"agent harness\" OR abs:\"coding agent\" OR ti:\"coding agent\" OR abs:\"agent evaluation\" OR ti:\"agent evaluation\" OR abs:\"agent benchmark\" OR ti:\"agent benchmark\" OR abs:\"software engineering agent\" OR ti:\"software engineering agent\")",
+    "terms": [],
+    "window": {
+      "end": "2026-09-04T09:50:13Z",
+      "start": "2026-08-28T09:50:13Z"
+    }
+  },
+  "response_pages": [
+    "0b57e7ca9bc106196d454a0454c26d88c2b80b00a29ed7676b60e8061d39d1bc",
+    "c597a7ea381ea44391119dfd708aff7cf519eb836fffeca035af17b06f217484",
+    "9279c5bcd11751ddd4b5852e0edcb77b722318c25dfa44fdfd5b11df40f1412d",
+    "034bab38f47f34019ccbcda9e68f8c6bcf618ce6ffd1147d781786994bcc7075",
+    "c1828cc14043862198cac7811dac7aca3a54dedd0c3779e881faa20b93cdc5c3",
+    "3c5e79979bcf6fb984792b158838af786775e7a7c1ba38d9cc7ce43201639211"
+  ],
+  "run": {
+    "audit": {
+      "audited_claim_ids": [
+        "claim-inventory"
+      ],
+      "failures": []
+    },
+    "contract_version": 1,
+    "created_at": "2026-09-04T09:50:13Z",
+    "evidence": [
+      {
+        "byte_end": 75,
+        "byte_start": 0,
+        "id": "ev-0000",
+        "quote": "Measure Before You Manage: Evaluating Agent Working Memory in Coding Agents",
+        "raw_record_id": "raw-0000",
+        "stance": "context"
+      },
+      {
+        "byte_end": 109,
+        "byte_start": 0,
+        "id": "ev-0001",
+        "quote": "Agent Flight Recorder: Tamper-Evident Audit Trails with On-Chain Anchoring for Long-Horizon Tool-Using Agents",
+        "raw_record_id": "raw-0001",
+        "stance": "context"
+      },
+      {
+        "byte_end": 83,
+        "byte_start": 0,
+        "id": "ev-0002",
+        "quote": "CHIME: Credit-Aware Hierarchical Memory Evolution for Long-Horizon Agentic Planning",
+        "raw_record_id": "raw-0002",
+        "stance": "context"
+      },
+      {
+        "byte_end": 100,
+        "byte_start": 0,
+        "id": "ev-0003",
+        "quote": "JudgePanel: A Compact Judge with Panel Deliberation via Adaptive Multi-Reward Reinforcement Learning",
+        "raw_record_id": "raw-0003",
+        "stance": "context"
+      }
+    ],
+    "gaps": [
+      {
+        "description": "Term matching is literal over title and abstract, so relevant work using different vocabulary is absent from this run.",
+        "id": "gap-term-recall",
+        "impact": "medium"
+      },
+      {
+        "description": "Cluster harness-evidence matched 71 submissions and kept 60 at its cap.",
+        "id": "gap-truncated-harness-evidence",
+        "impact": "high"
+      },
+      {
+        "description": "Only titles, abstracts and metadata were retrieved. No claim here rests on a paper's full text, method or results.",
+        "id": "gap-metadata-only",
+        "impact": "medium"
+      }
+    ],
+    "pipeline": {
+      "budgets": {
+        "max_claims": 8,
+        "max_planning_inputs": 8,
+        "max_raw_bytes": 16384000,
+        "max_sources": 250
+      },
+      "id": "pipeline-arxiv-v1",
+      "output_authority": {
+        "may_mutate_accepted_plans": false,
+        "planning_inputs_are_proposals": true
+      },
+      "required_artifacts": [
+        "scope",
+        "plan",
+        "raw_records",
+        "evidence",
+        "gaps",
+        "synthesis",
+        "audit",
+        "receipt"
+      ],
+      "revision": "c3a2b43aad2fb1649295de6b0161cb0bcbcb05b9ffcf521c88054b3f6f4f6655",
+      "source_profile_id": "source-arxiv-v1",
+      "stages": [
+        {
+          "id": "stage-acquire",
+          "operation": "acquire"
+        },
+        {
+          "id": "stage-evidence",
+          "operation": "extract_evidence"
+        },
+        {
+          "id": "stage-gaps",
+          "operation": "identify_gaps"
+        },
+        {
+          "id": "stage-synthesis",
+          "operation": "synthesize"
+        },
+        {
+          "id": "stage-audit",
+          "operation": "audit"
+        },
+        {
+          "id": "stage-export",
+          "operation": "export_planning_inputs"
+        }
+      ],
+      "version": 1
+    },
+    "plan": {
+      "pipeline_id": "pipeline-arxiv-v1",
+      "source_profile_id": "source-arxiv-v1",
+      "steps": [
+        "Query the arXiv API for the requested categories and window",
+        "Store each exact response body content-addressed",
+        "Record one untrusted metadata record per submission",
+        "Cite each title by exact byte range"
+      ]
+    },
+    "raw_records": [
+      {
+        "acquired_at": "2026-09-04T09:50:13Z",
+        "content": "Measure Before You Manage: Evaluating Agent Working Memory in Coding Agents\nAgent working memory is heterogeneous. Objects such as instructions, artifacts, tool outputs, and agent-generated state play different semantic roles and exhibit different size, retention, and representation profiles. Recent work has begun to explore memory-management mechanisms that account for such heterogeneity. This work focuses on semantic heterogeneity and studies how it should shape the management and evaluation of working memory in coding agents. Across 55 archived coding-agent trajectories, we find that semantically different working-memory objects exhibit distinct retention and compression behavior. This heterogeneity motivates semantically informed memory management. We study two semantically informed strategies: an object-aware compression policy and a retrieval-based policy. Their evaluation shows that calibration gains may not transfer to held-out tasks, and that equal token budgets do not imply equal delivered context or management cost. A real-system replay further exposes serving limits that nominal budgets alone do not capture. Together, these results show why semantic structure matters for agent working memory and why evaluating memory-management strategies requires more than a nominal token budget. We organize these lessons into four levels: stored state, delivered context, management work, and task or process outcome.\nauthors: Le Chen, Zishen Wan, Baixi Sun, Xiaolong Ma, Chih-Hsuan Yang, Feng Yan, Sheng Di, Franck Cappello, Rajeev Thakur\ncategories: cs.AI\npublished: 2026-08-31T16:34:51Z\nurl: http://arxiv.org/abs/2608.31057v1\nclusters: budgets, context-memory, harness-evidence",
+        "content_sha256": "878b9c3581e82fdb58c94be7bb94a16972315d0caa4aefec1ca8270bafb924dd",
+        "id": "raw-0000",
+        "immutable": true,
+        "media_type": "text/plain",
+        "source_uri": "recorded:arxiv:2608.31057v1",
+        "trust": "untrusted_data"
+      },
+      {
+        "acquired_at": "2026-09-04T09:50:13Z",
+        "content": "Agent Flight Recorder: Tamper-Evident Audit Trails with On-Chain Anchoring for Long-Horizon Tool-Using Agents\nLong-horizon agents execute thousands of actions, resulting in sequential failures rather than isolated errors. When a coding agent deletes a production database or a prompt injection spreads across agents, the incident raises questions of causality, authority, and non-repudiable third-party verification. The Agent Flight Recorder captures each agent action as a structured, canonically serialized event binding eight semantic fields from intent through execution to provenance. Hash chaining and Merkle batching provide tamper evidence and compact inclusion proofs. For cross-organizational disputes where no party's infrastructure qualifies as neutral ground, periodic on-chain anchoring of epoch roots lets any verifier with the disclosed payload and Merkle proof check the record independently, without pre-agreeing on a trusted intermediary. The on-chain footprint is minimal: each anchor stores a 32-byte epoch root and a back-pointer, and no event content touches the chain. We evaluate the system across five cumulative ablation configurations on synthetic agent workloads. The full system adds ~48 microseconds median per-event latency and 512 bytes per event. L2 anchoring costs $2.30 per 100K events at 100-event epochs. The full integrity stack detects edit, delete, reorder, and fork tampering at 100% with zero false positives. Structured forensic queries achieve 1.0 precision on guardrail and delegation lookups where unstructured text search yields 0.013 and 0.077 respectively.\nauthors: Laurent Bindschaedler, Quentin Botha, Christoph Siebenbrunner\ncategories: cs.CR, cs.MA\npublished: 2026-09-01T22:59:08Z\nurl: http://arxiv.org/abs/2609.01931v1\nclusters: context-memory, containment, harness-evidence",
+        "content_sha256": "55c21b398814b7460a09e9290aacc0d8b4aee442ed9de57fc81a7227eeaa3c99",
+        "id": "raw-0001",
+        "immutable": true,
+        "media_type": "text/plain",
+        "source_uri": "recorded:arxiv:2609.01931v1",
+        "trust": "untrusted_data"
+      },
+      {
+        "acquired_at": "2026-09-04T09:50:13Z",
+        "content": "CHIME: Credit-Aware Hierarchical Memory Evolution for Long-Horizon Agentic Planning\nPlanning is a central capability that enables agents to decompose complex long-horizon tasks into manageable steps. Test-time search and training-based methods improve planning but incur high inference costs or require expensive training data. Self-evolving memory instead accumulates reusable experience from agent interaction outcomes into an external memory bank, so planning capability keeps improving at inference time without parameter updates. However, existing self-evolving memory methods share an inherent credit assignment problem: they rely on final task outcomes as feedback, but such outcomes conflate plan quality with execution errors and environmental factors, so the accumulated planning experience is often biased and noisy. To address this problem, we propose Credit-Aware Hierarchical Memory Evolution (CHIME), a self-evolving memory framework that maintains a separate planning bank and execution bank and follows an attribute-before-memorize principle: CHIME first attributes each task outcome to the plan, the execution, both, or neither, and then updates only the corresponding memory bank. Extensive experiments on four long-horizon agent benchmarks show that CHIME consistently outperforms state-of-the-art training-based and self-evolving memory baselines. Further analyses reveal several interesting findings. For example, CHIME accumulates effective memory with far fewer items. In addition, the learned memory values faithfully reflect downstream utility: high-quality planning memories are more valuable than execution memories. Finally, the accumulated memory effectively transfers across backbone models. Code will be released at https://github.com/ATH-MaaS/Marco-DeepResearch.\nauthors: Yongshi Ye, Tian Lan, Feihu Jiang, Muyang Ye, Bin Zhu, Qianghuai Jia, Longyue Wang, Zhao Xu, Weihua Luo, Xiaodong Shi\ncategories: cs.AI\npublished: 2026-09-02T03:59:21Z\nurl: http://arxiv.org/abs/2609.02074v1\nclusters: budgets, context-memory, harness-evidence",
+        "content_sha256": "0b07596a96b4b1573124d566a0d8f8d4db5fa8a403749e6517af33378f3610c2",
+        "id": "raw-0002",
+        "immutable": true,
+        "media_type": "text/plain",
+        "source_uri": "recorded:arxiv:2609.02074v1",
+        "trust": "untrusted_data"
+      },
+      {
+        "acquired_at": "2026-09-04T09:50:13Z",
+        "content": "JudgePanel: A Compact Judge with Panel Deliberation via Adaptive Multi-Reward Reinforcement Learning\nThe LLM-as-a-Judge paradigm has emerged as a scalable alternative to human evaluation. However, single-model judges are limited by their inherent model biases, while multi-agent evaluation protocols that mitigate this through diverse deliberation are prohibitively expensive at inference time. To this end, we propose \\textbf{\\modelname}, which equips a compact \\underline{Judge} model with multi-agent \\underline{Panel} deliberation capability. Specifically, we first train on panel deliberation traces from an ensemble of strong evaluators, capturing structured patterns of discussion, disagreement, and resolution. To further improve judgment quality beyond SFT, we introduce \\textit{AdaReward}, an adaptive multi-reward RL algorithm that dynamically rebalances reward component weights as different objectives saturate at different rates during RL training. For practical deployment, we further design a lightweight domain specialization module for rapid adaptation to new evaluation domains with few hundred labeled samples. As a result, (i) \\textit{Novel}: the first framework to equip a single compact judge with multi-agent panel deliberation capability at single-model inference cost; (ii) \\textit{Effective \\& Reliable}: JudgePanel with a 14B backbone outperforms judge-specialized models up to 70B across four evaluation benchmarks, demonstrates strong position consistency, and rapidly specializes to new domains with few hundred samples.\nauthors: Yiyue Qian, Shinan Zhang, Huan Song, Hannah Marlowe\ncategories: cs.AI\npublished: 2026-08-29T09:33:49Z\nurl: http://arxiv.org/abs/2608.29168v1\nclusters: budgets, harness-evidence",
+        "content_sha256": "a940a47f5230d33cdb10878943304a1c620c32652f9fd570c137eeaa140624ac",
+        "id": "raw-0003",
+        "immutable": true,
+        "media_type": "text/plain",
+        "source_uri": "recorded:arxiv:2608.29168v1",
+        "trust": "untrusted_data"
+      }
+    ],
+    "receipt": {
+      "adapter_id": "adapter-arxiv-v1",
+      "artifact_hash": "50c228059feb1ba223db58a86a8227703862218141e1d199949f720ad789f529",
+      "capabilities": [
+        "network_read",
+        "arxiv_api",
+        "metadata_only"
+      ],
+      "finished_at": "2026-09-04T09:50:36Z",
+      "input_hash": "2060b7c08392856b936e56f07f02880d343cee818751bb21244f4943a232f36e",
+      "pipeline_id": "pipeline-arxiv-v1",
+      "pipeline_revision": "c3a2b43aad2fb1649295de6b0161cb0bcbcb05b9ffcf521c88054b3f6f4f6655",
+      "run_id": "run-0504c2b1059e523344f0cb5b",
+      "started_at": "2026-09-04T09:50:13Z",
+      "status": "passed"
+    },
+    "run_id": "run-0504c2b1059e523344f0cb5b",
+    "scope": {
+      "excluded": [
+        "full paper text",
+        "categories not requested",
+        "submissions outside the window"
+      ],
+      "included": [
+        "arXiv API submissions in 2026-08-28T09:50:13Z to 2026-09-04T09:50:13Z",
+        "category cs.AI",
+        "category cs.CL",
+        "category cs.LG",
+        "category cs.SE",
+        "category cs.MA"
+      ],
+      "question": "Which recent submissions match the tracked agentic-systems interest clusters?"
+    },
+    "source_profile": {
+      "allowed_schemes": [
+        "recorded"
+      ],
+      "content_is_untrusted": true,
+      "id": "source-arxiv-v1",
+      "max_bytes_per_record": 65536,
+      "max_records": 250,
+      "may_authorize_actions": false,
+      "version": 1
+    },
+    "synthesis": {
+      "claims": [
+        {
+          "evidence_ids": [
+            "ev-0000",
+            "ev-0001",
+            "ev-0002",
+            "ev-0003"
+          ],
+          "id": "claim-inventory",
+          "status": "supported",
+          "text": "The arXiv API reported 189 distinct submissions across the requested clusters, and this run records 4 of them as candidate reading."
+        }
+      ],
+      "overall_claim": "supported",
+      "summary": "4 candidate submissions recorded across six interest clusters. Titles and abstracts only; relevance remains an owner judgement."
+    }
+  },
+  "topic_id": "topic-agentic-systems",
+  "total_matched": 4,
+  "truncated": false
+}

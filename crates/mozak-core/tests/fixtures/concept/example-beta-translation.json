@@ -1,0 +1,69 @@
+{
+  "contract_version": 1,
+  "id": "translation-example-beta-publish-as-commit",
+  "version": 1,
+  "concept": {
+    "id": "concept-publish-as-commit",
+    "version": 1,
+    "concept_sha256": "3856490d206cb66ad26b0d7f87ad8c3198430138cf8d9af57d322083bfb18df5"
+  },
+  "target_scope_id": "example-beta",
+  "target_revision": "2222222",
+  "assumption_checks": [
+    {
+      "assumption_id": "A-01",
+      "outcome": {
+        "kind": "holds",
+        "target_evidence_id": "T-BUILD"
+      }
+    },
+    {
+      "assumption_id": "A-02",
+      "outcome": {
+        "kind": "replaced",
+        "substitution": "The generic noreply address belonging to no account was replaced with the owner's own GitHub noreply address, which resolves to their account while keeping their real address private.",
+        "target_evidence_id": "T-AUTHOR"
+      }
+    },
+    {
+      "assumption_id": "A-03",
+      "outcome": {
+        "kind": "replaced",
+        "substitution": "PagesFunction handlers reading ctx.env were replaced with Web Request handlers on the Vercel Edge runtime reading process.env. The crypto and GitHub layers transferred unchanged because they are Web Crypto and fetch.",
+        "target_evidence_id": "T-HANDLER"
+      }
+    },
+    {
+      "assumption_id": "A-04",
+      "outcome": {
+        "kind": "rejected",
+        "rationale": "No key-value binding exists on the target host, and faking a throttle in edge memory would be worse than none because it would not survive across instances. Recorded as a real reduction in defence in depth rather than an equivalence."
+      }
+    },
+    {
+      "assumption_id": "A-05",
+      "outcome": {
+        "kind": "rejected",
+        "rationale": "The target host has no central middleware equivalent. Compensated by refusing to serve without the secret key and checking the session inline in the content handler, which mutation M7 proves fails loudly if removed."
+      }
+    }
+  ],
+  "target_evidence": [
+    {
+      "id": "T-BUILD",
+      "observation": "After the owner set the environment variables, an authenticated publish produced a commit that built and reached the live site.",
+      "locator": ".mozak/research/runs/2026-09-04-example-beta-case-study/evidence-ledger.md"
+    },
+    {
+      "id": "T-AUTHOR",
+      "observation": "A rejected publish authored noreply@users.noreply.github.com was reported by the host as 'the commit author did not have contributing access'; the commit landed on main with no deployment. After the substitution, a publish authored from the owner's account noreply address built and reached the live site.",
+      "locator": ".mozak/research/runs/2026-09-04-example-beta-case-study/evidence-ledger.md"
+    },
+    {
+      "id": "T-HANDLER",
+      "observation": "Mutation testing caught 10 of 11 injected defects with requirement-linked messages, including login bypass and a removed auth gate, confirming the ported handler logic preserves the refusal behaviour.",
+      "locator": ".mozak/research/runs/2026-09-04-example-beta-case-study/source/evaluation.md"
+    }
+  ],
+  "adoption": "qualified"
+}

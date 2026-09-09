@@ -1,0 +1,11 @@
+version: 1
+framework_contract_version: 1
+project:
+  id: mozak
+  name: MOZAK
+repository:
+  revision: d62e02b2c74f2328e58f1673a719a6e955baedf0
+owned_paths:
+  - crates
+  - scripts
+  - spec

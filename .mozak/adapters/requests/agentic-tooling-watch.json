@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "scope_id": "topic-agentic-systems",
+  "mode": "watch",
+  "max_records": 20,
+  "question": "What have the harnesses, standards and knowledge-state projects MOZAK's modules depend on released recently?",
+  "watchlist": [
+    "1jehuang/jcode",
+    "modelcontextprotocol/registry",
+    "modelcontextprotocol/modelcontextprotocol",
+    "anthropics/skills",
+    "openai/codex",
+    "getzep/graphiti",
+    "topoteretes/cognee",
+    "in-toto/in-toto",
+    "sigstore/sigstore",
+    "deeplethe/utopia",
+    "Imbad0202/academic-research-skills"
+  ]
+}

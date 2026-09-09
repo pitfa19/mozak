@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mozak.dev/spec/m0/event.schema.json",
+  "title": "MOZAK M0 append-only event",
+  "type": "object",
+  "required": ["id", "type", "actor", "transaction_time", "generation", "payload"],
+  "properties": {
+    "id": {"type": "string", "pattern": "^evt_[a-z0-9_]+$"},
+    "type": {"type": "string", "enum": ["snapshot_created", "source_availability_changed", "claim_proposed", "claim_accepted", "claim_disputed", "claim_superseded", "claim_retracted", "decision_accepted", "patch_rejected"]},
+    "actor": {"type": "string", "minLength": 1},
+    "transaction_time": {"type": "string", "format": "date-time"},
+    "generation": {"type": "integer", "minimum": 1},
+    "base_generation": {"type": "integer", "minimum": 0},
+    "payload": {"type": "object"}
+  },
+  "allOf": [
+    {"if": {"properties": {"type": {"const": "snapshot_created"}}}, "then": {"properties": {"payload": {"$ref": "#/$defs/snapshotPayload"}}}},
+    {"if": {"properties": {"type": {"const": "source_availability_changed"}}}, "then": {"properties": {"payload": {"$ref": "#/$defs/availabilityPayload"}}}},
+    {"if": {"properties": {"type": {"enum": ["claim_accepted", "decision_accepted"]}}}, "then": {"properties": {"payload": {"$ref": "#/$defs/acceptPayload"}}}},
+    {"if": {"properties": {"type": {"const": "claim_proposed"}}}, "then": {"properties": {"payload": {"$ref": "#/$defs/proposalPayload"}}}},
+    {"if": {"properties": {"type": {"const": "claim_disputed"}}}, "then": {"properties": {"payload": {"$ref": "#/$defs/disputePayload"}}}},
+    {"if": {"properties": {"type": {"const": "claim_superseded"}}}, "then": {"properties": {"payload": {"$ref": "#/$defs/supersedePayload"}}}},
+    {"if": {"properties": {"type": {"const": "claim_retracted"}}}, "then": {"properties": {"payload": {"$ref": "#/$defs/retractPayload"}}}},
+    {"if": {"properties": {"type": {"const": "patch_rejected"}}}, "then": {"required": ["base_generation"], "properties": {"payload": {"$ref": "#/$defs/rejectPayload"}}}}
+  ],
+  "$defs": {
+    "evidence": {
+      "type": "object",
+      "required": ["snapshot_id", "snapshot_hash", "span", "stance"],
+      "properties": {
+        "snapshot_id": {"type": "string", "pattern": "^snp_[a-z0-9_]+$"},
+        "snapshot_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "span": {"type": "object", "required": ["kind", "start", "end"], "properties": {"kind": {"type": "string", "enum": ["byte", "character", "line", "page", "field"]}, "start": {"type": "integer", "minimum": 0}, "end": {"type": "integer", "minimum": 1}}, "additionalProperties": false},
+        "stance": {"type": "string", "enum": ["supports", "opposes", "context"]}
+      },
+      "additionalProperties": false
+    },
+    "claim": {
+      "type": "object",
+      "required": ["id", "label", "statement", "scope", "kind", "evidence"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^clm_[a-z0-9_]+$"},
+        "label": {"type": "string", "minLength": 1},
+        "statement": {"type": "object", "required": ["subject", "predicate", "object"], "properties": {"subject": {"type": "string"}, "predicate": {"type": "string"}, "object": {}}, "additionalProperties": false},
+        "scope": {"type": "string", "minLength": 1},
+        "kind": {"type": "string", "enum": ["fact", "decision", "assumption"]},
+        "valid_from": {"type": ["string", "null"], "format": "date-time"},
+        "valid_to": {"type": ["string", "null"], "format": "date-time"},
+        "conditions": {"type": "object"},
+        "provenance_root": {"type": "string"},
+        "dependencies": {"type": "array", "items": {"type": "string"}},
+        "evidence": {"type": "array", "items": {"$ref": "#/$defs/evidence"}}
+      },
+      "additionalProperties": false
+    },
+    "snapshot": {
+      "type": "object",
+      "required": ["id", "url", "content_hash", "availability"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^snp_[a-z0-9_]+$"},
+        "url": {"type": "string", "minLength": 1},
+        "content_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "availability": {"type": "string", "enum": ["available", "unreachable", "deleted"]}
+      },
+      "additionalProperties": false
+    },
+    "snapshotPayload": {"type": "object", "required": ["snapshot"], "properties": {"snapshot": {"$ref": "#/$defs/snapshot"}}, "additionalProperties": false},
+    "availabilityPayload": {"type": "object", "required": ["snapshot_id", "availability"], "properties": {"snapshot_id": {"type": "string", "pattern": "^snp_[a-z0-9_]+$"}, "availability": {"type": "string", "enum": ["unreachable", "deleted"]}}, "additionalProperties": false},
+    "acceptPayload": {"type": "object", "required": ["claim"], "properties": {"claim": {"$ref": "#/$defs/claim"}, "supersedes": {"type": "string", "pattern": "^clm_[a-z0-9_]+$"}}, "additionalProperties": false},
+    "proposalPayload": {"type": "object", "required": ["claim"], "properties": {"claim": {"$ref": "#/$defs/claim"}, "quarantined": {"type": "boolean"}, "quarantine_reason": {"type": "string"}}, "dependentRequired": {"quarantined": ["quarantine_reason"]}, "additionalProperties": false},
+    "disputePayload": {"type": "object", "required": ["conflict_id", "claims"], "properties": {"conflict_id": {"type": "string", "pattern": "^cnf_[a-z0-9_]+$"}, "claims": {"type": "array", "minItems": 2, "items": {"$ref": "#/$defs/claim"}}}, "additionalProperties": false},
+    "supersedePayload": {"type": "object", "required": ["prior_claim_id", "claim"], "properties": {"prior_claim_id": {"type": "string", "pattern": "^clm_[a-z0-9_]+$"}, "claim": {"$ref": "#/$defs/claim"}}, "additionalProperties": false},
+    "retractPayload": {"type": "object", "required": ["claim_id", "reason"], "properties": {"claim_id": {"type": "string", "pattern": "^clm_[a-z0-9_]+$"}, "reason": {"type": "string", "minLength": 1}}, "additionalProperties": false},
+    "rejectPayload": {"type": "object", "required": ["proposal", "reason"], "properties": {"proposal": {"$ref": "#/$defs/claim"}, "reason": {"type": "string", "const": "stale_base_generation"}}, "additionalProperties": false}
+  },
+  "additionalProperties": false
+}

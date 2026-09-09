@@ -1,0 +1,971 @@
+//! Planning-only Self Improvement Lab contracts.
+//!
+//! The Lab never edits MOZAK. It records an evidence-complete path from a
+//! scoped improvement question to reviewable implementation plans, and refuses
+//! to advance past owner review.
+//!
+//! # Why the run stops at owner review
+//!
+//! The boundary is not caution for its own sake; it is what the published
+//! measurement of self-improving agents supports. Ye et al., *On the Fragility
+//! of Self-Improving Agents: Variance, Task Order, and Underspecification*
+//! (arXiv:2608.18066), re-evaluated memory-based self-improving agents across
+//! multiple runs and shuffled task orders and reported three findings that bear
+//! directly on this contract:
+//!
+//! - Agent evaluation is inherently noisy on complex multi-step tasks, and
+//!   stacking a self-improving loop on top can further amplify that noise. A
+//!   Lab that applied its own findings would therefore be acting on a signal
+//!   it cannot yet distinguish from variance.
+//! - Improvement depends heavily on task order, and default orderings impose an
+//!   implicit curriculum that acts as a hidden prerequisite for success. The
+//!   order in which a Lab happened to read its sources is exactly such a hidden
+//!   prerequisite.
+//! - The authors' findings on underspecification call for systems and
+//!   interfaces that enable effective human oversight, preventing agents from
+//!   failing in unforeseeable ways. Stopping at owner review is that interface.
+//!
+//! Recorded limitations of this justification, so it can be judged rather than
+//! deferred to: the claims above were read from the paper's abstract, not its
+//! full text; the subject is agents that rewrite their own textual memory from
+//! a task stream, which is adjacent to but not identical with a planning-only
+//! lab that writes no memory and changes no code; and the paper reports that
+//! significant unexplained fragility remains after better specification, so its
+//! own account is incomplete. This evidence supports keeping the stop; it does
+//! not establish that a stop is sufficient for safety.
+//!
+//! Read through the Lab's own contract on 2026-09-06 in run
+//! `improve-b1805c3b0f1488a48af592cc` as `claim-self-improvement-noise`,
+//! `claim-task-order-dependence`, and `claim-underspecification-oversight`.
+
+use crate::canonical_hash;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use std::collections::{BTreeMap, BTreeSet};
+use std::fmt::{Display, Formatter, Write as _};
+
+/// Contract version for every Lab artifact.
+pub const CONTRACT_VERSION: u32 = 1;
+
+/// Deterministic Lab failure.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LabError(pub String);
+
+impl Display for LabError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl std::error::Error for LabError {}
+
+fn require(condition: bool, message: &str) -> Result<(), LabError> {
+    if condition {
+        Ok(())
+    } else {
+        Err(LabError(message.to_owned()))
+    }
+}
+
+fn require_filled(value: &str, label: &str) -> Result<(), LabError> {
+    require(
+        !value.trim().is_empty(),
+        &format!("{label} must not be empty"),
+    )
+}
+
+/// A MOZAK module, and the improvement target that governs it.
+///
+/// This list is the architecture and the Lab target list at the same time, so
+/// the number of modules MOZAK claims is always the number `mozak lab modules`
+/// returns. Adding a module here adds an improvement surface for it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Module {
+    Scope,
+    Research,
+    Plans,
+    MetaKb,
+    ImproveLab,
+    Skill,
+}
+
+impl Module {
+    /// Every MOZAK module, which is also every addressable improvement target.
+    #[must_use]
+    pub const fn all() -> [Self; 6] {
+        [
+            Self::Scope,
+            Self::Research,
+            Self::Plans,
+            Self::MetaKb,
+            Self::ImproveLab,
+            Self::Skill,
+        ]
+    }
+
+    /// Stable identifier used on the command line and in artifacts.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Scope => "scope",
+            Self::Research => "research",
+            Self::Plans => "plans",
+            Self::MetaKb => "meta-kb",
+            Self::ImproveLab => "improve-lab",
+            Self::Skill => "skill",
+        }
+    }
+
+    /// One sentence naming the boundary this module owns.
+    #[must_use]
+    pub const fn summary(self) -> &'static str {
+        match self {
+            Self::Scope => {
+                "The container for work: a Topic you study or a Project you change, holding hashed immutable inputs."
+            }
+            Self::Research => {
+                "Bounded observation of the outside world or of your own finished work. Output is always proposal-only."
+            }
+            Self::Plans => {
+                "Accepted inputs, the goal DAG derived from them, execution, and the sealed package finished work becomes."
+            }
+            Self::MetaKb => {
+                "Everything that crosses projects: what is registered, how projects relate, and which mechanisms generalise."
+            }
+            Self::ImproveLab => {
+                "An improvement question turned into reviewable plans. Stops at owner review."
+            }
+            Self::Skill => {
+                "How MOZAK reaches you: which request maps to which route, the shape of the answer, and installation."
+            }
+        }
+    }
+
+    /// MOZAK source areas each module governs.
+    #[must_use]
+    pub const fn source_areas(self) -> &'static [&'static str] {
+        match self {
+            Self::Scope => &["scope.rs", "project_contract.rs", "project_context.rs"],
+            Self::Research => &[
+                "research.rs",
+                "adapter_workflow.rs",
+                "landmark.rs",
+                "case_study.rs",
+            ],
+            Self::Plans => &[
+                "planning.rs",
+                "execution.rs",
+                "project_release.rs",
+                "knowledge_package.rs",
+                "attestation.rs",
+            ],
+            Self::MetaKb => &["kb.rs", "meta_kb.rs", "concept.rs", "package_import.rs"],
+            Self::ImproveLab => &["lab.rs"],
+            Self::Skill => &["distribution.rs"],
+        }
+    }
+
+    /// Resolves a module identifier.
+    ///
+    /// # Errors
+    /// Returns an error when the identifier is not a known module.
+    pub fn parse(value: &str) -> Result<Self, LabError> {
+        Self::all()
+            .into_iter()
+            .find(|module| module.as_str() == value)
+            .ok_or_else(|| {
+                let known = Self::all()
+                    .iter()
+                    .map(|module| module.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                LabError(format!(
+                    "unknown module '{value}'; expected one of: {known}"
+                ))
+            })
+    }
+}
+
+/// Lifecycle position of a planning-only improvement run.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RunState {
+    Requested,
+    LiteratureRefreshed,
+    PapersSelected,
+    PapersRead,
+    MechanismsExtracted,
+    ImplementationPlansProposed,
+    OwnerReviewed,
+}
+
+impl RunState {
+    /// Stable identifier for the state.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Requested => "requested",
+            Self::LiteratureRefreshed => "literature_refreshed",
+            Self::PapersSelected => "papers_selected",
+            Self::PapersRead => "papers_read",
+            Self::MechanismsExtracted => "mechanisms_extracted",
+            Self::ImplementationPlansProposed => "implementation_plans_proposed",
+            Self::OwnerReviewed => "owner_reviewed",
+        }
+    }
+
+    /// The state that must already be recorded before this one.
+    #[must_use]
+    pub const fn predecessor(self) -> Option<Self> {
+        match self {
+            Self::Requested => None,
+            Self::LiteratureRefreshed => Some(Self::Requested),
+            Self::PapersSelected => Some(Self::LiteratureRefreshed),
+            Self::PapersRead => Some(Self::PapersSelected),
+            Self::MechanismsExtracted => Some(Self::PapersRead),
+            Self::ImplementationPlansProposed => Some(Self::MechanismsExtracted),
+            Self::OwnerReviewed => Some(Self::ImplementationPlansProposed),
+        }
+    }
+
+    /// Whether the planning-only lifecycle ends here.
+    #[must_use]
+    pub const fn is_terminal(self) -> bool {
+        matches!(self, Self::OwnerReviewed)
+    }
+}
+
+/// Recorded transition into a state.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct Transition {
+    pub state: RunState,
+    pub actor: String,
+    pub at: String,
+    pub input_hash: String,
+}
+
+/// Durable state of one improvement run.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct RunLedger {
+    pub contract_version: u32,
+    pub run_id: String,
+    pub scope_id: String,
+    pub module: Module,
+    pub state: RunState,
+    pub stop_at: RunState,
+    pub transitions: Vec<Transition>,
+    #[serde(default)]
+    pub seen_sources: BTreeMap<String, String>,
+}
+
+/// The scoped improvement question and its authorized boundaries.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ImproveRequest {
+    pub contract_version: u32,
+    pub run_id: String,
+    pub scope_id: String,
+    pub module: Module,
+    pub question: String,
+    #[serde(default)]
+    pub constraints: Vec<String>,
+    pub adapter_bindings: Vec<String>,
+    pub stop_at: RunState,
+    pub created_at: String,
+}
+
+/// A candidate paper discovered through an adapter run.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct Candidate {
+    pub paper_id: String,
+    pub title: String,
+    pub source_uri: String,
+    pub content_sha256: String,
+    #[serde(default)]
+    pub clusters: Vec<String>,
+}
+
+/// Literature refresh derived from one or more adapter runs.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct LiteratureRun {
+    pub contract_version: u32,
+    pub run_id: String,
+    pub adapter_runs: Vec<AdapterRunRef>,
+    pub candidates: Vec<Candidate>,
+    pub new_candidates: Vec<String>,
+    pub unchanged_candidates: Vec<String>,
+}
+
+/// Provenance for one adapter invocation consumed by the Lab.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct AdapterRunRef {
+    pub binding_id: String,
+    pub adapter_id: String,
+    pub adapter_run_id: String,
+    pub artifact_hash: String,
+    pub source_revision: String,
+}
+
+/// Inclusion or exclusion of a candidate, always with a reason.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct SelectionDecision {
+    pub paper_id: String,
+    pub reason: String,
+}
+
+/// Which candidates will be read, and why the rest will not.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct Selection {
+    pub contract_version: u32,
+    pub run_id: String,
+    pub included: Vec<SelectionDecision>,
+    pub excluded: Vec<SelectionDecision>,
+}
+
+/// Whether a statement came from the source or from the Lab.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ClaimOrigin {
+    SourceClaim,
+    LabInference,
+}
+
+/// How authoritative the read source is.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SourceClass {
+    PeerReviewed,
+    Preprint,
+    CuratedSecondary,
+    Documentation,
+    Unknown,
+}
+
+impl SourceClass {
+    /// Stable identifier for the source class.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::PeerReviewed => "peer_reviewed",
+            Self::Preprint => "preprint",
+            Self::CuratedSecondary => "curated_secondary",
+            Self::Documentation => "documentation",
+            Self::Unknown => "unknown",
+        }
+    }
+}
+
+/// How much of the source was actually read.
+///
+/// This is not the same question as [`PaperReading::retained_full_text`],
+/// which asks whether full text was *kept*. A reading may legitimately read
+/// everything and retain nothing; that is the intended shape. Before this
+/// distinction existed the contract recorded only the retention answer, so a
+/// reading taken entirely from an abstract was indistinguishable from a
+/// thorough one, and mechanisms rested on whichever the author happened to do.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReadDepth {
+    /// Title, abstract, or catalogue metadata only.
+    AbstractOnly,
+    /// The body of the work, so section-level locators are available.
+    FullText,
+    /// Primary documentation, a specification, or a repository read directly.
+    Documentation,
+}
+
+impl ReadDepth {
+    /// Stable identifier for the read depth.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::AbstractOnly => "abstract_only",
+            Self::FullText => "full_text",
+            Self::Documentation => "documentation",
+        }
+    }
+
+    /// Whether a reading at this depth may carry a mechanism.
+    ///
+    /// An abstract states conclusions without the design that produced them,
+    /// so it can justify selecting a paper but not transferring a mechanism
+    /// out of it.
+    #[must_use]
+    pub const fn supports_mechanism(self) -> bool {
+        matches!(self, Self::FullText | Self::Documentation)
+    }
+
+    /// The depth assumed for a reading recorded before depth was contracted.
+    ///
+    /// Older readings are labelled `abstract_only` rather than assumed
+    /// adequate. That is what they were, and it means an earlier run's
+    /// mechanisms fail this contract instead of being grandfathered past it.
+    #[must_use]
+    pub const fn assumed_for_legacy() -> Self {
+        Self::AbstractOnly
+    }
+}
+
+const fn legacy_read_depth() -> ReadDepth {
+    ReadDepth::assumed_for_legacy()
+}
+
+/// One extracted statement with its locator.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ReadClaim {
+    pub id: String,
+    pub text: String,
+    pub origin: ClaimOrigin,
+    pub locator: String,
+}
+
+/// Result of reading one selected paper.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct PaperReading {
+    pub paper_id: String,
+    pub source_class: SourceClass,
+    pub source_uri: String,
+    pub content_sha256: String,
+    /// How much of the source was read. Absent in runs recorded before the
+    /// field existed, which are therefore read as `abstract_only`.
+    #[serde(default = "legacy_read_depth")]
+    pub read_depth: ReadDepth,
+    pub claims: Vec<ReadClaim>,
+    pub limitations: Vec<String>,
+    pub retained_full_text: bool,
+}
+
+/// All readings for a run.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct Readings {
+    pub contract_version: u32,
+    pub run_id: String,
+    pub readings: Vec<PaperReading>,
+}
+
+/// A proposed MOZAK change derived from read claims.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct Mechanism {
+    pub id: String,
+    pub proposed_mechanism: String,
+    pub affected_contract: String,
+    pub expected_benefit: String,
+    pub risks: Vec<String>,
+    pub supporting_claim_ids: Vec<String>,
+}
+
+/// Mechanisms extracted for a run.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct MechanismMap {
+    pub contract_version: u32,
+    pub run_id: String,
+    pub mechanisms: Vec<Mechanism>,
+}
+
+/// A bounded, reviewable plan card.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ImplementationPlan {
+    pub id: String,
+    pub title: String,
+    pub mechanism_ids: Vec<String>,
+    pub deliverables: Vec<String>,
+    pub acceptance_checks: Vec<String>,
+    #[serde(default)]
+    pub dependencies: Vec<String>,
+}
+
+/// Plan cards proposed for owner review.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ImplementationPlans {
+    pub contract_version: u32,
+    pub run_id: String,
+    pub plans: Vec<ImplementationPlan>,
+}
+
+fn validate_version(version: u32) -> Result<(), LabError> {
+    require(
+        version == CONTRACT_VERSION,
+        "unsupported contract_version for Lab artifact",
+    )
+}
+
+fn validate_run_id(value: &str) -> Result<(), LabError> {
+    require(
+        value.starts_with("improve-") && value.len() > "improve-".len(),
+        "run_id must start with 'improve-'",
+    )
+}
+
+fn unique_ids<'a>(
+    ids: impl Iterator<Item = &'a str>,
+    label: &str,
+) -> Result<BTreeSet<String>, LabError> {
+    let mut seen = BTreeSet::new();
+    for id in ids {
+        require_filled(id, label)?;
+        require(
+            seen.insert(id.to_owned()),
+            &format!("duplicate {label}: {id}"),
+        )?;
+    }
+    Ok(seen)
+}
+
+/// Validates an improvement request.
+///
+/// # Errors
+/// Returns the first contract violation.
+pub fn validate_request(request: &ImproveRequest) -> Result<(), LabError> {
+    validate_version(request.contract_version)?;
+    validate_run_id(&request.run_id)?;
+    require_filled(&request.scope_id, "scope_id")?;
+    require_filled(&request.question, "question")?;
+    require_filled(&request.created_at, "created_at")?;
+    require(
+        !request.adapter_bindings.is_empty(),
+        "adapter_bindings must not be empty",
+    )?;
+    unique_ids(
+        request.adapter_bindings.iter().map(String::as_str),
+        "adapter binding",
+    )?;
+    require(
+        request.stop_at == RunState::OwnerReviewed,
+        "phase A runs must stop at owner_reviewed",
+    )
+}
+
+/// Validates a literature refresh and its dedup accounting.
+///
+/// # Errors
+/// Returns the first contract violation.
+pub fn validate_literature(literature: &LiteratureRun) -> Result<(), LabError> {
+    validate_version(literature.contract_version)?;
+    validate_run_id(&literature.run_id)?;
+    require(
+        !literature.adapter_runs.is_empty(),
+        "adapter_runs must not be empty",
+    )?;
+    for reference in &literature.adapter_runs {
+        require_filled(&reference.binding_id, "binding_id")?;
+        require_filled(&reference.adapter_id, "adapter_id")?;
+        require_filled(&reference.adapter_run_id, "adapter_run_id")?;
+        require_filled(&reference.artifact_hash, "artifact_hash")?;
+        require_filled(&reference.source_revision, "source_revision")?;
+    }
+    let ids = unique_ids(
+        literature.candidates.iter().map(|c| c.paper_id.as_str()),
+        "paper_id",
+    )?;
+    for candidate in &literature.candidates {
+        require_filled(&candidate.title, "candidate title")?;
+        require_filled(&candidate.source_uri, "candidate source_uri")?;
+        require_filled(&candidate.content_sha256, "candidate content_sha256")?;
+    }
+    for paper_id in literature
+        .new_candidates
+        .iter()
+        .chain(literature.unchanged_candidates.iter())
+    {
+        require(
+            ids.contains(paper_id.as_str()),
+            &format!("dedup entry references unknown paper: {paper_id}"),
+        )?;
+    }
+    require(
+        literature.new_candidates.len() + literature.unchanged_candidates.len()
+            == literature.candidates.len(),
+        "every candidate must be classified as new or unchanged",
+    )
+}
+
+/// Validates that selection covers the refreshed candidates with reasons.
+///
+/// # Errors
+/// Returns the first contract violation.
+pub fn validate_selection(
+    selection: &Selection,
+    literature: &LiteratureRun,
+) -> Result<(), LabError> {
+    validate_version(selection.contract_version)?;
+    validate_run_id(&selection.run_id)?;
+    require(
+        selection.run_id == literature.run_id,
+        "selection run_id must match the literature run",
+    )?;
+    require(
+        !selection.included.is_empty(),
+        "selection must include at least one paper",
+    )?;
+    let known = literature
+        .candidates
+        .iter()
+        .map(|candidate| candidate.paper_id.as_str())
+        .collect::<BTreeSet<_>>();
+    let mut decided = BTreeSet::new();
+    for decision in selection.included.iter().chain(selection.excluded.iter()) {
+        require_filled(&decision.reason, "selection reason")?;
+        require(
+            known.contains(decision.paper_id.as_str()),
+            &format!("selection references unknown paper: {}", decision.paper_id),
+        )?;
+        require(
+            decided.insert(decision.paper_id.as_str()),
+            &format!("paper decided twice: {}", decision.paper_id),
+        )?;
+    }
+    require(
+        decided.len() == known.len(),
+        "every refreshed candidate needs an inclusion or exclusion reason",
+    )
+}
+
+/// Validates readings, including the no-retained-full-text rule.
+///
+/// # Errors
+/// Returns the first contract violation.
+pub fn validate_readings(readings: &Readings, selection: &Selection) -> Result<(), LabError> {
+    validate_version(readings.contract_version)?;
+    validate_run_id(&readings.run_id)?;
+    require(
+        readings.run_id == selection.run_id,
+        "readings run_id must match the selection",
+    )?;
+    let included = selection
+        .included
+        .iter()
+        .map(|decision| decision.paper_id.as_str())
+        .collect::<BTreeSet<_>>();
+    let read = unique_ids(
+        readings.readings.iter().map(|r| r.paper_id.as_str()),
+        "reading paper_id",
+    )?;
+    for reading in &readings.readings {
+        require(
+            included.contains(reading.paper_id.as_str()),
+            &format!("reading for unselected paper: {}", reading.paper_id),
+        )?;
+        require(
+            !reading.retained_full_text,
+            &format!(
+                "full text must not be retained for {}; keep hashes and claims only",
+                reading.paper_id
+            ),
+        )?;
+        require_filled(&reading.content_sha256, "reading content_sha256")?;
+        require_filled(&reading.source_uri, "reading source_uri")?;
+        require(
+            !reading.claims.is_empty(),
+            &format!(
+                "reading {} must record at least one claim",
+                reading.paper_id
+            ),
+        )?;
+        for claim in &reading.claims {
+            require_filled(&claim.text, "claim text")?;
+            require_filled(&claim.locator, "claim locator")?;
+        }
+    }
+    require(
+        read.len() == included.len(),
+        "every included paper must be read before mechanism extraction",
+    )?;
+    unique_ids(
+        readings
+            .readings
+            .iter()
+            .flat_map(|reading| reading.claims.iter().map(|claim| claim.id.as_str())),
+        "claim id",
+    )?;
+    Ok(())
+}
+
+/// Validates that every mechanism is anchored in a real source claim.
+///
+/// # Errors
+/// Returns the first contract violation.
+pub fn validate_mechanisms(map: &MechanismMap, readings: &Readings) -> Result<(), LabError> {
+    validate_version(map.contract_version)?;
+    validate_run_id(&map.run_id)?;
+    require(
+        map.run_id == readings.run_id,
+        "mechanism map run_id must match the readings",
+    )?;
+    require(
+        !map.mechanisms.is_empty(),
+        "mechanism map must not be empty",
+    )?;
+    let origins = readings
+        .readings
+        .iter()
+        .flat_map(|reading| {
+            reading
+                .claims
+                .iter()
+                .map(|claim| (claim.id.as_str(), (claim.origin, reading.read_depth)))
+        })
+        .collect::<BTreeMap<_, _>>();
+    unique_ids(map.mechanisms.iter().map(|m| m.id.as_str()), "mechanism id")?;
+    for mechanism in &map.mechanisms {
+        require_filled(&mechanism.proposed_mechanism, "proposed_mechanism")?;
+        require_filled(&mechanism.affected_contract, "affected_contract")?;
+        require_filled(&mechanism.expected_benefit, "expected_benefit")?;
+        require(
+            !mechanism.risks.is_empty(),
+            &format!("mechanism {} must state at least one risk", mechanism.id),
+        )?;
+        require(
+            !mechanism.supporting_claim_ids.is_empty(),
+            &format!("mechanism {} must cite supporting claims", mechanism.id),
+        )?;
+        let mut has_source_claim = false;
+        let mut has_deep_source_claim = false;
+        for claim_id in &mechanism.supporting_claim_ids {
+            let (origin, depth) = origins.get(claim_id.as_str()).ok_or_else(|| {
+                LabError(format!(
+                    "mechanism {} cites unknown claim {claim_id}",
+                    mechanism.id
+                ))
+            })?;
+            if *origin == ClaimOrigin::SourceClaim {
+                has_source_claim = true;
+                if depth.supports_mechanism() {
+                    has_deep_source_claim = true;
+                }
+            }
+        }
+        require(
+            has_source_claim,
+            &format!(
+                "mechanism {} rests only on Lab inference; cite at least one source claim",
+                mechanism.id
+            ),
+        )?;
+        // An abstract reports what a paper concluded, not the design that
+        // produced it. Transferring a mechanism out of one means copying a
+        // summary of a method rather than the method.
+        require(
+            has_deep_source_claim,
+            &format!(
+                "mechanism {} rests only on abstract-only reading; read the full text before proposing it",
+                mechanism.id
+            ),
+        )?;
+    }
+    Ok(())
+}
+
+/// Validates plan cards against the mechanism map.
+///
+/// # Errors
+/// Returns the first contract violation.
+pub fn validate_plans(plans: &ImplementationPlans, map: &MechanismMap) -> Result<(), LabError> {
+    validate_version(plans.contract_version)?;
+    validate_run_id(&plans.run_id)?;
+    require(
+        plans.run_id == map.run_id,
+        "plans run_id must match the mechanism map",
+    )?;
+    require(!plans.plans.is_empty(), "plans must not be empty")?;
+    let mechanisms = map
+        .mechanisms
+        .iter()
+        .map(|mechanism| mechanism.id.as_str())
+        .collect::<BTreeSet<_>>();
+    let ids = unique_ids(plans.plans.iter().map(|plan| plan.id.as_str()), "plan id")?;
+    for plan in &plans.plans {
+        require_filled(&plan.title, "plan title")?;
+        require(
+            !plan.mechanism_ids.is_empty(),
+            &format!("plan {} must reference a mechanism", plan.id),
+        )?;
+        for mechanism_id in &plan.mechanism_ids {
+            require(
+                mechanisms.contains(mechanism_id.as_str()),
+                &format!(
+                    "plan {} references unknown mechanism {mechanism_id}",
+                    plan.id
+                ),
+            )?;
+        }
+        require(
+            !plan.deliverables.is_empty(),
+            &format!("plan {} must list deliverables", plan.id),
+        )?;
+        require(
+            plan.acceptance_checks.len() >= 2,
+            &format!("plan {} needs at least two acceptance checks", plan.id),
+        )?;
+        for dependency in &plan.dependencies {
+            require(
+                ids.contains(dependency.as_str()),
+                &format!("plan {} depends on unknown plan {dependency}", plan.id),
+            )?;
+        }
+    }
+    Ok(())
+}
+
+/// Advances the ledger, refusing out-of-order or post-terminal transitions.
+///
+/// # Errors
+/// Returns an error when the transition is not the next legal step.
+pub fn advance(
+    ledger: &mut RunLedger,
+    next: RunState,
+    actor: &str,
+    at: &str,
+    input: &Value,
+) -> Result<(), LabError> {
+    require(
+        !ledger.state.is_terminal(),
+        "run reached owner_reviewed; implementation requires a separately authorized phase",
+    )?;
+    require(
+        next <= ledger.stop_at,
+        "refusing to advance past the authorized stopping point",
+    )?;
+    let expected = next
+        .predecessor()
+        .ok_or_else(|| LabError("requested is only recorded when the run is created".to_owned()))?;
+    require(
+        ledger.state == expected,
+        &format!(
+            "cannot move to {} from {}; expected {}",
+            next.as_str(),
+            ledger.state.as_str(),
+            expected.as_str()
+        ),
+    )?;
+    require_filled(actor, "actor")?;
+    require_filled(at, "at")?;
+    let input_hash = canonical_hash(input).map_err(|error| LabError(error.to_string()))?;
+    ledger.state = next;
+    ledger.transitions.push(Transition {
+        state: next,
+        actor: actor.to_owned(),
+        at: at.to_owned(),
+        input_hash,
+    });
+    Ok(())
+}
+
+/// Splits candidates into newly seen and unchanged, then updates the ledger.
+#[must_use]
+pub fn classify_candidates(
+    ledger: &mut RunLedger,
+    candidates: &[Candidate],
+) -> (Vec<String>, Vec<String>) {
+    let mut fresh = Vec::new();
+    let mut unchanged = Vec::new();
+    for candidate in candidates {
+        let previous = ledger.seen_sources.get(&candidate.paper_id);
+        if previous.is_some_and(|hash| hash == &candidate.content_sha256) {
+            unchanged.push(candidate.paper_id.clone());
+        } else {
+            fresh.push(candidate.paper_id.clone());
+        }
+        ledger
+            .seen_sources
+            .insert(candidate.paper_id.clone(), candidate.content_sha256.clone());
+    }
+    (fresh, unchanged)
+}
+
+/// Renders the owner review packet.
+#[must_use]
+pub fn render_review(
+    request: &ImproveRequest,
+    literature: &LiteratureRun,
+    selection: &Selection,
+    readings: &Readings,
+    map: &MechanismMap,
+    plans: &ImplementationPlans,
+) -> String {
+    let mut out = String::new();
+    let _ = writeln!(out, "# Improvement review: {}\n", request.run_id);
+    let _ = writeln!(out, "- Scope: `{}`", request.scope_id);
+    let _ = writeln!(out, "- Module: `{}`", request.module.as_str());
+    let _ = writeln!(out, "- Question: {}", request.question);
+    let _ = writeln!(
+        out,
+        "- Candidates: {} ({} new, {} unchanged)",
+        literature.candidates.len(),
+        literature.new_candidates.len(),
+        literature.unchanged_candidates.len()
+    );
+    let _ = writeln!(
+        out,
+        "- Read: {} of {} selected\n",
+        readings.readings.len(),
+        selection.included.len()
+    );
+
+    let _ = writeln!(out, "## Sources read\n");
+    for reading in &readings.readings {
+        let _ = writeln!(
+            out,
+            "- `{}` ({}, {}) sha256 `{}`",
+            reading.paper_id,
+            reading.source_class.as_str(),
+            reading.read_depth.as_str(),
+            reading.content_sha256
+        );
+    }
+
+    let _ = writeln!(out, "\n## Proposed mechanisms\n");
+    for mechanism in &map.mechanisms {
+        let _ = writeln!(out, "### {}\n", mechanism.id);
+        let _ = writeln!(out, "- Change: {}", mechanism.proposed_mechanism);
+        let _ = writeln!(out, "- Contract: {}", mechanism.affected_contract);
+        let _ = writeln!(out, "- Benefit: {}", mechanism.expected_benefit);
+        let _ = writeln!(out, "- Risks: {}", mechanism.risks.join("; "));
+        let _ = writeln!(
+            out,
+            "- Support: {}\n",
+            mechanism.supporting_claim_ids.join(", ")
+        );
+    }
+
+    let _ = writeln!(out, "## Implementation plans\n");
+    for plan in &plans.plans {
+        let _ = writeln!(out, "### {} {}\n", plan.id, plan.title);
+        let _ = writeln!(out, "- Mechanisms: {}", plan.mechanism_ids.join(", "));
+        for deliverable in &plan.deliverables {
+            let _ = writeln!(out, "- Deliverable: {deliverable}");
+        }
+        for check in &plan.acceptance_checks {
+            let _ = writeln!(out, "- Check: {check}");
+        }
+        if !plan.dependencies.is_empty() {
+            let _ = writeln!(out, "- Depends on: {}", plan.dependencies.join(", "));
+        }
+        out.push('\n');
+    }
+
+    let _ = writeln!(out, "## Limitations\n");
+    for reading in &readings.readings {
+        for limitation in &reading.limitations {
+            let _ = writeln!(out, "- {}: {limitation}", reading.paper_id);
+        }
+    }
+    out.push_str(
+        "\n## Status\n\nPlanning only. No MOZAK code was changed. Implementation and promotion require explicit owner authorization.\n",
+    );
+    out
+}

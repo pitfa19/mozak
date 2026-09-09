@@ -1,0 +1,316 @@
+"""Offline tests for the arXiv adapter. No test here touches the network."""
+
+import json
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import arxiv_fetch as adapter  # noqa: E402
+
+
+def write(directory: Path, request: dict) -> Path:
+    path = directory / "request.json"
+    path.write_text(json.dumps(request))
+    return path
+
+
+BASE = {
+    "schema_version": 1,
+    "topic_id": "topic-agentic-systems",
+    "mode": "query",
+    "categories": ["cs.AI"],
+    "terms": ["agentic"],
+    "days": 7,
+    "max_records": 10,
+}
+
+
+class RequestValidation(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temp = tempfile.TemporaryDirectory()
+        self.dir = Path(self.temp.name)
+
+    def tearDown(self) -> None:
+        self.temp.cleanup()
+
+    def test_accepts_a_reviewed_request(self) -> None:
+        request = adapter.load_request(write(self.dir, BASE))
+        self.assertEqual(request["max_records"], 10)
+
+    def test_rejects_unknown_fields(self) -> None:
+        bad = dict(BASE, surprise=True)
+        with self.assertRaises(adapter.AdapterError):
+            adapter.load_request(write(self.dir, bad))
+
+    def test_rejects_query_mode_without_terms(self) -> None:
+        bad = dict(BASE)
+        bad["terms"] = []
+        with self.assertRaises(adapter.AdapterError):
+            adapter.load_request(write(self.dir, bad))
+
+    def test_rejects_a_malformed_category(self) -> None:
+        bad = dict(BASE, categories=["artificial-intelligence"])
+        with self.assertRaises(adapter.AdapterError):
+            adapter.load_request(write(self.dir, bad))
+
+    def test_rejects_an_unbounded_cap(self) -> None:
+        bad = dict(BASE, max_records=99999)
+        with self.assertRaises(adapter.AdapterError):
+            adapter.load_request(write(self.dir, bad))
+
+    def test_requires_a_topic(self) -> None:
+        bad = dict(BASE)
+        del bad["topic_id"]
+        with self.assertRaises(adapter.AdapterError):
+            adapter.load_request(write(self.dir, bad))
+
+
+class WindowAndQuery(unittest.TestCase):
+    def test_window_is_explicit_and_ordered(self) -> None:
+        start, end = adapter.resolve_window(dict(BASE))
+        self.assertLess(start, end)
+        self.assertTrue(end.endswith("Z"))
+
+    def test_reversed_explicit_window_is_refused(self) -> None:
+        request = dict(BASE)
+        request["window"] = {"start": "2026-09-04T00:00:00Z", "end": "2026-09-01T00:00:00Z"}
+        with self.assertRaises(adapter.AdapterError):
+            adapter.resolve_window(request)
+
+    def test_catchup_query_has_no_term_clause(self) -> None:
+        request = dict(BASE, mode="catchup")
+        query = adapter.build_search_query(request, "2026-09-01T00:00:00Z", "2026-09-02T00:00:00Z")
+        self.assertIn("submittedDate:[202609010000 TO 202609020000]", query)
+        self.assertNotIn("abs:", query)
+
+    def test_query_mode_matches_title_and_abstract(self) -> None:
+        query = adapter.build_search_query(
+            dict(BASE), "2026-09-01T00:00:00Z", "2026-09-02T00:00:00Z"
+        )
+        self.assertIn('abs:"agentic"', query)
+        self.assertIn('ti:"agentic"', query)
+
+
+class Effects(unittest.TestCase):
+    def test_effects_declare_read_only_network_use(self) -> None:
+        self.assertTrue(adapter.EFFECTS["network_used"])
+        self.assertTrue(adapter.EFFECTS["dry_run_available"])
+        self.assertEqual(adapter.EFFECTS["mutations_performed"], "none")
+        self.assertEqual(adapter.EFFECTS["external_writes"], [])
+        self.assertEqual(adapter.EFFECTS["irreversible_effects"], [])
+        self.assertFalse(adapter.EFFECTS["owner_approval_required"])
+
+    def test_rate_limit_respects_the_published_guidance(self) -> None:
+        self.assertGreaterEqual(adapter.MIN_REQUEST_INTERVAL_SECONDS, 3.0)
+
+
+class Canonicalization(unittest.TestCase):
+    def test_non_ascii_is_not_escaped(self) -> None:
+        # MOZAK hashes raw UTF-8, so escaping would break every artifact hash.
+        self.assertEqual(
+            adapter.canonical_json_bytes({"t": "Bézier"}), '{"t":"Bézier"}'.encode()
+        )
+
+    def test_keys_are_sorted_and_compact(self) -> None:
+        self.assertEqual(
+            adapter.canonical_json_bytes({"b": 1, "a": 2}), b'{"a":2,"b":1}'
+        )
+
+
+class FixtureShape(unittest.TestCase):
+    def build(self, total: int, entries: int) -> dict:
+        parsed = [
+            {
+                "arxiv_id": f"2609.{index:05d}v1",
+                "url": f"http://arxiv.org/abs/2609.{index:05d}v1",
+                "title": f"Paper {index}",
+                "abstract": "An abstract.",
+                "published": "2026-09-03T00:00:00Z",
+                "updated": "2026-09-03T00:00:00Z",
+                "authors": ["A. Author"],
+                "categories": ["cs.AI"],
+            }
+            for index in range(entries)
+        ]
+        return adapter.build_fixture(
+            dict(BASE),
+            "2026-09-01T00:00:00Z",
+            "2026-09-04T00:00:00Z",
+            "query",
+            total,
+            parsed,
+            ["a" * 64],
+            "2026-09-04T00:00:00Z",
+        )
+
+    def test_untruncated_run_is_supported(self) -> None:
+        fixture = self.build(total=2, entries=2)
+        self.assertFalse(fixture["truncated"])
+        self.assertEqual(fixture["run"]["synthesis"]["overall_claim"], "supported")
+        self.assertEqual(fixture["run"]["receipt"]["status"], "passed")
+
+    def test_truncated_run_is_qualified_with_a_high_impact_gap(self) -> None:
+        fixture = self.build(total=500, entries=2)
+        self.assertTrue(fixture["truncated"])
+        self.assertEqual(fixture["run"]["synthesis"]["overall_claim"], "qualified")
+        self.assertEqual(fixture["run"]["receipt"]["status"], "qualified")
+        self.assertTrue(
+            any(gap["impact"] == "high" for gap in fixture["run"]["gaps"]),
+            "truncation must be a declared high-impact gap",
+        )
+
+    def test_empty_result_fails_rather_than_claiming_nothing_exists(self) -> None:
+        fixture = self.build(total=0, entries=0)
+        self.assertEqual(fixture["run"]["synthesis"]["overall_claim"], "failed")
+
+    def test_records_are_untrusted_recorded_snapshots(self) -> None:
+        fixture = self.build(total=2, entries=2)
+        for record in fixture["run"]["raw_records"]:
+            self.assertEqual(record["trust"], "untrusted_data")
+            self.assertTrue(record["immutable"])
+            self.assertTrue(record["source_uri"].startswith("recorded:arxiv:"))
+        self.assertEqual(
+            fixture["run"]["source_profile"]["allowed_schemes"], ["recorded"]
+        )
+
+    def test_evidence_byte_range_matches_the_recorded_title(self) -> None:
+        fixture = self.build(total=2, entries=2)
+        record = fixture["run"]["raw_records"][0]
+        evidence = fixture["run"]["evidence"][0]
+        quoted = record["content"].encode()[evidence["byte_start"] : evidence["byte_end"]]
+        self.assertEqual(quoted.decode(), evidence["quote"])
+
+    def test_authority_is_proposal_only(self) -> None:
+        fixture = self.build(total=2, entries=2)
+        authority = fixture["run"]["pipeline"]["output_authority"]
+        self.assertTrue(authority["planning_inputs_are_proposals"])
+        self.assertFalse(authority["may_mutate_accepted_plans"])
+
+
+if __name__ == "__main__":
+    unittest.main()
+
+
+class Clusters(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temp = tempfile.TemporaryDirectory()
+        self.dir = Path(self.temp.name)
+        self.request = {
+            "schema_version": 1,
+            "topic_id": "topic-agentic-systems",
+            "mode": "query",
+            "categories": ["cs.AI"],
+            "clusters": [
+                {"name": "budgets", "terms": ["token budget"]},
+                {"name": "context-memory", "terms": ["prompt cache", "agent memory"]},
+            ],
+            "days": 7,
+            "max_records": 100,
+        }
+
+    def tearDown(self) -> None:
+        self.temp.cleanup()
+
+    def test_accepts_named_clusters(self) -> None:
+        request = adapter.load_request(write(self.dir, self.request))
+        self.assertEqual(len(request["clusters"]), 2)
+        self.assertEqual(request["max_records_per_cluster"], 50)
+
+    def test_rejects_mixing_flat_terms_with_clusters(self) -> None:
+        bad = dict(self.request, terms=["agentic"])
+        with self.assertRaises(adapter.AdapterError):
+            adapter.load_request(write(self.dir, bad))
+
+    def test_rejects_duplicate_and_malformed_cluster_names(self) -> None:
+        duplicate = dict(self.request)
+        duplicate["clusters"] = [
+            {"name": "budgets", "terms": ["a"]},
+            {"name": "budgets", "terms": ["b"]},
+        ]
+        with self.assertRaises(adapter.AdapterError):
+            adapter.load_request(write(self.dir, duplicate))
+        shouty = dict(self.request)
+        shouty["clusters"] = [{"name": "Budgets", "terms": ["a"]}]
+        with self.assertRaises(adapter.AdapterError):
+            adapter.load_request(write(self.dir, shouty))
+
+    def test_rejects_a_cluster_without_terms(self) -> None:
+        bad = dict(self.request)
+        bad["clusters"] = [{"name": "budgets", "terms": []}]
+        with self.assertRaises(adapter.AdapterError):
+            adapter.load_request(write(self.dir, bad))
+
+    def test_one_bounded_query_per_cluster(self) -> None:
+        request = adapter.load_request(write(self.dir, self.request))
+        queries = adapter.build_cluster_queries(
+            request, "2026-09-01T00:00:00Z", "2026-09-04T00:00:00Z"
+        )
+        self.assertEqual([q["name"] for q in queries], ["budgets", "context-memory"])
+        # Each cluster carries its own filter, so the server returns only matches.
+        self.assertIn('abs:"token budget"', queries[0]["search_query"])
+        self.assertNotIn("token budget", queries[1]["search_query"])
+        for query in queries:
+            self.assertIn("submittedDate:[202609010000 TO 202609040000]", query["search_query"])
+
+    def test_an_empty_cluster_is_reported_as_a_gap(self) -> None:
+        # A cluster matching nothing may simply use vocabulary the field does not.
+        fixture = adapter.build_fixture(
+            self.request,
+            "2026-09-01T00:00:00Z",
+            "2026-09-04T00:00:00Z",
+            "query",
+            1,
+            [
+                {
+                    "arxiv_id": "2609.00001v1",
+                    "url": "http://arxiv.org/abs/2609.00001v1",
+                    "title": "A Paper",
+                    "abstract": "An abstract.",
+                    "published": "2026-09-03T00:00:00Z",
+                    "updated": "2026-09-03T00:00:00Z",
+                    "authors": ["A. Author"],
+                    "categories": ["cs.AI"],
+                    "clusters": ["budgets"],
+                }
+            ],
+            ["a" * 64],
+            "2026-09-04T00:00:00Z",
+            clusters=[
+                {
+                    "name": "budgets",
+                    "terms": ["token budget"],
+                    "search_query": "q",
+                    "total_matched": 1,
+                    "records_kept": 1,
+                    "truncated": False,
+                },
+                {
+                    "name": "containment",
+                    "terms": ["blast radius"],
+                    "search_query": "q",
+                    "total_matched": 0,
+                    "records_kept": 0,
+                    "truncated": False,
+                },
+            ],
+        )
+        gap_ids = [gap["id"] for gap in fixture["run"]["gaps"]]
+        self.assertIn("gap-empty-containment", gap_ids)
+        self.assertNotIn("gap-empty-budgets", gap_ids)
+
+    def test_matching_clusters_are_inside_the_hashed_record(self) -> None:
+        entry = {
+            "arxiv_id": "2609.00001v1",
+            "url": "http://arxiv.org/abs/2609.00001v1",
+            "title": "A Paper",
+            "abstract": "An abstract.",
+            "published": "2026-09-03T00:00:00Z",
+            "updated": "2026-09-03T00:00:00Z",
+            "authors": ["A. Author"],
+            "categories": ["cs.AI"],
+            "clusters": ["budgets", "context-memory"],
+        }
+        text = adapter.record_text(entry)
+        self.assertIn("clusters: budgets, context-memory", text)

@@ -1,0 +1,21 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+
+# Build and temporary output
+target/
+dist/
+build/
+coverage/
+*.log
+*.tmp
+
+# Python tooling
+__pycache__/
+*.py[cod]

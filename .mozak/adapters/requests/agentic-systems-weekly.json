@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "topic_id": "topic-agentic-systems",
+  "mode": "query",
+  "categories": ["cs.AI", "cs.CL", "cs.LG", "cs.SE", "cs.MA"],
+  "terms": [
+    "agentic",
+    "agent memory",
+    "context compaction",
+    "context engineering",
+    "self-improving",
+    "long-horizon",
+    "agent harness",
+    "multi-agent orchestration",
+    "agent skill",
+    "coding agent",
+    "agent evaluation",
+    "tool use"
+  ],
+  "days": 7,
+  "max_records": 200,
+  "question": "Which recent agentic-systems submissions are candidate reading for the agentic systems topic?"
+}

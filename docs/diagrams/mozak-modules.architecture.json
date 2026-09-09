@@ -1,0 +1,295 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "MOZAK modules",
+    "output": "mozak-modules.html",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "the-six",
+        "label": "The six modules",
+        "focus": [
+          "scope",
+          "research",
+          "plans",
+          "metakb",
+          "lab",
+          "skill"
+        ],
+        "note": "MOZAK is six modules. The same six ids are what mozak lab modules returns, so the count is verifiable rather than claimed."
+      },
+      {
+        "id": "evidence-intake",
+        "label": "Evidence intake",
+        "focus": [
+          "outside",
+          "research",
+          "owner",
+          "scope"
+        ],
+        "note": "Research owns the only network boundary. Everything it records is proposal-only until an owner decision accepts it into a Scope."
+      },
+      {
+        "id": "work-and-seal",
+        "label": "Work and seal",
+        "focus": [
+          "scope",
+          "plans",
+          "metakb"
+        ],
+        "note": "A Scope's accepted inputs become a goal DAG, execution against an observed revision, and a sealed attested package the Meta KB can compose."
+      },
+      {
+        "id": "staying-current",
+        "label": "Staying current",
+        "focus": [
+          "outside",
+          "research",
+          "lab",
+          "owner"
+        ],
+        "note": "The Improve Lab reads new literature and tool releases and proposes plans for changing the other five modules. It stops at owner review."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "outside",
+      "type": "external",
+      "label": "the outside world",
+      "sublabel": "papers, releases, finished work",
+      "pos": [
+        60,
+        110
+      ],
+      "size": [
+        180,
+        64
+      ],
+      "tag": "untrusted"
+    },
+    {
+      "id": "research",
+      "type": "external",
+      "label": "Research",
+      "sublabel": "research.rs adapter_workflow.rs case_study.rs",
+      "pos": [
+        320,
+        110
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "tag": "proposal only"
+    },
+    {
+      "id": "owner",
+      "type": "messagebus",
+      "label": "owner decision",
+      "sublabel": "the only acceptance",
+      "pos": [
+        620,
+        110
+      ],
+      "size": [
+        180,
+        64
+      ],
+      "tag": "explicit"
+    },
+    {
+      "id": "scope",
+      "type": "backend",
+      "label": "Scope",
+      "sublabel": "scope.rs project_contract.rs",
+      "pos": [
+        320,
+        300
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "tag": "topic or project"
+    },
+    {
+      "id": "plans",
+      "type": "backend",
+      "label": "Plans",
+      "sublabel": "planning.rs execution.rs knowledge_package.rs",
+      "pos": [
+        620,
+        300
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "tag": "plan, execute, seal"
+    },
+    {
+      "id": "metakb",
+      "type": "database",
+      "label": "Meta KB",
+      "sublabel": "kb.rs meta_kb.rs concept.rs",
+      "pos": [
+        620,
+        490
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "tag": "never authority"
+    },
+    {
+      "id": "lab",
+      "type": "backend",
+      "label": "Improve Lab",
+      "sublabel": "lab.rs",
+      "pos": [
+        320,
+        490
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "tag": "stops at review"
+    },
+    {
+      "id": "skill",
+      "type": "frontend",
+      "label": "Skill",
+      "sublabel": "distribution.rs SKILL.md",
+      "pos": [
+        60,
+        300
+      ],
+      "size": [
+        180,
+        64
+      ],
+      "tag": "request to route"
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "owner authority required to mutate",
+      "wraps": [
+        "scope",
+        "plans",
+        "metakb"
+      ]
+    },
+    {
+      "kind": "security-group",
+      "label": "evidence stays proposal only",
+      "wraps": [
+        "research",
+        "lab"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "outside-to-research",
+      "from": "outside",
+      "to": "research",
+      "label": "recorded",
+      "variant": "emphasis"
+    },
+    {
+      "id": "research-to-owner",
+      "from": "research",
+      "to": "owner",
+      "label": "proposes"
+    },
+    {
+      "id": "owner-to-plans",
+      "from": "owner",
+      "to": "plans",
+      "label": "accepts",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 62
+    },
+    {
+      "id": "research-to-scope",
+      "from": "research",
+      "to": "scope",
+      "label": "accepted input",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 62
+    },
+    {
+      "id": "scope-to-plans",
+      "from": "scope",
+      "to": "plans",
+      "label": "plans from"
+    },
+    {
+      "id": "skill-to-scope",
+      "from": "skill",
+      "to": "scope",
+      "label": "you ask",
+      "variant": "dashed"
+    },
+    {
+      "id": "plans-to-metakb",
+      "from": "plans",
+      "to": "metakb",
+      "label": "sealed package",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 62
+    },
+    {
+      "id": "scope-to-lab",
+      "from": "scope",
+      "to": "lab",
+      "label": "refresh",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 62
+    },
+    {
+      "id": "lab-to-metakb",
+      "from": "lab",
+      "to": "metakb",
+      "label": "reviewable plans",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Six, not thirteen",
+      "items": [
+        "mozak lab modules returns these exact ids",
+        "A test asserts every core file has one owner"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Evidence",
+      "items": [
+        "Research owns the only network boundary",
+        "Lab and cases produce proposals only"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Boundaries",
+      "items": [
+        "Registration pins a location, not trust",
+        "Mutation needs owner acceptance"
+      ]
+    }
+  ]
+}

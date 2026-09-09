@@ -1,0 +1,17 @@
+{
+  "idea-duplicate-assumptions.md": "duplicate required section: Assumptions",
+  "idea-empty-boundaries.md": "required section Boundaries must contain substantive content",
+  "idea-executable-authority.md": "idea document must not claim executable authority",
+  "idea-missing-intent.md": "missing required section: Intent",
+  "idea-missing-title.md": "idea document must begin with exactly one non-empty level-one title",
+  "idea-placeholder-outcome.md": "required section Desired outcomes must contain substantive content",
+  "project-unknown-project-field.yml": "unknown field at project.description",
+  "project-unknown-top-level.yml": "unknown field at labels",
+  "project-missing-identity.yml": "missing required field: project.id",
+  "project-invalid-revision-short.yml": "repository.revision must be exactly 40 lowercase hexadecimal characters",
+  "project-invalid-revision-symbolic.yml": "repository.revision must be exactly 40 lowercase hexadecimal characters",
+  "project-path-escape.yml": "owned_paths[0] must be a normalized repository-relative path without escape",
+  "project-path-overlap.yml": "owned paths must not overlap: src and src/generated",
+  "project-unknown-version.yml": "unknown required semantics: version 2",
+  "idea-unknown-section.md": "unknown required semantics: section Deployment provider"
+}

@@ -1,0 +1,10 @@
+version: 1
+framework_contract_version: 1
+project:
+  id: portable-task-ledger
+  name: Portable task ledger
+repository:
+  revision: 4f3c2a190b8d7e6f5a4c3b2a1908172635445566
+owned_paths:
+  - src
+

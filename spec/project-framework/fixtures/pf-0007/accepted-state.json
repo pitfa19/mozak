@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "project": {"id": "mozak", "name": "MOZAK", "repository_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+  "release": {"id": "mozak-2026-09-01-1", "generated_at": "2026-09-01T10:00:00Z", "accepted_state_version": 7},
+  "accepted_findings": [
+    {"id":"finding-002","title":"Provider-neutral execution","summary":"Execution contracts do not require one agent provider.","truth_scope":"project_local","provenance":[{"id":"prov-002","uri":"repo:spec/m0/product-contract.md","sha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","locator":"lines:1-20"}],"supersedes":["finding-001"]},
+    {"id":"finding-001","title":"Initial execution finding","summary":"The first bounded execution contract was accepted.","truth_scope":"project_local","provenance":[{"id":"prov-001","uri":"repo:.mozak/planning/packets/PF-0006.json","sha256":"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc","locator":"json:$"}],"supersedes":[]}
+  ],
+  "decisions": [
+    {"id":"decision-001","title":"Release accepted state only","summary":"Raw transcripts remain outside release truth.","truth_scope":"project_local","provenance":[{"id":"prov-003","uri":"repo:.mozak/planning/packets/PF-0007.json","sha256":"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd","locator":"json:$.constraints"}],"supersedes":[]}
+  ],
+  "reusable_patterns": [
+    {"id":"pattern-001","title":"Canonical release boundary","summary":"Other projects may evaluate this pattern, but it is not their local truth.","truth_scope":"cross_project_inference","provenance":[{"id":"prov-004","uri":"repo:spec/project-framework/contract.json","sha256":"eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee","locator":"json:$.terms[28]"}],"supersedes":[]}
+  ],
+  "open_gaps": [
+    {"id":"gap-001","title":"Meta KB ingestion","summary":"Cross-project ingestion remains intentionally deferred.","truth_scope":"project_local","provenance":[{"id":"prov-005","uri":"repo:.mozak/planning/goals.json","sha256":"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff","locator":"json:$.goals[4]"}],"supersedes":[]}
+  ],
+  "implementation_state": [
+    {"id":"implementation-001","component":"project release","state":"implemented","summary":"Canonical generation and validation are available in mozak-core.","truth_scope":"project_local","provenance":[{"id":"prov-006","uri":"repo:crates/mozak-core/src/project_release.rs","sha256":"1111111111111111111111111111111111111111111111111111111111111111","locator":"symbol:generate_project_release"}],"supersedes":[]}
+  ]
+}

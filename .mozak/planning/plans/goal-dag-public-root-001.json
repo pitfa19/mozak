@@ -1,0 +1,24 @@
+{
+  "contract_version": 1,
+  "id": "plan-public-root",
+  "version": 1,
+  "input_set_id": "inputs-public-root-001",
+  "goals": [
+    {
+      "id": "prepare-privacy-safe-public-root",
+      "version": 1,
+      "title": "Prepare privacy-safe public root",
+      "status": "completed",
+      "priority": 1,
+      "input_ids": [
+        "input-public-release-boundary"
+      ],
+      "recovery_attempts": 0
+    }
+  ],
+  "dependencies": [],
+  "recovery": {
+    "max_attempts_per_goal": 2,
+    "allowed_failed_transition": "blocked"
+  }
+}

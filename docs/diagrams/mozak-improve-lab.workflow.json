@@ -1,0 +1,360 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "How the Improve Lab works",
+    "animation": "trace",
+    "quality_profile": "showcase",
+    "output": "mozak-improve-lab.html",
+    "views": [
+      {
+        "id": "ordered-run",
+        "label": "The ordered run",
+        "focus": [
+          "question",
+          "start",
+          "refresh",
+          "select",
+          "read",
+          "mechanisms",
+          "plans",
+          "review"
+        ],
+        "note": "Six steps in a fixed order, each recording an immutable transition with actor, time and input hash."
+      },
+      {
+        "id": "refusals",
+        "label": "What it refuses",
+        "focus": [
+          "outoforder",
+          "shallow",
+          "notauthorized"
+        ],
+        "note": "Every refusal leaves the run at its current state, so the owner can repair and retry."
+      },
+      {
+        "id": "the-stop",
+        "label": "The stop",
+        "focus": [
+          "plans",
+          "review",
+          "notauthorized"
+        ],
+        "note": "A completed run authorizes nothing. Implementation is a separately authorized phase."
+      }
+    ]
+  },
+  "lanes": [
+    {
+      "id": "owner",
+      "label": "Owner"
+    },
+    {
+      "id": "run",
+      "label": "Lab run"
+    },
+    {
+      "id": "evidence",
+      "label": "Evidence"
+    },
+    {
+      "id": "gates",
+      "label": "Refusals",
+      "variant": "exception"
+    }
+  ],
+  "phases": [
+    {
+      "id": "open",
+      "label": "Open",
+      "fromCol": 0,
+      "toCol": 1
+    },
+    {
+      "id": "readwork",
+      "label": "Select and read",
+      "fromCol": 2,
+      "toCol": 3,
+      "variant": "emphasis"
+    },
+    {
+      "id": "propose",
+      "label": "Propose and stop",
+      "fromCol": 4,
+      "toCol": 5,
+      "variant": "dashed"
+    }
+  ],
+  "groups": [
+    {
+      "id": "ordered",
+      "label": "Order enforced",
+      "lane": "run",
+      "fromCol": 1,
+      "toCol": 5,
+      "variant": "emphasis"
+    },
+    {
+      "id": "sources",
+      "label": "Recorded sources",
+      "lane": "evidence",
+      "fromCol": 1,
+      "toCol": 3,
+      "variant": "dashed"
+    },
+    {
+      "id": "closed",
+      "label": "Fails closed",
+      "lane": "gates",
+      "fromCol": 2,
+      "toCol": 5,
+      "variant": "security"
+    }
+  ],
+  "mainPath": [
+    "question",
+    "start",
+    "refresh",
+    "select",
+    "read",
+    "mechanisms",
+    "plans",
+    "review"
+  ],
+  "nodes": [
+    {
+      "id": "question",
+      "lane": "owner",
+      "col": 0,
+      "type": "external",
+      "label": "Question",
+      "sublabel": "one module, one scope",
+      "width": 132
+    },
+    {
+      "id": "start",
+      "lane": "run",
+      "col": 1,
+      "type": "backend",
+      "label": "start",
+      "sublabel": "requested",
+      "tag": "binding must exist",
+      "width": 124
+    },
+    {
+      "id": "select",
+      "lane": "run",
+      "col": 2,
+      "type": "backend",
+      "label": "select",
+      "sublabel": "papers_selected",
+      "tag": "reason for each",
+      "width": 124
+    },
+    {
+      "id": "read",
+      "lane": "run",
+      "col": 3,
+      "type": "backend",
+      "label": "read",
+      "sublabel": "papers_read",
+      "tag": "claims + locators",
+      "width": 124
+    },
+    {
+      "id": "mechanisms",
+      "lane": "run",
+      "col": 4,
+      "type": "backend",
+      "label": "mechanisms",
+      "sublabel": "mechanisms_extracted",
+      "tag": "must cite a source",
+      "width": 124
+    },
+    {
+      "id": "plans",
+      "lane": "run",
+      "col": 5,
+      "type": "backend",
+      "label": "plans",
+      "sublabel": "implementation_plans_proposed",
+      "width": 190
+    },
+    {
+      "id": "adapter",
+      "lane": "evidence",
+      "col": 0,
+      "type": "cloud",
+      "label": "Adapter run",
+      "sublabel": "network outside MOZAK",
+      "width": 132
+    },
+    {
+      "id": "refresh",
+      "lane": "evidence",
+      "col": 1,
+      "type": "messagebus",
+      "label": "refresh",
+      "sublabel": "literature_refreshed",
+      "tag": "new or unchanged",
+      "width": 124
+    },
+    {
+      "id": "fulltext",
+      "lane": "evidence",
+      "col": 3,
+      "type": "database",
+      "label": "Full text",
+      "sublabel": "read, never retained",
+      "width": 124
+    },
+    {
+      "id": "outoforder",
+      "lane": "gates",
+      "col": 2,
+      "type": "security",
+      "label": "Out of order",
+      "sublabel": "step skipped",
+      "width": 124
+    },
+    {
+      "id": "shallow",
+      "lane": "gates",
+      "col": 4,
+      "type": "security",
+      "label": "Abstract only",
+      "sublabel": "no full-text claim",
+      "tag": "mechanism refused",
+      "width": 124
+    },
+    {
+      "id": "notauthorized",
+      "lane": "gates",
+      "col": 5,
+      "type": "security",
+      "label": "Terminal",
+      "sublabel": "no step after review",
+      "width": 124
+    },
+    {
+      "id": "review",
+      "lane": "owner",
+      "col": 5,
+      "type": "backend",
+      "label": "review",
+      "sublabel": "owner_reviewed",
+      "tag": "owner decides",
+      "width": 132
+    }
+  ],
+  "edges": [
+    {
+      "id": "ask",
+      "from": "question",
+      "to": "start",
+      "label": "open run",
+      "variant": "emphasis"
+    },
+    {
+      "id": "ingest",
+      "from": "adapter",
+      "to": "refresh",
+      "label": "recorded run",
+      "variant": "default"
+    },
+    {
+      "id": "refresh-select",
+      "from": "refresh",
+      "to": "select",
+      "variant": "emphasis"
+    },
+    {
+      "id": "start-refresh",
+      "from": "start",
+      "to": "refresh",
+      "variant": "default"
+    },
+    {
+      "id": "select-read",
+      "from": "select",
+      "to": "read",
+      "variant": "emphasis"
+    },
+    {
+      "id": "read-source",
+      "from": "fulltext",
+      "to": "read",
+      "label": "claims only",
+      "variant": "dashed"
+    },
+    {
+      "id": "read-mech",
+      "from": "read",
+      "to": "mechanisms",
+      "variant": "emphasis"
+    },
+    {
+      "id": "mech-plans",
+      "from": "mechanisms",
+      "to": "plans",
+      "variant": "default"
+    },
+    {
+      "id": "plans-review",
+      "from": "plans",
+      "to": "review",
+      "label": "packet for review",
+      "variant": "emphasis"
+    },
+    {
+      "id": "skip-refused",
+      "from": "select",
+      "to": "outoforder",
+      "label": "refused",
+      "variant": "security",
+      "role": "error"
+    },
+    {
+      "id": "shallow-refused",
+      "from": "mechanisms",
+      "to": "shallow",
+      "label": "refused",
+      "variant": "security",
+      "role": "error"
+    },
+    {
+      "id": "after-review",
+      "from": "review",
+      "to": "notauthorized",
+      "label": "no further step",
+      "variant": "security",
+      "role": "error"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "The ordered run",
+      "items": [
+        "Six steps, fixed order",
+        "Each records actor, time, input hash"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Fails closed",
+      "items": [
+        "Lab inference alone is refused",
+        "An abstract alone is refused"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "The stop",
+      "items": [
+        "Ends at owner_reviewed",
+        "Authorizes nothing"
+      ]
+    }
+  ]
+}

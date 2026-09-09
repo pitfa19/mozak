@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mozak.dev/spec/m0/statement.schema.json",
+  "title": "MOZAK M0 statement",
+  "type": "object",
+  "required": ["id", "form", "subject", "predicate", "arguments", "scope", "valid_time"],
+  "properties": {
+    "id": {"type": "string", "pattern": "^stm_[a-z0-9_]+$"},
+    "form": {"type": "string", "enum": ["binary", "nary"]},
+    "subject": {"type": "string", "minLength": 1},
+    "predicate": {"type": "string", "minLength": 1},
+    "object": {},
+    "arguments": {
+      "type": "object",
+      "propertyNames": {"pattern": "^[a-z][a-z0-9_]*$"},
+      "additionalProperties": true
+    },
+    "scope": {"type": "string", "minLength": 1},
+    "valid_time": {"$ref": "temporal.schema.json#/$defs/validTime"}
+  },
+  "allOf": [
+    {"if": {"properties": {"form": {"const": "binary"}}}, "then": {"required": ["object"]}},
+    {"if": {"properties": {"form": {"const": "nary"}}}, "then": {"properties": {"arguments": {"minProperties": 1}}}}
+  ],
+  "additionalProperties": false
+}

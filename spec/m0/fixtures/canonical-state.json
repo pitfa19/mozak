@@ -1,0 +1,1921 @@
+[
+  {
+    "id": "fx_01_original_source_correction",
+    "case": "original_source_correction",
+    "description": "The original source corrects a previously accepted value.",
+    "events": [
+      {
+        "id": "evt_01_01",
+        "type": "snapshot_created",
+        "actor": "m0_fixture",
+        "transaction_time": "2026-01-01T00:00:00Z",
+        "generation": 1,
+        "payload": {
+          "snapshot": {
+            "id": "snp_correction",
+            "url": "https://example.test/correction",
+            "content_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "availability": "available"
+          }
+        }
+      },
+      {
+        "id": "evt_01_02",
+        "type": "claim_accepted",
+        "actor": "m0_fixture",
+        "transaction_time": "2026-01-02T00:00:00Z",
+        "generation": 2,
+        "payload": {
+          "claim": {
+            "id": "clm_original_value",
+            "label": "original_value",
+            "statement": {
+              "subject": "subject",
+              "predicate": "has_value",
+              "object": "old"
+            },
+            "scope": "global",
+            "kind": "fact",
+            "evidence": [
+              {
+                "snapshot_id": "snp_correction",
+                "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "span": {
+                  "kind": "character",
+                  "start": 0,
+                  "end": 10
+                },
+                "stance": "supports"
+              }
+            ]
+          }
+        },
+        "base_generation": 1
+      },
+      {
+        "id": "evt_01_03",
+        "type": "claim_superseded",
+        "actor": "m0_fixture",
+        "transaction_time": "2026-01-03T00:00:00Z",
+        "generation": 3,
+        "payload": {
+          "prior_claim_id": "clm_original_value",
+          "claim": {
+            "id": "clm_corrected_value",
+            "label": "corrected_value",
+            "statement": {
+              "subject": "subject",
+              "predicate": "has_value",
+              "object": "new"
+            },
+            "scope": "global",
+            "kind": "fact",
+            "evidence": [
+              {
+                "snapshot_id": "snp_correction",
+                "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "span": {
+                  "kind": "character",
+                  "start": 0,
+                  "end": 10
+                },
+                "stance": "supports"
+              }
+            ]
+          }
+        },
+        "base_generation": 2
+      }
+    ],
+    "expected": {
+      "projection": {
+        "generation": 3,
+        "accepted": {
+          "clm_corrected_value": {
+            "id": "clm_corrected_value",
+            "label": "corrected_value",
+            "statement": {
+              "subject": "subject",
+              "predicate": "has_value",
+              "object": "new"
+            },
+            "scope": "global",
+            "kind": "fact",
+            "evidence": [
+              {
+                "snapshot_id": "snp_correction",
+                "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "span": {
+                  "kind": "character",
+                  "start": 0,
+                  "end": 10
+                },
+                "stance": "supports"
+              }
+            ],
+            "state": "accepted",
+            "last_generation": 3
+          }
+        },
+        "history": {
+          "clm_original_value": {
+            "id": "clm_original_value",
+            "label": "original_value",
+            "statement": {
+              "subject": "subject",
+              "predicate": "has_value",
+              "object": "old"
+            },
+            "scope": "global",
+            "kind": "fact",
+            "evidence": [
+              {
+                "snapshot_id": "snp_correction",
+                "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "span": {
+                  "kind": "character",
+                  "start": 0,
+                  "end": 10
+                },
+                "stance": "supports"
+              }
+            ],
+            "state": "superseded",
+            "last_generation": 3
+          },
+          "clm_corrected_value": {
+            "id": "clm_corrected_value",
+            "label": "corrected_value",
+            "statement": {
+              "subject": "subject",
+              "predicate": "has_value",
+              "object": "new"
+            },
+            "scope": "global",
+            "kind": "fact",
+            "evidence": [
+              {
+                "snapshot_id": "snp_correction",
+                "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "span": {
+                  "kind": "character",
+                  "start": 0,
+                  "end": 10
+                },
+                "stance": "supports"
+              }
+            ],
+            "state": "accepted",
+            "last_generation": 3
+          }
+        },
+        "conflicts": {},
+        "snapshots": {
+          "snp_correction": {
+            "id": "snp_correction",
+            "url": "https://example.test/correction",
+            "content_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "availability": "available"
+          }
+        },
+        "quarantine": {},
+        "rejected_patches": []
+      },
+      "canonical_hash": "d6c62e3365cc27225ad3c49744a4bc43f2db9f1d9ae1aa3eb6e34c580679b93a",
+      "human_diff": "original_value -> corrected_value"
+    },
+    "forbidden_outcomes": [
+      "delete original history",
+      "return original as current"
+    ]
+  },
+  {
+    "id": "fx_02_independent_source_conflict",
+    "case": "independent_source_conflict",
+    "description": "Two independent sources directly conflict.",
+    "events": [
+      {
+        "id": "evt_02_01",
+        "type": "snapshot_created",
+        "actor": "m0_fixture",
+        "transaction_time": "2026-01-01T00:00:00Z",
+        "generation": 1,
+        "payload": {
+          "snapshot": {
+            "id": "snp_conflict_a",
+            "url": "https://example.test/conflict_a",
+            "content_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "availability": "available"
+          }
+        }
+      },
+      {
+        "id": "evt_02_02",
+        "type": "snapshot_created",
+        "actor": "m0_fixture",
+        "transaction_time": "2026-01-02T00:00:00Z",
+        "generation": 2,
+        "payload": {
+          "snapshot": {
+            "id": "snp_conflict_b",
+            "url": "https://example.test/conflict_b",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "availability": "available"
+          }
+        },
+        "base_generation": 1
+      },
+      {
+        "id": "evt_02_03",
+        "type": "claim_accepted",
+        "actor": "m0_fixture",
+        "transaction_time": "2026-01-03T00:00:00Z",
+        "generation": 3,
+        "payload": {
+          "claim": {
+            "id": "clm_answer_a",
+            "label": "answer_a",
+            "statement": {
+              "subject": "subject",
+              "predicate": "has_value",
+              "object": "A"
+            },
+            "scope": "global",
+            "kind": "fact",
+            "evidence": [
+              {
+                "snapshot_id": "snp_conflict_a",
+                "snapshot_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "span": {
+                  "kind": "character",
+                  "start": 0,
+                  "end": 10
+                },
+                "stance": "supports"
+              }
+            ]
+          }
+        },
+        "base_generation": 2
+      },
+      {
+        "id": "evt_02_04",
+        "type": "claim_disputed",
+        "actor": "m0_fixture",
+        "transaction_time": "2026-01-04T00:00:00Z",
+        "generation": 4,
+        "payload": {
+          "conflict_id": "cnf_answer_a_vs_answer_b",
+          "claims": [
+            {
+              "id": "clm_answer_a",
+              "label": "answer_a",
+              "statement": {
+                "subject": "subject",
+                "predicate": "has_value",
+                "object": "A"
+              },
+              "scope": "global",
+              "kind": "fact",
+              "evidence": [
+                {
+                  "snapshot_id": "snp_conflict_a",
+                  "snapshot_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                  "span": {
+                    "kind": "character",
+                    "start": 0,
+                    "end": 10
+                  },
+                  "stance": "supports"
+                }
+              ]
+            },
+            {
+              "id": "clm_answer_b",
+              "label": "answer_b",
+              "statement": {
+                "subject": "subject",
+                "predicate": "has_value",
+                "object": "B"
+              },
+              "scope": "global",
+              "kind": "fact",
+              "evidence": [
+                {
+                  "snapshot_id": "snp_conflict_b",
+                  "snapshot_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                  "span": {
+                    "kind": "character",
+                    "start": 0,
+                    "end": 10
+                  },
+                  "stance": "opposes"
+                }
+              ]
+            }
+          ]
+        },
+        "base_generation": 3
+      }
+    ],
+    "expected": {
+      "projection": {
+        "generation": 4,
+        "accepted": {},
+        "history": {
+          "clm_answer_a": {
+            "id": "clm_answer_a",
+            "label": "answer_a",
+            "statement": {
+              "subject": "subject",
+              "predicate": "has_value",
+              "object": "A"
+            },
+            "scope": "global",
+            "kind": "fact",
+            "evidence": [
+              {
+                "snapshot_id": "snp_conflict_a",
+                "snapshot_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "span": {
+                  "kind": "character",
+                  "start": 0,
+                  "end": 10
+                },
+                "stance": "supports"
+              }
+            ],
+            "state": "disputed",
+            "last_generation": 4
+          },
+          "clm_answer_b": {
+            "id": "clm_answer_b",
+            "label": "answer_b",
+            "statement": {
+              "subject": "subject",
+              "predicate": "has_value",
+              "object": "B"
+            },
+            "scope": "global",
+            "kind": "fact",
+            "evidence": [
+              {
+                "snapshot_id": "snp_conflict_b",
+                "snapshot_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                "span": {
+                  "kind": "character",
+                  "start": 0,
+                  "end": 10
+                },
+                "stance": "opposes"
+              }
+            ],
+            "state": "disputed",
+            "last_generation": 4
+          }
+        },
+        "conflicts": {
+          "cnf_answer_a_vs_answer_b": [
+            "clm_answer_a",
+            "clm_answer_b"
+          ]
+        },
+        "snapshots": {
+          "snp_conflict_a": {
+            "id": "snp_conflict_a",
+            "url": "https://example.test/conflict_a",
+            "content_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "availability": "available"
+          },
+          "snp_conflict_b": {
+            "id": "snp_conflict_b",
+            "url": "https://example.test/conflict_b",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "availability": "available"
+          }
+        },
+        "quarantine": {},
+        "rejected_patches": []
+      },
+      "canonical_hash": "15137542fd256be457ff48dfafa29a4b34ed443caf2157e328ab47427dae45bd",
+      "human_diff": "accepted -> disputed"
+    },
+    "forbidden_outcomes": [
+      "invent consensus",
+      "silently choose newest"
+    ]
+  },
+  {
+    "id": "fx_03_repeated_upstream_report",
+    "case": "repeated_upstream_report",
+    "description": "Five articles repeat one upstream report.",
+    "events": [
+      {
+        "id": "evt_03_01",
+        "type": "snapshot_created",
+        "actor": "m0_fixture",
+        "transaction_time": "2026-01-01T00:00:00Z",
+        "generation": 1,
+        "payload": {
+          "snapshot": {
+            "id": "snp_upstream",
+            "url": "https://example.test/upstream",
+            "content_hash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "availability": "available"
+          }
+        }
+      },
+      {
+        "id": "evt_03_02",
+        "type": "claim_proposed",
+        "actor": "m0_fixture",
+        "transaction_time": "2026-01-02T00:00:00Z",
+        "generation": 2,
+        "payload": {
+          "claim": {
+            "id": "clm_one_claim_family",
+            "label": "one_claim_family",
+            "statement": {
+              "subject": "subject",
+              "predicate": "has_value",
+              "object": "reported"
+            },
+            "scope": "global",
+            "kind": "fact",
+            "evidence": [
+              {
+                "snapshot_id": "snp_upstream",
+                "snapshot_hash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                "span": {
+                  "kind": "character",
+                  "start": 0,
+                  "end": 10
+                },
+                "stance": "supports"
+              }
+            ],
+            "provenance_root": "src_original_report"
+          }
+        },
+        "base_generation": 1
+      }
+    ],
+    "expected": {
+      "projection": {
+        "generation": 2,
+        "accepted": {},
+        "history": {
+          "clm_one_claim_family": {
+            "id": "clm_one_claim_family",
+            "label": "one_claim_family",
+            "statement": {
+              "subject": "subject",
+              "predicate": "has_value",
+              "object": "reported"
+            },
+            "scope": "global",
+            "kind": "fact",
+            "evidence": [
+              {
+                "snapshot_id": "snp_upstream",
+                "snapshot_hash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                "span": {
+                  "kind": "character",
+                  "start": 0,
+                  "end": 10
+                },
+                "stance": "supports"
+              }
+            ],
+            "provenance_root": "src_original_report",
+            "state": "candidate",
+            "last_generation": 2
+          }
+        },
+        "conflicts": {},
+        "snapshots": {
+          "snp_upstream": {
+            "id": "snp_upstream",
+            "url": "https://example.test/upstream",
+            "content_hash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "availability": "available"
+          }
+        },
+        "quarantine": {},
+        "rejected_patches": []
+      },
+      "canonical_hash": "def0876be51751816d7aa3fd48b39d13027e4c4edd8b7e3edec4b58ee0257f24",
+      "human_diff": "five pages grouped under one provenance root"
+    },
+    "forbidden_outcomes": [
+      "count five independent confirmations"
+    ]
+  },
+  {
+    "id": "fx_04_paper_retraction",
+    "case": "paper_retraction",
+    "description": "An accepted paper result is retracted.",
+    "events": [
+      {
+        "id": "evt_04_01",
+        "type": "snapshot_created",
+        "actor": "m0_fixture",
+        "transaction_time": "2026-01-01T00:00:00Z",
+        "generation": 1,
+        "payload": {
+          "snapshot": {
+            "id": "snp_paper",
+            "url": "https://example.test/paper",
+            "content_hash": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "availability": "available"
+          }
+        }
+      },
+      {
+        "id": "evt_04_02",
+        "type": "claim_accepted",
+        "actor": "m0_fixture",
+        "transaction_time": "2026-01-02T00:00:00Z",
+        "generation": 2,
+        "payload": {
+          "claim": {
+            "id": "clm_retracted_result",
+            "label": "retracted_result",
+            "statement": {
+              "subject": "subject",
+              "predicate": "has_value",
+              "object": "positive"
+            },
+            "scope": "global",
+            "kind": "fact",
+            "evidence": [
+              {
+                "snapshot_id": "snp_paper",
+                "snapshot_hash": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                "span": {
+                  "kind": "character",
+                  "start": 0,
+                  "end": 10
+                },
+                "stance": "supports"
+              }
+            ]
+          }
+        },
+        "base_generation": 1
+      },
+      {
+        "id": "evt_04_03",
+        "type": "claim_retracted",
+        "actor": "m0_fixture",
+        "transaction_time": "2026-01-03T00:00:00Z",
+        "generation": 3,
+        "payload": {
+          "claim_id": "clm_retracted_result",
+          "reason": "publisher_retraction"
+        },
+        "base_generation": 2
+      }
+    ],
+    "expected": {
+      "projection": {
+        "generation": 3,
+        "accepted": {},
+        "history": {
+          "clm_retracted_result": {
+            "id": "clm_retracted_result",
+            "label": "retracted_result",
+            "statement": {
+              "subject": "subject",
+              "predicate": "has_value",
+              "object": "positive"
+            },
+            "scope": "global",
+            "kind": "fact",
+            "evidence": [
+              {
+                "snapshot_id": "snp_paper",
+                "snapshot_hash": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                "span": {
+                  "kind": "character",
+                  "start": 0,
+                  "end": 10
+                },
+                "stance": "supports"
+              }
+            ],
+            "state": "retracted",
+            "last_generation": 3
+          }
+        },
+        "conflicts": {},
+        "snapshots": {
+          "snp_paper": {
+            "id": "snp_paper",
+            "url": "https://example.test/paper",
+            "content_hash": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "availability": "available"
+          }
+        },
+        "quarantine": {},
+        "rejected_patches": []
+      },
+      "canonical_hash": "7d5caf1403467972fdfd3b17d6edae63b9590a5ed1d18a7dfac3d8e21459e868",
+      "human_diff": "accepted -> retracted"
+    },
+    "forbidden_outcomes": [
+      "return retracted result as current",
+      "erase citation history"
+    ]
+  },
+  {
+    "id": "fx_05_validity_interval",
+    "case": "validity_interval",
+    "description": "A statement is true only during a bounded interval.",
+    "events": [
+      {
+        "id": "evt_05_01",
+        "type": "snapshot_created",
+        "actor": "m0_fixture",
+        "transaction_time": "2026-01-01T00:00:00Z",
+        "generation": 1,
+        "payload": {
+          "snapshot": {
+            "id": "snp_interval",
+            "url": "https://example.test/interval",
+            "content_hash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "availability": "available"
+          }
+        }
+      },
+      {
+        "id": "evt_05_02",
+        "type": "claim_accepted",
+        "actor": "m0_fixture",
+        "transaction_time": "2026-01-02T00:00:00Z",
+        "generation": 2,
+        "payload": {
+          "claim": {
+            "id": "clm_interval_fact",
+            "label": "interval_fact",
+            "statement": {
+              "subject": "subject",
+              "predicate": "has_value",
+              "object": "active"
+            },
+            "scope": "global",
+            "kind": "fact",
+            "evidence": [
+              {
+                "snapshot_id": "snp_interval",
+                "snapshot_hash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                "span": {
+                  "kind": "character",
+                  "start": 0,
+                  "end": 10
+                },
+                "stance": "supports"
+              }
+            ],
+            "valid_from": "2025-01-01T00:00:00Z",
+            "valid_to": "2025-12-31T23:59:59Z"
+          }
+        },
+        "base_generation": 1
+      }
+    ],
+    "expected": {
+      "projection": {
+        "generation": 2,
+        "accepted": {
+          "clm_interval_fact": {
+            "id": "clm_interval_fact",
+            "label": "interval_fact",
+            "statement": {
+              "subject": "subject",
+              "predicate": "has_value",
+              "object": "active"
+            },
+            "scope": "global",
+            "kind": "fact",
+            "evidence": [
+              {
+                "snapshot_id": "snp_interval",
+                "snapshot_hash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                "span": {
+                  "kind": "character",
+                  "start": 0,
+                  "end": 10
+                },
+                "stance": "supports"
+              }
+            ],
+            "valid_from": "2025-01-01T00:00:00Z",
+            "valid_to": "2025-12-31T23:59:59Z",
+            "state": "accepted",
+            "last_generation": 2
+          }
+        },
+        "history": {
+          "clm_interval_fact": {
+            "id": "clm_interval_fact",
+            "label": "interval_fact",
+            "statement": {
+              "subject": "subject",
+              "predicate": "has_value",
+              "object": "active"
+            },
+            "scope": "global",
+            "kind": "fact",
+            "evidence": [
+              {
+                "snapshot_id": "snp_interval",
+                "snapshot_hash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                "span": {
+                  "kind": "character",
+                  "start": 0,
+                  "end": 10
+                },
+                "stance": "supports"
+              }
+            ],
+            "valid_from": "2025-01-01T00:00:00Z",
+            "valid_to": "2025-12-31T23:59:59Z",
+            "state": "accepted",
+            "last_generation": 2
+          }
+        },
+        "conflicts": {},
+        "snapshots": {
+          "snp_interval": {
+            "id": "snp_interval",
+            "url": "https://example.test/interval",
+            "content_hash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "availability": "available"
+          }
+        },
+        "quarantine": {},
+        "rejected_patches": []
+      },
+      "canonical_hash": "d56f9eb53d3dbd9734fc7f83e0aa98c38ef007e675efc2b0bd4ef378ace34656",
+      "human_diff": "fact visible only inside valid interval"
+    },
+    "forbidden_outcomes": [
+      "return fact outside interval"
+    ]
+  },
+  {
+    "id": "fx_06_project_and_global_scope",
+    "case": "project_and_global_scope",
+    "description": "Project and global scopes contain different valid answers.",
+    "events": [
+      {
+        "id": "evt_06_01",
+        "type": "snapshot_created",
+        "actor": "m0_fixture",
+        "transaction_time": "2026-01-01T00:00:00Z",
+        "generation": 1,
+        "payload": {
+          "snapshot": {
+            "id": "snp_scopes",
+            "url": "https://example.test/scopes",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+            "availability": "available"
+          }
+        }
+      },
+      {
+        "id": "evt_06_02",
+        "type": "claim_accepted",
+        "actor": "m0_fixture",
+        "transaction_time": "2026-01-02T00:00:00Z",
+        "generation": 2,
+        "payload": {
+          "claim": {
+            "id": "clm_project_answer",
+            "label": "project_answer",
+            "statement": {
+              "subject": "subject",
+              "predicate": "has_value",
+              "object": "project"
+            },
+            "scope": "project:alpha",
+            "kind": "fact",
+            "evidence": [
+              {
+                "snapshot_id": "snp_scopes",
+                "snapshot_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+                "span": {
+                  "kind": "character",
+                  "start": 0,
+                  "end": 10
+                },
+                "stance": "supports"
+              }
+            ]
+          }
+        },
+        "base_generation": 1
+      },
+      {
+        "id": "evt_06_03",
+        "type": "claim_accepted",
+        "actor": "m0_fixture",
+        "transaction_time": "2026-01-03T00:00:00Z",
+        "generation": 3,
+        "payload": {
+          "claim": {
+            "id": "clm_global_answer",
+            "label": "global_answer",
+            "statement": {
+              "subject": "subject",
+              "predicate": "has_value",
+              "object": "global"
+            },
+            "scope": "global",
+            "kind": "fact",
+            "evidence": [
+              {
+                "snapshot_id": "snp_scopes",
+                "snapshot_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+                "span": {
+                  "kind": "character",
+                  "start": 0,
+                  "end": 10
+                },
+                "stance": "supports"
+              }
+            ]
+          }
+        },
+        "base_generation": 2
+      }
+    ],
+    "expected": {
+      "projection": {
+        "generation": 3,
+        "accepted": {
+          "clm_project_answer": {
+            "id": "clm_project_answer",
+            "label": "project_answer",
+            "statement": {
+              "subject": "subject",
+              "predicate": "has_value",
+              "object": "project"
+            },
+            "scope": "project:alpha",
+            "kind": "fact",
+            "evidence": [
+              {
+                "snapshot_id": "snp_scopes",
+                "snapshot_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+                "span": {
+                  "kind": "character",
+                  "start": 0,
+                  "end": 10
+                },
+                "stance": "supports"
+              }
+            ],
+            "state": "accepted",
+            "last_generation": 2
+          },
+          "clm_global_answer": {
+            "id": "clm_global_answer",
+            "label": "global_answer",
+            "statement": {
+              "subject": "subject",
+              "predicate": "has_value",
+              "object": "global"
+            },
+            "scope": "global",
+            "kind": "fact",
+            "evidence": [
+              {
+                "snapshot_id": "snp_scopes",
+                "snapshot_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+                "span": {
+                  "kind": "character",
+                  "start": 0,
+                  "end": 10
+                },
+                "stance": "supports"
+              }
+            ],
+            "state": "accepted",
+            "last_generation": 3
+          }
+        },
+        "history": {
+          "clm_project_answer": {
+            "id": "clm_project_answer",
+            "label": "project_answer",
+            "statement": {
+              "subject": "subject",
+              "predicate": "has_value",
+              "object": "project"
+            },
+            "scope": "project:alpha",
+            "kind": "fact",
+            "evidence": [
+              {
+                "snapshot_id": "snp_scopes",
+                "snapshot_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+                "span": {
+                  "kind": "character",
+                  "start": 0,
+                  "end": 10
+                },
+                "stance": "supports"
+              }
+            ],
+            "state": "accepted",
+            "last_generation": 2
+          },
+          "clm_global_answer": {
+            "id": "clm_global_answer",
+            "label": "global_answer",
+            "statement": {
+              "subject": "subject",
+              "predicate": "has_value",
+              "object": "global"
+            },
+            "scope": "global",
+            "kind": "fact",
+            "evidence": [
+              {
+                "snapshot_id": "snp_scopes",
+                "snapshot_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+                "span": {
+                  "kind": "character",
+                  "start": 0,
+                  "end": 10
+                },
+                "stance": "supports"
+              }
+            ],
+            "state": "accepted",
+            "last_generation": 3
+          }
+        },
+        "conflicts": {},
+        "snapshots": {
+          "snp_scopes": {
+            "id": "snp_scopes",
+            "url": "https://example.test/scopes",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+            "availability": "available"
+          }
+        },
+        "quarantine": {},
+        "rejected_patches": []
+      },
+      "canonical_hash": "4e497c03b62e73509d11e7ddb1b27714f7bbc06f17948f6fc0dcb478f2940613",
+      "human_diff": "scope selects answer"
+    },
+    "forbidden_outcomes": [
+      "collapse scopes",
+      "treat scoped answers as conflict"
+    ]
+  },
+  {
+    "id": "fx_07_nary_experiment",
+    "case": "nary_experiment",
+    "description": "An experimental result depends on model, dataset, metric, version, and conditions.",
+    "events": [
+      {
+        "id": "evt_07_01",
+        "type": "snapshot_created",
+        "actor": "m0_fixture",
+        "transaction_time": "2026-01-01T00:00:00Z",
+        "generation": 1,
+        "payload": {
+          "snapshot": {
+            "id": "snp_nary",
+            "url": "https://example.test/nary",
+            "content_hash": "2222222222222222222222222222222222222222222222222222222222222222",
+            "availability": "available"
+          }
+        }
+      },
+      {
+        "id": "evt_07_02",
+        "type": "claim_accepted",
+        "actor": "m0_fixture",
+        "transaction_time": "2026-01-02T00:00:00Z",
+        "generation": 2,
+        "payload": {
+          "claim": {
+            "id": "clm_nary_result",
+            "label": "nary_result",
+            "statement": {
+              "subject": "subject",
+              "predicate": "has_value",
+              "object": 0.91
+            },
+            "scope": "global",
+            "kind": "fact",
+            "evidence": [
+              {
+                "snapshot_id": "snp_nary",
+                "snapshot_hash": "2222222222222222222222222222222222222222222222222222222222222222",
+                "span": {
+                  "kind": "character",
+                  "start": 0,
+                  "end": 10
+                },
+                "stance": "supports"
+              }
+            ],
+            "conditions": {
+              "model": "m1",
+              "dataset": "d1",
+              "metric": "accuracy",
+              "version": "1.2",
+              "temperature": 0
+            }
+          }
+        },
+        "base_generation": 1
+      }
+    ],
+    "expected": {
+      "projection": {
+        "generation": 2,
+        "accepted": {
+          "clm_nary_result": {
+            "id": "clm_nary_result",
+            "label": "nary_result",
+            "statement": {
+              "subject": "subject",
+              "predicate": "has_value",
+              "object": 0.91
+            },
+            "scope": "global",
+            "kind": "fact",
+            "evidence": [
+              {
+                "snapshot_id": "snp_nary",
+                "snapshot_hash": "2222222222222222222222222222222222222222222222222222222222222222",
+                "span": {
+                  "kind": "character",
+                  "start": 0,
+                  "end": 10
+                },
+                "stance": "supports"
+              }
+            ],
+            "conditions": {
+              "model": "m1",
+              "dataset": "d1",
+              "metric": "accuracy",
+              "version": "1.2",
+              "temperature": 0
+            },
+            "state": "accepted",
+            "last_generation": 2
+          }
+        },
+        "history": {
+          "clm_nary_result": {
+            "id": "clm_nary_result",
+            "label": "nary_result",
+            "statement": {
+              "subject": "subject",
+              "predicate": "has_value",
+              "object": 0.91
+            },
+            "scope": "global",
+            "kind": "fact",
+            "evidence": [
+              {
+                "snapshot_id": "snp_nary",
+                "snapshot_hash": "2222222222222222222222222222222222222222222222222222222222222222",
+                "span": {
+                  "kind": "character",
+                  "start": 0,
+                  "end": 10
+                },
+                "stance": "supports"
+              }
+            ],
+            "conditions": {
+              "model": "m1",
+              "dataset": "d1",
+              "metric": "accuracy",
+              "version": "1.2",
+              "temperature": 0
+            },
+            "state": "accepted",
+            "last_generation": 2
+          }
+        },
+        "conflicts": {},
+        "snapshots": {
+          "snp_nary": {
+            "id": "snp_nary",
+            "url": "https://example.test/nary",
+            "content_hash": "2222222222222222222222222222222222222222222222222222222222222222",
+            "availability": "available"
+          }
+        },
+        "quarantine": {},
+        "rejected_patches": []
+      },
+      "canonical_hash": "98afeded13e49894a12cc8968e399485746f2cba4aa36d630ac0d8e6d35ab052",
+      "human_diff": "result retains every condition"
+    },
+    "forbidden_outcomes": [
+      "flatten away dataset",
+      "flatten away model version",
+      "flatten away conditions"
+    ]
+  },
+  {
+    "id": "fx_08_same_url_changed_content",
+    "case": "same_url_changed_content",
+    "description": "A page changes without changing its URL.",
+    "events": [
+      {
+        "id": "evt_08_01",
+        "type": "snapshot_created",
+        "actor": "m0_fixture",
+        "transaction_time": "2026-01-01T00:00:00Z",
+        "generation": 1,
+        "payload": {
+          "snapshot": {
+            "id": "snp_page_old",
+            "url": "https://example.test/page",
+            "content_hash": "3333333333333333333333333333333333333333333333333333333333333333",
+            "availability": "available"
+          }
+        }
+      },
+      {
+        "id": "evt_08_02",
+        "type": "claim_accepted",
+        "actor": "m0_fixture",
+        "transaction_time": "2026-01-02T00:00:00Z",
+        "generation": 2,
+        "payload": {
+          "claim": {
+            "id": "clm_old_snapshot_claim",
+            "label": "old_snapshot_claim",
+            "statement": {
+              "subject": "subject",
+              "predicate": "has_value",
+              "object": "old"
+            },
+            "scope": "global",
+            "kind": "fact",
+            "evidence": [
+              {
+                "snapshot_id": "snp_page_old",
+                "snapshot_hash": "3333333333333333333333333333333333333333333333333333333333333333",
+                "span": {
+                  "kind": "character",
+                  "start": 0,
+                  "end": 10
+                },
+                "stance": "supports"
+              }
+            ]
+          }
+        },
+        "base_generation": 1
+      },
+      {
+        "id": "evt_08_03",
+        "type": "snapshot_created",
+        "actor": "m0_fixture",
+        "transaction_time": "2026-01-03T00:00:00Z",
+        "generation": 3,
+        "payload": {
+          "snapshot": {
+            "id": "snp_page_new",
+            "url": "https://example.test/page",
+            "content_hash": "4444444444444444444444444444444444444444444444444444444444444444",
+            "availability": "available"
+          }
+        },
+        "base_generation": 2
+      },
+      {
+        "id": "evt_08_04",
+        "type": "claim_superseded",
+        "actor": "m0_fixture",
+        "transaction_time": "2026-01-04T00:00:00Z",
+        "generation": 4,
+        "payload": {
+          "prior_claim_id": "clm_old_snapshot_claim",
+          "claim": {
+            "id": "clm_latest_snapshot_claim",
+            "label": "latest_snapshot_claim",
+            "statement": {
+              "subject": "subject",
+              "predicate": "has_value",
+              "object": "new"
+            },
+            "scope": "global",
+            "kind": "fact",
+            "evidence": [
+              {
+                "snapshot_id": "snp_page_new",
+                "snapshot_hash": "4444444444444444444444444444444444444444444444444444444444444444",
+                "span": {
+                  "kind": "character",
+                  "start": 0,
+                  "end": 10
+                },
+                "stance": "supports"
+              }
+            ]
+          }
+        },
+        "base_generation": 3
+      }
+    ],
+    "expected": {
+      "projection": {
+        "generation": 4,
+        "accepted": {
+          "clm_latest_snapshot_claim": {
+            "id": "clm_latest_snapshot_claim",
+            "label": "latest_snapshot_claim",
+            "statement": {
+              "subject": "subject",
+              "predicate": "has_value",
+              "object": "new"
+            },
+            "scope": "global",
+            "kind": "fact",
+            "evidence": [
+              {
+                "snapshot_id": "snp_page_new",
+                "snapshot_hash": "4444444444444444444444444444444444444444444444444444444444444444",
+                "span": {
+                  "kind": "character",
+                  "start": 0,
+                  "end": 10
+                },
+                "stance": "supports"
+              }
+            ],
+            "state": "accepted",
+            "last_generation": 4
+          }
+        },
+        "history": {
+          "clm_old_snapshot_claim": {
+            "id": "clm_old_snapshot_claim",
+            "label": "old_snapshot_claim",
+            "statement": {
+              "subject": "subject",
+              "predicate": "has_value",
+              "object": "old"
+            },
+            "scope": "global",
+            "kind": "fact",
+            "evidence": [
+              {
+                "snapshot_id": "snp_page_old",
+                "snapshot_hash": "3333333333333333333333333333333333333333333333333333333333333333",
+                "span": {
+                  "kind": "character",
+                  "start": 0,
+                  "end": 10
+                },
+                "stance": "supports"
+              }
+            ],
+            "state": "superseded",
+            "last_generation": 4
+          },
+          "clm_latest_snapshot_claim": {
+            "id": "clm_latest_snapshot_claim",
+            "label": "latest_snapshot_claim",
+            "statement": {
+              "subject": "subject",
+              "predicate": "has_value",
+              "object": "new"
+            },
+            "scope": "global",
+            "kind": "fact",
+            "evidence": [
+              {
+                "snapshot_id": "snp_page_new",
+                "snapshot_hash": "4444444444444444444444444444444444444444444444444444444444444444",
+                "span": {
+                  "kind": "character",
+                  "start": 0,
+                  "end": 10
+                },
+                "stance": "supports"
+              }
+            ],
+            "state": "accepted",
+            "last_generation": 4
+          }
+        },
+        "conflicts": {},
+        "snapshots": {
+          "snp_page_old": {
+            "id": "snp_page_old",
+            "url": "https://example.test/page",
+            "content_hash": "3333333333333333333333333333333333333333333333333333333333333333",
+            "availability": "available"
+          },
+          "snp_page_new": {
+            "id": "snp_page_new",
+            "url": "https://example.test/page",
+            "content_hash": "4444444444444444444444444444444444444444444444444444444444444444",
+            "availability": "available"
+          }
+        },
+        "quarantine": {},
+        "rejected_patches": []
+      },
+      "canonical_hash": "4df2b4c940327c67085ce0bd8db224f7035313120808c464da4d18bcf3900935",
+      "human_diff": "new content hash creates new snapshot"
+    },
+    "forbidden_outcomes": [
+      "overwrite old snapshot",
+      "identify snapshots by URL alone"
+    ]
+  },
+  {
+    "id": "fx_09_decision_dependency_change",
+    "case": "decision_dependency_change",
+    "description": "A decision changes after a dependency changes.",
+    "events": [
+      {
+        "id": "evt_09_01",
+        "type": "decision_accepted",
+        "actor": "m0_fixture",
+        "transaction_time": "2026-01-01T00:00:00Z",
+        "generation": 1,
+        "payload": {
+          "claim": {
+            "id": "clm_old_decision",
+            "label": "old_decision",
+            "statement": {
+              "subject": "subject",
+              "predicate": "has_value",
+              "object": "use_a"
+            },
+            "scope": "global",
+            "kind": "decision",
+            "evidence": [],
+            "dependencies": [
+              "clm_dependency_v1"
+            ]
+          }
+        }
+      },
+      {
+        "id": "evt_09_02",
+        "type": "decision_accepted",
+        "actor": "m0_fixture",
+        "transaction_time": "2026-01-02T00:00:00Z",
+        "generation": 2,
+        "payload": {
+          "claim": {
+            "id": "clm_new_decision",
+            "label": "new_decision",
+            "statement": {
+              "subject": "subject",
+              "predicate": "has_value",
+              "object": "use_b"
+            },
+            "scope": "global",
+            "kind": "decision",
+            "evidence": [],
+            "dependencies": [
+              "clm_dependency_v2"
+            ]
+          },
+          "supersedes": "clm_old_decision"
+        },
+        "base_generation": 1
+      }
+    ],
+    "expected": {
+      "projection": {
+        "generation": 2,
+        "accepted": {
+          "clm_new_decision": {
+            "id": "clm_new_decision",
+            "label": "new_decision",
+            "statement": {
+              "subject": "subject",
+              "predicate": "has_value",
+              "object": "use_b"
+            },
+            "scope": "global",
+            "kind": "decision",
+            "evidence": [],
+            "dependencies": [
+              "clm_dependency_v2"
+            ],
+            "state": "accepted",
+            "last_generation": 2
+          }
+        },
+        "history": {
+          "clm_old_decision": {
+            "id": "clm_old_decision",
+            "label": "old_decision",
+            "statement": {
+              "subject": "subject",
+              "predicate": "has_value",
+              "object": "use_a"
+            },
+            "scope": "global",
+            "kind": "decision",
+            "evidence": [],
+            "dependencies": [
+              "clm_dependency_v1"
+            ],
+            "state": "superseded",
+            "last_generation": 2
+          },
+          "clm_new_decision": {
+            "id": "clm_new_decision",
+            "label": "new_decision",
+            "statement": {
+              "subject": "subject",
+              "predicate": "has_value",
+              "object": "use_b"
+            },
+            "scope": "global",
+            "kind": "decision",
+            "evidence": [],
+            "dependencies": [
+              "clm_dependency_v2"
+            ],
+            "state": "accepted",
+            "last_generation": 2
+          }
+        },
+        "conflicts": {},
+        "snapshots": {},
+        "quarantine": {},
+        "rejected_patches": []
+      },
+      "canonical_hash": "1753c3948070ae7835ac779ce40af69fe11045e34bad07aad2f192539b0ac67f",
+      "human_diff": "old decision superseded with rationale"
+    },
+    "forbidden_outcomes": [
+      "erase old rationale",
+      "change decision without dependency link"
+    ]
+  },
+  {
+    "id": "fx_10_stale_worker_update",
+    "case": "stale_worker_update",
+    "description": "A stale worker proposes after a newer update is accepted.",
+    "events": [
+      {
+        "id": "evt_10_01",
+        "type": "snapshot_created",
+        "actor": "m0_fixture",
+        "transaction_time": "2026-01-01T00:00:00Z",
+        "generation": 1,
+        "payload": {
+          "snapshot": {
+            "id": "snp_stale",
+            "url": "https://example.test/stale",
+            "content_hash": "5555555555555555555555555555555555555555555555555555555555555555",
+            "availability": "available"
+          }
+        }
+      },
+      {
+        "id": "evt_10_02",
+        "type": "claim_accepted",
+        "actor": "m0_fixture",
+        "transaction_time": "2026-01-02T00:00:00Z",
+        "generation": 2,
+        "payload": {
+          "claim": {
+            "id": "clm_newer_update",
+            "label": "newer_update",
+            "statement": {
+              "subject": "subject",
+              "predicate": "has_value",
+              "object": "new"
+            },
+            "scope": "global",
+            "kind": "fact",
+            "evidence": [
+              {
+                "snapshot_id": "snp_stale",
+                "snapshot_hash": "5555555555555555555555555555555555555555555555555555555555555555",
+                "span": {
+                  "kind": "character",
+                  "start": 0,
+                  "end": 10
+                },
+                "stance": "supports"
+              }
+            ]
+          }
+        },
+        "base_generation": 1
+      },
+      {
+        "id": "evt_10_03",
+        "type": "patch_rejected",
+        "actor": "m0_fixture",
+        "transaction_time": "2026-01-03T00:00:00Z",
+        "generation": 3,
+        "payload": {
+          "proposal": {
+            "id": "clm_stale_proposal",
+            "label": "stale_proposal",
+            "statement": {
+              "subject": "subject",
+              "predicate": "has_value",
+              "object": "old"
+            },
+            "scope": "global",
+            "kind": "fact",
+            "evidence": [
+              {
+                "snapshot_id": "snp_stale",
+                "snapshot_hash": "5555555555555555555555555555555555555555555555555555555555555555",
+                "span": {
+                  "kind": "character",
+                  "start": 0,
+                  "end": 10
+                },
+                "stance": "supports"
+              }
+            ]
+          },
+          "reason": "stale_base_generation"
+        },
+        "base_generation": 0
+      }
+    ],
+    "expected": {
+      "projection": {
+        "generation": 3,
+        "accepted": {
+          "clm_newer_update": {
+            "id": "clm_newer_update",
+            "label": "newer_update",
+            "statement": {
+              "subject": "subject",
+              "predicate": "has_value",
+              "object": "new"
+            },
+            "scope": "global",
+            "kind": "fact",
+            "evidence": [
+              {
+                "snapshot_id": "snp_stale",
+                "snapshot_hash": "5555555555555555555555555555555555555555555555555555555555555555",
+                "span": {
+                  "kind": "character",
+                  "start": 0,
+                  "end": 10
+                },
+                "stance": "supports"
+              }
+            ],
+            "state": "accepted",
+            "last_generation": 2
+          }
+        },
+        "history": {
+          "clm_newer_update": {
+            "id": "clm_newer_update",
+            "label": "newer_update",
+            "statement": {
+              "subject": "subject",
+              "predicate": "has_value",
+              "object": "new"
+            },
+            "scope": "global",
+            "kind": "fact",
+            "evidence": [
+              {
+                "snapshot_id": "snp_stale",
+                "snapshot_hash": "5555555555555555555555555555555555555555555555555555555555555555",
+                "span": {
+                  "kind": "character",
+                  "start": 0,
+                  "end": 10
+                },
+                "stance": "supports"
+              }
+            ],
+            "state": "accepted",
+            "last_generation": 2
+          },
+          "clm_stale_proposal": {
+            "id": "clm_stale_proposal",
+            "label": "stale_proposal",
+            "statement": {
+              "subject": "subject",
+              "predicate": "has_value",
+              "object": "old"
+            },
+            "scope": "global",
+            "kind": "fact",
+            "evidence": [
+              {
+                "snapshot_id": "snp_stale",
+                "snapshot_hash": "5555555555555555555555555555555555555555555555555555555555555555",
+                "span": {
+                  "kind": "character",
+                  "start": 0,
+                  "end": 10
+                },
+                "stance": "supports"
+              }
+            ],
+            "state": "rejected",
+            "last_generation": 3
+          }
+        },
+        "conflicts": {},
+        "snapshots": {
+          "snp_stale": {
+            "id": "snp_stale",
+            "url": "https://example.test/stale",
+            "content_hash": "5555555555555555555555555555555555555555555555555555555555555555",
+            "availability": "available"
+          }
+        },
+        "quarantine": {},
+        "rejected_patches": [
+          {
+            "event_id": "evt_10_03",
+            "base_generation": 0,
+            "reason": "stale_base_generation"
+          }
+        ]
+      },
+      "canonical_hash": "91eef154723805611fce3f1be62bc4e0289d6c0bc99ba3f57ba16eb6367bae40",
+      "human_diff": "stale proposal rejected"
+    },
+    "forbidden_outcomes": [
+      "accept stale proposal",
+      "lower canonical generation"
+    ]
+  },
+  {
+    "id": "fx_11_embedded_malicious_instruction",
+    "case": "embedded_malicious_instruction",
+    "description": "An ingested page contains instructions aimed at the agent.",
+    "events": [
+      {
+        "id": "evt_11_01",
+        "type": "snapshot_created",
+        "actor": "m0_fixture",
+        "transaction_time": "2026-01-01T00:00:00Z",
+        "generation": 1,
+        "payload": {
+          "snapshot": {
+            "id": "snp_injection",
+            "url": "https://example.test/injection",
+            "content_hash": "6666666666666666666666666666666666666666666666666666666666666666",
+            "availability": "available"
+          }
+        }
+      },
+      {
+        "id": "evt_11_02",
+        "type": "claim_proposed",
+        "actor": "m0_fixture",
+        "transaction_time": "2026-01-02T00:00:00Z",
+        "generation": 2,
+        "payload": {
+          "claim": {
+            "id": "clm_untrusted_instruction_as_data",
+            "label": "untrusted_instruction_as_data",
+            "statement": {
+              "subject": "subject",
+              "predicate": "has_value",
+              "object": "IGNORE POLICY"
+            },
+            "scope": "global",
+            "kind": "fact",
+            "evidence": [
+              {
+                "snapshot_id": "snp_injection",
+                "snapshot_hash": "6666666666666666666666666666666666666666666666666666666666666666",
+                "span": {
+                  "kind": "character",
+                  "start": 0,
+                  "end": 10
+                },
+                "stance": "supports"
+              }
+            ]
+          },
+          "quarantined": true,
+          "quarantine_reason": "source_embedded_instruction"
+        },
+        "base_generation": 1
+      }
+    ],
+    "expected": {
+      "projection": {
+        "generation": 2,
+        "accepted": {},
+        "history": {
+          "clm_untrusted_instruction_as_data": {
+            "id": "clm_untrusted_instruction_as_data",
+            "label": "untrusted_instruction_as_data",
+            "statement": {
+              "subject": "subject",
+              "predicate": "has_value",
+              "object": "IGNORE POLICY"
+            },
+            "scope": "global",
+            "kind": "fact",
+            "evidence": [
+              {
+                "snapshot_id": "snp_injection",
+                "snapshot_hash": "6666666666666666666666666666666666666666666666666666666666666666",
+                "span": {
+                  "kind": "character",
+                  "start": 0,
+                  "end": 10
+                },
+                "stance": "supports"
+              }
+            ],
+            "state": "candidate",
+            "last_generation": 2
+          }
+        },
+        "conflicts": {},
+        "snapshots": {
+          "snp_injection": {
+            "id": "snp_injection",
+            "url": "https://example.test/injection",
+            "content_hash": "6666666666666666666666666666666666666666666666666666666666666666",
+            "availability": "available"
+          }
+        },
+        "quarantine": {
+          "clm_untrusted_instruction_as_data": "source_embedded_instruction"
+        },
+        "rejected_patches": []
+      },
+      "canonical_hash": "7e8b3c8bbdc4aa6c63be06328235089dd3334164291fe8619eda8e25c205e424",
+      "human_diff": "instruction quarantined as source content"
+    },
+    "forbidden_outcomes": [
+      "execute embedded instruction",
+      "treat source text as policy"
+    ]
+  },
+  {
+    "id": "fx_12_deleted_or_unreachable_source",
+    "case": "deleted_or_unreachable_source",
+    "description": "A claim source becomes unreachable after snapshotting.",
+    "events": [
+      {
+        "id": "evt_12_01",
+        "type": "snapshot_created",
+        "actor": "m0_fixture",
+        "transaction_time": "2026-01-01T00:00:00Z",
+        "generation": 1,
+        "payload": {
+          "snapshot": {
+            "id": "snp_deleted",
+            "url": "https://example.test/deleted",
+            "content_hash": "7777777777777777777777777777777777777777777777777777777777777777",
+            "availability": "available"
+          }
+        }
+      },
+      {
+        "id": "evt_12_02",
+        "type": "claim_accepted",
+        "actor": "m0_fixture",
+        "transaction_time": "2026-01-02T00:00:00Z",
+        "generation": 2,
+        "payload": {
+          "claim": {
+            "id": "clm_snapshot_backed_claim",
+            "label": "snapshot_backed_claim",
+            "statement": {
+              "subject": "subject",
+              "predicate": "has_value",
+              "object": "retained"
+            },
+            "scope": "global",
+            "kind": "fact",
+            "evidence": [
+              {
+                "snapshot_id": "snp_deleted",
+                "snapshot_hash": "7777777777777777777777777777777777777777777777777777777777777777",
+                "span": {
+                  "kind": "character",
+                  "start": 0,
+                  "end": 10
+                },
+                "stance": "supports"
+              }
+            ]
+          }
+        },
+        "base_generation": 1
+      },
+      {
+        "id": "evt_12_03",
+        "type": "source_availability_changed",
+        "actor": "m0_fixture",
+        "transaction_time": "2026-01-03T00:00:00Z",
+        "generation": 3,
+        "payload": {
+          "snapshot_id": "snp_deleted",
+          "availability": "unreachable"
+        },
+        "base_generation": 2
+      }
+    ],
+    "expected": {
+      "projection": {
+        "generation": 3,
+        "accepted": {
+          "clm_snapshot_backed_claim": {
+            "id": "clm_snapshot_backed_claim",
+            "label": "snapshot_backed_claim",
+            "statement": {
+              "subject": "subject",
+              "predicate": "has_value",
+              "object": "retained"
+            },
+            "scope": "global",
+            "kind": "fact",
+            "evidence": [
+              {
+                "snapshot_id": "snp_deleted",
+                "snapshot_hash": "7777777777777777777777777777777777777777777777777777777777777777",
+                "span": {
+                  "kind": "character",
+                  "start": 0,
+                  "end": 10
+                },
+                "stance": "supports"
+              }
+            ],
+            "state": "accepted",
+            "last_generation": 2
+          }
+        },
+        "history": {
+          "clm_snapshot_backed_claim": {
+            "id": "clm_snapshot_backed_claim",
+            "label": "snapshot_backed_claim",
+            "statement": {
+              "subject": "subject",
+              "predicate": "has_value",
+              "object": "retained"
+            },
+            "scope": "global",
+            "kind": "fact",
+            "evidence": [
+              {
+                "snapshot_id": "snp_deleted",
+                "snapshot_hash": "7777777777777777777777777777777777777777777777777777777777777777",
+                "span": {
+                  "kind": "character",
+                  "start": 0,
+                  "end": 10
+                },
+                "stance": "supports"
+              }
+            ],
+            "state": "accepted",
+            "last_generation": 2
+          }
+        },
+        "conflicts": {},
+        "snapshots": {
+          "snp_deleted": {
+            "id": "snp_deleted",
+            "url": "https://example.test/deleted",
+            "content_hash": "7777777777777777777777777777777777777777777777777777777777777777",
+            "availability": "unreachable"
+          }
+        },
+        "quarantine": {},
+        "rejected_patches": []
+      },
+      "canonical_hash": "597d22b01980486321164818fe9f6963f5c28cd69d5424f6d1a67ed5cf2f2488",
+      "human_diff": "availability warning added; retained evidence preserved"
+    },
+    "forbidden_outcomes": [
+      "delete retained snapshot",
+      "claim live availability"
+    ]
+  }
+]

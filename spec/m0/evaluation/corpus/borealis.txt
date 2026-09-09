@@ -1,0 +1,3 @@
+Project Borealis status
+
+The Borealis deployment moved from Harbor Lab to Summit Station on 2025-03-02. Mira Chen approved the move. The previous Harbor Lab location is historical, not current.

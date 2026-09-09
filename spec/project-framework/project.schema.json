@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mozak.dev/project-framework/project.schema.json",
+  "title": "MOZAK provider-neutral project manifest",
+  "type": "object",
+  "required": ["version", "framework_contract_version", "project", "repository", "owned_paths"],
+  "properties": {
+    "version": {"const": 1},
+    "framework_contract_version": {"const": 1},
+    "project": {
+      "type": "object",
+      "required": ["id", "name"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"},
+        "name": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "repository": {
+      "type": "object",
+      "required": ["revision"],
+      "properties": {"revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"}},
+      "additionalProperties": false
+    },
+    "owned_paths": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    }
+  },
+  "additionalProperties": false
+}

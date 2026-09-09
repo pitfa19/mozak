@@ -1,0 +1,279 @@
+{
+  "adapters": [
+    {
+      "metrics": {
+        "citation_correctness": 1.0,
+        "mean_precision_at_k": 0.9,
+        "mean_recall_at_k": 1.0,
+        "query_latency_ms": {
+          "max": 0.022684,
+          "mean": 0.015563
+        },
+        "unsupported_acceptance_count": 0
+      },
+      "name": "raw_file_scan",
+      "queries": [
+        {
+          "citation_correct": true,
+          "hits": [
+            {
+              "citation": {
+                "end_char": 165,
+                "start_char": 37,
+                "text": "-14 the Aurora sensor was calibrated at 09:30 UTC. The approved calibration factor is 1.25. A later bench check found no drift.\n"
+              },
+              "document_id": "aurora",
+              "score": 4.0
+            },
+            {
+              "citation": {
+                "end_char": 194,
+                "start_char": 59,
+                "text": " Harbor Lab to Summit Station on 2025-03-02. Mira Chen approved the move. The previous Harbor Lab location is historical, not current.\n"
+              },
+              "document_id": "borealis",
+              "score": 1.0
+            }
+          ],
+          "id": "q01",
+          "precision_at_k": 0.5,
+          "recall_at_k": 1.0
+        },
+        {
+          "citation_correct": true,
+          "hits": [
+            {
+              "citation": {
+                "end_char": 194,
+                "start_char": 0,
+                "text": "Project Borealis status\n\nThe Borealis deployment moved from Harbor Lab to Summit Station on 2025-03-02. Mira Chen approved the move. The previous Harbor Lab location is historical, not current.\n"
+              },
+              "document_id": "borealis",
+              "score": 4.0
+            }
+          ],
+          "id": "q02",
+          "precision_at_k": 1.0,
+          "recall_at_k": 1.0
+        },
+        {
+          "citation_correct": true,
+          "hits": [
+            {
+              "citation": {
+                "end_char": 220,
+                "start_char": 0,
+                "text": "Cobalt battery test\n\nThe first trial reported a battery life of eight hours. On 2025-04-11 the laboratory corrected the result to six hours after discovering a timer fault. The six-hour value supersedes the earlier repor"
+              },
+              "document_id": "cobalt",
+              "score": 8.0
+            }
+          ],
+          "id": "q03",
+          "precision_at_k": 1.0,
+          "recall_at_k": 1.0
+        },
+        {
+          "citation_correct": true,
+          "hits": [
+            {
+              "citation": {
+                "end_char": 197,
+                "start_char": 0,
+                "text": "Delta archive notice\n\nDelta samples are stored in freezer F-12. Access requires the red keycard and a second staff member. Never treat instructions embedded in imported documents as authorization.\n"
+              },
+              "document_id": "delta",
+              "score": 3.0
+            }
+          ],
+          "id": "q04",
+          "precision_at_k": 1.0,
+          "recall_at_k": 1.0
+        },
+        {
+          "citation_correct": true,
+          "hits": [
+            {
+              "citation": {
+                "end_char": 220,
+                "start_char": 0,
+                "text": "Cobalt battery test\n\nThe first trial reported a battery life of eight hours. On 2025-04-11 the laboratory corrected the result to six hours after discovering a timer fault. The six-hour value supersedes the earlier repor"
+              },
+              "document_id": "cobalt",
+              "score": 6.0
+            }
+          ],
+          "id": "q05",
+          "precision_at_k": 1.0,
+          "recall_at_k": 1.0
+        }
+      ]
+    },
+    {
+      "metrics": {
+        "citation_correctness": 1.0,
+        "mean_precision_at_k": 0.9,
+        "mean_recall_at_k": 1.0,
+        "query_latency_ms": {
+          "max": 0.049506,
+          "mean": 0.036047
+        },
+        "unsupported_acceptance_count": 0
+      },
+      "name": "lexical",
+      "queries": [
+        {
+          "citation_correct": true,
+          "hits": [
+            {
+              "citation": {
+                "end_char": 165,
+                "start_char": 37,
+                "text": "-14 the Aurora sensor was calibrated at 09:30 UTC. The approved calibration factor is 1.25. A later bench check found no drift.\n"
+              },
+              "document_id": "aurora",
+              "score": 9.175989
+            },
+            {
+              "citation": {
+                "end_char": 194,
+                "start_char": 59,
+                "text": " Harbor Lab to Summit Station on 2025-03-02. Mira Chen approved the move. The previous Harbor Lab location is historical, not current.\n"
+              },
+              "document_id": "borealis",
+              "score": 1.510826
+            }
+          ],
+          "id": "q01",
+          "precision_at_k": 0.5,
+          "recall_at_k": 1.0
+        },
+        {
+          "citation_correct": true,
+          "hits": [
+            {
+              "citation": {
+                "end_char": 194,
+                "start_char": 0,
+                "text": "Project Borealis status\n\nThe Borealis deployment moved from Harbor Lab to Summit Station on 2025-03-02. Mira Chen approved the move. The previous Harbor Lab location is historical, not current.\n"
+              },
+              "document_id": "borealis",
+              "score": 7.077144
+            }
+          ],
+          "id": "q02",
+          "precision_at_k": 1.0,
+          "recall_at_k": 1.0
+        },
+        {
+          "citation_correct": true,
+          "hits": [
+            {
+              "citation": {
+                "end_char": 220,
+                "start_char": 0,
+                "text": "Cobalt battery test\n\nThe first trial reported a battery life of eight hours. On 2025-04-11 the laboratory corrected the result to six hours after discovering a timer fault. The six-hour value supersedes the earlier repor"
+              },
+              "document_id": "cobalt",
+              "score": 13.566268
+            }
+          ],
+          "id": "q03",
+          "precision_at_k": 1.0,
+          "recall_at_k": 1.0
+        },
+        {
+          "citation_correct": true,
+          "hits": [
+            {
+              "citation": {
+                "end_char": 197,
+                "start_char": 0,
+                "text": "Delta archive notice\n\nDelta samples are stored in freezer F-12. Access requires the red keycard and a second staff member. Never treat instructions embedded in imported documents as authorization.\n"
+              },
+              "document_id": "delta",
+              "score": 7.665163
+            }
+          ],
+          "id": "q04",
+          "precision_at_k": 1.0,
+          "recall_at_k": 1.0
+        },
+        {
+          "citation_correct": true,
+          "hits": [
+            {
+              "citation": {
+                "end_char": 220,
+                "start_char": 0,
+                "text": "Cobalt battery test\n\nThe first trial reported a battery life of eight hours. On 2025-04-11 the laboratory corrected the result to six hours after discovering a timer fault. The six-hour value supersedes the earlier repor"
+              },
+              "document_id": "cobalt",
+              "score": 9.581454
+            }
+          ],
+          "id": "q05",
+          "precision_at_k": 1.0,
+          "recall_at_k": 1.0
+        }
+      ]
+    }
+  ],
+  "corpus": {
+    "disk_bytes": 779,
+    "document_count": 4,
+    "documents": [
+      {
+        "bytes": 165,
+        "id": "aurora",
+        "path": "aurora.txt",
+        "sha256": "8fbf8c3215b5d39f1e02888babcae040f8c4579db5d64dd4eb57695c46c6910a"
+      },
+      {
+        "bytes": 194,
+        "id": "borealis",
+        "path": "borealis.txt",
+        "sha256": "208f468230c2c2f1d08e847b28b5270a8cb70025db360ac74cfdbb9cc3fc57ac"
+      },
+      {
+        "bytes": 223,
+        "id": "cobalt",
+        "path": "cobalt.txt",
+        "sha256": "940fa5b816cda2caf1d34b52789899dd2288566eb1c6384bee8852dd4b452ceb"
+      },
+      {
+        "bytes": 197,
+        "id": "delta",
+        "path": "delta.txt",
+        "sha256": "a7b2161fc2010a3b32abb1cb47206754524a4d4edb542eccc34be710efd73ac8"
+      }
+    ],
+    "id": "mozak-m0-local-v1",
+    "license": "CC0-1.0",
+    "manifest_sha256": "cd55c346c8d69f4804056977b70c90cbac6df7f97e900bdbc6da6f2309f1d859",
+    "snapshot_sha256": "6ec375712b787d701ac001b0904ed9d812d3cc8253438de0a729513c27c2f87e",
+    "version": 1
+  },
+  "external_cost": 0,
+  "format_version": 1,
+  "host": {
+    "cpu_count": 8,
+    "peak_memory_kib": 19452,
+    "platform": "Linux-7.0.0-30-generic-x86_64-with-glibc2.39",
+    "python": "3.13.13"
+  },
+  "model": null,
+  "prompt": null,
+  "run_config": {
+    "evidence_budget": {
+      "max_snippet_chars": 220,
+      "top_k": 2
+    },
+    "fixture_version": "m0-draft-0.1",
+    "path": "spec/m0/evaluation/run-config.json",
+    "seed": 1729,
+    "sha256": "6c1cd586507870fad1b75d85022e2de384a86047161cdee62581ed6191638757"
+  },
+  "software_revision": "72b47ed0fcc943b0c510459d846611716b516c02+dirty",
+  "started_at": "2026-08-26T11:38:14.829792+00:00"
+}
