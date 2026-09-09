@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "topic_id": "topic-agentic-systems",
+  "mode": "query",
+  "categories": ["cs.AI", "cs.CL", "cs.LG", "cs.SE", "cs.MA"],
+  "clusters": [
+    {
+      "name": "topologies",
+      "terms": [
+        "agent topology",
+        "multi-agent orchestration",
+        "agentic workflow",
+        "agent graph",
+        "supervisor-worker",
+        "agent scheduler",
+        "workflow graph"
+      ]
+    },
+    {
+      "name": "budgets",
+      "terms": [
+        "token budget",
+        "cost-accuracy",
+        "budget allocation",
+        "reasoning budget",
+        "token efficiency",
+        "inference cost",
+        "compute budget"
+      ]
+    },
+    {
+      "name": "context-memory",
+      "terms": [
+        "context compaction",
+        "prompt cache",
+        "agent memory",
+        "context management",
+        "execution state",
+        "context window",
+        "long-horizon agent"
+      ]
+    },
+    {
+      "name": "skills",
+      "terms": [
+        "agent skill",
+        "skill library",
+        "skill evolution",
+        "procedural memory",
+        "self-improving agent",
+        "skill acquisition"
+      ]
+    },
+    {
+      "name": "containment",
+      "terms": [
+        "guardrail",
+        "sandboxing",
+        "human oversight",
+        "agent security",
+        "agent safety",
+        "tool misuse"
+      ]
+    },
+    {
+      "name": "harness-evidence",
+      "terms": [
+        "agent harness",
+        "coding agent",
+        "agent evaluation",
+        "agent benchmark",
+        "software engineering agent"
+      ]
+    }
+  ],
+  "days": 7,
+  "max_records_per_cluster": 60,
+  "max_records": 250,
+  "question": "Which recent submissions match the tracked agentic-systems interest clusters?"
+}

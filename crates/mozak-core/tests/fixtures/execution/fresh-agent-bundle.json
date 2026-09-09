@@ -1,0 +1,175 @@
+{
+  "packet": {
+    "contract_version": 1,
+    "id": "fresh-task",
+    "version": 1,
+    "released_at": "2026-09-01T10:00:00Z",
+    "released_by": "release-authority",
+    "packet_hash": "4cb4d932f08f2e16e8f5ebbf52953e922d44df4a6805cc52bdfcdcf16fc35bef",
+    "objective": "Produce a greeting artifact from the bounded input.",
+    "scope": {
+      "included": [
+        "create greeting.txt"
+      ],
+      "excluded": [
+        "modify project state"
+      ],
+      "permitted_capabilities": [
+        "write_artifact"
+      ]
+    },
+    "context": [
+      {
+        "id": "input-1",
+        "media_type": "text/plain",
+        "content": "Hello, bounded world!",
+        "content_sha256": "5d4a2406f1a581855ffa128abea7a583d23113cb53526b66f78629a1e2893f50",
+        "provenance": "accepted-input:demo-1"
+      }
+    ],
+    "constraints": [
+      "Use only supplied context."
+    ],
+    "dependencies": [],
+    "acceptance_conditions": [
+      {
+        "id": "AC-01",
+        "behavior": "Greeting artifact contains supplied text.",
+        "required_evidence": "Exact content check."
+      },
+      {
+        "id": "AC-02",
+        "behavior": "Execution uses no project history.",
+        "required_evidence": "Capability receipt contains only write_artifact."
+      }
+    ],
+    "risks": [
+      "An executor could invent context."
+    ],
+    "freshness": {
+      "project_revision": "0123456789abcdef0123456789abcdef01234567",
+      "valid_after": "2026-09-01T09:00:00Z",
+      "expires_at": "2026-09-02T09:00:00Z"
+    }
+  },
+  "result": {
+    "contract_version": 1,
+    "id": "result-1",
+    "packet": {
+      "id": "fresh-task",
+      "version": 1,
+      "packet_hash": "4cb4d932f08f2e16e8f5ebbf52953e922d44df4a6805cc52bdfcdcf16fc35bef"
+    },
+    "executor": {
+      "id": "executor-1",
+      "provider": "provider-neutral",
+      "adapter": "fixture-adapter"
+    },
+    "attempt": 1,
+    "started_at": "2026-09-01T10:01:00Z",
+    "completed_at": "2026-09-01T10:02:00Z",
+    "status": "succeeded",
+    "summary": "Created the bounded greeting.",
+    "artifacts": [
+      {
+        "id": "artifact-1",
+        "kind": "text",
+        "uri": "artifact://greeting.txt",
+        "sha256": "5d4a2406f1a581855ffa128abea7a583d23113cb53526b66f78629a1e2893f50",
+        "immutable": true
+      }
+    ],
+    "validation_evidence": [
+      {
+        "id": "evidence-content",
+        "check": "exact content",
+        "observed": "Hello, bounded world!",
+        "artifact_ids": [
+          "artifact-1"
+        ],
+        "passed": true
+      },
+      {
+        "id": "evidence-capability",
+        "check": "bounded capability log",
+        "observed": "write_artifact only",
+        "artifact_ids": [
+          "artifact-1"
+        ],
+        "passed": true
+      }
+    ],
+    "gates": [
+      {
+        "id": "gate-tests",
+        "evidence_ids": [
+          "evidence-content"
+        ],
+        "passed": true
+      }
+    ],
+    "observed_dependencies": [
+      {
+        "id": "runtime",
+        "version": "1",
+        "digest": "168957e8d7dc810a091762d5cd16db9da1a4a817f39c580ed44cdd1bf8b87e7f",
+        "evidence_ids": [
+          "evidence-capability"
+        ]
+      }
+    ],
+    "failures": [],
+    "receipt": {
+      "procedure": "bounded-file-write",
+      "procedure_version": "1",
+      "input_packet_hash": "4cb4d932f08f2e16e8f5ebbf52953e922d44df4a6805cc52bdfcdcf16fc35bef",
+      "capability_log": [
+        "write_artifact"
+      ],
+      "output_artifact_ids": [
+        "artifact-1"
+      ],
+      "result_sha256": "f57dd22a127c01e0617cd095ffa3d63095bdcd83fb686142b90a15370eb7407a"
+    }
+  },
+  "evaluation": {
+    "contract_version": 1,
+    "id": "evaluation-1",
+    "result_id": "result-1",
+    "evaluator": {
+      "id": "evaluator-1",
+      "provider": "provider-neutral",
+      "adapter": "independent-fixture-evaluator"
+    },
+    "evaluated_at": "2026-09-01T10:03:00Z",
+    "condition_evaluations": [
+      {
+        "acceptance_condition_id": "AC-01",
+        "evidence_ids": [
+          "evidence-content"
+        ],
+        "observed": "Artifact exactly matches supplied context.",
+        "passed": true
+      },
+      {
+        "acceptance_condition_id": "AC-02",
+        "evidence_ids": [
+          "evidence-capability"
+        ],
+        "observed": "Receipt records only the packet-authorized capability.",
+        "passed": true
+      }
+    ],
+    "gate_evaluations": [
+      {
+        "gate_id": "gate-tests",
+        "evidence_ids": [
+          "evidence-content"
+        ],
+        "passed": true
+      }
+    ],
+    "claim": "passed",
+    "rationale": "Every condition and gate maps to independently inspected evidence."
+  }
+}

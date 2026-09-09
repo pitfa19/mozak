@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mozak.dev/spec/m0/evidence.schema.json",
+  "title": "MOZAK M0 evidence",
+  "type": "object",
+  "required": ["snapshot_id", "snapshot_hash", "span", "stance"],
+  "properties": {
+    "snapshot_id": {"type": "string", "pattern": "^snp_[a-z0-9_]+$"},
+    "snapshot_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "span": {"type": "object", "required": ["kind", "start", "end"], "properties": {"kind": {"type": "string", "enum": ["byte", "character", "line", "page", "field"]}, "start": {"type": "integer", "minimum": 0}, "end": {"type": "integer", "minimum": 1}}, "additionalProperties": false},
+    "stance": {"type": "string", "enum": ["supports", "opposes", "context"]}
+  },
+  "additionalProperties": false
+}

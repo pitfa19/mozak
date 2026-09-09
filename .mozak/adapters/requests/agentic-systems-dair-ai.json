@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "scope_id": "topic-agentic-systems",
+  "weeks": 2,
+  "clusters": [
+    {
+      "name": "topologies",
+      "terms": ["agent topology", "multi-agent", "orchestration", "agentic workflow", "harness"]
+    },
+    {
+      "name": "budgets",
+      "terms": ["token budget", "reasoning budget", "inference cost", "compute budget", "efficiency"]
+    },
+    {
+      "name": "context-memory",
+      "terms": ["context management", "context window", "agent memory", "long-horizon", "compaction", "persistent state"]
+    },
+    {
+      "name": "skills",
+      "terms": ["agent skill", "skill library", "skill acquisition", "self-improving", "self-evolving"]
+    },
+    {
+      "name": "containment",
+      "terms": ["agent safety", "agent security", "guardrail", "sandbox", "human oversight", "malware"]
+    },
+    {
+      "name": "harness-evidence",
+      "terms": ["agent evaluation", "agent benchmark", "coding agent", "software engineering agent", "judge", "evidence"]
+    }
+  ],
+  "max_records": 100,
+  "question": "Which papers curated by DAIR.AI in its latest two weekly issues are useful candidate reading for the agentic-systems topic?"
+}

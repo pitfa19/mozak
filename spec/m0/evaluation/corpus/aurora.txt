@@ -1,0 +1,3 @@
+Project Aurora field note
+
+On 2025-02-14 the Aurora sensor was calibrated at 09:30 UTC. The approved calibration factor is 1.25. A later bench check found no drift.

@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mozak.dev/project-framework/mozak-package.schema.json",
+  "title": "MOZAK immutable knowledge package manifest",
+  "$comment": "Filesystem validation is recursively closed: aside from this manifest, every regular file must be exactly one declared artifact; only ancestor directories needed by declared artifacts are allowed; symlinks, special entries, empty/unneeded directories, undeclared files, and exact or ASCII-case-folding path collisions are rejected. The 32 MiB package limit includes manifest and artifact bytes. A restores reference must resolve during history validation to a proper ancestor of predecessor, never predecessor itself.",
+  "type": "object",
+  "required": ["schema_version", "package_id", "project_id", "release_id", "predecessor", "restores", "artifacts"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "package_id": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "project_id": {"type": "string", "minLength": 1},
+    "release_id": {"type": "string", "minLength": 1},
+    "predecessor": {"$ref": "#/$defs/reference"},
+    "restores": {"$ref": "#/$defs/reference"},
+    "artifacts": {
+      "type": "array", "minItems": 2, "maxItems": 64,
+      "items": {"$ref": "#/$defs/artifact"}
+    }
+  },
+  "$defs": {
+    "reference": {
+      "oneOf": [
+        {"type": "null"},
+        {"type": "object", "required": ["project_id", "release_id", "package_id"], "properties": {
+          "project_id": {"type": "string", "minLength": 1},
+          "release_id": {"type": "string", "minLength": 1},
+          "package_id": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+        }, "additionalProperties": false}
+      ]
+    },
+    "artifact": {
+      "type": "object", "required": ["kind", "path", "media_type", "sha256", "bytes"],
+      "properties": {
+        "kind": {"enum": ["project_release", "human_overview", "research_markdown", "planning_markdown"]},
+        "path": {"type": "string", "pattern": "^[A-Za-z0-9._/-]+$"},
+        "media_type": {"enum": ["application/vnd.mozak.project-release+json", "text/markdown; charset=utf-8"]},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "bytes": {"type": "integer", "minimum": 0, "maximum": 8388608}
+      }, "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

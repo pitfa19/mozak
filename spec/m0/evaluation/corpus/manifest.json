@@ -1,0 +1,13 @@
+{
+  "corpus_id": "mozak-m0-local-v1",
+  "version": 1,
+  "license": "CC0-1.0",
+  "redistribution": "permitted",
+  "provenance": "Original synthetic evaluation text authored for MOZAK; no third-party source material.",
+  "documents": [
+    {"id": "aurora", "path": "aurora.txt"},
+    {"id": "borealis", "path": "borealis.txt"},
+    {"id": "cobalt", "path": "cobalt.txt"},
+    {"id": "delta", "path": "delta.txt"}
+  ]
+}

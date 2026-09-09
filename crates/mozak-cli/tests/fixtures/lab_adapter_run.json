@@ -1,0 +1,510 @@
+{
+  "contract_version": 1,
+  "run_id": "run-10b5a0e19c4191556e69eb21",
+  "created_at": "2026-09-05T22:17:35Z",
+  "source_profile": {
+    "version": 1,
+    "id": "source-dair-ai-v1",
+    "allowed_schemes": [
+      "recorded"
+    ],
+    "max_records": 100,
+    "max_bytes_per_record": 16384,
+    "content_is_untrusted": true,
+    "may_authorize_actions": false
+  },
+  "pipeline": {
+    "version": 1,
+    "id": "pipeline-dair-ai-v1",
+    "revision": "a7378bda1bcdfd2c0a121a76ad168a2a53e47d96742c404a093e0aeecd3497ba",
+    "source_profile_id": "source-dair-ai-v1",
+    "stages": [
+      {
+        "id": "stage-acquire",
+        "operation": "acquire"
+      },
+      {
+        "id": "stage-evidence",
+        "operation": "extract_evidence"
+      },
+      {
+        "id": "stage-gaps",
+        "operation": "identify_gaps"
+      },
+      {
+        "id": "stage-synthesis",
+        "operation": "synthesize"
+      },
+      {
+        "id": "stage-audit",
+        "operation": "audit"
+      },
+      {
+        "id": "stage-export",
+        "operation": "export_planning_inputs"
+      }
+    ],
+    "budgets": {
+      "max_sources": 100,
+      "max_raw_bytes": 1638400,
+      "max_claims": 8,
+      "max_planning_inputs": 8
+    },
+    "required_artifacts": [
+      "scope",
+      "plan",
+      "raw_records",
+      "evidence",
+      "gaps",
+      "synthesis",
+      "audit",
+      "receipt"
+    ],
+    "output_authority": {
+      "planning_inputs_are_proposals": true,
+      "may_mutate_accepted_plans": false
+    }
+  },
+  "scope": {
+    "question": "Which papers curated by DAIR.AI in its latest two weekly issues are useful candidate reading for the agentic-systems topic?",
+    "included": [
+      "DAIR.AI Papers of the Week year 2026",
+      "latest 2 issue(s) at revision 78e4809c109c419a925b64a1d4938cfecf336d9c"
+    ],
+    "excluded": [
+      "papers not selected by DAIR.AI",
+      "DAIR.AI prose summaries",
+      "paper full text"
+    ]
+  },
+  "plan": {
+    "steps": [
+      "Resolve the official repository to an exact commit",
+      "Fetch the requested year file at that immutable commit",
+      "Use curator prose transiently for cluster matching",
+      "Record only paper titles, links, issue labels and provenance"
+    ],
+    "source_profile_id": "source-dair-ai-v1",
+    "pipeline_id": "pipeline-dair-ai-v1"
+  },
+  "raw_records": [
+    {
+      "id": "raw-0000",
+      "source_uri": "recorded:dair-ai:78e4809c109c419a925b64a1d4938cfecf336d9c:0",
+      "media_type": "text/plain",
+      "acquired_at": "2026-09-05T22:17:35Z",
+      "content": "Skill Lift\npaper_url: https://arxiv.org/abs/2608.20614\nweek: August 24 - August 30 2026\ncurated_by: DAIR.AI Papers of the Week\nsource_url: https://github.com/dair-ai/AI-Papers-of-the-Week/blob/78e4809c109c419a925b64a1d4938cfecf336d9c/years/2026.md\nsource_revision: 78e4809c109c419a925b64a1d4938cfecf336d9c\nclusters: topologies, budgets, containment, harness-evidence",
+      "content_sha256": "0a9e27c8c879a5d5a1126339783dfee0110623e3bf52ef3b7d41a217239cc474",
+      "immutable": true,
+      "trust": "untrusted_data"
+    },
+    {
+      "id": "raw-0001",
+      "source_uri": "recorded:dair-ai:78e4809c109c419a925b64a1d4938cfecf336d9c:1",
+      "media_type": "text/plain",
+      "acquired_at": "2026-09-05T22:17:35Z",
+      "content": "Prime Agent\npaper_url: https://arxiv.org/abs/2608.23552\nweek: August 24 - August 30 2026\ncurated_by: DAIR.AI Papers of the Week\nsource_url: https://github.com/dair-ai/AI-Papers-of-the-Week/blob/78e4809c109c419a925b64a1d4938cfecf336d9c/years/2026.md\nsource_revision: 78e4809c109c419a925b64a1d4938cfecf336d9c\nclusters: topologies, context-memory, skills",
+      "content_sha256": "3e74f39f8f51131f5774c1a04eac6415be5db82ff651f0ff0786b4fd67cb512d",
+      "immutable": true,
+      "trust": "untrusted_data"
+    },
+    {
+      "id": "raw-0002",
+      "source_uri": "recorded:dair-ai:78e4809c109c419a925b64a1d4938cfecf336d9c:2",
+      "media_type": "text/plain",
+      "acquired_at": "2026-09-05T22:17:35Z",
+      "content": "Context Management as Code\npaper_url: https://arxiv.org/abs/2608.21690\nweek: August 24 - August 30 2026\ncurated_by: DAIR.AI Papers of the Week\nsource_url: https://github.com/dair-ai/AI-Papers-of-the-Week/blob/78e4809c109c419a925b64a1d4938cfecf336d9c/years/2026.md\nsource_revision: 78e4809c109c419a925b64a1d4938cfecf336d9c\nclusters: context-memory, containment",
+      "content_sha256": "e2117967b3b6aebac98cb49afebbdb59e458659fb56d3f875e3c0dce5fddce7d",
+      "immutable": true,
+      "trust": "untrusted_data"
+    },
+    {
+      "id": "raw-0003",
+      "source_uri": "recorded:dair-ai:78e4809c109c419a925b64a1d4938cfecf336d9c:3",
+      "media_type": "text/plain",
+      "acquired_at": "2026-09-05T22:17:35Z",
+      "content": "JIT-Agent\npaper_url: https://arxiv.org/abs/2608.25593\nweek: August 24 - August 30 2026\ncurated_by: DAIR.AI Papers of the Week\nsource_url: https://github.com/dair-ai/AI-Papers-of-the-Week/blob/78e4809c109c419a925b64a1d4938cfecf336d9c/years/2026.md\nsource_revision: 78e4809c109c419a925b64a1d4938cfecf336d9c\nclusters: topologies, context-memory",
+      "content_sha256": "6ed5f630b7f53d9cec6699230869a4102b8416e9fa67a76053a8228d1631a14c",
+      "immutable": true,
+      "trust": "untrusted_data"
+    },
+    {
+      "id": "raw-0004",
+      "source_uri": "recorded:dair-ai:78e4809c109c419a925b64a1d4938cfecf336d9c:4",
+      "media_type": "text/plain",
+      "acquired_at": "2026-09-05T22:17:35Z",
+      "content": "Recuris\npaper_url: https://arxiv.org/abs/2608.24876\nweek: August 24 - August 30 2026\ncurated_by: DAIR.AI Papers of the Week\nsource_url: https://github.com/dair-ai/AI-Papers-of-the-Week/blob/78e4809c109c419a925b64a1d4938cfecf336d9c/years/2026.md\nsource_revision: 78e4809c109c419a925b64a1d4938cfecf336d9c\nclusters: context-memory, harness-evidence",
+      "content_sha256": "a90e51e0e87019dbb312f63290fc5b044fad6a464a990b60700020f6111b9d29",
+      "immutable": true,
+      "trust": "untrusted_data"
+    },
+    {
+      "id": "raw-0005",
+      "source_uri": "recorded:dair-ai:78e4809c109c419a925b64a1d4938cfecf336d9c:5",
+      "media_type": "text/plain",
+      "acquired_at": "2026-09-05T22:17:35Z",
+      "content": "EvoMal\npaper_url: https://arxiv.org/abs/2608.25776\nweek: August 24 - August 30 2026\ncurated_by: DAIR.AI Papers of the Week\nsource_url: https://github.com/dair-ai/AI-Papers-of-the-Week/blob/78e4809c109c419a925b64a1d4938cfecf336d9c/years/2026.md\nsource_revision: 78e4809c109c419a925b64a1d4938cfecf336d9c\nclusters: containment, harness-evidence",
+      "content_sha256": "c3527ac02a1972b68b07fb8ceb8619e84e537a1682023ba1e2703b9fc5b49ed1",
+      "immutable": true,
+      "trust": "untrusted_data"
+    },
+    {
+      "id": "raw-0006",
+      "source_uri": "recorded:dair-ai:78e4809c109c419a925b64a1d4938cfecf336d9c:6",
+      "media_type": "text/plain",
+      "acquired_at": "2026-09-05T22:17:35Z",
+      "content": "The Fragility of Self-Improving Agents\npaper_url: https://arxiv.org/abs/2608.18066\nweek: August 17 - August 23 2026\ncurated_by: DAIR.AI Papers of the Week\nsource_url: https://github.com/dair-ai/AI-Papers-of-the-Week/blob/78e4809c109c419a925b64a1d4938cfecf336d9c/years/2026.md\nsource_revision: 78e4809c109c419a925b64a1d4938cfecf336d9c\nclusters: skills, harness-evidence",
+      "content_sha256": "5f396a0e07f8dc811a7404d5f8c200eb1148b7fc7c2e6013797072bea17333ed",
+      "immutable": true,
+      "trust": "untrusted_data"
+    },
+    {
+      "id": "raw-0007",
+      "source_uri": "recorded:dair-ai:78e4809c109c419a925b64a1d4938cfecf336d9c:7",
+      "media_type": "text/plain",
+      "acquired_at": "2026-09-05T22:17:35Z",
+      "content": "Judges as a Lifecycle\npaper_url: https://arxiv.org/abs/2608.18300\nweek: August 24 - August 30 2026\ncurated_by: DAIR.AI Papers of the Week\nsource_url: https://github.com/dair-ai/AI-Papers-of-the-Week/blob/78e4809c109c419a925b64a1d4938cfecf336d9c/years/2026.md\nsource_revision: 78e4809c109c419a925b64a1d4938cfecf336d9c\nclusters: harness-evidence",
+      "content_sha256": "1cd787083ceab473a466375f3af734f08053ea0d6141f20c0a6d4788171cf0cc",
+      "immutable": true,
+      "trust": "untrusted_data"
+    },
+    {
+      "id": "raw-0008",
+      "source_uri": "recorded:dair-ai:78e4809c109c419a925b64a1d4938cfecf336d9c:8",
+      "media_type": "text/plain",
+      "acquired_at": "2026-09-05T22:17:35Z",
+      "content": "What Compaction Destroys\npaper_url: https://arxiv.org/abs/2608.22752\nweek: August 24 - August 30 2026\ncurated_by: DAIR.AI Papers of the Week\nsource_url: https://github.com/dair-ai/AI-Papers-of-the-Week/blob/78e4809c109c419a925b64a1d4938cfecf336d9c/years/2026.md\nsource_revision: 78e4809c109c419a925b64a1d4938cfecf336d9c\nclusters: context-memory",
+      "content_sha256": "c0b6d0b8dcb76fc3ac60a447e2c290991fa1a9bc88f079c27c7db4313f86411b",
+      "immutable": true,
+      "trust": "untrusted_data"
+    },
+    {
+      "id": "raw-0009",
+      "source_uri": "recorded:dair-ai:78e4809c109c419a925b64a1d4938cfecf336d9c:9",
+      "media_type": "text/plain",
+      "acquired_at": "2026-09-05T22:17:35Z",
+      "content": "Co-Scientist in Real Labs\npaper_url: https://arxiv.org/abs/2608.26701\nweek: August 24 - August 30 2026\ncurated_by: DAIR.AI Papers of the Week\nsource_url: https://github.com/dair-ai/AI-Papers-of-the-Week/blob/78e4809c109c419a925b64a1d4938cfecf336d9c/years/2026.md\nsource_revision: 78e4809c109c419a925b64a1d4938cfecf336d9c\nclusters: harness-evidence",
+      "content_sha256": "ede911809cca359c023f4d9ac23265722f6d5bd7928072c076db7cfd2bbd5374",
+      "immutable": true,
+      "trust": "untrusted_data"
+    },
+    {
+      "id": "raw-0010",
+      "source_uri": "recorded:dair-ai:78e4809c109c419a925b64a1d4938cfecf336d9c:10",
+      "media_type": "text/plain",
+      "acquired_at": "2026-09-05T22:17:35Z",
+      "content": "Meta^n\npaper_url: https://arxiv.org/abs/2608.24735\nweek: August 24 - August 30 2026\ncurated_by: DAIR.AI Papers of the Week\nsource_url: https://github.com/dair-ai/AI-Papers-of-the-Week/blob/78e4809c109c419a925b64a1d4938cfecf336d9c/years/2026.md\nsource_revision: 78e4809c109c419a925b64a1d4938cfecf336d9c\nclusters: skills",
+      "content_sha256": "a783cf4b8b93114ad9fc73d471de95ca42963123a627e8ddae850fd5fc56f8c1",
+      "immutable": true,
+      "trust": "untrusted_data"
+    },
+    {
+      "id": "raw-0011",
+      "source_uri": "recorded:dair-ai:78e4809c109c419a925b64a1d4938cfecf336d9c:11",
+      "media_type": "text/plain",
+      "acquired_at": "2026-09-05T22:17:35Z",
+      "content": "Agent Lightning v1.0\npaper_url: https://arxiv.org/abs/2608.17528\nweek: August 17 - August 23 2026\ncurated_by: DAIR.AI Papers of the Week\nsource_url: https://github.com/dair-ai/AI-Papers-of-the-Week/blob/78e4809c109c419a925b64a1d4938cfecf336d9c/years/2026.md\nsource_revision: 78e4809c109c419a925b64a1d4938cfecf336d9c\nclusters: topologies",
+      "content_sha256": "a4163a14c8b709c458eee3e14b0d4e220fd323c5e3a7b47e0216aaf245b72ab4",
+      "immutable": true,
+      "trust": "untrusted_data"
+    },
+    {
+      "id": "raw-0012",
+      "source_uri": "recorded:dair-ai:78e4809c109c419a925b64a1d4938cfecf336d9c:12",
+      "media_type": "text/plain",
+      "acquired_at": "2026-09-05T22:17:35Z",
+      "content": "The Skill Trigger Bottleneck\npaper_url: https://arxiv.org/abs/2608.12610\nweek: August 17 - August 23 2026\ncurated_by: DAIR.AI Papers of the Week\nsource_url: https://github.com/dair-ai/AI-Papers-of-the-Week/blob/78e4809c109c419a925b64a1d4938cfecf336d9c/years/2026.md\nsource_revision: 78e4809c109c419a925b64a1d4938cfecf336d9c\nclusters: skills",
+      "content_sha256": "db2c7b2d76c12d266ef3ea79ed14b407bad40855834037b9867b5d921c2ec15b",
+      "immutable": true,
+      "trust": "untrusted_data"
+    },
+    {
+      "id": "raw-0013",
+      "source_uri": "recorded:dair-ai:78e4809c109c419a925b64a1d4938cfecf336d9c:13",
+      "media_type": "text/plain",
+      "acquired_at": "2026-09-05T22:17:35Z",
+      "content": "Harness-Level Forgetting\npaper_url: https://arxiv.org/abs/2608.19013\nweek: August 17 - August 23 2026\ncurated_by: DAIR.AI Papers of the Week\nsource_url: https://github.com/dair-ai/AI-Papers-of-the-Week/blob/78e4809c109c419a925b64a1d4938cfecf336d9c/years/2026.md\nsource_revision: 78e4809c109c419a925b64a1d4938cfecf336d9c\nclusters: topologies",
+      "content_sha256": "314ada142013a3455f69aedba02d064ded2dc12bafd8f801b5ba33ec1e6bed21",
+      "immutable": true,
+      "trust": "untrusted_data"
+    },
+    {
+      "id": "raw-0014",
+      "source_uri": "recorded:dair-ai:78e4809c109c419a925b64a1d4938cfecf336d9c:14",
+      "media_type": "text/plain",
+      "acquired_at": "2026-09-05T22:17:35Z",
+      "content": "The Control-Plane Tax\npaper_url: https://arxiv.org/abs/2608.15127\nweek: August 17 - August 23 2026\ncurated_by: DAIR.AI Papers of the Week\nsource_url: https://github.com/dair-ai/AI-Papers-of-the-Week/blob/78e4809c109c419a925b64a1d4938cfecf336d9c/years/2026.md\nsource_revision: 78e4809c109c419a925b64a1d4938cfecf336d9c\nclusters: containment",
+      "content_sha256": "f4c7f56a98b0dd5bfdcdd624f234d093380f57b919a6d33d6bf3fb91a8d883e0",
+      "immutable": true,
+      "trust": "untrusted_data"
+    },
+    {
+      "id": "raw-0015",
+      "source_uri": "recorded:dair-ai:78e4809c109c419a925b64a1d4938cfecf336d9c:15",
+      "media_type": "text/plain",
+      "acquired_at": "2026-09-05T22:17:35Z",
+      "content": "Demystifying Agent Skills\npaper_url: https://arxiv.org/abs/2608.14036\nweek: August 17 - August 23 2026\ncurated_by: DAIR.AI Papers of the Week\nsource_url: https://github.com/dair-ai/AI-Papers-of-the-Week/blob/78e4809c109c419a925b64a1d4938cfecf336d9c/years/2026.md\nsource_revision: 78e4809c109c419a925b64a1d4938cfecf336d9c\nclusters: skills",
+      "content_sha256": "cc06bf693d5a306d9976057d0017a71717a89f69d23e19f413a5fed7c8cb94b3",
+      "immutable": true,
+      "trust": "untrusted_data"
+    },
+    {
+      "id": "raw-0016",
+      "source_uri": "recorded:dair-ai:78e4809c109c419a925b64a1d4938cfecf336d9c:16",
+      "media_type": "text/plain",
+      "acquired_at": "2026-09-05T22:17:35Z",
+      "content": "SocialRL\npaper_url: https://arxiv.org/abs/2608.13787\nweek: August 17 - August 23 2026\ncurated_by: DAIR.AI Papers of the Week\nsource_url: https://github.com/dair-ai/AI-Papers-of-the-Week/blob/78e4809c109c419a925b64a1d4938cfecf336d9c/years/2026.md\nsource_revision: 78e4809c109c419a925b64a1d4938cfecf336d9c\nclusters: topologies",
+      "content_sha256": "88d78c41382ab2fc50c5dedbbf3e92c458389fcfd5d8fff3d87ddacbb9ca2f03",
+      "immutable": true,
+      "trust": "untrusted_data"
+    },
+    {
+      "id": "raw-0017",
+      "source_uri": "recorded:dair-ai:78e4809c109c419a925b64a1d4938cfecf336d9c:17",
+      "media_type": "text/plain",
+      "acquired_at": "2026-09-05T22:17:35Z",
+      "content": "ClawGym II\npaper_url: https://arxiv.org/abs/2608.16798\nweek: August 17 - August 23 2026\ncurated_by: DAIR.AI Papers of the Week\nsource_url: https://github.com/dair-ai/AI-Papers-of-the-Week/blob/78e4809c109c419a925b64a1d4938cfecf336d9c/years/2026.md\nsource_revision: 78e4809c109c419a925b64a1d4938cfecf336d9c\nclusters: topologies",
+      "content_sha256": "c2cfc4692207859f6fe448d7d1bd294cba9dc9f193f16acf9a34bc3d1d2d344d",
+      "immutable": true,
+      "trust": "untrusted_data"
+    },
+    {
+      "id": "raw-0018",
+      "source_uri": "recorded:dair-ai:78e4809c109c419a925b64a1d4938cfecf336d9c:18",
+      "media_type": "text/plain",
+      "acquired_at": "2026-09-05T22:17:35Z",
+      "content": "Inside an Agent Team\npaper_url: https://arxiv.org/abs/2608.16801\nweek: August 17 - August 23 2026\ncurated_by: DAIR.AI Papers of the Week\nsource_url: https://github.com/dair-ai/AI-Papers-of-the-Week/blob/78e4809c109c419a925b64a1d4938cfecf336d9c/years/2026.md\nsource_revision: 78e4809c109c419a925b64a1d4938cfecf336d9c\nclusters: topologies",
+      "content_sha256": "a365c006d4976740e954b3885108630c2d8ab35be6a2aa3c0d229204fe21d177",
+      "immutable": true,
+      "trust": "untrusted_data"
+    },
+    {
+      "id": "raw-0019",
+      "source_uri": "recorded:dair-ai:78e4809c109c419a925b64a1d4938cfecf336d9c:19",
+      "media_type": "text/plain",
+      "acquired_at": "2026-09-05T22:17:35Z",
+      "content": "Strategy Lock-In\npaper_url: https://arxiv.org/abs/2608.19072\nweek: August 17 - August 23 2026\ncurated_by: DAIR.AI Papers of the Week\nsource_url: https://github.com/dair-ai/AI-Papers-of-the-Week/blob/78e4809c109c419a925b64a1d4938cfecf336d9c/years/2026.md\nsource_revision: 78e4809c109c419a925b64a1d4938cfecf336d9c\nclusters: ",
+      "content_sha256": "8bc97ddac048856b8f92eee7e2883d2d9feb9d034e4bcefa54955e79fc64ae4f",
+      "immutable": true,
+      "trust": "untrusted_data"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "ev-0000",
+      "raw_record_id": "raw-0000",
+      "byte_start": 0,
+      "byte_end": 10,
+      "quote": "Skill Lift",
+      "stance": "context"
+    },
+    {
+      "id": "ev-0001",
+      "raw_record_id": "raw-0001",
+      "byte_start": 0,
+      "byte_end": 11,
+      "quote": "Prime Agent",
+      "stance": "context"
+    },
+    {
+      "id": "ev-0002",
+      "raw_record_id": "raw-0002",
+      "byte_start": 0,
+      "byte_end": 26,
+      "quote": "Context Management as Code",
+      "stance": "context"
+    },
+    {
+      "id": "ev-0003",
+      "raw_record_id": "raw-0003",
+      "byte_start": 0,
+      "byte_end": 9,
+      "quote": "JIT-Agent",
+      "stance": "context"
+    },
+    {
+      "id": "ev-0004",
+      "raw_record_id": "raw-0004",
+      "byte_start": 0,
+      "byte_end": 7,
+      "quote": "Recuris",
+      "stance": "context"
+    },
+    {
+      "id": "ev-0005",
+      "raw_record_id": "raw-0005",
+      "byte_start": 0,
+      "byte_end": 6,
+      "quote": "EvoMal",
+      "stance": "context"
+    },
+    {
+      "id": "ev-0006",
+      "raw_record_id": "raw-0006",
+      "byte_start": 0,
+      "byte_end": 38,
+      "quote": "The Fragility of Self-Improving Agents",
+      "stance": "context"
+    },
+    {
+      "id": "ev-0007",
+      "raw_record_id": "raw-0007",
+      "byte_start": 0,
+      "byte_end": 21,
+      "quote": "Judges as a Lifecycle",
+      "stance": "context"
+    },
+    {
+      "id": "ev-0008",
+      "raw_record_id": "raw-0008",
+      "byte_start": 0,
+      "byte_end": 24,
+      "quote": "What Compaction Destroys",
+      "stance": "context"
+    },
+    {
+      "id": "ev-0009",
+      "raw_record_id": "raw-0009",
+      "byte_start": 0,
+      "byte_end": 25,
+      "quote": "Co-Scientist in Real Labs",
+      "stance": "context"
+    },
+    {
+      "id": "ev-0010",
+      "raw_record_id": "raw-0010",
+      "byte_start": 0,
+      "byte_end": 6,
+      "quote": "Meta^n",
+      "stance": "context"
+    },
+    {
+      "id": "ev-0011",
+      "raw_record_id": "raw-0011",
+      "byte_start": 0,
+      "byte_end": 20,
+      "quote": "Agent Lightning v1.0",
+      "stance": "context"
+    },
+    {
+      "id": "ev-0012",
+      "raw_record_id": "raw-0012",
+      "byte_start": 0,
+      "byte_end": 28,
+      "quote": "The Skill Trigger Bottleneck",
+      "stance": "context"
+    },
+    {
+      "id": "ev-0013",
+      "raw_record_id": "raw-0013",
+      "byte_start": 0,
+      "byte_end": 24,
+      "quote": "Harness-Level Forgetting",
+      "stance": "context"
+    },
+    {
+      "id": "ev-0014",
+      "raw_record_id": "raw-0014",
+      "byte_start": 0,
+      "byte_end": 21,
+      "quote": "The Control-Plane Tax",
+      "stance": "context"
+    },
+    {
+      "id": "ev-0015",
+      "raw_record_id": "raw-0015",
+      "byte_start": 0,
+      "byte_end": 25,
+      "quote": "Demystifying Agent Skills",
+      "stance": "context"
+    },
+    {
+      "id": "ev-0016",
+      "raw_record_id": "raw-0016",
+      "byte_start": 0,
+      "byte_end": 8,
+      "quote": "SocialRL",
+      "stance": "context"
+    },
+    {
+      "id": "ev-0017",
+      "raw_record_id": "raw-0017",
+      "byte_start": 0,
+      "byte_end": 10,
+      "quote": "ClawGym II",
+      "stance": "context"
+    },
+    {
+      "id": "ev-0018",
+      "raw_record_id": "raw-0018",
+      "byte_start": 0,
+      "byte_end": 20,
+      "quote": "Inside an Agent Team",
+      "stance": "context"
+    },
+    {
+      "id": "ev-0019",
+      "raw_record_id": "raw-0019",
+      "byte_start": 0,
+      "byte_end": 16,
+      "quote": "Strategy Lock-In",
+      "stance": "context"
+    }
+  ],
+  "gaps": [
+    {
+      "id": "gap-curator-boundary",
+      "description": "DAIR.AI is a selective editorial source, so papers not chosen by its curators are outside this retrieval.",
+      "impact": "medium"
+    },
+    {
+      "id": "gap-no-upstream-license",
+      "description": "The upstream repository declares no license. MOZAK records titles, links and provenance only; DAIR.AI prose summaries are not retained.",
+      "impact": "medium"
+    }
+  ],
+  "synthesis": {
+    "summary": "Recorded 20 of 20 papers from 2 DAIR.AI curated issue(s). Curator prose was not retained.",
+    "claims": [
+      {
+        "id": "claim-inventory",
+        "text": "The pinned DAIR.AI source listed 20 papers in the selected issues and this run records 20 title-and-link candidates.",
+        "evidence_ids": [
+          "ev-0000",
+          "ev-0001",
+          "ev-0002",
+          "ev-0003",
+          "ev-0004",
+          "ev-0005",
+          "ev-0006",
+          "ev-0007"
+        ],
+        "status": "supported"
+      }
+    ],
+    "overall_claim": "supported"
+  },
+  "audit": {
+    "failures": [],
+    "audited_claim_ids": [
+      "claim-inventory"
+    ]
+  },
+  "receipt": {
+    "run_id": "run-10b5a0e19c4191556e69eb21",
+    "pipeline_id": "pipeline-dair-ai-v1",
+    "pipeline_revision": "a7378bda1bcdfd2c0a121a76ad168a2a53e47d96742c404a093e0aeecd3497ba",
+    "adapter_id": "adapter-dair-ai-v1",
+    "started_at": "2026-09-05T22:17:35Z",
+    "finished_at": "2026-09-05T22:17:37Z",
+    "input_hash": "9333757f26700d07934ec1195bb427dc9aea31dba81f3601e88c5f9a397fcbe4",
+    "artifact_hash": "7f0ebe160f5f49b505219e9bff7d30ca0372da632e3a4b036b97b8cbd24395f1",
+    "capabilities": [
+      "network_read",
+      "github_public_repository",
+      "curated_paper_metadata",
+      "metadata_only"
+    ],
+    "status": "passed"
+  }
+}

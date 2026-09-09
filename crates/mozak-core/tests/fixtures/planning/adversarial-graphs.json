@@ -1,0 +1,416 @@
+{
+  "cycle": {
+    "contract_version": 1,
+    "id": "plan-main",
+    "version": 1,
+    "input_set_id": "inputs-001",
+    "goals": [
+      {
+        "id": "foundation",
+        "version": 1,
+        "title": "Build shared foundation",
+        "status": "completed",
+        "priority": 1,
+        "input_ids": [
+          "input-decision"
+        ],
+        "recovery_attempts": 0
+      },
+      {
+        "id": "consumer-a",
+        "version": 1,
+        "title": "Build consumer A",
+        "status": "ready",
+        "priority": 20,
+        "input_ids": [
+          "input-observation"
+        ],
+        "recovery_attempts": 0
+      },
+      {
+        "id": "consumer-b",
+        "version": 1,
+        "title": "Build consumer B",
+        "status": "ready",
+        "priority": 10,
+        "input_ids": [
+          "input-research"
+        ],
+        "recovery_attempts": 0
+      },
+      {
+        "id": "integration",
+        "version": 1,
+        "title": "Integrate consumers",
+        "status": "planned",
+        "priority": 30,
+        "input_ids": [
+          "input-research"
+        ],
+        "recovery_attempts": 0
+      }
+    ],
+    "dependencies": [
+      {
+        "goal_id": "consumer-a",
+        "depends_on_goal_id": "foundation",
+        "provenance": {
+          "kind": "declared",
+          "input_ids": [
+            "input-decision"
+          ]
+        }
+      },
+      {
+        "goal_id": "consumer-b",
+        "depends_on_goal_id": "foundation",
+        "provenance": {
+          "kind": "observed",
+          "observation_input_id": "input-observation",
+          "detail": "consumer-b imports the same shared core"
+        }
+      },
+      {
+        "goal_id": "integration",
+        "depends_on_goal_id": "consumer-a",
+        "provenance": {
+          "kind": "inferred",
+          "rationale": "integration likely requires consumer A",
+          "treated_as_fact": false
+        }
+      },
+      {
+        "goal_id": "integration",
+        "depends_on_goal_id": "consumer-b",
+        "provenance": {
+          "kind": "declared",
+          "input_ids": [
+            "input-research"
+          ]
+        }
+      },
+      {
+        "goal_id": "foundation",
+        "depends_on_goal_id": "integration",
+        "provenance": {
+          "kind": "declared",
+          "input_ids": [
+            "input-decision"
+          ]
+        }
+      }
+    ],
+    "recovery": {
+      "max_attempts_per_goal": 2,
+      "allowed_failed_transition": "blocked"
+    }
+  },
+  "missing_dependency": {
+    "contract_version": 1,
+    "id": "plan-main",
+    "version": 1,
+    "input_set_id": "inputs-001",
+    "goals": [
+      {
+        "id": "foundation",
+        "version": 1,
+        "title": "Build shared foundation",
+        "status": "completed",
+        "priority": 1,
+        "input_ids": [
+          "input-decision"
+        ],
+        "recovery_attempts": 0
+      },
+      {
+        "id": "consumer-a",
+        "version": 1,
+        "title": "Build consumer A",
+        "status": "ready",
+        "priority": 20,
+        "input_ids": [
+          "input-observation"
+        ],
+        "recovery_attempts": 0
+      },
+      {
+        "id": "consumer-b",
+        "version": 1,
+        "title": "Build consumer B",
+        "status": "ready",
+        "priority": 10,
+        "input_ids": [
+          "input-research"
+        ],
+        "recovery_attempts": 0
+      },
+      {
+        "id": "integration",
+        "version": 1,
+        "title": "Integrate consumers",
+        "status": "planned",
+        "priority": 30,
+        "input_ids": [
+          "input-research"
+        ],
+        "recovery_attempts": 0
+      }
+    ],
+    "dependencies": [
+      {
+        "goal_id": "consumer-a",
+        "depends_on_goal_id": "foundation",
+        "provenance": {
+          "kind": "declared",
+          "input_ids": [
+            "input-decision"
+          ]
+        }
+      },
+      {
+        "goal_id": "consumer-b",
+        "depends_on_goal_id": "foundation",
+        "provenance": {
+          "kind": "observed",
+          "observation_input_id": "input-observation",
+          "detail": "consumer-b imports the same shared core"
+        }
+      },
+      {
+        "goal_id": "integration",
+        "depends_on_goal_id": "consumer-a",
+        "provenance": {
+          "kind": "inferred",
+          "rationale": "integration likely requires consumer A",
+          "treated_as_fact": false
+        }
+      },
+      {
+        "goal_id": "integration",
+        "depends_on_goal_id": "consumer-b",
+        "provenance": {
+          "kind": "declared",
+          "input_ids": [
+            "input-research"
+          ]
+        }
+      },
+      {
+        "goal_id": "consumer-a",
+        "depends_on_goal_id": "absent",
+        "provenance": {
+          "kind": "declared",
+          "input_ids": [
+            "input-decision"
+          ]
+        }
+      }
+    ],
+    "recovery": {
+      "max_attempts_per_goal": 2,
+      "allowed_failed_transition": "blocked"
+    }
+  },
+  "duplicate_edge": {
+    "contract_version": 1,
+    "id": "plan-main",
+    "version": 1,
+    "input_set_id": "inputs-001",
+    "goals": [
+      {
+        "id": "foundation",
+        "version": 1,
+        "title": "Build shared foundation",
+        "status": "completed",
+        "priority": 1,
+        "input_ids": [
+          "input-decision"
+        ],
+        "recovery_attempts": 0
+      },
+      {
+        "id": "consumer-a",
+        "version": 1,
+        "title": "Build consumer A",
+        "status": "ready",
+        "priority": 20,
+        "input_ids": [
+          "input-observation"
+        ],
+        "recovery_attempts": 0
+      },
+      {
+        "id": "consumer-b",
+        "version": 1,
+        "title": "Build consumer B",
+        "status": "ready",
+        "priority": 10,
+        "input_ids": [
+          "input-research"
+        ],
+        "recovery_attempts": 0
+      },
+      {
+        "id": "integration",
+        "version": 1,
+        "title": "Integrate consumers",
+        "status": "planned",
+        "priority": 30,
+        "input_ids": [
+          "input-research"
+        ],
+        "recovery_attempts": 0
+      }
+    ],
+    "dependencies": [
+      {
+        "goal_id": "consumer-a",
+        "depends_on_goal_id": "foundation",
+        "provenance": {
+          "kind": "declared",
+          "input_ids": [
+            "input-decision"
+          ]
+        }
+      },
+      {
+        "goal_id": "consumer-b",
+        "depends_on_goal_id": "foundation",
+        "provenance": {
+          "kind": "observed",
+          "observation_input_id": "input-observation",
+          "detail": "consumer-b imports the same shared core"
+        }
+      },
+      {
+        "goal_id": "integration",
+        "depends_on_goal_id": "consumer-a",
+        "provenance": {
+          "kind": "inferred",
+          "rationale": "integration likely requires consumer A",
+          "treated_as_fact": false
+        }
+      },
+      {
+        "goal_id": "integration",
+        "depends_on_goal_id": "consumer-b",
+        "provenance": {
+          "kind": "declared",
+          "input_ids": [
+            "input-research"
+          ]
+        }
+      },
+      {
+        "goal_id": "consumer-a",
+        "depends_on_goal_id": "foundation",
+        "provenance": {
+          "kind": "declared",
+          "input_ids": [
+            "input-decision"
+          ]
+        }
+      }
+    ],
+    "recovery": {
+      "max_attempts_per_goal": 2,
+      "allowed_failed_transition": "blocked"
+    }
+  },
+  "inferred_as_fact": {
+    "contract_version": 1,
+    "id": "plan-main",
+    "version": 1,
+    "input_set_id": "inputs-001",
+    "goals": [
+      {
+        "id": "foundation",
+        "version": 1,
+        "title": "Build shared foundation",
+        "status": "completed",
+        "priority": 1,
+        "input_ids": [
+          "input-decision"
+        ],
+        "recovery_attempts": 0
+      },
+      {
+        "id": "consumer-a",
+        "version": 1,
+        "title": "Build consumer A",
+        "status": "ready",
+        "priority": 20,
+        "input_ids": [
+          "input-observation"
+        ],
+        "recovery_attempts": 0
+      },
+      {
+        "id": "consumer-b",
+        "version": 1,
+        "title": "Build consumer B",
+        "status": "ready",
+        "priority": 10,
+        "input_ids": [
+          "input-research"
+        ],
+        "recovery_attempts": 0
+      },
+      {
+        "id": "integration",
+        "version": 1,
+        "title": "Integrate consumers",
+        "status": "planned",
+        "priority": 30,
+        "input_ids": [
+          "input-research"
+        ],
+        "recovery_attempts": 0
+      }
+    ],
+    "dependencies": [
+      {
+        "goal_id": "consumer-a",
+        "depends_on_goal_id": "foundation",
+        "provenance": {
+          "kind": "declared",
+          "input_ids": [
+            "input-decision"
+          ]
+        }
+      },
+      {
+        "goal_id": "consumer-b",
+        "depends_on_goal_id": "foundation",
+        "provenance": {
+          "kind": "observed",
+          "observation_input_id": "input-observation",
+          "detail": "consumer-b imports the same shared core"
+        }
+      },
+      {
+        "goal_id": "integration",
+        "depends_on_goal_id": "consumer-a",
+        "provenance": {
+          "kind": "inferred",
+          "rationale": "integration likely requires consumer A",
+          "treated_as_fact": true
+        }
+      },
+      {
+        "goal_id": "integration",
+        "depends_on_goal_id": "consumer-b",
+        "provenance": {
+          "kind": "declared",
+          "input_ids": [
+            "input-research"
+          ]
+        }
+      }
+    ],
+    "recovery": {
+      "max_attempts_per_goal": 2,
+      "allowed_failed_transition": "blocked"
+    }
+  }
+}

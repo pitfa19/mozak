@@ -1,0 +1,307 @@
+{
+  "adapter": "adapter-mcp-registry-v1",
+  "adapter_version": "1",
+  "capability": "tool_release_metadata_retrieval",
+  "effects": {
+    "dry_run_available": true,
+    "external_writes": [],
+    "irreversible_effects": [],
+    "mutations_performed": "none",
+    "network_used": true,
+    "owner_approval_required": false
+  },
+  "interests": [
+    {
+      "name": "knowledge-memory",
+      "records_matched": 7,
+      "terms": [
+        "memory",
+        "knowledge",
+        "vector",
+        "rag",
+        "retrieval",
+        "graph",
+        "embedding"
+      ]
+    },
+    {
+      "name": "agent-orchestration",
+      "records_matched": 29,
+      "terms": [
+        "agent",
+        "orchestrat",
+        "workflow",
+        "multi-agent",
+        "planner",
+        "task"
+      ]
+    },
+    {
+      "name": "provenance-evidence",
+      "records_matched": 5,
+      "terms": [
+        "provenance",
+        "audit",
+        "citation",
+        "evidence",
+        "lineage",
+        "trace"
+      ]
+    },
+    {
+      "name": "developer-tooling",
+      "records_matched": 12,
+      "terms": [
+        "git",
+        "repository",
+        "code",
+        "lint",
+        "test",
+        "build",
+        "ci"
+      ]
+    }
+  ],
+  "records_kept": 3,
+  "registry": "https://registry.modelcontextprotocol.io",
+  "response_files": [
+    "8018bd9fdd21205354a5868dfd8fe0db06bda802123532b8f1090be31a953090",
+    "12faad191d38661c9ddf39efd6d00d130a8e4efccb2b44402656b69fa2081911",
+    "fcd27d9de639f968a6a77be348918064feb4c539c002c7f2e821b08b15e9a1b4",
+    "dc16c0ddc2ffcc7c334970a673d910664ebc308c6e44b05d34252f42f376161b",
+    "21aa5687d3a48b39d4810200347d11201da1d3e46bcf64877a257a9e9c1faaac",
+    "3e5452e37eb7460845e1d959980523934d677d7a09372e15bdfd205bb805963b",
+    "e052864f51fc7045f3bcc3c11763c1501dcc4fb9e53e6500f4fa0620b644dfe7",
+    "08ad46557a0c9a6cfe6e0acd7fa50a7223595bba590695e13e06c9f859cee2fc",
+    "d17f66dafca60f4ec2cd6ad4c8fc2dcc91660ee748afd3255be3f31509e93f1a",
+    "f5c219cba33d42ffdbc7b1ad5d6c97b2860730cbf635cf4d78727196572121f8",
+    "49ce9fe636d5d0d6430626e1ad90f2a461e0de34a42d0d34ae027da031f90713",
+    "b6c57d4e7f16d8da46bbd20b4b3bc251de4a910f56c9d1766cea19b4b9800073",
+    "cbf115e44c9beab2ba85cd3afb784e5fc8b22e7dd8a9af3644e30e32d5786f65",
+    "1b2e28008f45d4a58898b8ef3cc74b05f81b02e439ae9cac78c6c7b1c5ee1153",
+    "61d9d9714feaa3d9e52949e33b14d53c6b7de98607c574a64170efbecf9667e6",
+    "cbe57065a2e35935b8c04ea77b34bef870fefd763113ecdbb05bff09797e1e3e",
+    "4ce4ed70a898e9f783f92d62c703676325a806fd7f15e50ac7d2f3935bcbe901",
+    "977c632450f9edcd4ef8974515fb8d2fb358841ccdb4ee5aaaacd9198caa9ed8",
+    "19fc76bfa436ef869a3ba943b31a815412082f8057b6aa67bf326919ee8bc533",
+    "c632a9ee2b2261e2db6739344dd3f7b731227e2696b40aa80746178cf875e2c9"
+  ],
+  "run": {
+    "audit": {
+      "audited_claim_ids": [
+        "claim-inventory"
+      ],
+      "failures": []
+    },
+    "contract_version": 1,
+    "created_at": "2026-09-07T01:45:29Z",
+    "evidence": [
+      {
+        "byte_end": 25,
+        "byte_start": 8,
+        "id": "ev-0000",
+        "quote": "app.fawtar/fawtar",
+        "raw_record_id": "raw-0000",
+        "stance": "context"
+      },
+      {
+        "byte_end": 23,
+        "byte_start": 8,
+        "id": "ev-0001",
+        "quote": "ai.balancos/mcp",
+        "raw_record_id": "raw-0001",
+        "stance": "context"
+      },
+      {
+        "byte_end": 26,
+        "byte_start": 8,
+        "id": "ev-0002",
+        "quote": "ai.taskaid/taskaid",
+        "raw_record_id": "raw-0002",
+        "stance": "context"
+      }
+    ],
+    "gaps": [
+      {
+        "description": "The registry lists MCP servers, so agentic tooling that ships no MCP server is outside this retrieval entirely.",
+        "id": "gap-mcp-servers-only",
+        "impact": "high"
+      },
+      {
+        "description": "Registry entries are self-published by their authors. Presence records that someone published, not that anyone assessed quality, security or fitness.",
+        "id": "gap-self-published",
+        "impact": "medium"
+      },
+      {
+        "description": "The registry is a preview release whose data may be reset, so this snapshot is the evidence rather than the live service.",
+        "id": "gap-preview-registry",
+        "impact": "medium"
+      },
+      {
+        "description": "Publisher descriptions were used transiently for interest matching and are not retained, so recorded records carry identity and dates only.",
+        "id": "gap-prose-not-retained",
+        "impact": "low"
+      },
+      {
+        "description": "The requested window exceeded this adapter's 20-page ceiling, so it was not read to the end. Of the 729 matched versions observed, this run kept 40; unread pages may contain newer entries.",
+        "id": "gap-truncated",
+        "impact": "high"
+      }
+    ],
+    "pipeline": {
+      "budgets": {
+        "max_claims": 8,
+        "max_planning_inputs": 8,
+        "max_raw_bytes": 655360,
+        "max_sources": 40
+      },
+      "id": "pipeline-mcp-registry-v1",
+      "output_authority": {
+        "may_mutate_accepted_plans": false,
+        "planning_inputs_are_proposals": true
+      },
+      "required_artifacts": [
+        "scope",
+        "plan",
+        "raw_records",
+        "evidence",
+        "gaps",
+        "synthesis",
+        "audit",
+        "receipt"
+      ],
+      "revision": "5fa4a256b964b445de62f71293b82b6eeb6a578e426100806192674557065b3a",
+      "source_profile_id": "source-mcp-registry-v1",
+      "stages": [
+        {
+          "id": "stage-acquire",
+          "operation": "acquire"
+        },
+        {
+          "id": "stage-evidence",
+          "operation": "extract_evidence"
+        },
+        {
+          "id": "stage-gaps",
+          "operation": "identify_gaps"
+        },
+        {
+          "id": "stage-synthesis",
+          "operation": "synthesize"
+        },
+        {
+          "id": "stage-audit",
+          "operation": "audit"
+        },
+        {
+          "id": "stage-export",
+          "operation": "export_planning_inputs"
+        }
+      ],
+      "version": 1
+    },
+    "plan": {
+      "pipeline_id": "pipeline-mcp-registry-v1",
+      "source_profile_id": "source-mcp-registry-v1",
+      "steps": [
+        "Request capped registry pages, following the explicit cursor",
+        "Write every exact response body before interpreting it",
+        "Use publisher prose transiently for interest matching only",
+        "Record server identity, version, links, dates and registry status"
+      ]
+    },
+    "raw_records": [
+      {
+        "acquired_at": "2026-09-07T01:45:29Z",
+        "content": "server: app.fawtar/fawtar\nversion: 1.1.0\nrepository: (none declared)\nwebsite: https://fawtar.app/mcp\ndistribution: remote or unspecified\npublished_at: 2026-09-06T23:24:10.200248Z\nupdated_at: 2026-09-06T23:24:10.200248Z\nis_latest: True\nregistry_status: active\nclusters: developer-tooling\nretention: identity, version, links and dates only; publisher prose not retained",
+        "content_sha256": "71b3781bb55032b64cb2950ac45ccc6010def176614b4a32dc312a0439081c85",
+        "id": "raw-0000",
+        "immutable": true,
+        "media_type": "text/plain",
+        "source_uri": "recorded:mcp-registry:app.fawtar/fawtar@1.1.0",
+        "trust": "untrusted_data"
+      },
+      {
+        "acquired_at": "2026-09-07T01:45:29Z",
+        "content": "server: ai.balancos/mcp\nversion: 0.1.0\nrepository: (none declared)\nwebsite: https://balancos.ai/mcp\ndistribution: remote or unspecified\npublished_at: 2026-09-06T22:46:50.23247Z\nupdated_at: 2026-09-06T22:46:50.23247Z\nis_latest: True\nregistry_status: active\nclusters: developer-tooling\nretention: identity, version, links and dates only; publisher prose not retained",
+        "content_sha256": "fc0dac2ed3c00cb3e6a5ccbc635091d43f8746c2a61ce06052e7305b2f3470c3",
+        "id": "raw-0001",
+        "immutable": true,
+        "media_type": "text/plain",
+        "source_uri": "recorded:mcp-registry:ai.balancos/mcp@0.1.0",
+        "trust": "untrusted_data"
+      },
+      {
+        "acquired_at": "2026-09-07T01:45:29Z",
+        "content": "server: ai.taskaid/taskaid\nversion: 1.0.0\nrepository: (none declared)\nwebsite: https://taskaid.ai\ndistribution: remote or unspecified\npublished_at: 2026-09-06T22:40:06.997692Z\nupdated_at: 2026-09-06T22:40:06.997692Z\nis_latest: True\nregistry_status: active\nclusters: agent-orchestration\nretention: identity, version, links and dates only; publisher prose not retained",
+        "content_sha256": "b6e29f0891c4111f0929316f89de295cb86bcd9e59e483cbcc2da41e42d7cc66",
+        "id": "raw-0002",
+        "immutable": true,
+        "media_type": "text/plain",
+        "source_uri": "recorded:mcp-registry:ai.taskaid/taskaid@1.0.0",
+        "trust": "untrusted_data"
+      }
+    ],
+    "receipt": {
+      "adapter_id": "adapter-mcp-registry-v1",
+      "artifact_hash": "1b8f9aba31d46109554f5dedb18d71b4c3d20b3781e3e3a337f11f57a78ace5a",
+      "capabilities": [
+        "network_read",
+        "mcp_registry_public_api",
+        "tool_release_metadata",
+        "metadata_only"
+      ],
+      "finished_at": "2026-09-07T01:46:08Z",
+      "input_hash": "8e7612351dd2daa9e1a20c04227581dbadbabbbb69da6e16e5ad6e93c66caa0a",
+      "pipeline_id": "pipeline-mcp-registry-v1",
+      "pipeline_revision": "5fa4a256b964b445de62f71293b82b6eeb6a578e426100806192674557065b3a",
+      "run_id": "run-5d5ab19aaad6fee2aad928c7",
+      "started_at": "2026-09-07T01:45:29Z",
+      "status": "qualified"
+    },
+    "run_id": "run-5d5ab19aaad6fee2aad928c7",
+    "scope": {
+      "excluded": [
+        "agentic tooling that publishes no MCP server",
+        "publisher description prose",
+        "any judgement of tool quality, security or fitness"
+      ],
+      "included": [
+        "official MCP registry v0 server listings",
+        "entries updated since 2026-08-01T00:00:00Z"
+      ],
+      "question": "Which MCP servers published recently are candidate tooling for the modules MOZAK expects to keep upgradeable?"
+    },
+    "source_profile": {
+      "allowed_schemes": [
+        "recorded"
+      ],
+      "content_is_untrusted": true,
+      "id": "source-mcp-registry-v1",
+      "max_bytes_per_record": 16384,
+      "max_records": 40,
+      "may_authorize_actions": false,
+      "version": 1
+    },
+    "synthesis": {
+      "claims": [
+        {
+          "evidence_ids": [
+            "ev-0000",
+            "ev-0001",
+            "ev-0002"
+          ],
+          "id": "claim-inventory",
+          "status": "qualified",
+          "text": "The pinned registry snapshot matched 729 server versions and this run records 3 identity-and-date candidates."
+        }
+      ],
+      "overall_claim": "qualified",
+      "summary": "Recorded 3 of 729 matching MCP server versions from the official registry. Publisher prose was not retained, and presence is publication rather than endorsement."
+    }
+  },
+  "scope_id": "topic-agentic-systems",
+  "total_matched": 729,
+  "truncated": true,
+  "updated_since": "2026-08-01T00:00:00Z"
+}

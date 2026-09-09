@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mozak.dev/spec/m0/patch.schema.json",
+  "title": "MOZAK M0 patch",
+  "type": "object",
+  "required": ["id", "project_id", "base_generation", "proposer", "created_at", "events", "state"],
+  "properties": {
+    "id": {"type": "string", "pattern": "^pat_[a-z0-9_]+$"},
+    "project_id": {"type": "string", "pattern": "^prj_[a-z0-9_]+$"},
+    "base_generation": {"type": "integer", "minimum": 0},
+    "proposer": {"type": "string", "minLength": 1},
+    "created_at": {"type": "string", "format": "date-time"},
+    "events": {"type": "array", "minItems": 1, "items": {"$ref": "event.schema.json"}},
+    "state": {"type": "string", "enum": ["proposed", "approved", "rejected", "stale", "applied"]},
+    "review": {
+      "type": "object",
+      "required": ["reviewer", "reviewed_at", "decision"],
+      "properties": {
+        "reviewer": {"type": "string", "minLength": 1},
+        "reviewed_at": {"type": "string", "format": "date-time"},
+        "decision": {"type": "string", "enum": ["approve", "reject"]},
+        "reason": {"type": "string"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "allOf": [
+    {"if": {"properties": {"state": {"enum": ["approved", "rejected", "applied"]}}}, "then": {"required": ["review"]}}
+  ],
+  "additionalProperties": false
+}

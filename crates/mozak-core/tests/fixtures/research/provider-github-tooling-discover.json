@@ -1,0 +1,333 @@
+{
+  "adapter": "adapter-github-tooling-v1",
+  "adapter_version": "1",
+  "capability": "repository_release_metadata_retrieval",
+  "effects": {
+    "dry_run_available": true,
+    "external_writes": [],
+    "irreversible_effects": [],
+    "mutations_performed": "none",
+    "network_used": true,
+    "owner_approval_required": false
+  },
+  "min_stars": 150,
+  "mode": "discover",
+  "pushed_since": "2026-08-01",
+  "queries": [
+    {
+      "name": "agent-memory",
+      "records_matched": 50,
+      "terms": [
+        "topic:agent-memory"
+      ]
+    },
+    {
+      "name": "knowledge-rag",
+      "records_matched": 40,
+      "terms": [
+        "topic:rag",
+        "topic:knowledge-graph"
+      ]
+    },
+    {
+      "name": "mcp-servers",
+      "records_matched": 50,
+      "terms": [
+        "topic:mcp"
+      ]
+    },
+    {
+      "name": "agent-skills",
+      "records_matched": 50,
+      "terms": [
+        "topic:claude-code",
+        "topic:prompt-engineering"
+      ]
+    },
+    {
+      "name": "agent-frameworks",
+      "records_matched": 13,
+      "terms": [
+        "topic:ai-agents",
+        "topic:llm-agent"
+      ]
+    },
+    {
+      "name": "provenance-eval",
+      "records_matched": 2,
+      "terms": [
+        "topic:llm-evaluation",
+        "topic:observability",
+        "topic:ai"
+      ]
+    }
+  ],
+  "records_kept": 3,
+  "response_files": [
+    "2a4af34dc45dd2638dd414523f17ad9a923a1eca25e18fe45186bb4fc229aed4",
+    "eec21597ed12de47c2fd4cfccb2811d5744ddb3e31c0c0190fca50614134ad5a",
+    "5653b094b9c54b3173053e5b49b689b479915594b2c588603a84138b8339761c",
+    "bf44052f29cc88ba21439ebbb071f7e00aa495c17730e75a8c29637bc84cb514",
+    "c5b026dde695ecf6d5b669b533998c48d85bfd0e7f08cbff9865d651d8a2ae52",
+    "c2eabb420d85ffb06ff36b683609b77d7213d6400a2dcfc3e2370401e690e5c9",
+    "6160a5b8dcd663da0be5c2b062e7d789be862b277b6ce7c5b8c609d566bb5709",
+    "4b713f2a2c837d079ec00d77ba15ef1267498be75cc220c061bba915e32d16ea",
+    "3cf3750e2b7c88c9eb9ae4d4e066afaa1a0c0231781672176c50cec5dcccfc9f",
+    "b6232a79993f36187851a172a8dc38ea6c135446e34b519c6cfbb5c16bacb2c5",
+    "6b34eae1fbe9f00aa87bfe83d91c989aaaf907137b480629653b7418ece5b40f",
+    "c97f9e6ba004d0cdaa2f948bf0fec70b45d979be32f1e2c2f3c05f9b36d0c893",
+    "f373761f9b0f1a8483469750ffa9030ef30bcd4caeeb79d1d8e19d000a57b8af",
+    "93b5511c741f1c9daa87bc67cb64dbee0c45f32b39627d15b63028b2ff1e2aca",
+    "17d70e245c2bb26f164ec19b3d6c7127f683648e274ab7440e3963834b1b6d8a",
+    "fde26fdc5071f3c259c47fbded61ab6ad141afa7d86025c4c88a2693beb9d30a",
+    "6b722602b025265746eef78907746f926415c2d07ddad353fd10ed9ebdddede2",
+    "02bb1c4fa053d76230185ce51a038f0db51f5016c3683fe5a35e47beac66a1fd",
+    "777f93f8ebd59aa2a07563edcdff39dbb8cea7203a9eddbf1488b45dca4d4ac5",
+    "8fd2e8112bac60a617ad5a9a3dc003eb8e538005a4bf25a82cf1803eda00499e",
+    "dfccf2c20957e286ed8a96533920214ffafaf860b106f9680be95829f18cad89",
+    "b06043e3f514e1dd4cb7bd987a60e45711145338bc326f26fad8de4f88430aaf",
+    "3d68c3be546651f085bc632037d67f2299da786b6d1a2bd7830c9849f228b438",
+    "3b97c0879269f6d36b7ede675500c7375fa4f46ccde38c210abfbacbc940c161",
+    "44cd3c1da91b0f2c700feac00b60018d1a5a77f5e78577394130c02b76a423f0",
+    "5404661cbd184b126b2819cc834d44a56ac34f1ec60700034b54f3f89506fc4e",
+    "a65ac5b333a24a3fc00270e9119f1a50890518f9dc3a79d9cf99c7ab9ed284e2",
+    "ddb7fae134250f8a629bdc25b1bcefe1a818cf21bbbf62a04f4018fd0a8106fb",
+    "1430d07ce6eb6bda9a12914f3b549034b683fa8194cfceb9b6deff17db80df78",
+    "20842d6394c9d0d0144a11158d138431f0d97677521f341c6586cbdf5498656b",
+    "1b3ea65b197f3ad755a01ee4de35ef0c8d69bc4ac5f7afa5976b5690c4dad7b8",
+    "f3d6bd7e8002759181b7bfb88dc80ba68e2afa9fcf0b4440d3b82aec1066b2ad",
+    "bdbaeddd67e3ffbbcb9ae1bd016340d51f98cf4f079602c85c1b372da147da0e",
+    "a611231954312fba2314236ed5cc47b63ffae4bd4ca305cfd6369ed49a1eb725",
+    "597d2631a8e82a4098ac23b80f73b8e8255baf5b9d37877b8594e7784f4f99cb",
+    "d9c6d0e03af79a9c2d7c2f168e85f3971040d888fa801562abcfde367a7e4f2f",
+    "8648fe1d02c7a9b778f2cc40d7d4abba32e814e6b77e3e6389baf1323e317d0e",
+    "fcecc0f46640dde52f61dfd14cd48006200702c8400d581e1d0eaf1c103e762e",
+    "b05695bf7584aa6940f740e25ef5087ca5b6ebf8e1f19baf6cc44ff8f9f42dee",
+    "b29ce6e114b3baef37fb2458b5f7b53d3a2aeae6b80bc561628c7eddfec3d686",
+    "123695400744ae471dd30f8db040fe6ce94906a7a5b42b5700dbcdcb2d6c54c4",
+    "d281eb6ce53c9acca10be14ad54ab984d4aafaea6362450828f14d2724d0c933",
+    "0563de99a62af2fc52924810e12d319e8c046b0079cca4e63941be9c8dd412ba",
+    "0be654d91b3e03381070ea0f45b0819fc028af66644eb718ddcdfb392e3f27e7",
+    "6dbfd5ee310c2637d8929f831b1de76eb77bca52098dde8833dd265d7263d0b0",
+    "25527cc6218bafabfefe32393ac5c353e5b0e5fbb704de29874e4c97d4ea8fdb"
+  ],
+  "run": {
+    "audit": {
+      "audited_claim_ids": [
+        "claim-inventory"
+      ],
+      "failures": []
+    },
+    "contract_version": 1,
+    "created_at": "2026-09-07T02:14:20Z",
+    "evidence": [
+      {
+        "byte_end": 29,
+        "byte_start": 12,
+        "id": "ev-0000",
+        "quote": "aqm857886159/Nomi",
+        "raw_record_id": "raw-0000",
+        "stance": "context"
+      },
+      {
+        "byte_end": 32,
+        "byte_start": 12,
+        "id": "ev-0001",
+        "quote": "blogminhquy/javis-os",
+        "raw_record_id": "raw-0001",
+        "stance": "context"
+      },
+      {
+        "byte_end": 31,
+        "byte_start": 12,
+        "id": "ev-0002",
+        "quote": "aipoch/open-science",
+        "raw_record_id": "raw-0002",
+        "stance": "context"
+      }
+    ],
+    "gaps": [
+      {
+        "description": "Stars and recent pushes measure attention and activity, not quality, security or fitness. Nothing here assesses whether a repository is worth adopting.",
+        "id": "gap-stars-are-attention",
+        "impact": "medium"
+      },
+      {
+        "description": "Repository licences differ and some declare none. Only identity, activity, licence and topic metadata is retained, never repository prose or code.",
+        "id": "gap-license-varies",
+        "impact": "medium"
+      },
+      {
+        "description": "Discovery reports candidates for owner review. A repository becomes watched only when the owner adds it to a watch request, so nothing here is promoted, adopted or accepted.",
+        "id": "gap-discovery-is-proposal-only",
+        "impact": "high"
+      },
+      {
+        "description": "Discovery relies on declared GitHub topics and search terms, so a relevant repository that declares no matching topic is invisible to this retrieval.",
+        "id": "gap-topic-dependent",
+        "impact": "high"
+      },
+      {
+        "description": "A search matched more repositories than one page returns, so the result set was not fully observed. Of the 196 repositories seen, this run kept 40; unseen results may include others.",
+        "id": "gap-truncated",
+        "impact": "high"
+      }
+    ],
+    "pipeline": {
+      "budgets": {
+        "max_claims": 8,
+        "max_planning_inputs": 8,
+        "max_raw_bytes": 655360,
+        "max_sources": 40
+      },
+      "id": "pipeline-github-tooling-v1",
+      "output_authority": {
+        "may_mutate_accepted_plans": false,
+        "planning_inputs_are_proposals": true
+      },
+      "required_artifacts": [
+        "scope",
+        "plan",
+        "raw_records",
+        "evidence",
+        "gaps",
+        "synthesis",
+        "audit",
+        "receipt"
+      ],
+      "revision": "159d28c73ad1899aeabe3518dd5913d0f82e523256fb8db6df0cdbde44917661",
+      "source_profile_id": "source-github-tooling-v1",
+      "stages": [
+        {
+          "id": "stage-acquire",
+          "operation": "acquire"
+        },
+        {
+          "id": "stage-evidence",
+          "operation": "extract_evidence"
+        },
+        {
+          "id": "stage-gaps",
+          "operation": "identify_gaps"
+        },
+        {
+          "id": "stage-synthesis",
+          "operation": "synthesize"
+        },
+        {
+          "id": "stage-audit",
+          "operation": "audit"
+        },
+        {
+          "id": "stage-export",
+          "operation": "export_planning_inputs"
+        }
+      ],
+      "version": 1
+    },
+    "plan": {
+      "pipeline_id": "pipeline-github-tooling-v1",
+      "source_profile_id": "source-github-tooling-v1",
+      "steps": [
+        "Run only the owner-declared queries or watchlist",
+        "Write every exact response body before interpreting it",
+        "Resolve each repository's latest release, or its head commit when it publishes none",
+        "Record identity, activity, licence and topics only"
+      ]
+    },
+    "raw_records": [
+      {
+        "acquired_at": "2026-09-07T02:14:20Z",
+        "content": "repository: aqm857886159/Nomi\nurl: https://github.com/aqm857886159/Nomi\nlatest_release: v0.21.0\nlatest_at: 2026-08-26T23:21:20Z\npushed_at: 2026-09-07T02:14:10Z\nstars: 499\nlanguage: TypeScript\nlicense: AGPL-3.0\narchived: False\ntopics: ai-agent, ai-video, ai-video-generator, bring-your-own-key, comfyui, creative-tools, desktop-app, electron, image-generation, local-first, mcp, offline, react, storyboard, text-to-image, text-to-video, timeline-editor, typescript, video-editing, video-generation\nmatched: mcp-servers\nretention: identity, activity, licence and topics only; repository prose not retained",
+        "content_sha256": "84b5131e1cb5127bdacb7a980d1788ca3de9e4e39177a17289674fb286d64cc1",
+        "id": "raw-0000",
+        "immutable": true,
+        "media_type": "text/plain",
+        "source_uri": "recorded:github-tooling:aqm857886159/Nomi@v0.21.0",
+        "trust": "untrusted_data"
+      },
+      {
+        "acquired_at": "2026-09-07T02:14:20Z",
+        "content": "repository: blogminhquy/javis-os\nurl: https://github.com/blogminhquy/javis-os\nlatest_commit: a32dd95e224715e73d8c7afc1d27ba3d4f95af82\nlatest_at: 2026-09-07T02:13:47Z\npushed_at: 2026-09-07T02:13:47Z\nstars: 189\nlanguage: Python\nlicense: MIT\narchived: False\ntopics: agent-operations, agent-optimization, agent-orchestration, agent-orchestrator, agent-os, ai-agent, ai-agents, harness, harness-ai, harness-engineering, harness-framework, jarvis, jarvis-ai, javis, llm, mcp, mcp-server, python, telegrambot, websocket\nmatched: mcp-servers\nretention: identity, activity, licence and topics only; repository prose not retained",
+        "content_sha256": "9b48b6efd77524086a272c73c120ddc98314e9459741bba24cd641a8fef1bc67",
+        "id": "raw-0001",
+        "immutable": true,
+        "media_type": "text/plain",
+        "source_uri": "recorded:github-tooling:blogminhquy/javis-os@a32dd95e224715e73d8c7afc1d27ba3d4f95af82",
+        "trust": "untrusted_data"
+      },
+      {
+        "acquired_at": "2026-09-07T02:14:20Z",
+        "content": "repository: aipoch/open-science\nurl: https://github.com/aipoch/open-science\nlatest_release: v0.26.0\nlatest_at: 2026-09-07T01:13:01Z\npushed_at: 2026-09-07T02:13:38Z\nstars: 3888\nlanguage: TypeScript\nlicense: Apache-2.0\narchived: False\ntopics: ai-for-science, ai-research, ai-workbench, bioinformatics, claude-science-alternative, desktop-app, electron, linux, local-first, macos, mcp, model-agnostic, open-science, python, r, reproducible-research, research-software, research-workbench, scientific-ai, windows\nmatched: mcp-servers\nretention: identity, activity, licence and topics only; repository prose not retained",
+        "content_sha256": "528fd6a84c6083c84eb8cc4d6f5d5d7e3753c43dea0687be8f5d3315740e93ba",
+        "id": "raw-0002",
+        "immutable": true,
+        "media_type": "text/plain",
+        "source_uri": "recorded:github-tooling:aipoch/open-science@v0.26.0",
+        "trust": "untrusted_data"
+      }
+    ],
+    "receipt": {
+      "adapter_id": "adapter-github-tooling-v1",
+      "artifact_hash": "85ced80e29bd47b163262ec5ad2820cca6bc0a28e289bdd58dd16f33859dccd7",
+      "capabilities": [
+        "network_read",
+        "github_public_api",
+        "repository_release_metadata",
+        "metadata_only"
+      ],
+      "finished_at": "2026-09-07T02:15:00Z",
+      "input_hash": "9759f274f6974d8bdb33061f1bbb077ed20efdeff623d3c8a1afa1ec425c0ac8",
+      "pipeline_id": "pipeline-github-tooling-v1",
+      "pipeline_revision": "159d28c73ad1899aeabe3518dd5913d0f82e523256fb8db6df0cdbde44917661",
+      "run_id": "run-ef462c2ee349b5c1db53fa24",
+      "started_at": "2026-09-07T02:14:20Z",
+      "status": "qualified"
+    },
+    "run_id": "run-ef462c2ee349b5c1db53fa24",
+    "scope": {
+      "excluded": [
+        "repository descriptions and README prose",
+        "source code and release assets",
+        "any judgement of quality, security or fitness",
+        "repositories declaring no matching topic or term"
+      ],
+      "included": [
+        "GitHub repository search at the recorded time",
+        "6 declared queries"
+      ],
+      "question": "Which recently active agentic tooling repositories are candidates for the modules MOZAK expects to keep upgradeable?"
+    },
+    "source_profile": {
+      "allowed_schemes": [
+        "recorded"
+      ],
+      "content_is_untrusted": true,
+      "id": "source-github-tooling-v1",
+      "max_bytes_per_record": 16384,
+      "max_records": 40,
+      "may_authorize_actions": false,
+      "version": 1
+    },
+    "synthesis": {
+      "claims": [
+        {
+          "evidence_ids": [
+            "ev-0000",
+            "ev-0001",
+            "ev-0002"
+          ],
+          "id": "claim-inventory",
+          "status": "qualified",
+          "text": "This discover run records 3 repositories with their latest release or head commit as candidate tooling evidence."
+        }
+      ],
+      "overall_claim": "qualified",
+      "summary": "Recorded 3 repositories in discover mode. Repository prose was not retained, and no repository was promoted, adopted or assessed."
+    }
+  },
+  "scope_id": "topic-agentic-systems",
+  "total_found": 196,
+  "truncated": true,
+  "watchlist": []
+}

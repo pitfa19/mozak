@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mozak.dev/spec/m0/claim.schema.json",
+  "title": "MOZAK M0 claim",
+  "type": "object",
+  "required": ["id", "statement", "scope", "state", "evidence"],
+  "properties": {
+    "id": {"type": "string", "pattern": "^clm_[a-z0-9_]+$"},
+    "statement": {"type": "object", "required": ["subject", "predicate", "object"], "properties": {"subject": {"type": "string"}, "predicate": {"type": "string"}, "object": {}}, "additionalProperties": true},
+    "scope": {"type": "string", "minLength": 1},
+    "state": {"type": "string", "enum": ["candidate", "accepted", "rejected", "disputed", "superseded", "retracted", "archived"]},
+    "valid_from": {"type": ["string", "null"], "format": "date-time"},
+    "valid_to": {"type": ["string", "null"], "format": "date-time"},
+    "evidence": {"type": "array", "items": {"$ref": "evidence.schema.json"}},
+    "kind": {"type": "string", "enum": ["fact", "decision", "assumption"]}
+  },
+  "additionalProperties": false
+}

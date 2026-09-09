@@ -1,0 +1,9 @@
+version: 1
+framework_contract_version: 1
+project:
+  id: invalid-revision
+  name: Invalid revision
+repository:
+  revision: a1b2c3d
+owned_paths:
+  - src

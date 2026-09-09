@@ -1,0 +1,35 @@
+flowchart TB
+    outside(["the outside world<br/>papers, releases, your finished work"])
+    owner{{"owner decision"}}
+
+    research["Research<br/>adapters, runs, cases<br/>proposal-only"]
+    scope["Scope<br/>topic or project<br/>hashed immutable inputs"]
+    plans["Plans<br/>plan, execute, seal, attest"]
+    metakb["Meta KB<br/>registry, relations, concepts"]
+    lab["Improve Lab<br/>proposes, stops at your review"]
+    skill["Skill<br/>your request to an exact route"]
+
+    outside -->|recorded, never fetched by MOZAK| research
+    research --> owner
+    lab --> owner
+    owner ==>|accepts| scope
+    scope --> plans
+    scope --> metakb
+    plans --> metakb
+    metakb --> lab
+    research --> lab
+    skill -.->|you ask| scope
+
+    classDef outD fill:#fafafa,stroke:#9e9e9e,color:#424242
+    classDef eviD fill:#fce4ec,stroke:#c2185b,color:#880e4f
+    classDef labD fill:#e0f2f1,stroke:#00796b,color:#004d40
+    classDef gate fill:#fff3e0,stroke:#ef6c00,color:#e65100
+    classDef core fill:#e3f2fd,stroke:#1565c0,color:#0d47a1
+    classDef knowD fill:#e8f5e9,stroke:#2e7d32,color:#1b5e20
+
+    class outside outD
+    class research eviD
+    class lab labD
+    class owner,skill gate
+    class scope,plans core
+    class metakb knowD

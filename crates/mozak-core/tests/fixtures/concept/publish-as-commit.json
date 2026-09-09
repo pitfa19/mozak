@@ -1,0 +1,53 @@
+{
+  "contract_version": 1,
+  "id": "concept-publish-as-commit",
+  "version": 1,
+  "title": "Publish as a validated single commit to the content repository",
+  "mechanism": "An authenticated owner edits content in a small admin page. The server validates the submission with the same validator the build runs, then writes it through the Git Data API as blobs, a tree, one commit, and one fast-forward-only ref update. The ordinary build deploys the new commit.",
+  "invariant": "Publishing equals one validated commit to the repository, the ordinary build deploys it, and reverting the commit undoes the publish.",
+  "applicability": "Applies to small owner-edited content sites whose deployment builds from a Git repository. It does not apply where content must change without a build, where edits are high frequency, or where the host does not build from repository commits.",
+  "origin": {
+    "scope_id": "example-gamma",
+    "revision": "1111111"
+  },
+  "evidence": [
+    {
+      "id": "E-023",
+      "observation": "A publish touching three documents produced exactly one commit and one build; mutation M3 fails the harness when two changed documents produce more than one commit. A stale base is refused with 409 before the ref update, and the ref PATCH omits force so a non-fast-forward is an error rather than a silent overwrite.",
+      "locator": ".mozak/research/runs/2026-09-04-example-beta-case-study/source/evaluation.md"
+    },
+    {
+      "id": "E-046",
+      "observation": "The owner's publish reached the live site on both the apex and pages.dev within roughly 90 seconds, confirming the host builds commits produced by this mechanism.",
+      "locator": ".mozak/research/runs/2026-09-04-example-beta-case-study/evidence-ledger.md"
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-01",
+      "statement": "The hosting platform builds and deploys any commit pushed to the tracked branch.",
+      "load_bearing": true
+    },
+    {
+      "id": "A-02",
+      "statement": "The commit author identity used by the publisher is accepted by the hosting platform as a project contributor.",
+      "load_bearing": true
+    },
+    {
+      "id": "A-03",
+      "statement": "The request handler signature and environment access follow the host's function model.",
+      "load_bearing": false
+    },
+    {
+      "id": "A-04",
+      "statement": "A platform key-value binding is available to throttle repeated login attempts.",
+      "load_bearing": false
+    },
+    {
+      "id": "A-05",
+      "statement": "A central middleware file can gate every authenticated route.",
+      "load_bearing": false
+    }
+  ],
+  "authority": "advisory_only"
+}

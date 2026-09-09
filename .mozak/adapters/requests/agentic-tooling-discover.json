@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "scope_id": "topic-agentic-systems",
+  "mode": "discover",
+  "pushed_since": "2026-08-01",
+  "min_stars": 150,
+  "max_records": 40,
+  "question": "Which recently active agentic tooling repositories are candidates for the modules MOZAK expects to keep upgradeable?",
+  "queries": [
+    {"name": "agent-memory", "terms": ["topic:agent-memory"]},
+    {"name": "knowledge-rag", "terms": ["topic:rag", "topic:knowledge-graph"]},
+    {"name": "mcp-servers", "terms": ["topic:mcp"]},
+    {"name": "agent-skills", "terms": ["topic:claude-code", "topic:prompt-engineering"]},
+    {"name": "agent-frameworks", "terms": ["topic:ai-agents", "topic:llm-agent"]},
+    {"name": "provenance-eval", "terms": ["topic:llm-evaluation", "topic:observability", "topic:ai"]}
+  ]
+}

@@ -1,0 +1,19 @@
+[package]
+name = "mozak-mcp"
+version = "0.2.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+description = "Typed stdio MCP server for MOZAK"
+
+[[bin]]
+name = "mozak-mcp"
+path = "src/main.rs"
+
+[dependencies]
+serde_json.workspace = true
+
+[lints]
+workspace = true

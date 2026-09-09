@@ -1,0 +1,16 @@
+{
+  "config_version": 1,
+  "fixture_version": "m0-draft-0.1",
+  "corpus_manifest": "corpus/manifest.json",
+  "adapters": ["raw_file_scan", "lexical"],
+  "seed": 1729,
+  "evidence_budget": {"top_k": 2, "max_snippet_chars": 220},
+  "tokenizer": {"pattern": "[a-z0-9]+", "lowercase": true},
+  "queries": [
+    {"id": "q01", "text": "approved calibration factor 1.25", "relevant_documents": ["aurora"]},
+    {"id": "q02", "text": "current Borealis location", "relevant_documents": ["borealis"]},
+    {"id": "q03", "text": "corrected battery life six hours", "relevant_documents": ["cobalt"]},
+    {"id": "q04", "text": "freezer F-12 access", "relevant_documents": ["delta"]},
+    {"id": "q05", "text": "timer fault supersedes earlier report", "relevant_documents": ["cobalt"]}
+  ]
+}

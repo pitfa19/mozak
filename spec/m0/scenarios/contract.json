@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "contract": "mozak.m0.scenario",
+  "version": 1,
+  "identity": {
+    "algorithm": "sha256",
+    "canonical_encoding": "utf-8 JSON with sorted keys and separators ',' ':'",
+    "sealed_fields": ["contract", "version", "fixture_id", "fixture_case"]
+  },
+  "initial_state": {
+    "generation": 0,
+    "accepted": {},
+    "history": {},
+    "conflicts": {},
+    "snapshots": {},
+    "quarantine": {},
+    "rejected_patches": [],
+    "event_log": [],
+    "links": []
+  },
+  "actions": {
+    "reset": {"arguments": ["sealed_scenario"]},
+    "step": {"arguments": ["fixture_event"]},
+    "save": {"arguments": []},
+    "restore": {"arguments": ["saved_state"]}
+  },
+  "observations": [
+    "scenario_id",
+    "generation",
+    "accepted",
+    "history",
+    "conflicts",
+    "snapshots",
+    "quarantine",
+    "rejected_patches",
+    "event_count",
+    "links",
+    "terminal"
+  ],
+  "transformations": {
+    "Setup": "Reset to the declared initial state and bind the sealed fixture identity. Expected outcomes are not supplied to the adapter.",
+    "Rule": "Translate each fixture event, without reordering or mutation, into one step and append it to the event log while monotonically advancing generation.",
+    "Link": "After the final rule, bind the fixture id and replay digest as provenance links. Canonical expected state is resolved only across the verifier boundary."
+  },
+  "canonical_outcome_fields": ["generation", "accepted", "history", "conflicts", "snapshots", "quarantine", "rejected_patches"],
+  "verifier_boundary": {
+    "adapter_may_read": ["id", "case", "events"],
+    "adapter_must_not_read": ["expected", "forbidden_outcomes"],
+    "held_out_input": "A verifier-owned mapping from sealed scenario id to expected canonical outcome.",
+    "acceptance": "Direct fixture replay and adapter replay must yield byte-identical canonical outcomes and equal SHA-256 hashes after save/restore."
+  }
+}

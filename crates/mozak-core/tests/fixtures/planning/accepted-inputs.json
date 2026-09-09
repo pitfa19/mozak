@@ -1,0 +1,42 @@
+{
+  "contract_version": 1,
+  "id": "inputs-001",
+  "accepted_at": "2026-09-01T10:00:00Z",
+  "inputs": [
+    {
+      "id": "input-decision",
+      "text": "Build the shared foundation first.",
+      "provenance": {
+        "kind": "human_decision",
+        "decision_id": "decision-001",
+        "actor": "maintainer"
+      }
+    },
+    {
+      "id": "input-observation",
+      "text": "Both consumers import the shared core.",
+      "provenance": {
+        "kind": "codebase_observation",
+        "observation_id": "observation-001",
+        "repository_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "paths": [
+          "crates/mozak-core/src/lib.rs"
+        ]
+      }
+    },
+    {
+      "id": "input-research",
+      "text": "Independent consumers can proceed after the shared core.",
+      "provenance": {
+        "kind": "research_proposal",
+        "run_id": "run-001",
+        "run_artifact_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "proposal_input_id": "input-research",
+        "claim_id": "claim-001",
+        "evidence_ids": [
+          "evidence-001"
+        ]
+      }
+    }
+  ]
+}

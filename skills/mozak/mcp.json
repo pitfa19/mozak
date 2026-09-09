@@ -1,0 +1,5 @@
+{
+  "command": "mozak-mcp",
+  "args": [],
+  "transport": "stdio"
+}

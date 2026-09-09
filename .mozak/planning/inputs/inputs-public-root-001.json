@@ -1,0 +1,16 @@
+{
+  "contract_version": 1,
+  "id": "inputs-public-root-001",
+  "accepted_at": "2026-09-09T09:42:46Z",
+  "inputs": [
+    {
+      "id": "input-public-release-boundary",
+      "text": "Publish only product source, synthetic fixtures, public documentation, and privacy-safe project control state.",
+      "provenance": {
+        "kind": "human_decision",
+        "decision_id": "decision-public-release-boundary",
+        "actor": "project-owner"
+      }
+    }
+  ]
+}

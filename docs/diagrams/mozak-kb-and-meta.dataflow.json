@@ -1,0 +1,252 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "KB registry and Meta KB",
+    "animation": "trace",
+    "quality_profile": "showcase",
+    "output": "mozak-kb-and-meta.html",
+    "views": [
+      {
+        "id": "registration",
+        "label": "Registration",
+        "focus": [
+          "scope",
+          "kbjson",
+          "registered",
+          "repin"
+        ],
+        "note": "A registry loads only explicitly registered Scope roots, each pinned by an exact manifest hash."
+      },
+      {
+        "id": "drift",
+        "label": "Drift fails closed",
+        "focus": [
+          "registered",
+          "repin",
+          "refused"
+        ],
+        "note": "Editing a registered Scope invalidates its pin, and validation refuses until the pin moves."
+      },
+      {
+        "id": "across-projects",
+        "label": "Across projects",
+        "focus": [
+          "release",
+          "metakb",
+          "reader"
+        ],
+        "note": "The Meta KB relates published releases across projects as read-only context, never as transferred truth."
+      }
+    ],
+    "viewBox": [
+      1068,
+      520
+    ]
+  },
+  "stages": [
+    {
+      "label": "Owned source"
+    },
+    {
+      "label": "Explicit registration"
+    },
+    {
+      "label": "Verified state"
+    },
+    {
+      "label": "Published"
+    },
+    {
+      "label": "Read"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "scope",
+      "type": "backend",
+      "label": "Scope root",
+      "sublabel": "scope.json",
+      "stage": 0,
+      "row": 0,
+      "tag": "authoritative"
+    },
+    {
+      "id": "project",
+      "type": "backend",
+      "label": "Project repo",
+      "sublabel": "project.yml",
+      "stage": 0,
+      "row": 2,
+      "tag": "owns its paths"
+    },
+    {
+      "id": "kbjson",
+      "type": "database",
+      "label": "kb.json",
+      "sublabel": "registry manifest",
+      "stage": 1,
+      "row": 0,
+      "tag": "no discovery"
+    },
+    {
+      "id": "repin",
+      "type": "security",
+      "label": "kb repin",
+      "sublabel": "move the pin",
+      "stage": 1,
+      "row": 2,
+      "tag": "owner action"
+    },
+    {
+      "id": "registered",
+      "type": "database",
+      "label": "Registered Scope",
+      "sublabel": "path + hash",
+      "stage": 2,
+      "row": 0,
+      "tag": "location only"
+    },
+    {
+      "id": "refused",
+      "type": "security",
+      "label": "Drift refused",
+      "sublabel": "hash mismatch",
+      "stage": 2,
+      "row": 2,
+      "tag": "fails closed"
+    },
+    {
+      "id": "release",
+      "type": "cloud",
+      "label": "Knowledge release",
+      "sublabel": "sealed package",
+      "stage": 3,
+      "row": 0,
+      "tag": "immutable"
+    },
+    {
+      "id": "metakb",
+      "type": "database",
+      "label": "meta-kb.json",
+      "sublabel": "meta-kb.json",
+      "stage": 3,
+      "row": 2,
+      "tag": "read only"
+    },
+    {
+      "id": "reader",
+      "type": "external",
+      "label": "Fresh agent",
+      "sublabel": "kb tree, meta graph",
+      "stage": 4,
+      "row": 1,
+      "tag": "context, not authority"
+    }
+  ],
+  "flows": [
+    {
+      "id": "register-scope",
+      "from": "scope",
+      "to": "kbjson",
+      "label": "kb register",
+      "classification": "explicit path",
+      "variant": "emphasis"
+    },
+    {
+      "id": "pin-observed",
+      "from": "kbjson",
+      "to": "registered",
+      "label": "pins observed hash",
+      "classification": "no trust transfer",
+      "variant": "emphasis",
+      "route": "straight",
+      "labelDy": -34
+    },
+    {
+      "id": "edit-drifts",
+      "from": "project",
+      "to": "repin",
+      "label": "legitimate edit",
+      "classification": "invalidates pin",
+      "variant": "dashed",
+      "labelDy": 0
+    },
+    {
+      "id": "repin-restores",
+      "from": "repin",
+      "to": "registered",
+      "label": "kb repin",
+      "classification": "records a new observation",
+      "variant": "security"
+    },
+    {
+      "id": "drift-refused",
+      "from": "registered",
+      "to": "refused",
+      "label": "hash mismatch",
+      "classification": "validation stops",
+      "variant": "security",
+      "labelDy": 56
+    },
+    {
+      "id": "release-published",
+      "from": "registered",
+      "to": "release",
+      "label": "project release",
+      "classification": "sealed bytes",
+      "variant": "emphasis"
+    },
+    {
+      "id": "relates",
+      "from": "release",
+      "to": "metakb",
+      "label": "relates",
+      "classification": "bounded metadata",
+      "variant": "dashed",
+      "labelDy": 56
+    },
+    {
+      "id": "read-tree",
+      "from": "release",
+      "to": "reader",
+      "label": "kb tree, kb graph",
+      "classification": "read only",
+      "variant": "default"
+    },
+    {
+      "id": "read-meta",
+      "from": "metakb",
+      "to": "reader",
+      "label": "meta list, meta graph",
+      "classification": "read only",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Only what it was told",
+      "items": [
+        "No scanning for unregistered roots",
+        "Registration is a location and a hash"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Drift is a feature",
+      "items": [
+        "An edit invalidates the pin",
+        "Validation stops until kb repin"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Relates, does not merge",
+      "items": [
+        "A release is immutable",
+        "A relationship is context, not truth"
+      ]
+    }
+  ]
+}
