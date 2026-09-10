@@ -1,7 +1,7 @@
 use crate::knowledge_package::{
     ValidatedKnowledgePackage, load_knowledge_package, validate_package_history,
 };
-use crate::scope::{InputKind, ValidatedScopes, load_scopes, markdown_export};
+use crate::scope::{InputKind, ScopeKind, ValidatedScopes, load_scopes, markdown_export};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
@@ -72,6 +72,14 @@ pub struct ValidatedKb {
     pub registry_sha256: String,
     pub entries: Vec<RegisteredScopes>,
     pub packages: Vec<RegisteredPackage>,
+}
+
+/// One entity type that may be included in a filtered KB tree.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum TreeFilter {
+    Concept,
+    Project,
+    Topic,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -431,14 +439,25 @@ pub fn render_list(kb: &ValidatedKb) -> String {
 
 #[must_use]
 pub fn render_tree(kb: &ValidatedKb) -> String {
+    render_tree_with_filters(kb, &BTreeSet::new())
+}
+
+/// Renders only the selected entity types while retaining their root hierarchy.
+/// An empty filter set preserves the complete legacy tree byte-for-byte.
+#[must_use]
+pub fn render_tree_with_filters(kb: &ValidatedKb, filters: &BTreeSet<TreeFilter>) -> String {
     let parents = parent_indices(&kb.entries);
     let mut top = parents
         .iter()
         .enumerate()
-        .filter_map(|(index, parent)| parent.is_none().then_some(index))
+        .filter_map(|(index, parent)| {
+            (parent.is_none() && entry_matches_tree_filters(kb, &parents, index, filters))
+                .then_some(index)
+        })
         .collect::<Vec<_>>();
     top.sort_by_key(|index| &kb.entries[*index].registration.id);
     let mut out = String::from("Knowledge Base\n");
+    let show_packages = filters.is_empty() && !kb.packages.is_empty();
     for (position, index) in top.iter().enumerate() {
         render_entry_tree(
             &mut out,
@@ -446,10 +465,11 @@ pub fn render_tree(kb: &ValidatedKb) -> String {
             &parents,
             *index,
             "",
-            position + 1 == top.len() && kb.packages.is_empty(),
+            position + 1 == top.len() && !show_packages,
+            filters,
         );
     }
-    if !kb.packages.is_empty() {
+    if show_packages {
         out.push_str("└── Owned Packages\n");
         for (index, package) in kb.packages.iter().enumerate() {
             let connector = if index + 1 == kb.packages.len() {
@@ -465,6 +485,9 @@ pub fn render_tree(kb: &ValidatedKb) -> String {
                 package.registration.package_id
             );
         }
+    }
+    if top.is_empty() && !show_packages {
+        out.push_str("└── (no matching items)\n");
     }
     out
 }
@@ -1179,6 +1202,7 @@ fn render_entry_tree(
     entry_index: usize,
     prefix: &str,
     last: bool,
+    filters: &BTreeSet<TreeFilter>,
 ) {
     let entry = &kb.entries[entry_index];
     let connector = if last { "└── " } else { "├── " };
@@ -1193,17 +1217,30 @@ fn render_entry_tree(
     let mut children = Vec::new();
     let mut scopes = entry.scopes.manifest.scopes.iter().collect::<Vec<_>>();
     scopes.sort_by(|left, right| left.id.cmp(&right.id));
-    children.extend(scopes.into_iter().map(TreeChild::Scope));
+    children.extend(
+        scopes
+            .into_iter()
+            .filter(|scope| scope_matches_tree_filters(&scope.kind, filters))
+            .map(TreeChild::Scope),
+    );
     let mut concepts = entry.scopes.manifest.concepts.iter().collect::<Vec<_>>();
     concepts.sort_by(|left, right| left.id.cmp(&right.id));
-    children.extend(concepts.into_iter().map(TreeChild::Concept));
-    let mut goals = entry.scopes.manifest.meta_goals.iter().collect::<Vec<_>>();
-    goals.sort_by(|left, right| left.id.cmp(&right.id));
-    children.extend(goals.into_iter().map(TreeChild::Goal));
+    if filters.is_empty() || filters.contains(&TreeFilter::Concept) {
+        children.extend(concepts.into_iter().map(TreeChild::Concept));
+    }
+    if filters.is_empty() {
+        let mut goals = entry.scopes.manifest.meta_goals.iter().collect::<Vec<_>>();
+        goals.sort_by(|left, right| left.id.cmp(&right.id));
+        children.extend(goals.into_iter().map(TreeChild::Goal));
+    }
     let mut nested = parents
         .iter()
         .enumerate()
-        .filter_map(|(index, parent)| (*parent == Some(entry_index)).then_some(index))
+        .filter_map(|(index, parent)| {
+            (*parent == Some(entry_index)
+                && entry_matches_tree_filters(kb, parents, index, filters))
+            .then_some(index)
+        })
         .collect::<Vec<_>>();
     nested.sort_by_key(|index| &kb.entries[*index].registration.id);
     children.extend(nested.into_iter().map(TreeChild::Entry));
@@ -1251,10 +1288,40 @@ fn render_entry_tree(
                 );
             }
             TreeChild::Entry(index) => {
-                render_entry_tree(out, kb, parents, index, &child_prefix, child_last);
+                render_entry_tree(out, kb, parents, index, &child_prefix, child_last, filters);
             }
         }
     }
+}
+
+fn entry_matches_tree_filters(
+    kb: &ValidatedKb,
+    parents: &[Option<usize>],
+    entry_index: usize,
+    filters: &BTreeSet<TreeFilter>,
+) -> bool {
+    if filters.is_empty() {
+        return true;
+    }
+    let entry = &kb.entries[entry_index];
+    entry
+        .scopes
+        .manifest
+        .scopes
+        .iter()
+        .any(|scope| scope_matches_tree_filters(&scope.kind, filters))
+        || (filters.contains(&TreeFilter::Concept) && !entry.scopes.manifest.concepts.is_empty())
+        || parents.iter().enumerate().any(|(index, parent)| {
+            *parent == Some(entry_index) && entry_matches_tree_filters(kb, parents, index, filters)
+        })
+}
+
+fn scope_matches_tree_filters(kind: &ScopeKind, filters: &BTreeSet<TreeFilter>) -> bool {
+    filters.is_empty()
+        || match kind {
+            ScopeKind::Project => filters.contains(&TreeFilter::Project),
+            ScopeKind::Topic => filters.contains(&TreeFilter::Topic),
+        }
 }
 
 /// Reads a pinned Concept's title for display.

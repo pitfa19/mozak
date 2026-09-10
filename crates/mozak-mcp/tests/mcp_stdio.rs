@@ -50,6 +50,18 @@ fn initializes_lists_closed_tools_and_ignores_notifications() {
             "planning_next"
         ]
     );
+    let kb_tree = values[1]["result"]["tools"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|tool| tool["name"] == "kb_tree")
+        .unwrap();
+    for name in ["concept", "project", "topic"] {
+        assert_eq!(
+            kb_tree["inputSchema"]["properties"][name]["type"],
+            "boolean"
+        );
+    }
 }
 
 #[test]
@@ -64,6 +76,7 @@ fn malformed_and_unknown_requests_fail_without_stopping_server() {
         writeln!(input, "not-json").unwrap();
         writeln!(input, "{}", json!({"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"missing","arguments":{}}})).unwrap();
         writeln!(input, "{}", json!({"jsonrpc":"2.0","id":3,"method":"ping"})).unwrap();
+        writeln!(input, "{}", json!({"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"kb_tree","arguments":{"concept":"yes"}}})).unwrap();
     }
     let output = child.wait_with_output().unwrap();
     let values: Vec<Value> = String::from_utf8(output.stdout)
@@ -74,6 +87,11 @@ fn malformed_and_unknown_requests_fail_without_stopping_server() {
     assert_eq!(values[0]["error"]["code"], -32700);
     assert_eq!(values[1]["error"]["code"], -32602);
     assert_eq!(values[2]["result"], json!({}));
+    assert_eq!(values[3]["error"]["code"], -32602);
+    assert_eq!(
+        values[3]["error"]["message"],
+        "concept must be a boolean when supplied"
+    );
 }
 
 #[test]

@@ -51,7 +51,7 @@ after an owner explicitly adds and hashes that registration.
 ```text
 mozak kb validate REGISTRY_ROOT
 mozak kb list REGISTRY_ROOT
-mozak kb tree REGISTRY_ROOT
+mozak kb tree REGISTRY_ROOT [--concept] [--project] [--topic]
 mozak kb graph-source REGISTRY_ROOT
 mozak kb graph REGISTRY_ROOT
 ```
@@ -62,6 +62,13 @@ stable terminal views. Tree nesting is derived only between explicitly
 registered canonical paths. `graph-source` is deterministic Mermaid source.
 `graph` sends those exact bytes to Termaid stdin and has no fallback renderer.
 All routes are read-only.
+
+Tree filters select a union of entity types and may be combined in any order.
+Filtered trees retain only the registered root hierarchy needed to contain a
+matching Concept, Project, or Topic. Meta Goals and owned packages are outside
+these three filters and are omitted whenever a filter is active. An empty
+filter result is explicit. Omitting every filter preserves the complete tree
+byte-for-byte.
 
 ## Parity observations
 

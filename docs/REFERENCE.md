@@ -132,6 +132,8 @@ current core architecture and not the fresh-agent entry point.
 | Say this | Agent runs |
 |---|---|
 | "Validate my KB." | `mozak kb validate` |
+| "Show only Concepts in my KB." | `mozak kb tree --concept` |
+| "Show Projects and Topics, but not Concepts." | `mozak kb tree --project --topic` |
 | "Draw the KB relationships." | `mozak kb graph` |
 | "Register this scope in my KB." | `mozak kb register <registry> <id> <scope-root>` **(mutation)** |
 | "I edited a registered scope, fix the pin." | `mozak kb repin <registry> <id> <scope-root>` **(mutation)** |
@@ -140,7 +142,8 @@ current core architecture and not the fresh-agent entry point.
 | "Did we re-derive this concept's assumptions?" | `mozak concept translation validate <concept.json> <translation.json>` |
 
 ```bash
-mozak kb validate|list|tree|graph-source|graph [registry-root]
+mozak kb validate|list|graph-source|graph [registry-root]
+mozak kb tree [registry-root] [--concept] [--project] [--topic]
 mozak kb register|repin <registry-root> <registration-id> <scope-root>   # mutation
 mozak kb parity <registry-root> <observations.json>
 mozak kb import-package <package-root> <input-registry-root> <approval.json> <output-kb-root>  # mutation
@@ -152,6 +155,9 @@ mozak concept translation validate <concept.json> <translation.json>
 
 Omitting `registry-root` resolves the exact owner-registered KB from the local
 config and fails closed when it is missing, malformed, or hash-drifted.
+Tree filters form a union and may be combined in any order. Root lines remain
+as hierarchy; filtered output omits Meta Goals and owned packages. With no
+filter, the complete existing tree is unchanged.
 
 A Concept is advisory only. It records a reusable mechanism, the invariant that
 must hold, applicability limits, evidence, and the assumptions it rests on. It

@@ -43,8 +43,13 @@ fn tools() -> Vec<Value> {
         ),
         tool(
             "kb_tree",
-            "Render the configured KB tree, or one explicitly supplied registry root.",
-            &json!({"registry_root":{"type":"string","minLength":1}}),
+            "Render the configured or explicit KB tree, optionally filtered to any combination of Concepts, Projects, and Topics.",
+            &json!({
+                "registry_root":{"type":"string","minLength":1},
+                "concept":{"type":"boolean"},
+                "project":{"type":"boolean"},
+                "topic":{"type":"boolean"}
+            }),
             &[],
         ),
         tool(
@@ -79,6 +84,14 @@ fn string_arg<'a>(arguments: &'a Value, key: &str) -> Result<&'a str, String> {
         .ok_or_else(|| format!("{key} must be a non-empty string"))
 }
 
+fn optional_bool(arguments: &Value, key: &str) -> Result<bool, String> {
+    match arguments.get(key) {
+        None | Some(Value::Null | Value::Bool(false)) => Ok(false),
+        Some(Value::Bool(true)) => Ok(true),
+        Some(_) => Err(format!("{key} must be a boolean when supplied")),
+    }
+}
+
 fn argv(name: &str, arguments: &Value) -> Result<Vec<String>, String> {
     let value = match name {
         "project_context" => vec![
@@ -96,13 +109,24 @@ fn argv(name: &str, arguments: &Value) -> Result<Vec<String>, String> {
             "validate".into(),
             string_arg(arguments, "project_root")?.into(),
         ],
-        "kb_tree" => match arguments.get("registry_root") {
-            None | Some(Value::Null) => vec!["kb".into(), "tree".into()],
-            Some(Value::String(root)) if !root.is_empty() => {
-                vec!["kb".into(), "tree".into(), root.clone()]
+        "kb_tree" => {
+            let mut args = vec!["kb".into(), "tree".into()];
+            match arguments.get("registry_root") {
+                None | Some(Value::Null) => {}
+                Some(Value::String(root)) if !root.is_empty() => args.push(root.clone()),
+                _ => return Err("registry_root must be a non-empty string when supplied".into()),
             }
-            _ => return Err("registry_root must be a non-empty string when supplied".into()),
-        },
+            for (key, flag) in [
+                ("concept", "--concept"),
+                ("project", "--project"),
+                ("topic", "--topic"),
+            ] {
+                if optional_bool(arguments, key)? {
+                    args.push(flag.into());
+                }
+            }
+            args
+        }
         "planning_next" => vec![
             "planning".into(),
             "next".into(),

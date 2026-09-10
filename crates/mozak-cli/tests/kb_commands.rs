@@ -383,6 +383,161 @@ fn kb_views_show_scope_owned_concepts() {
 }
 
 #[test]
+#[allow(clippy::too_many_lines)]
+fn kb_tree_filters_are_combinable_rootless_and_fail_closed() {
+    let temp = Temp::new("kb-tree-filters");
+    let scope = temp.0.join("scope");
+    fs::create_dir_all(scope.join("concepts")).unwrap();
+    let concept = fs::read_to_string(
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../mozak-core/tests/fixtures/concept/publish-as-commit.json"),
+    )
+    .unwrap();
+    fs::write(scope.join("concepts/c.json"), &concept).unwrap();
+    let revision = "a".repeat(40);
+    let project = format!(
+        "version: 1\nframework_contract_version: 1\nproject:\n  id: project-tool\n  name: Tool Project\nrepository:\n  revision: {revision}\nowned_paths:\n  - src\n"
+    );
+    fs::create_dir_all(scope.join(".mozak")).unwrap();
+    fs::write(scope.join(".mozak/project.yml"), &project).unwrap();
+    let manifest = serde_json::to_vec_pretty(&serde_json::json!({
+        "schema_version": 2,
+        "scopes": [
+            {
+                "id": "example-gamma",
+                "kind": "topic",
+                "title": "Research topic",
+                "intent": "Own one concept.",
+                "history": [{"id": "h-1", "at": "2026-09-04T00:00:00Z", "note": "Created"}]
+            },
+            {
+                "id": "project-tool",
+                "kind": "project",
+                "title": "Tool project",
+                "intent": "Apply the research.",
+                "history": [{"id": "h-2", "at": "2026-09-04T00:00:00Z", "note": "Created"}],
+                "project": {
+                    "manifest_path": ".mozak/project.yml",
+                    "manifest_sha256": sha(project.as_bytes()),
+                    "project_id": "project-tool",
+                    "repository_revision": revision,
+                    "owned_paths": ["src"]
+                }
+            }
+        ],
+        "promotions": [],
+        "meta_goals": [{
+            "id": "goal-coordinate",
+            "title": "Coordinate both scopes",
+            "authority": "advisory_only",
+            "scope_ids": ["example-gamma", "project-tool"],
+            "relationships": []
+        }],
+        "inputs": [],
+        "concepts": [{
+            "id": "concept-publish-as-commit",
+            "scope_id": "example-gamma",
+            "path": "concepts/c.json",
+            "sha256": sha(concept.as_bytes())
+        }]
+    }))
+    .unwrap();
+    fs::write(scope.join("scope.json"), &manifest).unwrap();
+
+    let registry = temp.0.join("kb");
+    fs::create_dir_all(&registry).unwrap();
+    let registry_bytes = serde_json::to_vec_pretty(&serde_json::json!({
+        "schema_version": 1,
+        "registrations": [{
+            "id": "owner",
+            "path": scope,
+            "scope_manifest_sha256": sha(&manifest)
+        }]
+    }))
+    .unwrap();
+    fs::write(registry.join("kb.json"), &registry_bytes).unwrap();
+    let root = registry.to_str().unwrap();
+
+    let concept_only = run(&["kb", "tree", "--concept", root]);
+    assert!(concept_only.status.success());
+    let concept_text = String::from_utf8_lossy(&concept_only.stdout);
+    assert!(concept_text.contains("concept-publish-as-commit [concept]"));
+    assert!(!concept_text.contains("Scope:"));
+    assert!(!concept_text.contains("Meta Goal:"));
+
+    let project_only = run(&["kb", "tree", root, "--project"]);
+    assert!(project_only.status.success());
+    let project_text = String::from_utf8_lossy(&project_only.stdout);
+    assert!(project_text.contains("Scope: project-tool [project]"));
+    assert!(!project_text.contains("Scope: example-gamma [topic]"));
+    assert!(!project_text.contains("[concept]"));
+
+    let topic_only = run(&["kb", "tree", "--topic", root]);
+    assert!(topic_only.status.success());
+    let topic_text = String::from_utf8_lossy(&topic_only.stdout);
+    assert!(topic_text.contains("Scope: example-gamma [topic]"));
+    assert!(!topic_text.contains("Scope: project-tool [project]"));
+    assert!(!topic_text.contains("[concept]"));
+
+    let combined = run(&["kb", "tree", "--concept", root, "--project"]);
+    assert!(combined.status.success());
+    let combined_text = String::from_utf8_lossy(&combined.stdout);
+    assert!(combined_text.contains("concept-publish-as-commit [concept]"));
+    assert!(combined_text.contains("Scope: project-tool [project]"));
+    assert!(!combined_text.contains("Scope: example-gamma [topic]"));
+    assert!(!combined_text.contains("Meta Goal:"));
+
+    let duplicate = run(&["kb", "tree", root, "--concept", "--concept"]);
+    assert!(duplicate.status.success());
+    assert_eq!(duplicate.stdout, concept_only.stdout);
+
+    let config_home = Temp::new("kb-tree-filter-config");
+    let config_path = config_home.0.join("mozak/config.json");
+    fs::create_dir_all(config_path.parent().unwrap()).unwrap();
+    fs::write(
+        config_path,
+        serde_json::to_vec(&serde_json::json!({
+            "schema_version": 1,
+            "kb_root": registry,
+            "kb_sha256": sha(&registry_bytes),
+            "projects": {},
+            "approval": {
+                "proposal_digest": "a".repeat(64),
+                "owner": "Test Owner",
+                "approved_at": "2026-09-03T10:07:57Z",
+                "rationale": "Test filtered configured KB routing"
+            }
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+    let rootless = run_current(&["kb", "tree", "--topic", "--project"], &config_home.0);
+    assert!(rootless.status.success());
+    let rootless_text = String::from_utf8_lossy(&rootless.stdout);
+    assert!(rootless_text.contains("Scope: example-gamma [topic]"));
+    assert!(rootless_text.contains("Scope: project-tool [project]"));
+    assert!(!rootless_text.contains("[concept]"));
+
+    let empty = fixture();
+    let no_projects = run(&["kb", "tree", empty.registry.to_str().unwrap(), "--project"]);
+    assert!(no_projects.status.success());
+    assert_eq!(
+        String::from_utf8(no_projects.stdout).unwrap(),
+        "Knowledge Base\n└── (no matching items)\n"
+    );
+
+    let unknown = run(&["kb", "tree", root, "--package"]);
+    assert!(!unknown.status.success());
+    assert!(unknown.stdout.is_empty());
+    assert!(String::from_utf8_lossy(&unknown.stderr).contains("unknown kb tree filter: --package"));
+
+    let two_roots = run(&["kb", "tree", root, root]);
+    assert!(!two_roots.status.success());
+    assert!(two_roots.stdout.is_empty());
+    assert!(String::from_utf8_lossy(&two_roots.stderr).contains("usage:"));
+}
+
+#[test]
 fn kb_register_indexes_a_valid_scope_and_stays_create_only() {
     let temp = Temp::new("register");
     let registry = temp.0.join("kb");
