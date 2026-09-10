@@ -164,6 +164,13 @@ cause then fix, one thing finished before the next is raised, and no preamble
 or closing pleasantry. Verify your installed copy with
 `mozak setup check "$HOME"`, which reports drift rather than overwriting it.
 
+The managed skill payload also ships a versioned companion recommendation
+manifest. `termaid` stays required for graph rendering. `mmdr`, the ADHD skill,
+an exact Caveman skill when present, and installed drawing-family skills are
+reported as recommended companions only. `setup` and `doctor` report missing
+recommended companions without installing external tools or changing setup
+parity.
+
 ---
 
 The flow diagram, why each thing sits where it does, and how a module absorbs

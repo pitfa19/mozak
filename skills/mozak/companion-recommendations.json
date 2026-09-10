@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "manifest_id": "mozak-companion-recommendations",
+  "companions": [
+    {
+      "id": "termaid",
+      "name": "Termaid",
+      "classification": "required",
+      "kind": "executable",
+      "executable": "termaid",
+      "reason": "MOZAK graph commands render relationship views through Termaid."
+    },
+    {
+      "id": "mmdr",
+      "name": "mmdr",
+      "classification": "recommended",
+      "kind": "executable",
+      "executable": "mmdr",
+      "reason": "mmdr is useful for Markdown and Mermaid diagram workflows but is not required for MOZAK setup."
+    },
+    {
+      "id": "adhd-skill",
+      "name": "ADHD skill",
+      "classification": "recommended",
+      "kind": "skill",
+      "skill_names": ["i-have-adhd"],
+      "reason": "The ADHD skill shapes output for low-friction project operation."
+    },
+    {
+      "id": "caveman-skill",
+      "name": "Caveman skill",
+      "classification": "recommended",
+      "kind": "skill",
+      "skill_names": ["caveman"],
+      "reason": "Detected only when an exact Caveman skill directory is already installed."
+    },
+    {
+      "id": "drawing-skill",
+      "name": "Drawing skill",
+      "classification": "recommended",
+      "kind": "skill-family",
+      "skill_name_contains": ["drawing", "draw"],
+      "reason": "Drawing skills can support visual planning artifacts when already present."
+    }
+  ]
+}
