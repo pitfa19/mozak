@@ -5,6 +5,7 @@ use mozak_core::{
     },
 };
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -456,6 +457,51 @@ pub(crate) fn configured_kb_root() -> Result<PathBuf, String> {
         ));
     }
     Ok(kb.registry_root)
+}
+
+pub(crate) fn setup_config(owner: &str, kb_root: &Path) -> Result<Value, String> {
+    display_safe("setup owner", owner)?;
+    let kb = load_registry(kb_root).map_err(|error| format!("invalid setup KB: {error}"))?;
+    let target = default_config_path()?;
+    validate_target_path(&target)?;
+    let config = LocalConfig {
+        schema_version: SCHEMA_VERSION,
+        kb_root: path_text(&kb.registry_root)?,
+        kb_sha256: kb.registry_sha256.clone(),
+        projects: BTreeMap::new(),
+        approval: ConfigApproval {
+            proposal_digest: "0".repeat(64),
+            owner: owner.to_owned(),
+            approved_at: "1970-01-01T00:00:00Z".to_owned(),
+            rationale: "Installation-time default KB registry configuration".to_owned(),
+        },
+    };
+    validate_local_config(&config)?;
+    let bytes = serde_json::to_vec(&config).map_err(|e| e.to_string())?;
+    let status = match read_optional_regular(&target)? {
+        None => {
+            atomic_install_absent(&target, &bytes, None)?;
+            "created"
+        }
+        Some(existing) if existing == bytes => "unchanged",
+        Some(existing) => {
+            let existing_config: LocalConfig = serde_json::from_slice(&existing)
+                .map_err(|e| format!("invalid existing local config {}: {e}", target.display()))?;
+            validate_local_config(&existing_config)?;
+            return Err(format!(
+                "local config already exists with different content: {}; refusing to overwrite",
+                target.display()
+            ));
+        }
+    };
+    Ok(serde_json::json!({
+        "status": status,
+        "path": path_text(&target)?,
+        "owner": owner,
+        "kb_root": path_text(&kb.registry_root)?,
+        "kb_sha256": kb.registry_sha256,
+        "config_sha256": hash(&bytes),
+    }))
 }
 
 fn knowledge_matches(

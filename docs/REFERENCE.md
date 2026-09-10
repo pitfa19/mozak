@@ -224,6 +224,7 @@ Full forms:
 ```bash
 mozak update [--channel stable|main] [--enable-auto|--disable-auto]
 mozak setup install|check <HOME>
+mozak setup install <HOME> --owner OWNER --kb-root KB_ROOT
 mozak doctor <HOME> [KB_ROOT]
 ```
 
@@ -259,13 +260,17 @@ The real binary retains the offline setup and verification routes:
 
 ```bash
 mozak setup install "$HOME"
+mozak setup install "$HOME" --owner OWNER --kb-root /absolute/path/to/kb-root
 mozak setup check "$HOME"
 mozak doctor "$HOME" [/path/to/kb-root]
 ```
 
 - `setup install` places the embedded agent skill in `.agents`, `.jcode`,
   `.claude`, and `.codex`. Offline, idempotent, and refuses drift rather than
-  overwriting it.
+  overwriting it. When `--owner`/`MOZAK_OWNER` and `--kb-root`/`MOZAK_KB_ROOT`
+  are both supplied, it also creates the local MOZAK config if absent, validates
+  the KB registry, pins its SHA-256, and leaves an existing different config
+  untouched.
 - `setup check` verifies installed parity without mutating anything, reporting
   each managed file as matching or drifted.
 - `setup` and `doctor` include the versioned companion recommendation manifest
