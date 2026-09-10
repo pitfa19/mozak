@@ -1,0 +1,68 @@
+{
+  "contract_version": 1,
+  "id": "concept-smallest-complete-readme",
+  "version": 1,
+  "title": "Write the smallest complete README",
+  "mechanism": "Arrange the README as the shortest complete path from recognition to first use: name the product and outcome in one opening line, put one working install or start path near the top, state only the few user-visible benefits needed to explain why it matters, show one concrete proof, state caveats beside the claims they limit, compress the architecture into a small map, and link detailed reference material instead of inlining it. Keep a section only when it answers what this is, why to use it, how to begin, what proves it, where its boundary is, or where to read next.",
+  "invariant": "A new reader can identify the product and its value, complete the first useful action, see at least one evidence-backed reason to believe the claims, understand the important boundary, and reach deeper documentation without the README becoming the documentation system itself.",
+  "applicability": "Applies to developer and research tools with a clear first-use path and separate space for detailed documentation. It can guide the entry section of a larger platform README, but does not require the entire file to be short. It does not apply unchanged to API references, regulated instructions, multi-product monorepos, or tools whose installation and safety requirements cannot be represented by one primary path.",
+  "origin": {
+    "scope_id": "mozak",
+    "revision": "00c3459aef58de44b159a3b63fef8576258a5a77"
+  },
+  "evidence": [
+    {
+      "id": "E-README-MOZAK",
+      "observation": "MOZAK's accepted 86-line README opens with one outcome, places a working install path first, explains four benefits, gives one measured transfer example with an explicit self-study caveat, compresses six modules into one line, and sends detail to four linked documents.",
+      "locator": "https://github.com/pitfa19/mozak/blob/9e7219e60659cb2e78bd861721d79ab9e2c85339/README.md"
+    },
+    {
+      "id": "E-README-REVISION",
+      "observation": "A later 147-line rewrite added MCP configuration, terminal output, differentiation, and installation placeholders. The owner preferred the earlier README, so the repository restored the 86-line version byte-for-byte while retaining the detailed material in the documentation and implementation.",
+      "locator": "https://github.com/pitfa19/mozak/commit/00c3459aef58de44b159a3b63fef8576258a5a77"
+    },
+    {
+      "id": "E-README-CAVEMAN",
+      "observation": "Caveman's entry sequence uses a memorable one-line promise, a direct before-and-after demonstration, an install path, and collapsible or linked detail. Its full README is long, showing that simplicity can be concentrated in the path to understanding and first use rather than enforced as a total line limit.",
+      "locator": "https://github.com/JuliusBrussee/caveman/blob/15581d14007fd01fb3f132016741962f34936ca2/README.md"
+    },
+    {
+      "id": "E-README-JCODE",
+      "observation": "Jcode opens with two short product claims, a visual demonstration, direct navigation, and copy-paste installation before its extensive performance, memory, swarm, provider, and reference material. This separates a small entry path from a large technical surface.",
+      "locator": "https://github.com/1jehuang/jcode/blob/e65e47c31af2ab79346458ff1511bea533930b59/README.md"
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-01",
+      "statement": "The product has a primary reader, outcome, and first useful action that can be stated without a feature inventory.",
+      "load_bearing": true
+    },
+    {
+      "id": "A-02",
+      "statement": "The install or start path shown near the top works on the platform and release channel the README names.",
+      "load_bearing": true
+    },
+    {
+      "id": "A-03",
+      "statement": "At least one product claim can be supported by real output, a measured case, or another directly inspectable artifact.",
+      "load_bearing": true
+    },
+    {
+      "id": "A-04",
+      "statement": "Detailed commands, architecture, and edge cases have a maintained destination outside the main README.",
+      "load_bearing": false
+    },
+    {
+      "id": "A-05",
+      "statement": "Any hero image, demo, or diagram helps the reader recognize the product or mechanism instead of displacing the first useful action.",
+      "load_bearing": false
+    },
+    {
+      "id": "A-06",
+      "statement": "Simplification uses progressive disclosure and calibrated claims rather than deleting limitations, safety boundaries, or unsupported failure paths.",
+      "load_bearing": true
+    }
+  ],
+  "authority": "advisory_only"
+}
