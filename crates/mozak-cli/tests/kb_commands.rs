@@ -200,6 +200,60 @@ fn rootless_routes_resolve_the_exact_configured_kb_without_searching() {
 }
 
 #[test]
+fn setup_install_can_create_default_kb_config_for_rootless_tree() {
+    let fixture = fixture();
+    let home = Temp::new("setup-home");
+    let config_home = Temp::new("setup-config");
+    let output = Command::new(env!("CARGO_BIN_EXE_mozak"))
+        .args([
+            "setup",
+            "install",
+            home.0.to_str().unwrap(),
+            "--owner",
+            "pitfa",
+            "--kb-root",
+            fixture.registry.to_str().unwrap(),
+        ])
+        .env("XDG_CONFIG_HOME", &config_home.0)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let report: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(report["local_config"]["status"], "created");
+    assert_eq!(report["local_config"]["owner"], "pitfa");
+    assert_eq!(report["local_config"]["kb_sha256"], fixture.registry_hash);
+
+    let tree = run_current(&["kb", "tree"], &config_home.0);
+    assert!(tree.status.success());
+    assert!(
+        String::from_utf8(tree.stdout)
+            .unwrap()
+            .contains("Knowledge Base\n└── Root: personal")
+    );
+
+    let repeat = Command::new(env!("CARGO_BIN_EXE_mozak"))
+        .args([
+            "setup",
+            "install",
+            home.0.to_str().unwrap(),
+            "--owner",
+            "pitfa",
+            "--kb-root",
+            fixture.registry.to_str().unwrap(),
+        ])
+        .env("XDG_CONFIG_HOME", &config_home.0)
+        .output()
+        .unwrap();
+    assert!(repeat.status.success());
+    let repeat_report: serde_json::Value = serde_json::from_slice(&repeat.stdout).unwrap();
+    assert_eq!(repeat_report["local_config"]["status"], "unchanged");
+}
+
+#[test]
 fn rootless_routes_fail_closed_on_missing_config_or_kb_drift() {
     let fixture = fixture();
     let missing = Temp::new("missing-config");

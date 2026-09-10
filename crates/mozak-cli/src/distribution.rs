@@ -42,15 +42,72 @@ const SKILL_ROOTS: [&str; 4] = [
     ".codex/skills",
 ];
 
-pub fn setup(command: &str, home: &Path) -> Result<ExitCode, String> {
-    match setup_inner(command, home) {
+#[derive(Default)]
+struct SetupOptions {
+    owner: Option<String>,
+    kb_root: Option<PathBuf>,
+}
+
+impl SetupOptions {
+    fn parse(args: &[String]) -> Result<Self, String> {
+        let mut options = Self::default();
+        let mut index = 0;
+        while index < args.len() {
+            match args[index].as_str() {
+                "--owner" => {
+                    index += 1;
+                    options.owner =
+                        Some(args.get(index).ok_or("--owner requires a value")?.clone());
+                }
+                "--kb-root" => {
+                    index += 1;
+                    options.kb_root = Some(PathBuf::from(
+                        args.get(index).ok_or("--kb-root requires a value")?,
+                    ));
+                }
+                other => return Err(format!("unknown setup option: {other}")),
+            }
+            index += 1;
+        }
+        if options.owner.is_none() {
+            options.owner = env::var("MOZAK_OWNER").ok().filter(|v| !v.is_empty());
+        }
+        if options.kb_root.is_none() {
+            options.kb_root = env::var_os("MOZAK_KB_ROOT").map(PathBuf::from);
+        }
+        Ok(options)
+    }
+
+    fn has_config_inputs(&self) -> bool {
+        self.owner.is_some() || self.kb_root.is_some()
+    }
+
+    fn apply_config(&self) -> Result<Option<Value>, String> {
+        match (&self.owner, &self.kb_root) {
+            (None, None) => Ok(None),
+            (Some(owner), Some(kb_root)) => {
+                crate::project_registry::setup_config(owner, kb_root).map(Some)
+            }
+            (Some(_), None) => Err(
+                "setup install requires --kb-root or MOZAK_KB_ROOT when owner is supplied".into(),
+            ),
+            (None, Some(_)) => {
+                Err("setup install requires --owner or MOZAK_OWNER when KB root is supplied".into())
+            }
+        }
+    }
+}
+
+pub fn setup(command: &str, home: &Path, args: &[String]) -> Result<ExitCode, String> {
+    match setup_inner(command, home, args) {
         Ok(code) => Ok(code),
         Err(message) => invalid_report(&format!("setup {command}"), home, &message),
     }
 }
 
-fn setup_inner(command: &str, home: &Path) -> Result<ExitCode, String> {
+fn setup_inner(command: &str, home: &Path, args: &[String]) -> Result<ExitCode, String> {
     let home = safe_home(home)?;
+    let setup_options = SetupOptions::parse(args)?;
     let mut checks = preflight(&home)?;
     let drift = checks.iter().any(|check| check["status"] == "drift");
     if command == "install" && !drift {
@@ -66,6 +123,13 @@ fn setup_inner(command: &str, home: &Path) -> Result<ExitCode, String> {
     } else if command != "check" && command != "install" {
         return Err(crate::usage());
     }
+    let configured = if command == "install" {
+        setup_options.apply_config()?
+    } else if setup_options.has_config_inputs() {
+        return Err("setup check does not accept owner or KB configuration flags".into());
+    } else {
+        None
+    };
     let parity = checks.iter().all(|check| check["status"] == "ok");
     let state = if drift {
         "invalid"
@@ -84,6 +148,7 @@ fn setup_inner(command: &str, home: &Path) -> Result<ExitCode, String> {
             "state": state,
             "parity": parity,
             "embedded": true,
+            "local_config": configured,
             "companion_recommendations": companions,
             "checks": checks
         }))
