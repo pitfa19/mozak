@@ -29,7 +29,7 @@ if [[ -z "$owner" && -z "$kb_root" && -t 0 && -r /dev/tty ]]; then
   printf 'MOZAK owner [pitfa]: ' > /dev/tty
   IFS= read -r owner < /dev/tty || owner=
   owner=${owner:-pitfa}
-  printf 'MOZAK KB root [%s/mozak-kb]: ' "${home:-$HOME/Documents}" > /dev/tty
+  printf 'MOZAK KB root [%s/Documents/mozak-kb]: ' "${home:-$HOME}" > /dev/tty
   IFS= read -r kb_root < /dev/tty || kb_root=
   kb_root=${kb_root:-${home:-$HOME}/Documents/mozak-kb}
 fi

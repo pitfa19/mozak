@@ -99,6 +99,7 @@ fn register_initial(kb: &Path, ws: &Path, xdg: &Path, base: &Path) -> Value {
 }
 
 #[test]
+#[allow(clippy::too_many_lines)]
 fn review_reports_exact_register_and_refresh_deltas_without_mutation() {
     let t = Temp::new("review-deltas");
     let kb = valid_kb(&t.0);
