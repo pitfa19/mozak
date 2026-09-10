@@ -1,17 +1,55 @@
 use mozak_core::kb::{
-    ValidatedKb, assess_parity, graph_source, load_parity_observations, load_registry, render_list,
-    render_tree,
+    TreeFilter, ValidatedKb, assess_parity, graph_source, load_parity_observations, load_registry,
+    render_list, render_tree, render_tree_with_filters,
 };
 use mozak_core::package_import::import_package;
 use serde::Serialize;
 use serde_json::json;
 use sha2::{Digest, Sha256};
 use std::{
+    collections::BTreeSet,
     env, fs,
     io::Write,
     path::Path,
     process::{Command, ExitCode, Stdio},
 };
+
+/// Renders a rootless or explicit KB tree with optional combinable type filters.
+pub fn tree(args: &[String]) -> Result<ExitCode, String> {
+    let mut root = None;
+    let mut filters = BTreeSet::new();
+    for argument in args {
+        match argument.as_str() {
+            "--concept" => {
+                filters.insert(TreeFilter::Concept);
+            }
+            "--project" => {
+                filters.insert(TreeFilter::Project);
+            }
+            "--topic" => {
+                filters.insert(TreeFilter::Topic);
+            }
+            value if value.starts_with('-') => {
+                return Err(format!(
+                    "unknown kb tree filter: {value}\n{}",
+                    crate::usage()
+                ));
+            }
+            value if root.is_none() => root = Some(value),
+            _ => return Err(crate::usage()),
+        }
+    }
+    let configured;
+    let root = if let Some(root) = root {
+        Path::new(root)
+    } else {
+        configured = crate::project_registry::configured_kb_root()?;
+        &configured
+    };
+    let kb = load_registry(root).map_err(|error| error.to_string())?;
+    print!("{}", render_tree_with_filters(&kb, &filters));
+    Ok(ExitCode::SUCCESS)
+}
 
 #[derive(Serialize)]
 struct Validation<'a> {

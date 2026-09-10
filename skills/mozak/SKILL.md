@@ -86,9 +86,9 @@ package-selection claims.
 - Re-pin a registration after a legitimate Scope edit: `mozak kb repin REGISTRY_ROOT REGISTRATION_ID SCOPE_ROOT`. Editing a registered Scope invalidates its recorded hash, and validation fails closed until the pin moves. Repin refuses an unknown registration, an already-current pin, a different Scope root, and an invalid Scope. It records an observed hash only; it accepts no content and transfers no trust. If the KB is also the configured one, follow it with `project discover`, `project review`, `project refresh`.
 - Local source freshness: `mozak scope source-check SCOPE_ROOT SOURCE_ID SOURCE_ROOT OBSERVED_REVISION`
 - Explicit KB registry validation: `mozak kb validate REGISTRY_ROOT`
-- Unified KB inventory and tree: `mozak kb list REGISTRY_ROOT`, `mozak kb tree REGISTRY_ROOT`
+- Unified KB inventory and tree: `mozak kb list REGISTRY_ROOT`, `mozak kb tree REGISTRY_ROOT`. Filter the tree with any union of `--concept`, `--project`, and `--topic`, for example `mozak kb tree --concept --project` against the configured KB.
 - Unified KB graph source/rendering: `mozak kb graph-source REGISTRY_ROOT`, `mozak kb graph REGISTRY_ROOT`
-- Configured current Meta KB, without knowing its path: `mozak kb validate`, `mozak kb list`, `mozak kb tree`, `mozak kb graph-source`, `mozak kb graph`
+- Configured current Meta KB, without knowing its path: `mozak kb validate`, `mozak kb list`, `mozak kb tree [--concept] [--project] [--topic]`, `mozak kb graph-source`, `mozak kb graph`
 - Evidence-based parity assessment: `mozak kb parity REGISTRY_ROOT OBSERVATIONS_JSON`
 
 Treat overview, list, graph-source, graph, validation, status, and next-goal recommendation as read-only even when they reveal work to do.
