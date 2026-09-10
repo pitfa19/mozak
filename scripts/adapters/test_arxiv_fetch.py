@@ -386,23 +386,42 @@ class RetryDelay(unittest.TestCase):
         delay = adapter.retry_delay_seconds(self.error({"Retry-After": "12"}), 1)
         self.assertEqual(delay, 12.0)
 
-    def test_retry_after_never_undercuts_the_polite_interval(self) -> None:
+    def test_retry_after_never_undercuts_the_courtesy_floor(self) -> None:
         delay = adapter.retry_delay_seconds(self.error({"Retry-After": "0"}), 1)
-        self.assertEqual(delay, adapter.MIN_REQUEST_INTERVAL_SECONDS)
+        self.assertEqual(delay, adapter.RETRY_AFTER_FLOOR_SECONDS)
+
+    def test_short_retry_after_is_honoured_over_our_pacing(self) -> None:
+        """The server may release us sooner than our own pacing interval."""
+        delay = adapter.retry_delay_seconds(self.error({"Retry-After": "5"}), 1)
+        self.assertEqual(delay, 5.0)
+
+    def test_backoff_is_capped(self) -> None:
+        delay = adapter.retry_delay_seconds(self.error({}), 99)
+        self.assertEqual(delay, adapter.MAX_RETRY_BACKOFF_SECONDS)
+
+    def test_first_backoff_is_patient_enough_for_the_penalty_box(self) -> None:
+        """An eager retry observably extends arXiv's throttle."""
+        self.assertGreaterEqual(adapter.retry_delay_seconds(self.error({}), 1), 20.0)
 
     def test_unparseable_retry_after_falls_back_to_backoff(self) -> None:
         delay = adapter.retry_delay_seconds(self.error({"Retry-After": "soon"}), 1)
         self.assertEqual(delay, adapter.RETRY_BACKOFF_SECONDS)
 
     def test_backoff_grows_exponentially(self) -> None:
-        delays = [adapter.retry_delay_seconds(self.error({}), n) for n in (1, 2, 3)]
+        delays = [adapter.retry_delay_seconds(self.error({}), n) for n in (1, 2)]
         base = adapter.RETRY_BACKOFF_SECONDS
-        self.assertEqual(delays, [base, base * 2, base * 4])
+        self.assertEqual(delays, [base, min(base * 2, adapter.MAX_RETRY_BACKOFF_SECONDS)])
 
 
 class Endpoint(unittest.TestCase):
     def test_api_uses_https(self) -> None:
         self.assertTrue(adapter.API.startswith("https://"))
+
+
+class Pacing(unittest.TestCase):
+    def test_request_interval_clears_observed_throttling(self) -> None:
+        """arXiv throttled this adapter at the documented three seconds."""
+        self.assertGreaterEqual(adapter.MIN_REQUEST_INTERVAL_SECONDS, 20.0)
 
 
 if __name__ == "__main__":

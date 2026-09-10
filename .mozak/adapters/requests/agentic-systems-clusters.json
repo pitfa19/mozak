@@ -2,7 +2,13 @@
   "schema_version": 1,
   "topic_id": "topic-agentic-systems",
   "mode": "query",
-  "categories": ["cs.AI", "cs.CL", "cs.LG", "cs.SE", "cs.MA"],
+  "categories": [
+    "cs.AI",
+    "cs.CL",
+    "cs.LG",
+    "cs.SE",
+    "cs.MA"
+  ],
   "clusters": [
     {
       "name": "topologies",
@@ -13,7 +19,8 @@
         "agent graph",
         "supervisor-worker",
         "agent scheduler",
-        "workflow graph"
+        "workflow graph",
+        "execution structure"
       ]
     },
     {
@@ -48,7 +55,9 @@
         "skill evolution",
         "procedural memory",
         "self-improving agent",
-        "skill acquisition"
+        "skill acquisition",
+        "procedural knowledge",
+        "self-evolving"
       ]
     },
     {
