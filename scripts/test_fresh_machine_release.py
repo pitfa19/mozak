@@ -85,18 +85,15 @@ def main() -> int:
         extracted.mkdir()
         with tarfile.open(archive, "r:gz") as bundle:
             bundle.extractall(extracted, filter="data")
-        binary = next(extracted.glob("*/mozak"))
+        archive_root = next(extracted.glob("*"))
+        archive_binary = archive_root / "mozak"
+        archive_installer = archive_root / "install.py"
 
         home = base / "home"
         xdg = base / "xdg"
         home.mkdir()
         env = os.environ.copy()
         env.update({"HOME": str(home), "XDG_CONFIG_HOME": str(xdg), "LC_ALL": "C"})
-
-        installed = run(binary, env, "setup", "install", str(home))
-        checked = run(binary, env, "setup", "check", str(home))
-        assert installed["parity"] is True and checked["parity"] is True
-        run_failure(binary, env, "kb", "validate")
 
         scope = base / "scope"
         scope.mkdir()
@@ -108,6 +105,23 @@ def main() -> int:
         kb = base / "kb"
         kb.mkdir()
         (kb / "kb.json").write_text(json.dumps({"schema_version": 1, "registrations": [{"id": "topic", "path": str(scope), "scope_manifest_sha256": sha(scope_bytes)}]}, sort_keys=True), encoding="utf-8")
+
+        prefix = base / "prefix"
+        prefix.mkdir()
+        installed_archive = subprocess.run([archive_installer, "--prefix", str(prefix), "--home", str(home), "--owner", "packaged-acceptance-owner", "--kb-root", str(kb)], env=env, capture_output=True, text=True)
+        assert installed_archive.returncode == 0, installed_archive.stderr
+        binary = prefix / "bin" / "mozak"
+        installed = run(archive_binary, env, "setup", "install", str(home), "--owner", "packaged-acceptance-owner", "--kb-root", str(kb))
+        checked = run(binary, env, "setup", "check", str(home))
+        assert installed["parity"] is True and checked["parity"] is True
+        assert installed["local_config"]["owner"] == "packaged-acceptance-owner"
+        assert installed["local_config"]["kb_root"] == str(kb)
+        tree = subprocess.run([binary, "kb", "tree"], env=env, capture_output=True, text=True)
+        assert tree.returncode == 0 and "Knowledge Base" in tree.stdout
+        different = subprocess.run([binary, "setup", "install", str(home), "--owner", "other", "--kb-root", str(kb)], env=env, capture_output=True, text=True)
+        assert different.returncode != 0
+        assert "refusing to overwrite" in different.stdout
+
         explicit_kb = run(binary, env, "kb", "validate", str(kb))
         assert explicit_kb["validity"] == "registry_valid"
         workspace = base / "workspace"
@@ -118,14 +132,15 @@ def main() -> int:
         proposal_path = base / "proposal.json"
         proposal_path.write_text(json.dumps(proposal), encoding="utf-8")
         review = run(binary, env, "project", "review", str(proposal_path))
-        assert review["action"] == "register" and review["additions"] == ["packaged-project"]
-        assert review["mutation"] is False and review["trust_transfer"] is False
+        assert review["action"] == "refresh" and review["additions"] == ["packaged-project"]
         config = Path(proposal["target_config_path"])
-        assert not config.exists(), "discover/review mutated config before approval"
+        before_project_refresh = config.read_bytes()
+        assert review["mutation"] is False and review["trust_transfer"] is False
+        assert config.read_bytes() == before_project_refresh, "discover/review mutated config before approval"
 
         approval_path = base / "approval.json"
-        approval_path.write_text(json.dumps(approval(proposal, False)), encoding="utf-8")
-        run(binary, env, "project", "register", str(proposal_path), str(approval_path))
+        approval_path.write_text(json.dumps(approval(proposal, True)), encoding="utf-8")
+        run(binary, env, "project", "refresh", str(proposal_path), str(approval_path))
         context = run(binary, env, "project", "context", "packaged-project")
         assert context["project"]["id"] == "packaged-project"
         current_kb = run(binary, env, "kb", "validate")

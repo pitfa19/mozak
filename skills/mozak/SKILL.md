@@ -50,7 +50,7 @@ package-selection claims.
 
 ## Read-only routes
 
-- Fresh-agent context by exact registered ID: `mozak project context PROJECT_ID`
+- Fresh-agent context by exact registered ID: `mozak project context PROJECT_ID`. Use its `configured_owner` field as the stable actor for authored plan and approval actor fields. Do not infer the actor from latest approval owner because refresh approvals can be authored by a different person.
 - Bounded registration preview: `mozak project discover KB_ROOT WORKSPACE_ROOT [WORKSPACE_ROOT ...]`
 - Strict read-only registration delta: `mozak project review DISCOVERY_JSON`
 - Onboarding inspection, project status: `mozak project status [PROJECT]`

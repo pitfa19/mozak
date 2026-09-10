@@ -185,6 +185,29 @@ fn review_reports_exact_register_and_refresh_deltas_without_mutation() {
         refreshed["config_base_sha256"]
     );
     assert_eq!(fs::read(&target).unwrap(), config_before);
+
+    let proposal_path = t.0.join("refresh-proposal.json");
+    let approval_path = t.0.join("refresh-approval.json");
+    fs::write(&proposal_path, serde_json::to_vec(&refreshed).unwrap()).unwrap();
+    approve_refresh(&refreshed, &approval_path, "different-refresh-owner");
+    let applied = run(
+        &[
+            "project",
+            "refresh",
+            proposal_path.to_str().unwrap(),
+            approval_path.to_str().unwrap(),
+        ],
+        &xdg,
+    );
+    assert!(
+        applied.status.success(),
+        "{}",
+        String::from_utf8_lossy(&applied.stderr)
+    );
+    let context = run(&["project", "context", "keep", "--json"], &xdg);
+    assert!(context.status.success());
+    let context: Value = serde_json::from_slice(&context.stdout).unwrap();
+    assert_eq!(context["configured_owner"], "test-owner");
 }
 
 #[test]
@@ -253,9 +276,22 @@ fn discover_register_context_happy_path_is_bounded_and_reports_no_ready_goal() {
         String::from_utf8_lossy(&context.stderr)
     );
     let c: Value = serde_json::from_slice(&context.stdout).unwrap();
+    assert_eq!(c["configured_owner"], "test-owner");
     assert_eq!(c["idea"]["title"], "Test Idea");
     assert_eq!(c["workflow"]["ready_goals"], json!([]));
     assert_eq!(c["trust_transfer"], false);
+    let explicit_json = run(&["project", "context", "exact-project", "--json"], &xdg);
+    assert!(explicit_json.status.success());
+    let cj: Value = serde_json::from_slice(&explicit_json.stdout).unwrap();
+    assert_eq!(cj, c);
+    let human = run(&["project", "context", "exact-project", "--human"], &xdg);
+    assert!(human.status.success());
+    let human_text = String::from_utf8(human.stdout).unwrap();
+    assert!(human_text.contains("MOZAK project context"), "{human_text}");
+    assert!(
+        human_text.contains("configured owner: test-owner"),
+        "{human_text}"
+    );
     let wrong = run(&["project", "context", "exact"], &xdg);
     assert!(!wrong.status.success());
 }

@@ -17,7 +17,7 @@ from typing import Any
 
 LAUNCHER_MARKER = b"MOZAK_MANAGED_LAUNCHER_V1"
 BUILD_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+-]{0,127}$")
-MANAGED_FILENAMES = {"SKILL.md", "install.py", "mcp.json", "tests/test_skill.py", "evals/evals.json"}
+MANAGED_FILENAMES = {"SKILL.md", "install.py", "mcp.json", "tests/test_skill.py", "evals/evals.json", "companion-recommendations.json"}
 
 
 def existing_real_directory(path: Path, label: str) -> Path:
@@ -130,8 +130,11 @@ def current_version(root: Path) -> Path | None:
     return resolved
 
 
-def setup_report(binary: Path, operation: str, home: Path) -> tuple[subprocess.CompletedProcess[str], dict[str, Any] | None]:
-    result = subprocess.run([str(binary), "setup", operation, str(home)], capture_output=True, text=True)
+def setup_report(binary: Path, operation: str, home: Path, owner: str | None = None, kb_root: Path | None = None) -> tuple[subprocess.CompletedProcess[str], dict[str, Any] | None]:
+    command = [str(binary), "setup", operation, str(home)]
+    if owner is not None and kb_root is not None:
+        command.extend(["--owner", owner, "--kb-root", str(kb_root)])
+    result = subprocess.run(command, capture_output=True, text=True)
     try:
         report = json.loads(result.stdout) if result.stdout else None
     except json.JSONDecodeError:
@@ -154,8 +157,8 @@ def report_paths(report: dict[str, Any] | None, home: Path) -> list[Path]:
         if target in paths:
             raise RuntimeError("setup report repeats a managed path")
         paths.append(target)
-    if len(paths) not in {16, 20}:
-        raise RuntimeError("setup report must declare exactly 16 legacy or 20 current managed files")
+    if len(paths) not in {16, 20, 24}:
+        raise RuntimeError("setup report must declare exactly 16 legacy, 20 previous, or 24 current managed files")
     return paths
 
 
@@ -168,9 +171,13 @@ def restore_files(backup: dict[Path, tuple[bytes, int]], new_paths: list[Path]) 
         atomic_regular_file(path, data, mode)
 
 
-def migrate_skills(old_binary: Path | None, new_binary: Path, home: Path) -> None:
+def migrate_skills(old_binary: Path | None, new_binary: Path, home: Path, owner: str | None = None, kb_root: Path | None = None) -> None:
     new_check, new_report = setup_report(new_binary, "check", home)
     if new_check.returncode == 0 and new_report and new_report.get("state") == "ready":
+        if old_binary is None and owner is not None and kb_root is not None:
+            install, report = setup_report(new_binary, "install", home, owner, kb_root)
+            if install.returncode != 0 or not report or report.get("state") != "ready":
+                raise RuntimeError("new embedded skill installation failed")
         return
     new_paths = report_paths(new_report, home)
     backup: dict[Path, tuple[bytes, int]] = {}
@@ -187,7 +194,7 @@ def migrate_skills(old_binary: Path | None, new_binary: Path, home: Path) -> Non
         for path in old_paths:
             path.unlink()
     try:
-        install, report = setup_report(new_binary, "install", home)
+        install, report = setup_report(new_binary, "install", home, owner if old_binary is None else None, kb_root if old_binary is None else None)
         if install.returncode != 0 or not report or report.get("state") != "ready":
             raise RuntimeError("new embedded skill installation failed")
         check, checked = setup_report(new_binary, "check", home)
@@ -252,7 +259,7 @@ def configure_delivery(home: Path, build: dict[str, Any], channel: str | None, a
     atomic_regular_file(path, (json.dumps(value, sort_keys=True, separators=(",", ":")) + "\n").encode(), 0o600)
 
 
-def activate(source: Path, prefix: Path, home: Path, expected_build_id: str | None, channel: str | None, auto: bool | None) -> dict[str, Any]:
+def activate(source: Path, prefix: Path, home: Path, expected_build_id: str | None, channel: str | None, auto: bool | None, owner: str | None, kb_root: Path | None) -> dict[str, Any]:
     root = prefix / "lib" / "mozak"
     versions = root / "versions"
     bin_directory = prefix / "bin"
@@ -274,7 +281,7 @@ def activate(source: Path, prefix: Path, home: Path, expected_build_id: str | No
         return build
 
     old_binary = old / "mozak" if old is not None else None
-    migrate_skills(old_binary, target / "mozak", home)
+    migrate_skills(old_binary, target / "mozak", home, owner, kb_root)
 
     launchers = [bin_directory / name for name in ("mozak", "mozak-mcp")]
     old_launchers: dict[Path, bytes] = {}
@@ -325,12 +332,16 @@ def main() -> int:
     parser.add_argument("--expected-build-id")
     parser.add_argument("--activate-existing")
     parser.add_argument("--channel", choices=("stable", "main"))
+    parser.add_argument("--owner", default=os.environ.get("MOZAK_OWNER") or None)
+    parser.add_argument("--kb-root", type=Path, default=Path(os.environ["MOZAK_KB_ROOT"]) if os.environ.get("MOZAK_KB_ROOT") else None)
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--enable-auto", action="store_true")
     group.add_argument("--disable-auto", action="store_true")
     args = parser.parse_args()
     try:
         home = existing_real_directory(args.home if args.home is not None else default_home(), "HOME")
+        if (args.owner is None) != (args.kb_root is None):
+            raise RuntimeError("--owner/MOZAK_OWNER and --kb-root/MOZAK_KB_ROOT must be supplied together")
         prefix_value = args.prefix if args.prefix is not None else default_prefix(home)
         prefix = existing_real_directory(prefix_value, "PREFIX")
         root = prefix / "lib" / "mozak"
@@ -343,7 +354,7 @@ def main() -> int:
         else:
             source = Path(__file__).resolve().parent
         auto = True if args.enable_auto else False if args.disable_auto else None
-        build = activate(source, prefix, home, args.expected_build_id, args.channel, auto)
+        build = activate(source, prefix, home, args.expected_build_id, args.channel, auto, args.owner, args.kb_root)
         print(f"installed and activated MOZAK {build['build_id']} at {prefix / 'bin' / 'mozak'}")
         if str(prefix / "bin") not in os.environ.get("PATH", "").split(os.pathsep):
             print(f'note: add it to PATH with: export PATH="{prefix / "bin"}:$PATH"')
