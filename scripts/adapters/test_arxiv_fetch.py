@@ -4,6 +4,8 @@ import json
 import sys
 import tempfile
 import unittest
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -189,10 +191,6 @@ class FixtureShape(unittest.TestCase):
         self.assertFalse(authority["may_mutate_accepted_plans"])
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class Clusters(unittest.TestCase):
     def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory()
@@ -314,3 +312,98 @@ class Clusters(unittest.TestCase):
         }
         text = adapter.record_text(entry)
         self.assertIn("clusters: budgets, context-memory", text)
+
+
+class TransientFailureRetry(unittest.TestCase):
+    """A transient rate limit must not discard a whole retrieval window."""
+
+    def setUp(self) -> None:
+        self.original_urlopen = urllib.request.urlopen
+        self.original_backoff = adapter.RETRY_BACKOFF_SECONDS
+        adapter.RETRY_BACKOFF_SECONDS = 0.0
+        self.calls = 0
+
+    def tearDown(self) -> None:
+        urllib.request.urlopen = self.original_urlopen
+        adapter.RETRY_BACKOFF_SECONDS = self.original_backoff
+
+    def _respond(self, codes: list[int], body: bytes = b"<feed/>"):
+        """Fail with each status in turn, then succeed."""
+
+        pending = list(codes)
+
+        class Response:
+            def read(self_inner) -> bytes:
+                return body
+
+            def __enter__(self_inner):
+                return self_inner
+
+            def __exit__(self_inner, *args) -> bool:
+                return False
+
+        def fake(request, timeout=60):
+            self.calls += 1
+            if pending:
+                raise urllib.error.HTTPError(
+                    request.full_url, pending.pop(0), "denied", {}, None
+                )
+            return Response()
+
+        urllib.request.urlopen = fake
+
+    def test_transient_429_is_retried_then_succeeds(self) -> None:
+        self._respond([429, 429])
+        self.assertEqual(adapter.fetch_page("cat:cs.AI", 0, 1), b"<feed/>")
+        self.assertEqual(self.calls, 3)
+
+    def test_transient_503_is_retried(self) -> None:
+        self._respond([503])
+        self.assertEqual(adapter.fetch_page("cat:cs.AI", 0, 1), b"<feed/>")
+        self.assertEqual(self.calls, 2)
+
+    def test_persistent_rate_limit_fails_closed(self) -> None:
+        self._respond([429] * adapter.MAX_REQUEST_ATTEMPTS)
+        with self.assertRaises(adapter.AdapterError) as caught:
+            adapter.fetch_page("cat:cs.AI", 0, 1)
+        self.assertEqual(self.calls, adapter.MAX_REQUEST_ATTEMPTS)
+        self.assertIn("429", str(caught.exception))
+
+    def test_client_error_is_not_retried(self) -> None:
+        self._respond([400] * adapter.MAX_REQUEST_ATTEMPTS)
+        with self.assertRaises(adapter.AdapterError) as caught:
+            adapter.fetch_page("cat:cs.AI", 0, 1)
+        self.assertEqual(self.calls, 1)
+        self.assertIn("after 1 attempt", str(caught.exception))
+
+
+class RetryDelay(unittest.TestCase):
+    @staticmethod
+    def error(headers: dict) -> urllib.error.HTTPError:
+        return urllib.error.HTTPError("u", 429, "denied", headers, None)
+
+    def test_server_stated_retry_after_wins(self) -> None:
+        delay = adapter.retry_delay_seconds(self.error({"Retry-After": "12"}), 1)
+        self.assertEqual(delay, 12.0)
+
+    def test_retry_after_never_undercuts_the_polite_interval(self) -> None:
+        delay = adapter.retry_delay_seconds(self.error({"Retry-After": "0"}), 1)
+        self.assertEqual(delay, adapter.MIN_REQUEST_INTERVAL_SECONDS)
+
+    def test_unparseable_retry_after_falls_back_to_backoff(self) -> None:
+        delay = adapter.retry_delay_seconds(self.error({"Retry-After": "soon"}), 1)
+        self.assertEqual(delay, adapter.RETRY_BACKOFF_SECONDS)
+
+    def test_backoff_grows_exponentially(self) -> None:
+        delays = [adapter.retry_delay_seconds(self.error({}), n) for n in (1, 2, 3)]
+        base = adapter.RETRY_BACKOFF_SECONDS
+        self.assertEqual(delays, [base, base * 2, base * 4])
+
+
+class Endpoint(unittest.TestCase):
+    def test_api_uses_https(self) -> None:
+        self.assertTrue(adapter.API.startswith("https://"))
+
+
+if __name__ == "__main__":
+    unittest.main()
