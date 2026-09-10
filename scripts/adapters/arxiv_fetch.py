@@ -33,14 +33,23 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 API = "https://export.arxiv.org/api/query"
-# arXiv asks callers to leave at least three seconds between requests.
-MIN_REQUEST_INTERVAL_SECONDS = 3.0
+# arXiv documents a three-second courtesy interval, but a cluster retrieval
+# issues one request per cluster and in practice gets throttled at that pace.
+# Spacing requests further apart costs a few seconds per run and is what makes
+# a multi-cluster retrieval complete at all.
+MIN_REQUEST_INTERVAL_SECONDS = 20.0
+# The courtesy floor arXiv documents. A server-stated Retry-After may be
+# shorter than our pacing interval, but never shorter than this.
+RETRY_AFTER_FLOOR_SECONDS = 3.0
 # arXiv rate-limits bursts with HTTP 429 and occasionally returns a transient
 # 5xx. A retrieval that gives up on the first one loses the whole window, so
-# retry a bounded number of times with exponential backoff. The budget is small
-# and fixed: it smooths a transient refusal without hammering the source.
-MAX_REQUEST_ATTEMPTS = 5
-RETRY_BACKOFF_SECONDS = 5.0
+# retry a bounded number of times with exponential backoff. Observed behaviour
+# is stricter than the documented interval: once a caller is throttled, arXiv
+# keeps refusing for tens of seconds, and an impatient retry appears to extend
+# that penalty. The first backoff is therefore long rather than eager.
+MAX_REQUEST_ATTEMPTS = 6
+RETRY_BACKOFF_SECONDS = 30.0
+MAX_RETRY_BACKOFF_SECONDS = 120.0
 RETRYABLE_STATUS = frozenset({429, 500, 502, 503, 504})
 PAGE_SIZE = 100
 MAX_RECORDS_CEILING = 2000
@@ -216,10 +225,13 @@ def retry_delay_seconds(error: urllib.error.HTTPError, attempt: int) -> float:
     stated = error.headers.get("Retry-After") if error.headers else None
     if stated:
         try:
-            return max(MIN_REQUEST_INTERVAL_SECONDS, float(stated.strip()))
+            # The server knows better than our backoff curve, but never retry
+            # faster than the courtesy floor arXiv documents.
+            return max(RETRY_AFTER_FLOOR_SECONDS, float(stated.strip()))
         except ValueError:
             pass
-    return RETRY_BACKOFF_SECONDS * (2 ** (attempt - 1))
+    backoff = RETRY_BACKOFF_SECONDS * (2 ** (attempt - 1))
+    return min(backoff, MAX_RETRY_BACKOFF_SECONDS)
 
 
 def fetch_page(search_query: str, start_index: int, page_size: int) -> bytes:
