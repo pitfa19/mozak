@@ -3,7 +3,7 @@ use sha2::{Digest, Sha256};
 use std::{
     fs,
     path::{Path, PathBuf},
-    process::{Command, Output},
+    process::{Command, Output, Stdio},
     sync::atomic::{AtomicU64, Ordering},
 };
 
@@ -461,7 +461,7 @@ fn register_rejects_bad_digest_stale_base_and_output_symlink_without_overwrite()
 }
 
 #[test]
-fn context_reports_manifest_and_idea_drift_without_hiding_it() {
+fn context_reconciles_valid_idea_drift_and_still_fails_closed_for_invalid_files() {
     let t = Temp::new("drift");
     let kb = valid_kb(&t.0);
     let ws = t.0.join("ws");
@@ -492,8 +492,9 @@ fn context_reports_manifest_and_idea_drift_without_hiding_it() {
     let out = run(&["project", "context", "drift-project"], &xdg);
     assert!(out.status.success());
     let value: Value = serde_json::from_slice(&out.stdout).unwrap();
-    assert_eq!(value["foundation"]["idea"]["drift"], true);
-    assert_eq!(value["foundation"]["project_drift"], true);
+    assert_eq!(value["foundation"]["idea"]["drift"], false);
+    assert_eq!(value["foundation"]["project_drift"], false);
+    assert_eq!(value["reconciliation"]["performed"], true);
 
     fs::write(p.join(".mozak/idea.md"), "invalid").unwrap();
     let invalid = run(&["project", "context", "drift-project"], &xdg);
@@ -501,6 +502,131 @@ fn context_reports_manifest_and_idea_drift_without_hiding_it() {
     let report: Value = serde_json::from_slice(&invalid.stdout).unwrap();
     assert_eq!(report["state"], "invalid");
     assert_eq!(report["foundation"]["valid"], false);
+}
+
+#[test]
+#[allow(clippy::too_many_lines)]
+fn context_refresh_history_and_rollback_are_atomic_bounded_and_concurrent() {
+    let t = Temp::new("context-refresh-history");
+    let kb = valid_kb(&t.0);
+    let ws = t.0.join("ws");
+    let p = ws.join("p");
+    project(&p, "context-refresh");
+    let xdg = t.0.join("xdg");
+    register_initial(&kb, &ws, &xdg, &t.0);
+
+    // A first 0.3.1 context call upgrades a legacy registration in place by
+    // recording its exact generation and manifest baseline without scanning.
+    let baseline = run(&["project", "context", "context-refresh"], &xdg);
+    assert!(
+        baseline.status.success(),
+        "{}",
+        String::from_utf8_lossy(&baseline.stderr)
+    );
+    let baseline_json: Value = serde_json::from_slice(&baseline.stdout).unwrap();
+    assert_eq!(baseline_json["reconciliation"]["performed"], false);
+    let baseline_digest = baseline_json["config"]["sha256"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+
+    let manifest_path = p.join(".mozak/project.yml");
+    let old_manifest = fs::read_to_string(&manifest_path).unwrap();
+    fs::write(
+        &manifest_path,
+        old_manifest.replace(
+            "0123456789abcdef0123456789abcdef01234567",
+            "1123456789abcdef0123456789abcdef01234567",
+        ),
+    )
+    .unwrap();
+
+    let children = (0..6)
+        .map(|_| {
+            Command::new(env!("CARGO_BIN_EXE_mozak"))
+                .args(["project", "context", "context-refresh"])
+                .env("XDG_CONFIG_HOME", &xdg)
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()
+                .unwrap()
+        })
+        .collect::<Vec<_>>();
+    let outputs = children
+        .into_iter()
+        .map(|child| child.wait_with_output().unwrap())
+        .collect::<Vec<_>>();
+    assert!(outputs.iter().all(|output| output.status.success()));
+    assert_eq!(
+        outputs
+            .iter()
+            .filter(|output| {
+                serde_json::from_slice::<Value>(&output.stdout).unwrap()["reconciliation"]
+                    ["performed"]
+                    == true
+            })
+            .count(),
+        1
+    );
+
+    let history = run(&["project", "refresh", "history"], &xdg);
+    assert!(
+        history.status.success(),
+        "{}",
+        String::from_utf8_lossy(&history.stderr)
+    );
+    let history_json: Value = serde_json::from_slice(&history.stdout).unwrap();
+    assert_eq!(history_json["entries"].as_array().unwrap().len(), 1);
+    assert_eq!(history_json["entries"][0]["actor"], "test-owner");
+    assert_eq!(
+        history_json["entries"][0]["old_config_sha256"],
+        baseline_digest
+    );
+    let refreshed_digest = history_json["entries"][0]["new_config_sha256"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let entry_digest = history_json["entries"][0]["entry_sha256"].as_str().unwrap();
+    let entry_path = xdg
+        .join("mozak/refresh-history/entries")
+        .join(format!("{entry_digest}.json"));
+    let entry_bytes = fs::read(&entry_path).unwrap();
+    let mut tampered: Value = serde_json::from_slice(&entry_bytes).unwrap();
+    tampered["actor"] = json!("attacker");
+    fs::write(&entry_path, serde_json::to_vec(&tampered).unwrap()).unwrap();
+    let rejected = run(&["project", "refresh", "history"], &xdg);
+    assert!(!rejected.status.success());
+    assert!(String::from_utf8_lossy(&rejected.stderr).contains("tampered"));
+    fs::write(&entry_path, entry_bytes).unwrap();
+
+    let rollback = run(&["project", "refresh", "rollback", &baseline_digest], &xdg);
+    assert!(
+        rollback.status.success(),
+        "{}",
+        String::from_utf8_lossy(&rollback.stderr)
+    );
+    let rollback_json: Value = serde_json::from_slice(&rollback.stdout).unwrap();
+    assert_eq!(rollback_json["previous_config_sha256"], refreshed_digest);
+    assert_eq!(rollback_json["config_sha256"], baseline_digest);
+
+    let history = run(&["project", "refresh", "history"], &xdg);
+    let history_json: Value = serde_json::from_slice(&history.stdout).unwrap();
+    assert_eq!(history_json["entries"].as_array().unwrap().len(), 2);
+
+    // An authority change remains drift and requires the explicit review and
+    // approval path. Context must not mutate the config digest.
+    fs::write(
+        &manifest_path,
+        old_manifest.replace("  - src", "  - crates"),
+    )
+    .unwrap();
+    let before = fs::read(xdg.join("mozak/config.json")).unwrap();
+    let authority = run(&["project", "context", "context-refresh"], &xdg);
+    assert!(authority.status.success());
+    let authority_json: Value = serde_json::from_slice(&authority.stdout).unwrap();
+    assert_eq!(authority_json["reconciliation"]["performed"], false);
+    assert_eq!(authority_json["foundation"]["project_drift"], true);
+    assert_eq!(fs::read(xdg.join("mozak/config.json")).unwrap(), before);
 }
 
 #[test]

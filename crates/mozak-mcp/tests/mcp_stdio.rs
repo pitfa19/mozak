@@ -1,8 +1,13 @@
 use serde_json::{Value, json};
 use std::{
+    fs,
     io::Write,
+    os::unix::fs::PermissionsExt,
     process::{Command, Stdio},
+    sync::atomic::{AtomicU64, Ordering},
 };
+
+static NEXT: AtomicU64 = AtomicU64::new(0);
 
 fn run(lines: &[Value]) -> Vec<Value> {
     let mut child = Command::new(env!("CARGO_BIN_EXE_mozak-mcp"))
@@ -130,4 +135,53 @@ fn project_validate_matches_cli_output() {
     let output = child.wait_with_output().unwrap();
     let result: Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(result["result"]["structuredContent"]["output"], cli_text);
+}
+
+#[test]
+fn project_context_uses_the_exact_cli_behavior() {
+    let temp = std::env::temp_dir().join(format!(
+        "mozak-mcp-context-parity-{}-{}",
+        std::process::id(),
+        NEXT.fetch_add(1, Ordering::Relaxed)
+    ));
+    fs::create_dir_all(&temp).unwrap();
+    let cli = temp.join("mozak");
+    let argv = temp.join("argv");
+    fs::write(
+        &cli,
+        format!(
+            "#!/bin/sh\nprintf '%s\\n' \"$*\" > '{}'\nprintf '%s\\n' '{{\"reconciliation\":{{\"performed\":true}},\"config\":{{\"sha256\":\"new\"}}}}'\n",
+            argv.display()
+        ),
+    )
+    .unwrap();
+    let mut permissions = fs::metadata(&cli).unwrap().permissions();
+    permissions.set_mode(0o755);
+    fs::set_permissions(&cli, permissions).unwrap();
+
+    let mut child = Command::new(env!("CARGO_BIN_EXE_mozak-mcp"))
+        .env("MOZAK_CLI", &cli)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    writeln!(
+        child.stdin.as_mut().unwrap(),
+        "{}",
+        json!({"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"project_context","arguments":{"project_id":"exact-id"}}})
+    )
+    .unwrap();
+    drop(child.stdin.take());
+    let output = child.wait_with_output().unwrap();
+    assert!(output.status.success());
+    let result: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(
+        fs::read_to_string(&argv).unwrap(),
+        "project context exact-id\n"
+    );
+    assert_eq!(
+        result["result"]["structuredContent"]["output"],
+        "{\"reconciliation\":{\"performed\":true},\"config\":{\"sha256\":\"new\"}}"
+    );
+    fs::remove_dir_all(temp).unwrap();
 }

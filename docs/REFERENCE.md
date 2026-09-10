@@ -46,6 +46,8 @@ mozak project review <discovery.json>
 mozak project register <discovery.json> <approval.json>          # mutation
 mozak project refresh <discovery.json> <approval.json>           # mutation
 mozak project context <project-id>
+mozak project refresh history
+mozak project refresh rollback <config-sha256>
 mozak scope init|add-topic <scope-root> <scope-id> <title> <intent>          # mutation
 mozak scope add-project <scope-root> <scope-id> <title> <intent> <project-root>  # mutation
 mozak scope add-goal <scope-root> <goal-id> <title> <scope-id> [scope-id ...]    # mutation
@@ -53,6 +55,16 @@ mozak scope validate|list|graph-source|graph|export <scope-root>
 mozak scope source-check <scope-root> <source-id> <source-root> <observed-revision>
 mozak scope ingest-links <scope-root> <source-root> <observed-revision> <plan.json> <output-root>  # mutation
 ```
+
+Since 0.3.1, `project context` self-reconciles only valid, identity-preserving
+pin drift for the exact requested registration. It takes the existing exclusive
+refresh lock, compares the config SHA-256 before replacement, preserves both
+config generations, and records the configured owner, UTC time, reason, and
+old/new digests in tamper-evident history. It performs no discovery or scanning.
+Project additions, removals, renames, root changes, KB changes, and manifest
+identity or owned-path authority changes still require reviewed discovery and a
+strict owner approval. `project refresh rollback` likewise accepts only a
+preserved generation with the same membership, roots, KB, and identities.
 
 ### Research
 

@@ -104,6 +104,32 @@ struct ConfigApproval {
     rationale: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RefreshAuditEntry {
+    schema_version: u64,
+    actor: String,
+    at: String,
+    reason: String,
+    old_config_sha256: String,
+    new_config_sha256: String,
+    old_manifest_sha256: String,
+    new_manifest_sha256: String,
+    entry_sha256: String,
+}
+
+#[derive(Serialize)]
+struct RefreshAuditDigest<'a> {
+    schema_version: u64,
+    actor: &'a str,
+    at: &'a str,
+    reason: &'a str,
+    old_config_sha256: &'a str,
+    new_config_sha256: &'a str,
+    old_manifest_sha256: &'a str,
+    new_manifest_sha256: &'a str,
+}
+
 #[derive(Serialize)]
 struct ProposalDigest<'a> {
     schema_version: u64,
@@ -346,8 +372,97 @@ pub fn refresh(discovery_path: &Path, approval_path: &Path) -> Result<ExitCode, 
         },
     };
     let bytes = serde_json::to_vec(&config).map_err(|e| e.to_string())?;
-    atomic_replace_exact(&target, &bytes, base)?;
+    atomic_replace_exact(&target, &bytes, base, None)?;
     println!("{}", serde_json::to_string(&serde_json::json!({"schema_version":1,"command":"project refresh","config_path":proposal.target_config_path,"previous_config_sha256":base,"config_sha256":hash(&bytes),"proposal_digest":proposal.proposal_digest,"project_count":config.projects.len(),"additions":additions,"removals":removals,"changed_pins":changed_pins,"refreshed":true,"trust_transfer":false,"auto_discovery":false})).map_err(|e| e.to_string())?);
+    Ok(ExitCode::SUCCESS)
+}
+
+pub fn refresh_history() -> Result<ExitCode, String> {
+    let config_path = default_config_path()?;
+    validate_target_path(&config_path)?;
+    let bytes = read_optional_regular(&config_path)?
+        .ok_or_else(|| format!("local config does not exist: {}", config_path.display()))?;
+    let config: LocalConfig = serde_json::from_slice(&bytes)
+        .map_err(|e| format!("invalid local config {}: {e}", config_path.display()))?;
+    validate_local_config(&config)?;
+    let entries = load_refresh_history(&config_path)?;
+    println!(
+        "{}",
+        serde_json::to_string(&serde_json::json!({
+            "schema_version": 1,
+            "command": "project refresh history",
+            "config_path": path_text(&config_path)?,
+            "config_sha256": hash(&bytes),
+            "entries": entries,
+            "tamper_evident": true,
+            "auto_discovery": false
+        }))
+        .map_err(|e| e.to_string())?
+    );
+    Ok(ExitCode::SUCCESS)
+}
+
+pub fn refresh_rollback(target_digest: &str) -> Result<ExitCode, String> {
+    validate_lower_hex("rollback target config SHA-256", target_digest, 64)?;
+    let config_path = default_config_path()?;
+    validate_target_path(&config_path)?;
+    let current_bytes = read_optional_regular(&config_path)?
+        .ok_or_else(|| format!("local config does not exist: {}", config_path.display()))?;
+    let current_digest = hash(&current_bytes);
+    if current_digest == target_digest {
+        return Err("rollback target is already the current config generation".into());
+    }
+    let target_bytes = read_generation(&config_path, target_digest)?;
+    let current: LocalConfig = serde_json::from_slice(&current_bytes)
+        .map_err(|e| format!("invalid current local config: {e}"))?;
+    let target: LocalConfig = serde_json::from_slice(&target_bytes)
+        .map_err(|e| format!("invalid rollback config generation: {e}"))?;
+    validate_local_config(&current)?;
+    validate_local_config(&target)?;
+    require_identity_preserving_config_change(&current, &target)?;
+    let project_id = single_changed_project(&current, &target)?;
+    let old_record = current.projects.get(&project_id).expect("known project");
+    let new_record = target.projects.get(&project_id).expect("known project");
+    let history = load_refresh_history(&config_path)?;
+    if !history.iter().any(|entry| {
+        entry.old_config_sha256 == target_digest || entry.new_config_sha256 == target_digest
+    }) {
+        return Err("rollback target is not an audited automatic refresh generation".into());
+    }
+    if old_record.manifest_sha256 != new_record.manifest_sha256 {
+        let old_manifest = read_manifest_snapshot(&config_path, &current_digest, &project_id)?;
+        let new_manifest = read_manifest_snapshot(&config_path, target_digest, &project_id)?;
+        if !same_manifest_identity_and_authority(&old_manifest, &new_manifest) {
+            return Err(
+                "rollback would change manifest identity or authority; explicit approval is required"
+                    .into(),
+            );
+        }
+    }
+    let audit = make_audit_entry(
+        configured_owner(&current),
+        "project refresh rollback of identity-preserving registration drift",
+        &current_digest,
+        target_digest,
+        &old_record.manifest_sha256,
+        &new_record.manifest_sha256,
+    )?;
+    atomic_replace_exact(&config_path, &target_bytes, &current_digest, Some(&audit))?;
+    println!(
+        "{}",
+        serde_json::to_string(&serde_json::json!({
+            "schema_version": 1,
+            "command": "project refresh rollback",
+            "config_path": path_text(&config_path)?,
+            "previous_config_sha256": current_digest,
+            "config_sha256": target_digest,
+            "project_id": project_id,
+            "rolled_back": true,
+            "auto_discovery": false,
+            "trust_transfer": false
+        }))
+        .map_err(|e| e.to_string())?
+    );
     Ok(ExitCode::SUCCESS)
 }
 
@@ -365,14 +480,15 @@ pub fn context(id: &str, mode: ContextOutputMode) -> Result<ExitCode, String> {
     }
     let config_path = default_config_path()?;
     validate_target_path(&config_path)?;
-    let bytes = read_optional_regular(&config_path)?
+    let mut bytes = read_optional_regular(&config_path)?
         .ok_or_else(|| format!("local config does not exist: {}", config_path.display()))?;
-    let config: LocalConfig = serde_json::from_slice(&bytes)
+    let mut config: LocalConfig = serde_json::from_slice(&bytes)
         .map_err(|e| format!("invalid local config {}: {e}", config_path.display()))?;
     validate_local_config(&config)?;
-    let configured = config
+    let mut configured = config
         .projects
         .get(id)
+        .cloned()
         .ok_or_else(|| format!("project id is not registered: {id}"))?;
     let live_kb = load_registry(Path::new(&config.kb_root));
     let (current_kb_hash, kb_drift, kb_valid, kb_error) = match &live_kb {
@@ -388,6 +504,44 @@ pub fn context(id: &str, mode: ContextOutputMode) -> Result<ExitCode, String> {
         Ok(value) => (Some(value), true, None),
         Err(error) => (None, false, Some(error)),
     };
+    let mut reconciliation = None;
+    if !kb_drift && project_valid && current.as_ref().is_some_and(|value| value != &configured) {
+        let value = current.as_ref().expect("validated live project");
+        if identity_preserving_registration_drift(&config_path, &bytes, &configured, value)? {
+            let old_digest = hash(&bytes);
+            let mut updated = config.clone();
+            updated.projects.insert(id.to_owned(), value.clone());
+            let new_bytes = serde_json::to_vec(&updated).map_err(|e| e.to_string())?;
+            let new_digest = hash(&new_bytes);
+            let audit = make_audit_entry(
+                configured_owner(&config),
+                "project context self-reconciled identity-preserving registration drift",
+                &old_digest,
+                &new_digest,
+                &configured.manifest_sha256,
+                &value.manifest_sha256,
+            )?;
+            if let Err(error) =
+                atomic_replace_exact(&config_path, &new_bytes, &old_digest, Some(&audit))
+            {
+                if error.contains("stale config base during atomic refresh") {
+                    return context(id, mode);
+                }
+                return Err(error);
+            }
+            bytes = new_bytes;
+            config = updated;
+            configured = value.clone();
+            reconciliation = Some(serde_json::json!({
+                "performed": true,
+                "reason": audit.reason,
+                "old_config_sha256": old_digest,
+                "new_config_sha256": new_digest,
+                "audit_entry_sha256": audit.entry_sha256
+            }));
+        }
+    }
+    ensure_generation_snapshot(&config_path, &bytes, &config)?;
     let root = Path::new(&configured.root);
     let idea = read_idea(root).ok();
     let snapshot_result = crate::project_workflow::snapshot(root);
@@ -403,7 +557,7 @@ pub fn context(id: &str, mode: ContextOutputMode) -> Result<ExitCode, String> {
         |v| v.manifest_revision.clone(),
     );
     let revision_matches_head = current_head.as_deref() == Some(manifest_revision.as_str());
-    let project_drift = current.as_ref() != Some(configured);
+    let project_drift = current.as_ref() != Some(&configured);
     let workflow_invalid = snapshot
         .as_ref()
         .is_some_and(|value| value.state == crate::project_workflow::SnapshotState::Invalid);
@@ -426,6 +580,7 @@ pub fn context(id: &str, mode: ContextOutputMode) -> Result<ExitCode, String> {
         "configured_owner": configured_owner(&config),
         "project": {"id": configured.id, "name": configured.name, "root": configured.root},
         "config": {"path": path_text(&config_path)?, "sha256": hash(&bytes)},
+        "reconciliation": reconciliation.unwrap_or_else(|| serde_json::json!({"performed": false})),
         "kb": {"root": config.kb_root, "configured_sha256": config.kb_sha256, "current_sha256": current_kb_hash, "valid": kb_valid, "drift": kb_drift, "error": kb_error},
         "knowledge": {"scope_matches": scope_matches, "package_matches": package_matches},
         "foundation": {
@@ -468,6 +623,321 @@ fn configured_owner(config: &LocalConfig) -> &str {
         .configured_owner
         .as_deref()
         .unwrap_or(&config.approval.owner)
+}
+
+fn history_root(config_path: &Path) -> Result<PathBuf, String> {
+    Ok(config_path
+        .parent()
+        .ok_or("config path has no parent")?
+        .join("refresh-history"))
+}
+
+fn generation_path(config_path: &Path, digest: &str) -> Result<PathBuf, String> {
+    Ok(history_root(config_path)?
+        .join("generations")
+        .join(format!("{digest}.json")))
+}
+
+fn manifest_snapshot_path(
+    config_path: &Path,
+    config_digest: &str,
+    project_id: &str,
+) -> Result<PathBuf, String> {
+    Ok(history_root(config_path)?
+        .join("manifests")
+        .join(format!("{config_digest}.{project_id}.yml")))
+}
+
+fn atomic_create_verified(path: &Path, bytes: &[u8]) -> Result<(), String> {
+    let parent = path.parent().ok_or("history path has no parent")?;
+    fs::create_dir_all(parent).map_err(|e| format!("cannot create refresh history: {e}"))?;
+    reject_symlink_chain(parent, "refresh history")?;
+    match fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(path)
+    {
+        Ok(mut file) => {
+            file.write_all(bytes).map_err(|e| e.to_string())?;
+            file.sync_all().map_err(|e| e.to_string())?;
+            fs::File::open(parent)
+                .and_then(|dir| dir.sync_all())
+                .map_err(|e| format!("cannot sync refresh history directory: {e}"))
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
+            ensure_regular_no_symlink(path, "refresh history artifact")?;
+            let existing = fs::read(path).map_err(|e| e.to_string())?;
+            if existing == bytes {
+                Ok(())
+            } else {
+                Err(format!(
+                    "refresh history artifact collision: {}",
+                    path.display()
+                ))
+            }
+        }
+        Err(error) => Err(format!("cannot create refresh history artifact: {error}")),
+    }
+}
+
+fn ensure_generation_snapshot(
+    config_path: &Path,
+    config_bytes: &[u8],
+    config: &LocalConfig,
+) -> Result<(), String> {
+    let digest = hash(config_bytes);
+    atomic_create_verified(&generation_path(config_path, &digest)?, config_bytes)?;
+    for record in config.projects.values() {
+        let Ok(manifest) = fs::read(&record.manifest_path) else {
+            continue;
+        };
+        if hash(&manifest) == record.manifest_sha256 {
+            atomic_create_verified(
+                &manifest_snapshot_path(config_path, &digest, &record.id)?,
+                &manifest,
+            )?;
+        }
+    }
+    Ok(())
+}
+
+fn read_generation(config_path: &Path, digest: &str) -> Result<Vec<u8>, String> {
+    let path = generation_path(config_path, digest)?;
+    ensure_regular_no_symlink(&path, "config generation")?;
+    let bytes = fs::read(&path).map_err(|e| format!("cannot read config generation: {e}"))?;
+    if hash(&bytes) != digest {
+        return Err("config generation digest mismatch".into());
+    }
+    Ok(bytes)
+}
+
+fn read_manifest_snapshot(
+    config_path: &Path,
+    config_digest: &str,
+    project_id: &str,
+) -> Result<ProjectManifest, String> {
+    let path = manifest_snapshot_path(config_path, config_digest, project_id)?;
+    ensure_regular_no_symlink(&path, "project manifest snapshot")?;
+    let text = fs::read_to_string(&path)
+        .map_err(|e| format!("cannot read project manifest snapshot: {e}"))?;
+    validate_project_yaml(&text).map_err(|e| format!("invalid project manifest snapshot: {e}"))
+}
+
+fn same_manifest_identity_and_authority(old: &ProjectManifest, new: &ProjectManifest) -> bool {
+    old.version == new.version
+        && old.framework_contract_version == new.framework_contract_version
+        && old.project == new.project
+        && old.owned_paths == new.owned_paths
+}
+
+fn same_record_identity(old: &ProjectRecord, new: &ProjectRecord) -> bool {
+    old.id == new.id
+        && old.name == new.name
+        && old.root == new.root
+        && old.manifest_path == new.manifest_path
+        && old.idea_path == new.idea_path
+}
+
+fn identity_preserving_registration_drift(
+    config_path: &Path,
+    config_bytes: &[u8],
+    old: &ProjectRecord,
+    new: &ProjectRecord,
+) -> Result<bool, String> {
+    if !same_record_identity(old, new) {
+        return Ok(false);
+    }
+    if old.manifest_sha256 == new.manifest_sha256 {
+        return Ok(true);
+    }
+    let Ok(old_manifest) = read_manifest_snapshot(config_path, &hash(config_bytes), &old.id) else {
+        return Ok(false);
+    };
+    let new_text = fs::read_to_string(&new.manifest_path)
+        .map_err(|e| format!("cannot read live project manifest: {e}"))?;
+    let new_manifest = validate_project_yaml(&new_text)
+        .map_err(|e| format!("invalid live project manifest: {e}"))?;
+    Ok(same_manifest_identity_and_authority(
+        &old_manifest,
+        &new_manifest,
+    ))
+}
+
+fn require_identity_preserving_config_change(
+    old: &LocalConfig,
+    new: &LocalConfig,
+) -> Result<(), String> {
+    if old.kb_root != new.kb_root
+        || old.kb_sha256 != new.kb_sha256
+        || old.configured_owner != new.configured_owner
+        || old.projects.keys().ne(new.projects.keys())
+    {
+        return Err("rollback would change configured identity, project membership, roots, or KB; explicit approval is required".into());
+    }
+    for (id, old_record) in &old.projects {
+        let new_record = new.projects.get(id).expect("matching project keys");
+        if !same_record_identity(old_record, new_record) {
+            return Err(
+                "rollback would change project identity or root; explicit approval is required"
+                    .into(),
+            );
+        }
+    }
+    Ok(())
+}
+
+fn single_changed_project(old: &LocalConfig, new: &LocalConfig) -> Result<String, String> {
+    let changed = old
+        .projects
+        .iter()
+        .filter(|(id, record)| new.projects.get(*id) != Some(*record))
+        .map(|(id, _)| id.clone())
+        .collect::<Vec<_>>();
+    match changed.as_slice() {
+        [id] => Ok(id.clone()),
+        _ => Err(
+            "rollback must restore exactly one identity-preserving project registration generation"
+                .into(),
+        ),
+    }
+}
+
+fn make_audit_entry(
+    actor: &str,
+    reason: &str,
+    old_config_sha256: &str,
+    new_config_sha256: &str,
+    old_manifest_sha256: &str,
+    new_manifest_sha256: &str,
+) -> Result<RefreshAuditEntry, String> {
+    let at = utc_timestamp();
+    let digest = RefreshAuditDigest {
+        schema_version: 1,
+        actor,
+        at: &at,
+        reason,
+        old_config_sha256,
+        new_config_sha256,
+        old_manifest_sha256,
+        new_manifest_sha256,
+    };
+    let entry_sha256 = hash(&serde_json::to_vec(&digest).map_err(|e| e.to_string())?);
+    Ok(RefreshAuditEntry {
+        schema_version: 1,
+        actor: actor.to_owned(),
+        at,
+        reason: reason.to_owned(),
+        old_config_sha256: old_config_sha256.to_owned(),
+        new_config_sha256: new_config_sha256.to_owned(),
+        old_manifest_sha256: old_manifest_sha256.to_owned(),
+        new_manifest_sha256: new_manifest_sha256.to_owned(),
+        entry_sha256,
+    })
+}
+
+fn validate_audit_entry(entry: &RefreshAuditEntry) -> Result<(), String> {
+    let digest = RefreshAuditDigest {
+        schema_version: entry.schema_version,
+        actor: &entry.actor,
+        at: &entry.at,
+        reason: &entry.reason,
+        old_config_sha256: &entry.old_config_sha256,
+        new_config_sha256: &entry.new_config_sha256,
+        old_manifest_sha256: &entry.old_manifest_sha256,
+        new_manifest_sha256: &entry.new_manifest_sha256,
+    };
+    if entry.schema_version != 1
+        || !canonical_utc(&entry.at)
+        || hash(&serde_json::to_vec(&digest).map_err(|e| e.to_string())?) != entry.entry_sha256
+    {
+        return Err("invalid or tampered refresh audit entry".into());
+    }
+    display_safe("refresh audit actor", &entry.actor)?;
+    display_safe("refresh audit reason", &entry.reason)?;
+    for value in [
+        &entry.old_config_sha256,
+        &entry.new_config_sha256,
+        &entry.old_manifest_sha256,
+        &entry.new_manifest_sha256,
+        &entry.entry_sha256,
+    ] {
+        validate_lower_hex("refresh audit digest", value, 64)?;
+    }
+    Ok(())
+}
+
+fn persist_audit_entry(config_path: &Path, entry: &RefreshAuditEntry) -> Result<(), String> {
+    validate_audit_entry(entry)?;
+    let path = history_root(config_path)?
+        .join("entries")
+        .join(format!("{}.json", entry.entry_sha256));
+    let bytes = serde_json::to_vec(entry).map_err(|e| e.to_string())?;
+    atomic_create_verified(&path, &bytes)
+}
+
+fn load_refresh_history(config_path: &Path) -> Result<Vec<RefreshAuditEntry>, String> {
+    let directory = history_root(config_path)?.join("entries");
+    if !directory.exists() {
+        return Ok(Vec::new());
+    }
+    reject_symlink_chain(&directory, "refresh history")?;
+    let mut entries = Vec::new();
+    for item in fs::read_dir(&directory).map_err(|e| format!("cannot read refresh history: {e}"))? {
+        let path = item.map_err(|e| e.to_string())?.path();
+        ensure_regular_no_symlink(&path, "refresh audit entry")?;
+        let entry: RefreshAuditEntry = strict_json_file(&path, "refresh audit entry")?;
+        validate_audit_entry(&entry)?;
+        if path.file_name().and_then(|v| v.to_str())
+            != Some(&format!("{}.json", entry.entry_sha256))
+        {
+            return Err("refresh audit entry filename digest mismatch".into());
+        }
+        let old = read_generation(config_path, &entry.old_config_sha256)?;
+        let new = read_generation(config_path, &entry.new_config_sha256)?;
+        if hash(&old) != entry.old_config_sha256 || hash(&new) != entry.new_config_sha256 {
+            return Err("refresh audit references a tampered config generation".into());
+        }
+        entries.push(entry);
+    }
+    entries.sort_by(|a, b| {
+        a.at.cmp(&b.at)
+            .then_with(|| a.entry_sha256.cmp(&b.entry_sha256))
+    });
+    Ok(entries)
+}
+
+fn utc_timestamp() -> String {
+    let seconds = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |duration| duration.as_secs());
+    let days = seconds / 86_400;
+    let time = seconds % 86_400;
+    let (year, month, day) = civil_from_days(i64::try_from(days).unwrap_or(0));
+    format!(
+        "{year:04}-{month:02}-{day:02}T{:02}:{:02}:{:02}Z",
+        time / 3600,
+        (time % 3600) / 60,
+        time % 60
+    )
+}
+
+#[allow(clippy::many_single_char_names)]
+fn civil_from_days(z: i64) -> (i64, u32, u32) {
+    let z = z + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z.rem_euclid(146_097);
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    let month = mp + if mp < 10 { 3 } else { -9 };
+    let year = y + i64::from(month <= 2);
+    (
+        year,
+        u32::try_from(month).unwrap_or(1),
+        u32::try_from(day).unwrap_or(1),
+    )
 }
 
 fn print_context_human(output: &Value) -> Result<(), String> {
@@ -1203,20 +1673,56 @@ fn atomic_install_absent(path: &Path, bytes: &[u8], base: Option<&str>) -> Resul
     result
 }
 
-fn atomic_replace_exact(path: &Path, bytes: &[u8], base: &str) -> Result<(), String> {
+fn atomic_replace_exact(
+    path: &Path,
+    bytes: &[u8],
+    base: &str,
+    audit: Option<&RefreshAuditEntry>,
+) -> Result<(), String> {
     validate_target_path(path)?;
     let parent = path.parent().ok_or("config path has no parent")?;
     let lock = parent.join(".config.json.refresh.lock");
-    let lock_file = fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&lock)
+    let lock_file = (0..200)
+        .find_map(|_| {
+            match fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&lock)
+            {
+                Ok(file) => Some(Ok(file)),
+                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+                    None
+                }
+                Err(error) => Some(Err(error)),
+            }
+        })
+        .unwrap_or_else(|| {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::WouldBlock,
+                "timed out waiting for existing refresh transaction",
+            ))
+        })
         .map_err(|e| format!("cannot acquire exclusive config refresh lock: {e}"))?;
     let result = (|| {
         validate_target_path(path)?;
         let live = read_optional_regular(path)?.ok_or("local config disappeared during refresh")?;
         if hash(&live) != base {
             return Err("stale config base during atomic refresh".into());
+        }
+        let old_config: LocalConfig = serde_json::from_slice(&live)
+            .map_err(|e| format!("invalid existing local config during refresh: {e}"))?;
+        let new_config: LocalConfig = serde_json::from_slice(bytes)
+            .map_err(|e| format!("invalid replacement local config during refresh: {e}"))?;
+        validate_local_config(&old_config)?;
+        validate_local_config(&new_config)?;
+        ensure_generation_snapshot(path, &live, &old_config)?;
+        ensure_generation_snapshot(path, bytes, &new_config)?;
+        if let Some(entry) = audit {
+            if entry.old_config_sha256 != base || entry.new_config_sha256 != hash(bytes) {
+                return Err("refresh audit entry does not pin the CAS config digests".into());
+            }
+            persist_audit_entry(path, entry)?;
         }
         let nonce = SystemTime::now()
             .duration_since(UNIX_EPOCH)
