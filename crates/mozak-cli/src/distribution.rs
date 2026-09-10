@@ -14,7 +14,7 @@ const DESTINATIONS: [&str; 4] = [
     ".claude/skills/mozak",
     ".codex/skills/mozak",
 ];
-const FILES: [(&str, &[u8]); 5] = [
+const FILES: [(&str, &[u8]); 6] = [
     ("SKILL.md", include_bytes!("../../../skills/mozak/SKILL.md")),
     (
         "install.py",
@@ -29,6 +29,17 @@ const FILES: [(&str, &[u8]); 5] = [
         "evals/evals.json",
         include_bytes!("../../../skills/mozak/evals/evals.json"),
     ),
+    (
+        "companion-recommendations.json",
+        include_bytes!("../../../skills/mozak/companion-recommendations.json"),
+    ),
+];
+
+const SKILL_ROOTS: [&str; 4] = [
+    ".agents/skills",
+    ".jcode/skills",
+    ".claude/skills",
+    ".codex/skills",
 ];
 
 pub fn setup(command: &str, home: &Path) -> Result<ExitCode, String> {
@@ -63,6 +74,7 @@ fn setup_inner(command: &str, home: &Path) -> Result<ExitCode, String> {
     } else {
         "incomplete"
     };
+    let companions = companion_checks(&home);
     println!(
         "{}",
         serde_json::to_string(&json!({
@@ -72,6 +84,7 @@ fn setup_inner(command: &str, home: &Path) -> Result<ExitCode, String> {
             "state": state,
             "parity": parity,
             "embedded": true,
+            "companion_recommendations": companions,
             "checks": checks
         }))
         .map_err(|error| error.to_string())?
@@ -111,6 +124,7 @@ fn doctor_inner(home: &Path, kb_root: Option<&Path>) -> Result<ExitCode, String>
         Some(path) => json!({"name":"termaid", "status":"ready", "path":path.to_string_lossy()}),
         None => json!({"name":"termaid", "status":"incomplete", "message":"termaid was not found as an executable on PATH"}),
     });
+    checks.push(json!({"name":"companion_recommendations", "status":"ready", "companions":companion_checks(&home)}));
     if let Some(root) = kb_root {
         checks.push(match load_registry(root) {
             Ok(kb) => json!({"name":"kb", "status":"ready", "root":kb.registry_root.to_string_lossy(), "sha256":kb.registry_sha256}),
@@ -260,6 +274,119 @@ fn find_in_path(name: &str) -> Option<PathBuf> {
             fs::metadata(candidate)
                 .is_ok_and(|metadata| metadata.is_file() && executable(&metadata))
         })
+}
+
+fn companion_checks(home: &Path) -> Value {
+    json!({
+        "schema_version": 1,
+        "manifest_path": "companion-recommendations.json",
+        "policy": "missing recommended companions are reported only and are never auto-installed",
+        "required": [
+            executable_companion("termaid", "Termaid", "required"),
+        ],
+        "recommended": [
+            executable_companion("mmdr", "mmdr", "recommended"),
+            skill_companion(home, "adhd-skill", "ADHD skill", &["i-have-adhd"]),
+            skill_companion(home, "caveman-skill", "Caveman skill", &["caveman"]),
+            drawing_skill_companion(home),
+        ]
+    })
+}
+
+fn executable_companion(executable_name: &str, display_name: &str, classification: &str) -> Value {
+    match find_in_path(executable_name) {
+        Some(path) => json!({
+            "id": executable_name,
+            "name": display_name,
+            "classification": classification,
+            "kind": "executable",
+            "status": "present",
+            "path": path.to_string_lossy(),
+        }),
+        None => json!({
+            "id": executable_name,
+            "name": display_name,
+            "classification": classification,
+            "kind": "executable",
+            "status": "missing",
+            "message": format!("{executable_name} was not found as an executable on PATH"),
+        }),
+    }
+}
+
+fn skill_companion(home: &Path, id: &str, name: &str, skill_names: &[&str]) -> Value {
+    let matches = find_exact_skills(home, skill_names);
+    let status = if matches.is_empty() {
+        "missing"
+    } else {
+        "present"
+    };
+    json!({
+        "id": id,
+        "name": name,
+        "classification": "recommended",
+        "kind": "skill",
+        "status": status,
+        "matches": matches,
+    })
+}
+
+fn drawing_skill_companion(home: &Path) -> Value {
+    let matches = find_skill_family(home, &["drawing", "draw"]);
+    let status = if matches.is_empty() {
+        "missing"
+    } else {
+        "present"
+    };
+    json!({
+        "id": "drawing-skill",
+        "name": "Drawing skill",
+        "classification": "recommended",
+        "kind": "skill-family",
+        "status": status,
+        "matches": matches,
+    })
+}
+
+fn find_exact_skills(home: &Path, skill_names: &[&str]) -> Vec<String> {
+    let mut matches = Vec::new();
+    for root in SKILL_ROOTS {
+        for name in skill_names {
+            let relative = Path::new(root).join(name);
+            if home.join(&relative).is_dir() {
+                matches.push(relative.to_string_lossy().into_owned());
+            }
+        }
+    }
+    matches
+}
+
+fn find_skill_family(home: &Path, fragments: &[&str]) -> Vec<String> {
+    let mut matches = Vec::new();
+    for root in SKILL_ROOTS {
+        let root_path = home.join(root);
+        let Ok(entries) = fs::read_dir(&root_path) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let Ok(metadata) = entry.metadata() else {
+                continue;
+            };
+            if !metadata.is_dir() {
+                continue;
+            }
+            let name = entry.file_name().to_string_lossy().to_ascii_lowercase();
+            if fragments.iter().any(|fragment| name.contains(fragment)) {
+                matches.push(
+                    Path::new(root)
+                        .join(entry.file_name())
+                        .to_string_lossy()
+                        .into_owned(),
+                );
+            }
+        }
+    }
+    matches
 }
 
 #[cfg(unix)]

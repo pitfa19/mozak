@@ -29,6 +29,10 @@ Natural language is the user interface. Translate the request into the smallest 
 - Verify exact installed parity without mutation: `mozak setup check HOME`
 - Check skill parity, Termaid on PATH, and optionally a real KB:
   `mozak doctor HOME [KB_ROOT]`
+- The managed payload ships `companion-recommendations.json`. Termaid is required.
+  mmdr, the ADHD skill, an exact Caveman skill when present, and drawing-family
+  skills are recommended only. Setup and doctor report missing recommendations
+  without auto-installing external tools.
 
 The installed `mozak` command is a versioned launcher. It may contact GitHub
 only for tool updates, using environment or `gh` authentication without

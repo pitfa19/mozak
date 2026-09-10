@@ -268,7 +268,11 @@ mozak doctor "$HOME" [/path/to/kb-root]
   overwriting it.
 - `setup check` verifies installed parity without mutating anything, reporting
   each managed file as matching or drifted.
-- `doctor` emits deterministic JSON: ready/0, incomplete/2, invalid/3.
+- `setup` and `doctor` include the versioned companion recommendation manifest
+  from the managed skill payload. Missing recommended companions are reported
+  only and never auto-installed.
+- `doctor` emits deterministic JSON: ready/0, incomplete/2, invalid/3. Termaid
+  remains required. mmdr remains recommended.
 
 See [`distribution/INSTALL.md`](distribution/INSTALL.md) for install, update,
 rollback, backup, and the safety boundary. The delivery contract behind it is

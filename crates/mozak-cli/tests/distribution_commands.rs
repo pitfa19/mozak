@@ -45,7 +45,26 @@ fn install_and_check_are_embedded_idempotent_and_deterministic() {
     assert_eq!(report["state"], "ready");
     assert_eq!(report["parity"], true);
     assert_eq!(report["embedded"], true);
-    assert_eq!(report["checks"].as_array().unwrap().len(), 20);
+    assert_eq!(report["checks"].as_array().unwrap().len(), 24);
+    for root in [".agents", ".jcode", ".claude", ".codex"] {
+        assert!(
+            home.join(root)
+                .join("skills/mozak/companion-recommendations.json")
+                .is_file()
+        );
+    }
+    assert_eq!(
+        report["companion_recommendations"]["policy"],
+        "missing recommended companions are reported only and are never auto-installed"
+    );
+    assert_eq!(
+        report["companion_recommendations"]["required"][0]["classification"],
+        "required"
+    );
+    assert_eq!(
+        report["companion_recommendations"]["recommended"][0]["id"],
+        "mmdr"
+    );
     let check = run(&["setup", "check", home_arg]);
     assert!(check.status.success());
     let check_report: Value = serde_json::from_slice(&check.stdout).unwrap();
@@ -104,12 +123,52 @@ fn doctor_reports_honest_incomplete_and_invalid_states() {
     assert_eq!(output.status.code(), Some(2));
     let report: Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(report["state"], "incomplete");
+    let companion_check = report["checks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|check| check["name"] == "companion_recommendations")
+        .unwrap();
+    assert_eq!(companion_check["status"], "ready");
+    assert_eq!(
+        companion_check["companions"]["recommended"][0]["id"],
+        "mmdr"
+    );
+    assert_eq!(
+        companion_check["companions"]["recommended"][0]["classification"],
+        "recommended"
+    );
     assert_eq!(
         report["trust"],
         "no automatic trust, authority, or package selection is inferred"
     );
     let invalid = run(&["doctor", home.to_str().unwrap(), "/does/not/exist"]);
     assert_eq!(invalid.status.code(), Some(3));
+    fs::remove_dir_all(home).unwrap();
+}
+
+#[test]
+fn companion_recommendations_detect_installed_skills_without_installing_missing_tools() {
+    let home = scratch("companions");
+    fs::create_dir_all(home.join(".agents/skills/i-have-adhd")).unwrap();
+    fs::create_dir_all(home.join(".jcode/skills/caveman")).unwrap();
+    fs::create_dir_all(home.join(".claude/skills/vector-drawing")).unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_mozak"))
+        .args(["setup", "check", home.to_str().unwrap()])
+        .env("PATH", "")
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(2));
+    let report: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let recommended = report["companion_recommendations"]["recommended"]
+        .as_array()
+        .unwrap();
+    assert_eq!(recommended[0]["id"], "mmdr");
+    assert_eq!(recommended[0]["status"], "missing");
+    assert_eq!(recommended[1]["status"], "present");
+    assert_eq!(recommended[2]["status"], "present");
+    assert_eq!(recommended[3]["status"], "present");
+    assert!(!home.join(".agents/skills/mmdr").exists());
     fs::remove_dir_all(home).unwrap();
 }
 
