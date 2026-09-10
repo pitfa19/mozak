@@ -179,6 +179,9 @@ Treat overview, list, graph-source, graph, validation, status, and next-goal rec
 ## Project context
 
 - For every fresh project request, first run `mozak project context PROJECT_ID`. Resolve exact registered IDs only. Do not guess, fuzzy-match, or scan implicitly.
+- `project context` may atomically update only the selected existing registration's observed manifest/idea/revision pins when the live project is valid and its id, name, canonical root, manifest paths, manifest contract identity, owned paths, and configured KB are unchanged. It uses the same exclusive lock and config-digest compare-and-swap as approved refresh. It never scans for projects.
+- Additions, removals, renames, root changes, KB changes, and manifest identity or authority changes still require `project discover`, `project review`, and the exact owner-approved `project refresh` route. If an older config has no manifest baseline, manifest drift fails closed until an approved refresh establishes one.
+- Every automatic pin reconciliation preserves both config generations and writes a deterministic, digest-verified audit entry with the configured owner, canonical UTC time, reason, and old/new digests. Inspect it with `mozak project refresh history`; restore one preserved identity-equivalent generation with `mozak project refresh rollback CONFIG_SHA256`.
 - Context is progressive disclosure. Use its matching KB Scopes/packages, validated absolute context-note paths, and detail commands as needed. Do not request or emit note bodies or a whole KB dump by default. Stop on an invalid context response instead of working from stale or malformed bytes.
 - `project overview` is the authority for current plans, input sets, and validated project contexts. Do not select an unversioned legacy file merely because its name looks canonical.
 - When `project overview` returns `contexts`, read every listed `context_note` needed by the requested goal before researching, planning, executing, or evaluating work.
@@ -189,6 +192,8 @@ Treat overview, list, graph-source, graph, validation, status, and next-goal rec
 
 - Register an exact reviewed discovery proposal: `mozak project register DISCOVERY_JSON APPROVAL_JSON`
 - Refresh an exact reviewed replacement: `mozak project refresh DISCOVERY_JSON APPROVAL_JSON`
+- Inspect automatic refresh audit history: `mozak project refresh history`
+- Roll back to a preserved identity-equivalent config generation: `mozak project refresh rollback CONFIG_SHA256`
 - Registration is create-only and atomically creates only an absent local config. Never delete or replace it to force registration. Refresh requires an existing valid config, an exact matching `config_base_sha256`, and strict owner approval pinned to the digest and target with `intent: "project refresh"`, owner, canonical UTC time, and rationale.
 - Treat the discovery project list as the entire reviewed replacement, including additions, removals, and changed pins. Refresh never auto-discovers or transfers trust and must preserve the prior config on failure.
 - Initialize onboarding files: `mozak project init [PROJECT]`

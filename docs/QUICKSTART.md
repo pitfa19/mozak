@@ -339,10 +339,16 @@ mozak scope list ~/mozak-kb/topics/rust-async
 mozak scope graph ~/mozak-kb/topics/rust-async
 mozak kb tree ~/mozak-kb
 mozak project context <project-id>
+mozak project refresh history
 ```
 
 `project context` is the command to give a fresh agent. It reports the current
 idea, latest plan, ready goals, and next actions in one JSON payload.
+It may also repair valid pin-only drift for that exact registration. This uses
+an exclusive lock and config digest check, records tamper-evident history, and
+never scans. Membership, roots, KB pins, names, and manifest authority still
+need explicit reviewed approval. A preserved identity-equivalent generation can
+be restored with `mozak project refresh rollback <config-sha256>`.
 
 ## The rule behind all of it
 
