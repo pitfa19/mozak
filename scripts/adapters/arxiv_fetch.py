@@ -28,12 +28,20 @@ import sys
 import time
 import urllib.parse
 import urllib.request
+import urllib.error
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-API = "http://export.arxiv.org/api/query"
+API = "https://export.arxiv.org/api/query"
 # arXiv asks callers to leave at least three seconds between requests.
 MIN_REQUEST_INTERVAL_SECONDS = 3.0
+# arXiv rate-limits bursts with HTTP 429 and occasionally returns a transient
+# 5xx. A retrieval that gives up on the first one loses the whole window, so
+# retry a bounded number of times with exponential backoff. The budget is small
+# and fixed: it smooths a transient refusal without hammering the source.
+MAX_REQUEST_ATTEMPTS = 5
+RETRY_BACKOFF_SECONDS = 5.0
+RETRYABLE_STATUS = frozenset({429, 500, 502, 503, 504})
 PAGE_SIZE = 100
 MAX_RECORDS_CEILING = 2000
 CONTRACT_VERSION = 1
@@ -203,6 +211,17 @@ def build_search_query(request: dict, start: str, end: str) -> str:
     return clause
 
 
+def retry_delay_seconds(error: urllib.error.HTTPError, attempt: int) -> float:
+    """Seconds to wait before retrying. A server-stated Retry-After wins."""
+    stated = error.headers.get("Retry-After") if error.headers else None
+    if stated:
+        try:
+            return max(MIN_REQUEST_INTERVAL_SECONDS, float(stated.strip()))
+        except ValueError:
+            pass
+    return RETRY_BACKOFF_SECONDS * (2 ** (attempt - 1))
+
+
 def fetch_page(search_query: str, start_index: int, page_size: int) -> bytes:
     parameters = urllib.parse.urlencode(
         {
@@ -216,11 +235,31 @@ def fetch_page(search_query: str, start_index: int, page_size: int) -> bytes:
     request = urllib.request.Request(
         f"{API}?{parameters}", headers={"User-Agent": USER_AGENT}
     )
-    try:
-        with urllib.request.urlopen(request, timeout=60) as response:
-            return response.read()
-    except Exception as error:  # noqa: BLE001 - reported, never swallowed
-        raise AdapterError(f"arXiv request failed: {error}") from error
+    last_error: Exception | None = None
+    attempts_made = 0
+    for attempt in range(1, MAX_REQUEST_ATTEMPTS + 1):
+        attempts_made = attempt
+        try:
+            with urllib.request.urlopen(request, timeout=60) as response:
+                return response.read()
+        except urllib.error.HTTPError as error:
+            last_error = error
+            if error.code not in RETRYABLE_STATUS or attempt == MAX_REQUEST_ATTEMPTS:
+                break
+            delay = retry_delay_seconds(error, attempt)
+            print(
+                f"warning: arXiv returned HTTP {error.code}; "
+                f"retrying in {delay:.0f}s (attempt {attempt} of "
+                f"{MAX_REQUEST_ATTEMPTS - 1})",
+                file=sys.stderr,
+            )
+            time.sleep(delay)
+        except Exception as error:  # noqa: BLE001 - reported, never swallowed
+            raise AdapterError(f"arXiv request failed: {error}") from error
+    plural = "attempt" if attempts_made == 1 else "attempts"
+    raise AdapterError(
+        f"arXiv request failed after {attempts_made} {plural}: {last_error}"
+    ) from last_error
 
 
 def parse_entries(xml: str) -> tuple[int, list[dict]]:
