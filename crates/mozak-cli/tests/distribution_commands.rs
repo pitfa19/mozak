@@ -25,7 +25,7 @@ fn run(args: &[&str]) -> std::process::Output {
 fn version_is_stable() {
     let output = run(&["--version"]);
     assert!(output.status.success());
-    assert_eq!(String::from_utf8(output.stdout).unwrap(), "mozak 0.2.0\n");
+    assert_eq!(String::from_utf8(output.stdout).unwrap(), "mozak 0.3.0\n");
 }
 
 #[test]

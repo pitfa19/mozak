@@ -358,6 +358,7 @@ pub(crate) enum ContextOutputMode {
     Human,
 }
 
+#[allow(clippy::too_many_lines)]
 pub fn context(id: &str, mode: ContextOutputMode) -> Result<ExitCode, String> {
     if id.is_empty() || id.chars().any(char::is_control) {
         return Err("project id is empty or contains control characters".into());
@@ -507,8 +508,8 @@ fn print_context_human(output: &Value) -> Result<(), String> {
     }
     if let Some(actions) = output.get("next_actions").and_then(Value::as_array) {
         println!("Next actions:");
-        for action in actions.iter().take(5).filter_map(Value::as_str) {
-            println!("1. {action}");
+        for (index, action) in actions.iter().take(5).filter_map(Value::as_str).enumerate() {
+            println!("{}. {action}", index + 1);
         }
     }
     Ok(())
