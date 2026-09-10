@@ -16,7 +16,7 @@
       "classification": "recommended",
       "kind": "executable",
       "executable": "mmdr",
-      "reason": "mmdr is useful for Markdown and Mermaid diagram workflows but is not required for MOZAK setup."
+      "reason": "mmdr converts Mermaid to SVG/PNG and is useful for diagram workflows but is not required for MOZAK setup."
     },
     {
       "id": "adhd-skill",
@@ -35,12 +35,12 @@
       "reason": "Detected only when an exact Caveman skill directory is already installed."
     },
     {
-      "id": "drawing-skill",
-      "name": "Drawing skill",
+      "id": "drawing-skills",
+      "name": "Drawing skills",
       "classification": "recommended",
-      "kind": "skill-family",
-      "skill_name_contains": ["drawing", "draw"],
-      "reason": "Drawing skills can support visual planning artifacts when already present."
+      "kind": "skill",
+      "skill_names": ["archify", "excalidraw-skill"],
+      "reason": "Detected only when exact drawing skill directories are already installed."
     }
   ]
 }

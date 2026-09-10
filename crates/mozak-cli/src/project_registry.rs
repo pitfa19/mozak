@@ -10,6 +10,7 @@ use sha2::{Digest, Sha256};
 use std::{
     collections::{BTreeMap, BTreeSet},
     env, fs,
+    io::IsTerminal,
     io::Write,
     path::{Component, Path, PathBuf},
     process::{Command, ExitCode},
@@ -86,6 +87,8 @@ struct RefreshApproval {
 #[serde(deny_unknown_fields)]
 struct LocalConfig {
     schema_version: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    configured_owner: Option<String>,
     kb_root: String,
     kb_sha256: String,
     projects: BTreeMap<String, ProjectRecord>,
@@ -265,6 +268,7 @@ pub fn register(discovery_path: &Path, approval_path: &Path) -> Result<ExitCode,
     let map = validate_live_proposal(&proposal)?;
     let config = LocalConfig {
         schema_version: SCHEMA_VERSION,
+        configured_owner: Some(approval.owner.clone()),
         kb_root: proposal.kb_root.clone(),
         kb_sha256: proposal.kb_sha256.clone(),
         projects: map,
@@ -327,6 +331,10 @@ pub fn refresh(discovery_path: &Path, approval_path: &Path) -> Result<ExitCode, 
     }
     let config = LocalConfig {
         schema_version: SCHEMA_VERSION,
+        configured_owner: old
+            .configured_owner
+            .clone()
+            .or_else(|| Some(old.approval.owner.clone())),
         kb_root: proposal.kb_root.clone(),
         kb_sha256: proposal.kb_sha256.clone(),
         projects,
@@ -343,7 +351,14 @@ pub fn refresh(discovery_path: &Path, approval_path: &Path) -> Result<ExitCode, 
     Ok(ExitCode::SUCCESS)
 }
 
-pub fn context(id: &str) -> Result<ExitCode, String> {
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ContextOutputMode {
+    Auto,
+    Json,
+    Human,
+}
+
+pub fn context(id: &str, mode: ContextOutputMode) -> Result<ExitCode, String> {
     if id.is_empty() || id.chars().any(char::is_control) {
         return Err("project id is empty or contains control characters".into());
     }
@@ -407,6 +422,7 @@ pub fn context(id: &str) -> Result<ExitCode, String> {
         "schema_version": 1,
         "command": "project context",
         "state": state,
+        "configured_owner": configured_owner(&config),
         "project": {"id": configured.id, "name": configured.name, "root": configured.root},
         "config": {"path": path_text(&config_path)?, "sha256": hash(&bytes)},
         "kb": {"root": config.kb_root, "configured_sha256": config.kb_sha256, "current_sha256": current_kb_hash, "valid": kb_valid, "drift": kb_drift, "error": kb_error},
@@ -429,15 +445,73 @@ pub fn context(id: &str) -> Result<ExitCode, String> {
         "detail_commands": [format!("mozak project overview {}", shell_path(root)), format!("mozak project validate {}", shell_path(root)), format!("mozak project graph {}", shell_path(root))],
         "trust_transfer": false
     });
-    println!(
-        "{}",
-        serde_json::to_string(&output).map_err(|e| e.to_string())?
-    );
+    let human = mode == ContextOutputMode::Human
+        || (mode == ContextOutputMode::Auto && std::io::stdout().is_terminal());
+    if human {
+        print_context_human(&output)?;
+    } else {
+        println!(
+            "{}",
+            serde_json::to_string(&output).map_err(|e| e.to_string())?
+        );
+    }
     Ok(if state == "ready" {
         ExitCode::SUCCESS
     } else {
         ExitCode::from(3)
     })
+}
+
+fn configured_owner(config: &LocalConfig) -> &str {
+    config
+        .configured_owner
+        .as_deref()
+        .unwrap_or(&config.approval.owner)
+}
+
+fn print_context_human(output: &Value) -> Result<(), String> {
+    let project = output
+        .get("project")
+        .and_then(Value::as_object)
+        .ok_or("invalid context output")?;
+    println!("MOZAK project context");
+    println!(
+        "- state: {}",
+        output
+            .get("state")
+            .and_then(Value::as_str)
+            .unwrap_or("unknown")
+    );
+    println!(
+        "- project: {} ({})",
+        project.get("name").and_then(Value::as_str).unwrap_or(""),
+        project.get("id").and_then(Value::as_str).unwrap_or("")
+    );
+    println!(
+        "- root: {}",
+        project.get("root").and_then(Value::as_str).unwrap_or("")
+    );
+    println!(
+        "- configured owner: {}",
+        output
+            .get("configured_owner")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+    );
+    if let Some(kb) = output.get("kb").and_then(Value::as_object) {
+        println!(
+            "- KB: {} drift={}",
+            kb.get("root").and_then(Value::as_str).unwrap_or(""),
+            kb.get("drift").and_then(Value::as_bool).unwrap_or(true)
+        );
+    }
+    if let Some(actions) = output.get("next_actions").and_then(Value::as_array) {
+        println!("Next actions:");
+        for action in actions.iter().take(5).filter_map(Value::as_str) {
+            println!("1. {action}");
+        }
+    }
+    Ok(())
 }
 
 pub(crate) fn configured_kb_root() -> Result<PathBuf, String> {
@@ -466,6 +540,7 @@ pub(crate) fn setup_config(owner: &str, kb_root: &Path) -> Result<Value, String>
     validate_target_path(&target)?;
     let config = LocalConfig {
         schema_version: SCHEMA_VERSION,
+        configured_owner: Some(owner.to_owned()),
         kb_root: path_text(&kb.registry_root)?,
         kb_sha256: kb.registry_sha256.clone(),
         projects: BTreeMap::new(),
@@ -747,6 +822,9 @@ fn validate_local_config(config: &LocalConfig) -> Result<(), String> {
     }
     validate_absolute_safe_path("KB root", &config.kb_root)?;
     validate_lower_hex("KB SHA-256", &config.kb_sha256, 64)?;
+    if let Some(owner) = &config.configured_owner {
+        display_safe("configured owner", owner)?;
+    }
     for (key, record) in &config.projects {
         if key != &record.id {
             return Err(format!(

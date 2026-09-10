@@ -12,15 +12,29 @@ channel=stable
 prefix=${HOME:-}/.local
 home=${HOME:-}
 auto=1
+owner=${MOZAK_OWNER:-}
+kb_root=${MOZAK_KB_ROOT:-}
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --channel) channel=${2:-}; shift 2 ;;
     --prefix) prefix=${2:-}; shift 2 ;;
     --home) home=${2:-}; shift 2 ;;
+    --owner) owner=${2:-}; shift 2 ;;
+    --kb-root) kb_root=${2:-}; shift 2 ;;
     --no-auto-update) auto=0; shift ;;
-    *) echo "usage: install.sh [--channel stable|main] [--prefix PATH] [--home PATH] [--no-auto-update]" >&2; exit 64 ;;
+    *) echo "usage: install.sh [--channel stable|main] [--prefix PATH] [--home PATH] [--owner OWNER --kb-root KB_ROOT] [--no-auto-update]" >&2; exit 64 ;;
   esac
 done
+if [[ -z "$owner" && -z "$kb_root" && -t 0 && -r /dev/tty ]]; then
+  printf 'MOZAK owner [pitfa]: ' > /dev/tty
+  IFS= read -r owner < /dev/tty || owner=
+  owner=${owner:-pitfa}
+  printf 'MOZAK KB root [%s/mozak-kb]: ' "${home:-$HOME/Documents}" > /dev/tty
+  IFS= read -r kb_root < /dev/tty || kb_root=
+  kb_root=${kb_root:-${home:-$HOME}/Documents/mozak-kb}
+fi
+if [[ -n "$owner" && -z "$kb_root" ]]; then echo "--owner/MOZAK_OWNER requires --kb-root/MOZAK_KB_ROOT" >&2; exit 64; fi
+if [[ -z "$owner" && -n "$kb_root" ]]; then echo "--kb-root/MOZAK_KB_ROOT requires --owner/MOZAK_OWNER" >&2; exit 64; fi
 [[ "$channel" == stable || "$channel" == main ]] || { echo "channel must be stable or main" >&2; exit 1; }
 [[ -n "$home" && "$home" == /* && -d "$home" && ! -L "$home" ]] || { echo "HOME must be an existing absolute real directory" >&2; exit 1; }
 [[ -n "$prefix" && "$prefix" == /* ]] || { echo "PREFIX must be absolute" >&2; exit 1; }
@@ -121,5 +135,6 @@ PY
 bundle=$(find "$scratch/extract" -mindepth 1 -maxdepth 1 -type d -print -quit)
 args=(--prefix "$prefix" --home "$home" --expected-build-id "$build_id" --channel "$channel")
 if [[ "$auto" == 1 ]]; then args+=(--enable-auto); else args+=(--disable-auto); fi
+if [[ -n "$owner" ]]; then args+=(--owner "$owner" --kb-root "$kb_root"); fi
 python3 "$bundle/install.py" "${args[@]}"
 "$prefix/bin/mozak" delivery status

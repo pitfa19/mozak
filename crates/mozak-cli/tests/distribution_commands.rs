@@ -152,7 +152,8 @@ fn companion_recommendations_detect_installed_skills_without_installing_missing_
     let home = scratch("companions");
     fs::create_dir_all(home.join(".agents/skills/i-have-adhd")).unwrap();
     fs::create_dir_all(home.join(".jcode/skills/caveman")).unwrap();
-    fs::create_dir_all(home.join(".claude/skills/vector-drawing")).unwrap();
+    fs::create_dir_all(home.join(".claude/skills/archify")).unwrap();
+    fs::create_dir_all(home.join(".codex/skills/excalidraw-skill")).unwrap();
     let output = Command::new(env!("CARGO_BIN_EXE_mozak"))
         .args(["setup", "check", home.to_str().unwrap()])
         .env("PATH", "")

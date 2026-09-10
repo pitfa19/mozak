@@ -342,6 +342,28 @@ fn find_in_path(name: &str) -> Option<PathBuf> {
 }
 
 fn companion_checks(home: &Path) -> Value {
+    let manifest: Value = serde_json::from_slice(include_bytes!(
+        "../../../skills/mozak/companion-recommendations.json"
+    ))
+    .expect("embedded companion recommendations manifest must be valid JSON");
+    let manifest_companions = manifest
+        .get("companions")
+        .and_then(Value::as_array)
+        .expect("manifest companions array");
+    let manifest_ids: Vec<&str> = manifest_companions
+        .iter()
+        .filter_map(|v| v.get("id").and_then(Value::as_str))
+        .collect();
+    assert_eq!(
+        manifest_ids,
+        vec![
+            "termaid",
+            "mmdr",
+            "adhd-skill",
+            "caveman-skill",
+            "drawing-skills"
+        ]
+    );
     json!({
         "schema_version": 1,
         "manifest_path": "companion-recommendations.json",
@@ -353,7 +375,7 @@ fn companion_checks(home: &Path) -> Value {
             executable_companion("mmdr", "mmdr", "recommended"),
             skill_companion(home, "adhd-skill", "ADHD skill", &["i-have-adhd"]),
             skill_companion(home, "caveman-skill", "Caveman skill", &["caveman"]),
-            drawing_skill_companion(home),
+            skill_companion(home, "drawing-skills", "Drawing skills", &["archify", "excalidraw-skill"]),
         ]
     })
 }
@@ -396,23 +418,6 @@ fn skill_companion(home: &Path, id: &str, name: &str, skill_names: &[&str]) -> V
     })
 }
 
-fn drawing_skill_companion(home: &Path) -> Value {
-    let matches = find_skill_family(home, &["drawing", "draw"]);
-    let status = if matches.is_empty() {
-        "missing"
-    } else {
-        "present"
-    };
-    json!({
-        "id": "drawing-skill",
-        "name": "Drawing skill",
-        "classification": "recommended",
-        "kind": "skill-family",
-        "status": status,
-        "matches": matches,
-    })
-}
-
 fn find_exact_skills(home: &Path, skill_names: &[&str]) -> Vec<String> {
     let mut matches = Vec::new();
     for root in SKILL_ROOTS {
@@ -420,34 +425,6 @@ fn find_exact_skills(home: &Path, skill_names: &[&str]) -> Vec<String> {
             let relative = Path::new(root).join(name);
             if home.join(&relative).is_dir() {
                 matches.push(relative.to_string_lossy().into_owned());
-            }
-        }
-    }
-    matches
-}
-
-fn find_skill_family(home: &Path, fragments: &[&str]) -> Vec<String> {
-    let mut matches = Vec::new();
-    for root in SKILL_ROOTS {
-        let root_path = home.join(root);
-        let Ok(entries) = fs::read_dir(&root_path) else {
-            continue;
-        };
-        for entry in entries.flatten() {
-            let Ok(metadata) = entry.metadata() else {
-                continue;
-            };
-            if !metadata.is_dir() {
-                continue;
-            }
-            let name = entry.file_name().to_string_lossy().to_ascii_lowercase();
-            if fragments.iter().any(|fragment| name.contains(fragment)) {
-                matches.push(
-                    Path::new(root)
-                        .join(entry.file_name())
-                        .to_string_lossy()
-                        .into_owned(),
-                );
             }
         }
     }

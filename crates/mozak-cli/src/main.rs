@@ -269,8 +269,24 @@ fn run_project_registry_command(args: &[String]) -> Option<Result<ExitCode, Stri
                 Path::new(approval),
             ))
         }
-        [project, command, id] if project == "project" && command == "context" => {
-            Some(project_registry::context(id))
+        [project, command, id] if project == "project" && command == "context" => Some(
+            project_registry::context(id, project_registry::ContextOutputMode::Auto),
+        ),
+        [project, command, id, flag]
+            if project == "project" && command == "context" && flag == "--json" =>
+        {
+            Some(project_registry::context(
+                id,
+                project_registry::ContextOutputMode::Json,
+            ))
+        }
+        [project, command, id, flag]
+            if project == "project" && command == "context" && flag == "--human" =>
+        {
+            Some(project_registry::context(
+                id,
+                project_registry::ContextOutputMode::Human,
+            ))
         }
         _ => None,
     }
