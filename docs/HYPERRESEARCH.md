@@ -119,3 +119,46 @@ result must record a high-impact gap and cannot claim full support.
   until the owner accepts an input.
 - It performs no networking. Retrieval happened in the harness, before MOZAK
   saw anything, and a fixture claiming otherwise is refused.
+
+## Is it working?
+
+```bash
+scripts/adapters/hyperresearch_check.sh
+```
+
+It reports three layers separately, because they fail for different reasons and
+only one of them is about MOZAK.
+
+## What needs an account, and what does not
+
+Jcode holds no subscription and cannot supply one. What it can do is install,
+configure, drive the CLI, and report exactly what is missing.
+
+| Path | Needs an account | Notes |
+|---|---|---|
+| `hyperresearch fetch`, `search`, `scholar search`, `status`, `export` | No | Plain HTTP and public scholarly APIs |
+| MOZAK adapter, normalize, validate, Lab | No | Local files only, no network |
+| `/hyperresearch` full 16-step pipeline | Yes | Claude Code plus an Anthropic plan or API key |
+
+The pipeline's cost is Claude Code usage: its subagent roster runs on Anthropic
+models, so a `full` run is many Opus and Sonnet calls. That is the only
+subscription in play. Everything MOZAK does with the result is free and offline.
+
+Optional keys each unlock one extra source and none are required:
+`HYPERRESEARCH_CONTACT_EMAIL` (Unpaywall recovery and the OpenAlex/Crossref
+polite pools), `CORE_API_KEY`, `FRED_API_KEY`.
+
+## Working without Claude Code
+
+The CLI path is a complete, useful loop on its own:
+
+```bash
+cd ~/Documents/hyperresearch-vault
+hpr scholar search "<topic>" -j          # eight scholarly sources, deduplicated
+hyperresearch fetch <url> --json         # full text into the vault
+mozak adapter run agentic-systems-hyperresearch
+```
+
+Jcode can drive all of it. What you give up without the pipeline is the
+adversarial critics, the contradiction graph, and the written report, not the
+evidence itself.
