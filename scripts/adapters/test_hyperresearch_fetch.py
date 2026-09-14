@@ -18,9 +18,10 @@ import hyperresearch_fetch as adapter  # noqa: E402
 
 
 def vault() -> Path:
-    """A directory shaped enough like a vault to pass request validation."""
+    """A real vault shape: its config marker plus its research directory."""
     root = Path(tempfile.mkdtemp())
     (root / "research" / "notes").mkdir(parents=True)
+    (root / ".hyperresearch").mkdir()
     return root
 
 
@@ -69,6 +70,15 @@ class RequestValidation(unittest.TestCase):
         with self.assertRaises(adapter.AdapterError) as caught:
             adapter.load_request(write(request(vault_root=str(empty))))
         self.assertIn("not a hyperresearch vault", str(caught.exception))
+
+    def test_rejects_a_lookalike_directory_without_the_vault_marker(self):
+        # A bare `research/` folder is not a vault. Accepting one made the CLI
+        # fail later with its own traceback instead of a usable message.
+        lookalike = Path(tempfile.mkdtemp())
+        (lookalike / "research").mkdir()
+        with self.assertRaises(adapter.AdapterError) as caught:
+            adapter.load_request(write(request(vault_root=str(lookalike))))
+        self.assertIn("hyperresearch init", str(caught.exception))
 
     def test_rejects_a_relative_vault_root(self):
         with self.assertRaises(adapter.AdapterError) as caught:
@@ -195,3 +205,37 @@ class Fixture(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FailureLeavesNothingBehind(unittest.TestCase):
+    """A failed fetch must not leave a directory that blocks every retry."""
+
+    def run_fetch(self, vault_root: Path, out: Path) -> int:
+        req = write(request(vault_root=str(vault_root)))
+        return adapter.main(["hyperresearch_fetch.py", "fetch", str(req), str(out)])
+
+    def test_an_empty_vault_writes_no_run_directory(self):
+        out = Path(tempfile.mkdtemp()) / "run"
+        self.assertEqual(self.run_fetch(vault(), out), 1)
+        self.assertFalse(out.exists(), "a refused fetch must leave no run directory")
+
+    def test_a_failed_export_writes_no_run_directory(self):
+        # The vault passes validation but the CLI cannot export it, which is
+        # the path that previously left a half-written directory behind.
+        broken = vault()
+        out = Path(tempfile.mkdtemp()) / "run"
+        original = adapter.export_vault
+        adapter.export_vault = lambda *_: (_ for _ in ()).throw(
+            adapter.AdapterError("export failed")
+        )
+        try:
+            self.assertEqual(self.run_fetch(broken, out), 1)
+        finally:
+            adapter.export_vault = original
+        self.assertFalse(out.exists(), "a failed export must leave no run directory")
+
+    def test_a_refused_fetch_can_be_retried_at_the_same_path(self):
+        out = Path(tempfile.mkdtemp()) / "run"
+        self.assertEqual(self.run_fetch(vault(), out), 1)
+        second = self.run_fetch(vault(), out)
+        self.assertEqual(second, 1, "the retry must reach the real cause, not a stale directory")
