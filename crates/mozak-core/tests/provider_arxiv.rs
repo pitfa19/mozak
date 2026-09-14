@@ -152,14 +152,14 @@ fn a_network_adapter_must_admit_its_network_use_and_offer_a_dry_run() {
     let hidden = mutated(|value| value["effects"]["network_used"] = serde_json::json!(false));
     assert_eq!(
         normalize_provider_arxiv(&hidden).unwrap_err().0,
-        "the arXiv adapter reaches a network source and must declare it"
+        "an adapter reaching a network source must declare it"
     );
 
     let unrehearsable =
         mutated(|value| value["effects"]["dry_run_available"] = serde_json::json!(false));
     assert_eq!(
         normalize_provider_arxiv(&unrehearsable).unwrap_err().0,
-        "a network adapter must offer a dry run"
+        "a research adapter must offer a dry run"
     );
 }
 

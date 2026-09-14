@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "scope_id": "topic-agentic-systems",
+  "vault_root": "/home/pitfa/Documents/hyperresearch-vault",
+  "select": {
+    "note_ids": [],
+    "tags": []
+  },
+  "max_records": 100,
+  "question": "Which sources has HyperResearch read into the vault as candidate evidence for the agentic-systems topic?"
+}

@@ -1530,6 +1530,189 @@ fn validate_mcp_records(fixture: &ProviderMcpRegistryFixture) -> Result<(), Rese
     Ok(())
 }
 
+/// A recorded snapshot of a local `HyperResearch` vault.
+///
+/// `HyperResearch` is an external deep-research harness that does its own
+/// searching, fetching and citation checking, and keeps every source it read in
+/// a local vault. MOZAK does not re-derive that work. It records which sources
+/// the harness read, so evidence stays addressable and re-checkable without
+/// MOZAK becoming a second research engine or a store of third-party prose.
+///
+/// Two properties are enforced rather than documented. A vault note body is
+/// hashed and discarded, because retention here would turn a provenance record
+/// into a copy of someone else's text. And the corpus was chosen by an external
+/// agent, so a retrieval must disclose that presence records what was read and
+/// never that it is true, complete, or worth adopting.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ProviderHyperResearchFixture {
+    pub adapter: String,
+    pub adapter_version: String,
+    pub capability: String,
+    pub scope_id: String,
+    pub effects: AdapterEffects,
+    pub vault_root: String,
+    pub selected_note_ids: Vec<String>,
+    pub selected_tags: Vec<String>,
+    pub response_files: Vec<String>,
+    pub total_matched: u64,
+    pub records_kept: u64,
+    pub truncated: bool,
+    pub run: ResearchRun,
+}
+
+/// The exact retained field order for one `HyperResearch` vault record.
+const HYPERRESEARCH_RECORD_FIELDS: [&str; 11] = [
+    "note: ",
+    "title: ",
+    "source: ",
+    "body_sha256: ",
+    "words: ",
+    "tier: ",
+    "content_type: ",
+    "status: ",
+    "created: ",
+    "matched: ",
+    "retention: ",
+];
+
+/// Normalizes a `HyperResearch` vault fixture into a validated research run.
+///
+/// # Errors
+/// Fails closed on malformed identity, an unpinned export, dishonest counts,
+/// unsafe or networked effects, retained note prose, a missing disclosure that
+/// an external agent chose the corpus, or an invalid research run.
+pub fn normalize_provider_hyperresearch(input: &str) -> Result<ResearchRun, ResearchError> {
+    let fixture: ProviderHyperResearchFixture = serde_json::from_str(input).map_err(|error| {
+        ResearchError(format!("invalid provider-hyperresearch fixture: {error}"))
+    })?;
+    require(
+        fixture.adapter == "adapter-hyperresearch-v1"
+            && fixture.adapter == fixture.run.receipt.adapter_id,
+        "provider-hyperresearch adapter mismatch",
+    )?;
+    nonempty_text(&fixture.adapter_version, "adapter version")?;
+    nonempty_text(&fixture.capability, "adapter capability")?;
+    nonempty_text(&fixture.scope_id, "adapter scope id")?;
+    nonempty_text(&fixture.vault_root, "vault root")?;
+    require(
+        fixture.vault_root.starts_with('/'),
+        "vault_root must be an absolute path",
+    )?;
+    validate_adapter_effects(&fixture.effects)?;
+    // The harness already did every network fetch, outside MOZAK and before
+    // this run existed. A fixture claiming MOZAK's adapter used the network
+    // would misreport where retrieval happened.
+    require(
+        !fixture.effects.network_used,
+        "a HyperResearch vault read performs no networking; retrieval happened in the harness",
+    )?;
+    require(
+        !fixture.response_files.is_empty(),
+        "a HyperResearch fixture must pin the exact vault export it read",
+    )?;
+    for response in &fixture.response_files {
+        validate_sha256(response, "HyperResearch export hash")?;
+    }
+
+    let kept = u64::try_from(fixture.run.raw_records.len())
+        .map_err(|_| ResearchError("record count overflow".into()))?;
+    require(
+        fixture.records_kept == kept,
+        "records_kept disagrees with the recorded raw records",
+    )?;
+    require(
+        fixture.records_kept <= fixture.total_matched,
+        "records_kept exceeds the total matched",
+    )?;
+    if fixture.truncated {
+        require(
+            fixture
+                .run
+                .gaps
+                .iter()
+                .any(|gap| gap.id == "gap-truncated" && gap.impact == GapImpact::High),
+            "a truncated HyperResearch retrieval must record a high-impact gap",
+        )?;
+        require(
+            fixture.run.synthesis.overall_claim != OverallClaim::Supported,
+            "a truncated HyperResearch retrieval must not claim full support",
+        )?;
+    } else {
+        require(
+            fixture.records_kept == fixture.total_matched,
+            "an untruncated retrieval must keep everything it matched",
+        )?;
+    }
+
+    // The corpus is whatever an external agent decided to fetch. Without this
+    // disclosure a vault snapshot would read like a survey of a field.
+    require(
+        fixture
+            .run
+            .gaps
+            .iter()
+            .any(|gap| gap.id == "gap-agent-selected-corpus" && gap.impact == GapImpact::High),
+        "a HyperResearch retrieval must disclose that an external agent chose the corpus",
+    )?;
+    // Retention is the other load-bearing boundary, so it is stated in the run
+    // as well as enforced per record below.
+    require(
+        fixture
+            .run
+            .gaps
+            .iter()
+            .any(|gap| gap.id == "gap-body-not-retained"),
+        "a HyperResearch retrieval must disclose that note bodies are not retained",
+    )?;
+    require(
+        fixture
+            .run
+            .gaps
+            .iter()
+            .any(|gap| gap.id == "gap-untrusted-web-text"),
+        "a HyperResearch retrieval must disclose that vault notes are untrusted web text",
+    )?;
+    validate_hyperresearch_records(&fixture)?;
+    validate_run(&fixture.run)?;
+    Ok(fixture.run)
+}
+
+fn validate_hyperresearch_records(
+    fixture: &ProviderHyperResearchFixture,
+) -> Result<(), ResearchError> {
+    for record in &fixture.run.raw_records {
+        require(
+            record.source_uri.starts_with("recorded:hyperresearch:"),
+            "HyperResearch records must use the recorded:hyperresearch scheme",
+        )?;
+        let lines = record.content.lines().collect::<Vec<_>>();
+        require(
+            lines.len() == HYPERRESEARCH_RECORD_FIELDS.len(),
+            "a HyperResearch record must carry exactly its retained metadata lines",
+        )?;
+        for (index, prefix) in HYPERRESEARCH_RECORD_FIELDS.iter().enumerate() {
+            require(
+                lines[index].starts_with(prefix),
+                "HyperResearch record fields are out of contract order",
+            )?;
+        }
+        require(
+            lines[10]
+                == "retention: identity, source, provenance and hashes only; note body prose not retained",
+            "a HyperResearch record must declare that note prose was not retained",
+        )?;
+        // A body hash is what makes a discarded body re-checkable later. A
+        // record without one would retain neither the text nor a way back to
+        // it, which is a provenance claim that cannot be verified.
+        let body_hash = lines[3]
+            .strip_prefix("body_sha256: ")
+            .ok_or_else(|| ResearchError("HyperResearch record is missing its body hash".into()))?;
+        validate_sha256(body_hash, "HyperResearch note body hash")?;
+    }
+    Ok(())
+}
+
 /// A recorded retrieval from DAIR.AI's curated Papers of the Week repository.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -1706,7 +1889,18 @@ fn validate_dair_records(fixture: &ProviderDairAiFixture) -> Result<(), Research
 
 /// A research adapter retrieves. Anything that writes, mutates, cannot be
 /// rehearsed, or needs approval is not read-only retrieval.
-fn validate_read_only_effects(effects: &AdapterEffects) -> Result<(), ResearchError> {
+///
+/// The effects every research adapter must declare, whatever it reads.
+///
+/// A research adapter observes and proposes. Writing outside its own run,
+/// mutating state, causing an irreversible effect, or requiring an approval it
+/// has not obtained are all outside that job, so each fails closed here.
+///
+/// Whether the adapter touched the network is deliberately *not* checked here.
+/// It was, until a local-source adapter had to declare a network fetch it never
+/// performed in order to pass. Where retrieval happened is a property of the
+/// individual source, so it is asserted by each adapter that knows the answer.
+fn validate_adapter_effects(effects: &AdapterEffects) -> Result<(), ResearchError> {
     require(
         effects.external_writes.is_empty(),
         "a research adapter must not declare external writes",
@@ -1724,12 +1918,17 @@ fn validate_read_only_effects(effects: &AdapterEffects) -> Result<(), ResearchEr
         "an adapter needing owner approval must not be normalized automatically",
     )?;
     require(
-        effects.network_used,
-        "the arXiv adapter reaches a network source and must declare it",
-    )?;
-    require(
         effects.dry_run_available,
-        "a network adapter must offer a dry run",
+        "a research adapter must offer a dry run",
+    )
+}
+
+/// The effects a research adapter reading a remote source must declare.
+fn validate_read_only_effects(effects: &AdapterEffects) -> Result<(), ResearchError> {
+    validate_adapter_effects(effects)?;
+    require(
+        effects.network_used,
+        "an adapter reaching a network source must declare it",
     )
 }
 
