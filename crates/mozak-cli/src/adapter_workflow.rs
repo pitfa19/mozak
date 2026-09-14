@@ -81,6 +81,13 @@ fn catalog() -> Result<ExitCode, String> {
                 "normalizer": "research normalize github-tooling"
             },
             {
+                "id": "hyperresearch",
+                "kind": "optional_external_integration",
+                "capability": "external_research_vault_snapshot",
+                "setup_supported": true,
+                "normalizer": "research normalize hyperresearch"
+            },
+            {
                 "id": "arxiv",
                 "kind": "optional_external_integration",
                 "capability": "broad_paper_metadata_search",
@@ -101,9 +108,13 @@ fn setup(
     runner: &Path,
     runs_dir: &Path,
 ) -> Result<ExitCode, String> {
-    if !matches!(adapter, "dair-ai" | "mcp-registry" | "github-tooling") {
+    if !matches!(
+        adapter,
+        "dair-ai" | "mcp-registry" | "github-tooling" | "hyperresearch"
+    ) {
         return Err(
-            "adapter setup currently supports dair-ai, mcp-registry and github-tooling only".into(),
+            "adapter setup currently supports dair-ai, mcp-registry, github-tooling and hyperresearch only"
+                .into(),
         );
     }
     validate_id(id, "binding id")?;
@@ -236,7 +247,7 @@ fn load(path: &Path) -> Result<AdapterRegistry, String> {
         validate_id(&binding.target_scope_id, "target scope id")?;
         if !matches!(
             binding.adapter.as_str(),
-            "dair-ai" | "mcp-registry" | "github-tooling"
+            "dair-ai" | "mcp-registry" | "github-tooling" | "hyperresearch"
         ) {
             return Err(format!(
                 "unsupported configured adapter: {}",
@@ -347,10 +358,21 @@ fn recheck(path: &Path, id: &str) -> Result<ExitCode, String> {
 /// Re-states what an adapter declares it will do, so recheck is never silent.
 fn declared_effects(adapter: &str) -> serde_json::Value {
     match adapter {
-        // Both adapters read a public HTTP source and write nothing outside
+        // These adapters read a public HTTP source and write nothing outside
         // their own run directory.
         "dair-ai" | "mcp-registry" | "github-tooling" => json!({
             "network_access": true,
+            "external_writes": false,
+            "mutations": false,
+            "irreversible_effects": false,
+            "dry_run_available": true,
+            "requires_owner_approval": true
+        }),
+        // The HyperResearch harness already did its fetching, outside MOZAK.
+        // This adapter reads the local vault it left behind, so declaring
+        // network access here would misreport where retrieval happened.
+        "hyperresearch" => json!({
+            "network_access": false,
             "external_writes": false,
             "mutations": false,
             "irreversible_effects": false,

@@ -66,6 +66,7 @@ pub fn research_normalize(
         "dair-ai" => normalize_provider_dair_ai(&input),
         "mcp-registry" => mozak_core::research::normalize_provider_mcp_registry(&input),
         "github-tooling" => mozak_core::research::normalize_provider_github_tooling(&input),
+        "hyperresearch" => mozak_core::research::normalize_provider_hyperresearch(&input),
         _ => return Err(format!("unknown research adapter: {adapter}")),
     }
     .map_err(|error| error.to_string())?;
