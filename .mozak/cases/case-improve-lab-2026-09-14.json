@@ -1,0 +1,249 @@
+{
+  "contract_version": 2,
+  "id": "case-improve-lab-hyperresearch-2026-09-14",
+  "evaluation_id": "eval-improve-lab-2026-09-14",
+  "recorded_at": "2026-09-14T05:14:00Z",
+  "subject": {
+    "scope_id": "topic-agentic-systems",
+    "kind": "topic",
+    "baseline_revision": "391c08801ac83caf26a80ebb1e67fe6fbfc229fb",
+    "final_revision": "b9bf981395c0c41baeaa2e993d0254d3aae962d2",
+    "mozak_was_used": true,
+    "session_shape": "one_shot",
+    "conditions": [
+      {
+        "kind": "agent",
+        "value": "Claude via the Jcode harness, one continuous session",
+        "observed_how": "session metadata reported at session start"
+      },
+      {
+        "kind": "harness",
+        "value": "Jcode v0.84.0 (57d587899)",
+        "observed_how": "session context banner"
+      },
+      {
+        "kind": "acceptance_grader",
+        "value": "MOZAK contract validation plus the project's own cargo and pytest suites; the owner reviewed the packet",
+        "observed_how": "mozak lab/research/scope/kb validate and cargo test --workspace were run and their receipts read"
+      },
+      {
+        "kind": "execution_environment",
+        "value": "Acer Nitro AN515-55, Linux x86-64, Intel i5-10300H, 15.4 GiB RAM, no container",
+        "observed_how": "session hardware banner"
+      },
+      {
+        "kind": "surrounding_tools",
+        "value": "MOZAK CLI 0.3.1 release build, HyperResearch 0.11.1 via pipx, Claude Code 2.1.270, gh-authenticated GitHub API access",
+        "observed_how": "mozak --version, hyperresearch --version, claude --version, and adapter receipts"
+      }
+    ],
+    "residual_variance": {
+      "sources": [
+        {
+          "source": "Model sampling. The Lab's readings, mechanisms and plan cards are model-authored prose, so a re-run would phrase them differently and could select different mechanisms from the same source.",
+          "affected_observation_ids": ["obs-single-source", "obs-mechanisms"]
+        },
+        {
+          "source": "Live upstream state. The GitHub and DAIR.AI adapters read the network at a moment in time; stars, releases and curated issues move, so a re-run observes a different snapshot.",
+          "affected_observation_ids": ["obs-evidence-volume"]
+        },
+        {
+          "source": "Third-party availability. arXiv returned HTTP 429 throughout this session and a publisher blocked one fetch, both outside our control and both able to change on a re-run.",
+          "affected_observation_ids": ["obs-arxiv-blocked", "obs-oa-rescue"]
+        }
+      ]
+    }
+  },
+  "method": {
+    "rigor": ["baseline_pinned", "layered_acceptance"],
+    "review": "self_review",
+    "performed_by": "Claude via Jcode",
+    "evaluated_by": "Claude via Jcode",
+    "notes": "Acceptance was exercised at several layers: MOZAK contract validation, the project's Rust and Python suites, live CLI behaviour, and real network retrieval against arXiv, DAIR.AI, GitHub and Unpaywall. No mutation testing was performed, so no claim is made about whether the checks would catch an injected defect. Performer and evaluator are the same agent, so review is recorded as self_review rather than independent."
+  },
+  "observations": [
+    {
+      "id": "obs-single-source",
+      "observation": "The Improve Lab run reached owner_reviewed through all seven ordered states while reading exactly one of twelve refreshed candidates.",
+      "significance": "The contract forced every one of the eleven exclusions to carry a written reason, so the narrowness is visible in the record rather than implied. Five mechanisms and three plan cards all rest on that single documentation source.",
+      "locator": ".mozak/lab/improve-lab-hyperresearch-2026-09-14/{ledger,selection,review.md}",
+      "measured": true
+    },
+    {
+      "id": "obs-mechanisms",
+      "observation": "Reading one source produced five mechanisms and three dependency-ordered plan cards, each carrying at least two acceptance checks.",
+      "significance": "Qualitative judgement: the yield suggests a well-documented source can support a useful Lab run, but one run cannot show whether the mechanisms are the right ones.",
+      "locator": ".mozak/lab/improve-lab-hyperresearch-2026-09-14/{mechanism-map,implementation-plans}.json",
+      "measured": false
+    },
+    {
+      "id": "obs-abstract-gate",
+      "observation": "The Lab refused to build a mechanism on an abstract-only reading, which is why the HyperResearch README was read at documentation depth rather than cited from metadata.",
+      "significance": "The gate changed what was actually done, not just what was recorded. It is the difference between a mechanism resting on a claim and resting on a summary of a claim.",
+      "locator": "crates/mozak-cli/tests/lab_commands.rs::an_abstract_only_run_is_refused_at_the_mechanism_step",
+      "measured": true
+    },
+    {
+      "id": "obs-evidence-volume",
+      "observation": "Four adapter runs recorded 73 evidence records in total: DAIR.AI 20, GitHub watch 12, GitHub discovery 40, HyperResearch 1.",
+      "significance": "Only the twelve watch records entered the Lab. Seventy-two records were gathered and left unread, so the session produced far more surveyed evidence than it consumed.",
+      "locator": "mozak research validate on each run.json under mozak-kb/runs/*/2026-09-14/",
+      "measured": true
+    },
+    {
+      "id": "obs-arxiv-blocked",
+      "observation": "The arXiv adapter exhausted six bounded attempts against HTTP 429 and produced no run.",
+      "significance": "The failure was reported as a failure. No partial or synthetic arXiv artifact entered the evidence store, so the gap is visible rather than papered over.",
+      "locator": "arxiv_fetch.py retry ladder; no run directory exists under mozak-kb/runs/agentic-systems-arxiv/2026-09-14",
+      "measured": true
+    },
+    {
+      "id": "obs-oa-rescue",
+      "observation": "A publisher blocked the QUAST paper with a bot wall, and open-access recovery retrieved 4051 words of the published version of record through Unpaywall, disclosing the substitution in four places.",
+      "significance": "A blocked fetch became a usable citation without the note ever pretending the source URL was read. This is the behaviour that makes paywalled literature tractable at all.",
+      "locator": "research-vaults/genome-mcp/research/notes/quast-quality-assessment-tool-for-genome-assemblies-pmc.md frontmatter and banner",
+      "measured": true
+    },
+    {
+      "id": "obs-defects-found",
+      "observation": "Verification sweeps over the finished work found three real defects: a failed snapshot left a run directory that blocked every retry, the installer reported KB drift as an unregistered Scope, and a new-scope install died mid-way leaving partial state.",
+      "significance": "All three were found by sweeping the whole result after the work looked done, not while writing it. Each was fixed and covered by a regression test.",
+      "locator": "commits 798fe8e and 6d95bb9; scripts/adapters/test_hyperresearch_fetch.py",
+      "measured": true
+    },
+    {
+      "id": "obs-self-inflicted",
+      "observation": "Retargeting two adapter requests broke both bindings into needs_recheck, and the pins had to be restored from git.",
+      "significance": "The binding contract refused a Scope change by design and the damage was caught by the same sweep that found the real defects. An edit intended as an improvement was the session's only regression.",
+      "locator": "adapter list before and after; git checkout of the two request files",
+      "measured": true
+    },
+    {
+      "id": "obs-harness-noise",
+      "observation": "Across three verification sweeps, twelve reported check failures were traced to the sweep harness rather than the code, all caused by set -o pipefail treating an expected non-zero exit as a failure.",
+      "significance": "Every one had to be reproduced in isolation before it could be dismissed. A verification harness that cries wolf costs real time and can hide a true failure among false ones.",
+      "locator": "sweep re-runs with capture separated from evaluation",
+      "measured": true
+    }
+  ],
+  "findings": [
+    {
+      "id": "find-narrow-reading",
+      "summary": "A Lab run can reach owner_reviewed on a single source, so breadth of evidence is an owner decision rather than a contract guarantee.",
+      "severity": "medium",
+      "state": "open",
+      "observation_ids": ["obs-single-source", "obs-evidence-volume"]
+    },
+    {
+      "id": "find-unread-evidence",
+      "summary": "Seventy-two gathered evidence records were never read, including papers directly about self-improving harnesses and evaluation lifecycles.",
+      "severity": "medium",
+      "state": "open",
+      "observation_ids": ["obs-evidence-volume"]
+    },
+    {
+      "id": "find-depth-gate-works",
+      "summary": "The abstract-only gate did its job: it forced a documentation-depth reading instead of a metadata citation.",
+      "severity": "informational",
+      "state": "closed",
+      "resolution": "No change needed. The gate is covered by an existing integration test.",
+      "observation_ids": ["obs-abstract-gate"]
+    },
+    {
+      "id": "find-late-verification",
+      "summary": "Three real defects survived until a whole-result sweep, which means incremental checking during the work did not catch them.",
+      "severity": "high",
+      "state": "closed",
+      "resolution": "All three fixed and covered by regression tests in commits 798fe8e and 6d95bb9.",
+      "observation_ids": ["obs-defects-found"]
+    },
+    {
+      "id": "find-retarget-regression",
+      "summary": "Editing pinned adapter requests to retarget them broke two working bindings.",
+      "severity": "medium",
+      "state": "closed",
+      "resolution": "Reverted from git, pins verified byte-identical, and the documented guidance corrected to state that retargeting is a re-registration.",
+      "observation_ids": ["obs-self-inflicted"]
+    },
+    {
+      "id": "find-harness-false-alarms",
+      "summary": "The verification harness produced twelve false failures, each needing isolation to dismiss.",
+      "severity": "low",
+      "state": "accepted",
+      "resolution": "Accepted for this session. The pattern is known: capture and evaluation must be separated when a checked command exits non-zero by design.",
+      "observation_ids": ["obs-harness-noise"]
+    }
+  ],
+  "calibration": {
+    "supported_claims": [
+      "The Improve Lab's ordered state machine, reason-bearing selection, and abstract-only gate behaved as contracted in one real run.",
+      "A new research adapter can be added to MOZAK and produce contract-valid, proposal-only evidence from a real external tool.",
+      "Open-access recovery converted a publisher-blocked fetch into a citable version of record with the substitution disclosed.",
+      "Sweeping the whole result after the work appeared finished surfaced three real defects that incremental checking had missed."
+    ],
+    "unsupported_claims": [
+      "That the five mechanisms or three plan cards are the right improvements to make. They are proposals and none has been implemented.",
+      "That MOZAK made this session faster or better than working without it. No comparison was attempted.",
+      "That the Lab produces good results generally. This is one run, on one source, on one module.",
+      "That the verification found every defect. It found the ones its checks were shaped to look for."
+    ],
+    "inconclusive_claims": [
+      {
+        "claim": "Whether the Lab's acceptance checks would catch a deliberately injected defect.",
+        "what_was_checked": "The existing contract tests and workspace suites were run and pass.",
+        "missing_evidence": "No mutation testing was performed, so a passing suite does not establish detection capability."
+      },
+      {
+        "claim": "Whether one source was sufficient for this improvement question.",
+        "what_was_checked": "The run completed and produced coherent, dependency-ordered plan cards.",
+        "missing_evidence": "No second run on broader evidence exists to compare against, so sufficiency cannot be distinguished from plausibility."
+      }
+    ],
+    "requires_comparative_evaluation": [
+      "Whether MOZAK's gates improve research quality relative to unstructured reading of the same sources.",
+      "Whether a multi-source Lab run yields materially different mechanisms than this single-source one.",
+      "Whether HyperResearch's pipeline output justifies its cost relative to the CLI-only path."
+    ],
+    "limitations": [
+      "Single case, single session, single module. It describes itself and nothing else.",
+      "Performer and evaluator are the same agent, so every judgement here is self-review.",
+      "The one source read is self-authored project documentation whose headline benchmark claim is explicitly internally projected and awaiting third-party validation.",
+      "The session's largest deliverable, the genome-mcp research pipeline run, was set up but never executed, so nothing is known about its output.",
+      "Three of nine observations are qualitative interpretation rather than measurement, and are marked as such."
+    ],
+    "generality": "single_case"
+  },
+  "derived_proposals": [
+    {
+      "id": "prop-read-the-backlog",
+      "text": "Open a second Lab run over the 72 unread evidence records, prioritising Harness-of-Harness (multi-day autonomous development with continual improvement) and Judges as a Lifecycle, both of which bear directly on the Lab's own subject.",
+      "observation_ids": ["obs-evidence-volume", "obs-single-source"],
+      "priority": 1
+    },
+    {
+      "id": "prop-multi-source-refresh",
+      "text": "Implement plan card P1 so one Lab run can ingest several validated adapter runs, which is the contract change that would let a single improvement question draw on DAIR.AI, arXiv and GitHub evidence together.",
+      "observation_ids": ["obs-evidence-volume"],
+      "priority": 2
+    },
+    {
+      "id": "prop-sweep-earlier",
+      "text": "Run a whole-result sweep at the point work first looks finished, rather than after reporting it as done, since that is where all three real defects were caught.",
+      "observation_ids": ["obs-defects-found", "obs-self-inflicted"],
+      "priority": 3
+    },
+    {
+      "id": "prop-harness-discipline",
+      "text": "In verification harnesses, separate command capture from result evaluation so that a command exiting non-zero by design cannot register as a failed check.",
+      "observation_ids": ["obs-harness-noise"],
+      "priority": 4
+    },
+    {
+      "id": "prop-prefer-doi",
+      "text": "Fetch literature by DOI rather than by publisher URL, so a bot wall routes into open-access recovery instead of failing the fetch.",
+      "observation_ids": ["obs-oa-rescue", "obs-arxiv-blocked"],
+      "priority": 5
+    }
+  ],
+  "authority": "proposal_only"
+}
