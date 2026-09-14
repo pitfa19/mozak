@@ -742,3 +742,96 @@ fn the_meta_boundary_is_terminal_and_its_rationale_is_recorded() {
         "it must say what does happen instead"
     );
 }
+
+// --- Retired module identifiers -------------------------------------------
+//
+// The public release replaced a five-module split with the current six and
+// removed the old identifiers outright. Five real runs recorded 2026-09-06 to
+// 2026-09-08 became unreadable: `Module` had no variant for their id, so the
+// whole ledger failed to deserialize and every route that reads one was closed
+// to them. These tests exist because nothing previously asserted that an
+// artifact written by an older MOZAK still parses.
+
+#[test]
+fn a_retired_module_id_still_deserializes() {
+    // The exact ids found in the orphaned runs.
+    for id in [
+        "research-and-adapters",
+        "scope-and-knowledge-state",
+        "evaluation-and-cases",
+        "concepts-and-translations",
+        "planning-and-execution",
+    ] {
+        let module: Module = serde_json::from_value(json!(id))
+            .unwrap_or_else(|error| panic!("retired id {id} must still parse: {error}"));
+        assert_eq!(module.as_str(), id, "a retired id must round-trip as itself");
+        assert!(module.is_retired(), "{id} must report itself as retired");
+    }
+}
+
+#[test]
+fn a_retired_id_is_not_silently_mapped_onto_a_current_module() {
+    // The tempting fix is a serde alias onto the nearest current variant. That
+    // would make an old run claim it studied a module that did not exist when
+    // it ran. A retired id must deserialize to itself and to nothing else.
+    let module: Module = serde_json::from_value(json!("evaluation-and-cases")).expect("parses");
+    for current in Module::all() {
+        assert_ne!(
+            module, current,
+            "a retired id must not resolve to the current module {}",
+            current.as_str()
+        );
+    }
+}
+
+#[test]
+fn a_whole_ledger_written_under_a_retired_id_still_loads() {
+    // The actual failure: not the enum in isolation, but the ledger around it.
+    let mut ledger = ledger();
+    ledger.module = Module::EvaluationAndCases;
+    let raw = serde_json::to_string(&ledger).expect("serializes");
+    let loaded: RunLedger = serde_json::from_str(&raw).expect("a retired ledger must still load");
+    assert_eq!(loaded.module, Module::EvaluationAndCases);
+    assert!(loaded.module.is_retired());
+}
+
+#[test]
+fn a_retired_module_is_not_addressable_by_a_new_run() {
+    // Readable is not the same as choosable. `parse` backs the command line.
+    assert!(
+        Module::parse("evaluation-and-cases").is_err(),
+        "a retired id must not be selectable on the command line"
+    );
+    assert!(
+        !Module::all().iter().any(|module| module.is_retired()),
+        "`lab modules` must offer only current modules"
+    );
+    assert_eq!(Module::all().len(), 6);
+}
+
+#[test]
+fn authoring_a_request_under_a_retired_module_is_refused() {
+    // The contract-level guard, independent of the CLI's `parse`.
+    let mut request = request();
+    request.module = Module::ConceptsAndTranslations;
+    let error = validate_request(&request).expect_err("authoring under a retired module is refused");
+    assert!(
+        error.to_string().contains("retired"),
+        "the refusal must say why: {error}"
+    );
+}
+
+#[test]
+fn a_retired_module_describes_itself_as_retired_rather_than_as_a_current_boundary() {
+    // Its summary must not describe a module MOZAK draws today, and it must
+    // claim no source files, since those were redistributed.
+    let module = Module::ResearchAndAdapters;
+    assert!(module.summary().contains("retired"));
+    assert!(
+        module.source_areas().is_empty(),
+        "a retired boundary must claim no current source files"
+    );
+    for current in Module::all() {
+        assert_ne!(module.summary(), current.summary());
+    }
+}

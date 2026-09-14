@@ -632,6 +632,10 @@ fn status(run_dir: &Path) -> Result<ExitCode, String> {
         "run_id": ledger.run_id,
         "scope_id": ledger.scope_id,
         "module": ledger.module.as_str(),
+        // Stated only when true, and stated at all because a reader comparing
+        // this run against a current one would otherwise take a superseded
+        // boundary for a module MOZAK still draws.
+        "module_retired": ledger.module.is_retired().then_some(true),
         "state": ledger.state.as_str(),
         "stop_at": ledger.stop_at.as_str(),
         "terminal": ledger.state.is_terminal(),

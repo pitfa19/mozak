@@ -88,10 +88,20 @@ pub enum Module {
     MetaKb,
     ImproveLab,
     Skill,
+
+    // Retired identifiers, readable but not addressable. See `is_retired`.
+    ResearchAndAdapters,
+    ScopeAndKnowledgeState,
+    EvaluationAndCases,
+    ConceptsAndTranslations,
+    PlanningAndExecution,
 }
 
 impl Module {
     /// Every MOZAK module, which is also every addressable improvement target.
+    ///
+    /// Retired identifiers are deliberately absent: they can be read out of an
+    /// old run but never chosen for a new one.
     #[must_use]
     pub const fn all() -> [Self; 6] {
         [
@@ -104,6 +114,51 @@ impl Module {
         ]
     }
 
+    /// Module identifiers that existed before the current six-module split.
+    ///
+    /// # Why these are variants rather than aliases
+    ///
+    /// The obvious repair for an unreadable old ledger is
+    /// `#[serde(alias = "evaluation-and-cases")]` on the nearest current
+    /// variant. That would be wrong, and quietly so: the previous list was a
+    /// different partition of MOZAK, not a renaming of this one.
+    /// `research-and-adapters` covered retrieval together with adapter
+    /// plumbing, which now fall inside `research`; `evaluation-and-cases`
+    /// covered case records and paired evaluation, which now straddle
+    /// `research` and `improve-lab`. An alias would make a run assert it
+    /// studied a module that did not exist when it ran, and every later reader
+    /// would believe it.
+    ///
+    /// So a retired id deserializes to itself. History stays readable and
+    /// stays honest about what it was, while `all()` and `parse` keep a new
+    /// run from ever selecting one.
+    #[must_use]
+    pub const fn retired() -> [Self; 5] {
+        [
+            Self::ResearchAndAdapters,
+            Self::ScopeAndKnowledgeState,
+            Self::EvaluationAndCases,
+            Self::ConceptsAndTranslations,
+            Self::PlanningAndExecution,
+        ]
+    }
+
+    /// Whether this identifier belongs to a superseded module split.
+    ///
+    /// A caller that reports a module to a reader should say so, because a
+    /// retired id names a boundary MOZAK no longer draws.
+    #[must_use]
+    pub const fn is_retired(self) -> bool {
+        matches!(
+            self,
+            Self::ResearchAndAdapters
+                | Self::ScopeAndKnowledgeState
+                | Self::EvaluationAndCases
+                | Self::ConceptsAndTranslations
+                | Self::PlanningAndExecution
+        )
+    }
+
     /// Stable identifier used on the command line and in artifacts.
     #[must_use]
     pub const fn as_str(self) -> &'static str {
@@ -114,6 +169,11 @@ impl Module {
             Self::MetaKb => "meta-kb",
             Self::ImproveLab => "improve-lab",
             Self::Skill => "skill",
+            Self::ResearchAndAdapters => "research-and-adapters",
+            Self::ScopeAndKnowledgeState => "scope-and-knowledge-state",
+            Self::EvaluationAndCases => "evaluation-and-cases",
+            Self::ConceptsAndTranslations => "concepts-and-translations",
+            Self::PlanningAndExecution => "planning-and-execution",
         }
     }
 
@@ -139,6 +199,16 @@ impl Module {
             Self::Skill => {
                 "How MOZAK reaches you: which request maps to which route, the shape of the answer, and installation."
             }
+            // A retired id describes a boundary MOZAK no longer draws, so the
+            // only honest summary says that rather than describing a current
+            // module the old run did not study.
+            Self::ResearchAndAdapters
+            | Self::ScopeAndKnowledgeState
+            | Self::EvaluationAndCases
+            | Self::ConceptsAndTranslations
+            | Self::PlanningAndExecution => {
+                "A retired module boundary from a superseded split, readable for history and not addressable by a new run."
+            }
         }
     }
 
@@ -163,6 +233,14 @@ impl Module {
             Self::MetaKb => &["kb.rs", "meta_kb.rs", "concept.rs", "package_import.rs"],
             Self::ImproveLab => &["lab.rs", "lab_evidence.rs", "lab_evaluation.rs"],
             Self::Skill => &["distribution.rs"],
+            // Deliberately empty. The files a retired boundary covered have
+            // since been redistributed, so naming today's files would claim
+            // the old run studied code it never saw.
+            Self::ResearchAndAdapters
+            | Self::ScopeAndKnowledgeState
+            | Self::EvaluationAndCases
+            | Self::ConceptsAndTranslations
+            | Self::PlanningAndExecution => &[],
         }
     }
 
@@ -660,6 +738,13 @@ pub fn validate_request(request: &ImproveRequest) -> Result<(), LabError> {
     require_filled(&request.scope_id, "scope_id")?;
     require_filled(&request.question, "question")?;
     require_filled(&request.created_at, "created_at")?;
+    // Read paths deserialize a retired id happily, which is the point. Authoring
+    // one is different: it would create new work under a boundary MOZAK no
+    // longer draws. `validate_request` runs only on the two authoring paths.
+    require(
+        !request.module.is_retired(),
+        "module is retired and cannot be used for a new run; run `mozak lab modules`",
+    )?;
     require(
         !request.adapter_bindings.is_empty(),
         "adapter_bindings must not be empty",
