@@ -243,9 +243,15 @@ target would let evidence land against a Scope no one approved it for.
 
 Two conditions are easy to confuse, so the installer distinguishes them. A Scope
 that is genuinely unregistered is reported as such. A KB whose configured pin has
-drifted is reported as drift, and the installer falls back to reading the KB root
-directly rather than claiming the Scope does not exist. Override the fallback root
+drifted is reported as drift, and the Scope *lookup* falls back to reading the KB
+root directly rather than claiming the Scope does not exist. Override that root
 with `MOZAK_KB_ROOT`.
+
+The fallback covers the lookup only. Registering a binding always resolves the
+configured KB and accepts no explicit root, so under a drifted pin an existing
+binding still works while a new one cannot be created. The installer prepares the
+vault and request, then stops and prints the discover/review/refresh repair, since
+that refresh is an owner decision.
 
 A failed snapshot leaves no run directory. That matters twice: a partial run looks
 like evidence while holding none, and since the route refuses to overwrite an
