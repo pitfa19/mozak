@@ -238,3 +238,16 @@ a new binding against the new Scope and leaving or replacing the old one.
 That refusal is the contract working. A binding records that a specific runner
 and request were reviewed for a specific Scope, and silently accepting a new
 target would let evidence land against a Scope no one approved it for.
+
+### Failure behaviour
+
+Two conditions are easy to confuse, so the installer distinguishes them. A Scope
+that is genuinely unregistered is reported as such. A KB whose configured pin has
+drifted is reported as drift, and the installer falls back to reading the KB root
+directly rather than claiming the Scope does not exist. Override the fallback root
+with `MOZAK_KB_ROOT`.
+
+A failed snapshot leaves no run directory. That matters twice: a partial run looks
+like evidence while holding none, and since the route refuses to overwrite an
+existing directory, residue would block every retry until someone deleted it by
+hand. Only a completed fixture earns a directory that persists.

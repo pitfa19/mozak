@@ -34,8 +34,30 @@ command -v hyperresearch >/dev/null 2>&1 || {
 
 # The Scope must already be registered. Creating a vault for a Scope MOZAK does
 # not know would leave an orphan directory that nothing validates.
-if ! "$MOZAK" kb tree 2>/dev/null | grep -q "Scope: $SCOPE_ID "; then
-  echo "error: $SCOPE_ID is not a registered Scope in the current KB" >&2
+#
+# Read the KB once and check the two failures separately. A drifted or
+# unreadable KB is not the same as an absent Scope, and reporting the first as
+# the second sends the reader looking for a registration that is already there.
+#
+# A drifted configured pin is a real condition with an owner-approved repair, and
+# it should not block installing against a KB root that validates on its own. So
+# fall back to an explicit root when one is given or discoverable, and say so.
+KB_ROOT="${MOZAK_KB_ROOT:-$HOME/Documents/mozak-kb}"
+if KB_TREE="$("$MOZAK" kb tree 2>&1)"; then
+  KB_SOURCE="configured KB"
+elif [ -f "$KB_ROOT/kb.json" ] && KB_TREE="$("$MOZAK" kb tree "$KB_ROOT" 2>&1)"; then
+  KB_SOURCE="explicit KB root $KB_ROOT"
+  echo "note: the configured KB pin has drifted; reading $KB_ROOT directly."
+  echo "      repair the pin with project discover, review, and an approved refresh."
+  echo
+else
+  echo "error: cannot read any KB, so Scope registration is unknown" >&2
+  echo "$KB_TREE" | sed 's/^/       /' >&2
+  exit 1
+fi
+
+if ! grep -q "Scope: $SCOPE_ID " <<<"$KB_TREE"; then
+  echo "error: $SCOPE_ID is not a registered Scope in the $KB_SOURCE" >&2
   echo "       inspect with: $MOZAK kb tree" >&2
   exit 1
 fi

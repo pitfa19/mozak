@@ -107,8 +107,15 @@ def load_request(path: Path) -> dict:
     vault_path = Path(vault).expanduser()
     if not vault_path.is_absolute():
         raise AdapterError("vault_root must be an absolute path")
-    if not (vault_path / "research").is_dir():
-        raise AdapterError(f"vault_root is not a hyperresearch vault: {vault_path}")
+    # A vault is marked by its own config directory, not by the presence of a
+    # directory named `research`. Checking only the latter let an ordinary
+    # folder through, and the CLI then failed deep inside its own vault
+    # discovery with a traceback instead of a usable message.
+    if not (vault_path / ".hyperresearch").is_dir() or not (vault_path / "research").is_dir():
+        raise AdapterError(
+            f"vault_root is not a hyperresearch vault: {vault_path}. "
+            f"Initialize it with `hyperresearch init {vault_path}`."
+        )
     request["vault_root"] = str(vault_path)
 
     max_records = int(request.get("max_records", 50))
@@ -504,26 +511,34 @@ def main(argv: list[str]) -> int:
         if output.exists():
             raise AdapterError(f"refusing to overwrite an existing run directory: {output}")
         output.mkdir(parents=True)
-        started_at = utc_now()
-        notes, export_hash = export_vault(request, output)
-        kept, total_matched = selected(notes, request)
-        # An empty vault is not evidence of anything, and recording it as a
-        # failed run would put an artifact carrying no observation into the
-        # evidence store. Say what is actually wrong instead: the research has
-        # not happened yet, or the selection matched nothing.
-        if not kept:
+        # Every failure below leaves the output directory absent. A partial run
+        # is worse than no run twice over: it looks like evidence while holding
+        # none, and because the route refuses to overwrite an existing
+        # directory, it would block every retry until someone deleted it by
+        # hand. Only a completed fixture earns a directory that persists.
+        try:
+            started_at = utc_now()
+            notes, export_hash = export_vault(request, output)
+            kept, total_matched = selected(notes, request)
+            # An empty vault is not evidence of anything, and recording it as a
+            # failed run would put an artifact carrying no observation into the
+            # evidence store. Say what is actually wrong instead: the research
+            # has not happened yet, or the selection matched nothing.
+            if not kept:
+                where = (
+                    "the declared selection matched no note"
+                    if (request["select"]["note_ids"] or request["select"]["tags"])
+                    else "the vault is empty"
+                )
+                raise AdapterError(
+                    f"nothing to record: {where} in {request['vault_root']}. "
+                    "Run HyperResearch into this vault first."
+                )
+            fixture = build_fixture(request, kept, total_matched, export_hash, started_at)
+            (output / "fixture.json").write_bytes(canonical_json_bytes(fixture) + b"\n")
+        except BaseException:
             shutil.rmtree(output, ignore_errors=True)
-            where = (
-                "the declared selection matched no note"
-                if (request["select"]["note_ids"] or request["select"]["tags"])
-                else "the vault is empty"
-            )
-            raise AdapterError(
-                f"nothing to record: {where} in {request['vault_root']}. "
-                "Run HyperResearch into this vault first."
-            )
-        fixture = build_fixture(request, kept, total_matched, export_hash, started_at)
-        (output / "fixture.json").write_bytes(canonical_json_bytes(fixture) + b"\n")
+            raise
         print(
             json.dumps(
                 {
