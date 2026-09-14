@@ -27,6 +27,9 @@ const READINGS_FILE: &str = "paper-readings.json";
 const MECHANISMS_FILE: &str = "mechanism-map.json";
 const PLANS_FILE: &str = "implementation-plans.json";
 const REVIEW_FILE: &str = "review.md";
+/// Evidence offered for this run's mechanisms: paired observations, or a
+/// recorded reason for lacking one.
+const MECHANISM_EVIDENCE_FILE: &str = "mechanism-evidence.json";
 /// Evidence lives beside the run directories rather than inside one, because it
 /// belongs to the Scope and outlives any single run.
 const EVIDENCE_FILE: &str = "scope-evidence.json";
@@ -76,6 +79,12 @@ pub fn run(args: &[String]) -> Result<ExitCode, String> {
         ["select", run_dir, selection] => select(Path::new(run_dir), Path::new(selection)),
         ["read", run_dir, readings] => read_papers(Path::new(run_dir), Path::new(readings)),
         ["mechanisms", run_dir, map] => mechanisms(Path::new(run_dir), Path::new(map)),
+        ["objective", run_dir, objective] => {
+            set_objective(Path::new(run_dir), Path::new(objective))
+        }
+        ["evidence", run_dir, evidence] => {
+            mechanism_evidence(Path::new(run_dir), Path::new(evidence))
+        }
         ["plans", run_dir, plans] => plans_command(Path::new(run_dir), Path::new(plans)),
         ["review", run_dir] => review(Path::new(run_dir)),
         ["status", run_dir] => status(Path::new(run_dir)),
@@ -147,6 +156,10 @@ fn start(
         performed_by: Some(actor()),
         evaluated_by: Some(env::var("MOZAK_EVALUATED_BY").unwrap_or_else(|_| actor())),
         acceptance: None,
+        // A run may declare a bounded objective with `mozak lab objective`.
+        // Requiring it at start would mean inventing completion conditions
+        // before the literature is known, which is where they come from.
+        scope_boundary: None,
     };
     let request = ImproveRequest {
         acceptance: request.derived_acceptance(),
@@ -211,6 +224,37 @@ fn start(
         "preservation_requirements": preservation,
         "open_failures": open_failures,
         "evidence_authority": mozak_core::lab_evidence::authority(),
+    }))
+}
+
+/// Declares what this run is bounded to, before selection narrows it.
+///
+/// Separate from `start` because completion conditions come from knowing the
+/// literature, and a run forced to invent them at creation would write
+/// whatever sounded plausible. Refused once selection has happened: a boundary
+/// declared after the run chose what to read is a description, not a bound.
+fn set_objective(run_dir: &Path, objective_path: &Path) -> Result<ExitCode, String> {
+    let ledger: RunLedger = read_json(&run_dir.join(LEDGER_FILE))?;
+    if ledger.state >= RunState::PapersSelected {
+        return Err(format!(
+            "an objective must be declared before selection; this run is at {}",
+            ledger.state.as_str()
+        ));
+    }
+    let mut request: ImproveRequest = read_json(&run_dir.join(REQUEST_FILE))?;
+    let objective: mozak_core::lab::RunObjective = read_json(objective_path)?;
+    request.scope_boundary = Some(objective);
+    validate_request(&request).map_err(|error| error.to_string())?;
+    write_json(&run_dir.join(REQUEST_FILE), &request)?;
+
+    let boundary = request.scope_boundary.as_ref().expect("just set");
+    print_json(&json!({
+        "schema_version": 1,
+        "command": "lab objective",
+        "run_id": request.run_id,
+        "objective": boundary.objective,
+        "completion_conditions": boundary.completion_conditions.len(),
+        "excludes": boundary.excludes.len(),
     }))
 }
 
@@ -402,6 +446,49 @@ fn mechanisms(run_dir: &Path, map_path: &Path) -> Result<ExitCode, String> {
     }))
 }
 
+/// Records the evidence offered for this run's mechanisms.
+///
+/// Optional and outside the ordered state machine, deliberately. Evidence can
+/// be gathered before or after mechanisms are written, and forcing it into the
+/// sequence would make the common case, a contract mechanism whose value shows
+/// up over many later runs, impossible to record honestly.
+fn mechanism_evidence(run_dir: &Path, evidence_path: &Path) -> Result<ExitCode, String> {
+    let map: MechanismMap = read_json(&run_dir.join(MECHANISMS_FILE))?;
+    let raw = read(evidence_path)?;
+    let evidence = mozak_core::lab_evaluation::validate_evidence_json(&raw)
+        .map_err(|error| error.to_string())?;
+    require_same_run(&evidence.run_id, &map.run_id)?;
+
+    let ids = map
+        .mechanisms
+        .iter()
+        .map(|mechanism| mechanism.id.as_str())
+        .collect::<Vec<_>>();
+    let unaccounted = mozak_core::lab_evaluation::unaccounted(&evidence, &ids);
+
+    write_json(&run_dir.join(MECHANISM_EVIDENCE_FILE), &evidence)?;
+    print_json(&json!({
+        "schema_version": 1,
+        "command": "lab evidence",
+        "run_id": evidence.run_id,
+        "paired": evidence.paired.len(),
+        "unpaired_with_reason": evidence.unpaired.len(),
+        "unaccounted_mechanisms": unaccounted,
+        "authority": mozak_core::lab_evaluation::authority(),
+    }))
+}
+
+/// Refuses evidence written against a different run.
+fn require_same_run(evidence_run: &str, map_run: &str) -> Result<(), String> {
+    if evidence_run == map_run {
+        Ok(())
+    } else {
+        Err(format!(
+            "evidence names run {evidence_run} but this run is {map_run}"
+        ))
+    }
+}
+
 /// Records bounded implementation plans for owner review.
 fn plans_command(run_dir: &Path, plans_path: &Path) -> Result<ExitCode, String> {
     let mut ledger: RunLedger = read_json(&run_dir.join(LEDGER_FILE))?;
@@ -443,15 +530,27 @@ fn review(run_dir: &Path) -> Result<ExitCode, String> {
     // what was inherited rather than what this run just wrote.
     let evidence_file = evidence_path(run_dir, &request.scope_id);
     let inherited = read_evidence(&evidence_file, &request.scope_id)?;
-    let packet = render_review(
-        &request,
-        &literature,
-        &selection,
-        &readings,
-        &map,
-        &plans,
-        Some(&inherited),
-    );
+    // Evidence is optional, so its absence renders nothing rather than an
+    // empty section claiming none was offered.
+    let evidence = run_dir
+        .join(MECHANISM_EVIDENCE_FILE)
+        .exists()
+        .then(|| {
+            read_json::<mozak_core::lab_evaluation::MechanismEvidence>(
+                &run_dir.join(MECHANISM_EVIDENCE_FILE),
+            )
+        })
+        .transpose()?;
+    let packet = render_review(&mozak_core::lab::ReviewInputs {
+        request: &request,
+        literature: &literature,
+        selection: &selection,
+        readings: &readings,
+        map: &map,
+        plans: &plans,
+        inherited: Some(&inherited),
+        evidence: evidence.as_ref(),
+    });
     advance(
         &mut ledger,
         RunState::OwnerReviewed,

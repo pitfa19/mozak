@@ -914,3 +914,237 @@ fn a_first_run_reports_no_inherited_evidence() {
     let packet_exists = workspace.path("run").join("review.md").exists();
     assert!(!packet_exists, "no packet before review");
 }
+
+/// D3: a boundary declared after the run chose what to read is a description,
+/// not a bound.
+#[test]
+fn an_objective_must_be_declared_before_selection() {
+    let workspace = Workspace::new("objective-order");
+    registry(&workspace);
+    let run_id = start_run(&workspace, "agentic-systems-dair-ai");
+    let run_dir = workspace.path("run");
+    let run_dir_str = run_dir.to_str().expect("path").to_owned();
+
+    let objective = workspace.write(
+        "objective.json",
+        r#"{"objective":"decide how the Lab bounds itself","completion_conditions":["a plan card exists"],"excludes":["runtime enforcement"]}"#,
+    );
+
+    let (ok, stdout, stderr) = workspace.run(&[
+        "lab",
+        "objective",
+        &run_dir_str,
+        objective.to_str().expect("path"),
+    ]);
+    assert!(ok, "before selection it is accepted: {stderr}");
+    let receipt: serde_json::Value = serde_json::from_str(&stdout).expect("json");
+    assert_eq!(receipt["completion_conditions"], 1);
+    assert_eq!(receipt["excludes"], 1);
+
+    let adapter = adapter_run(&workspace);
+    workspace.run(&[
+        "lab",
+        "refresh",
+        &run_dir_str,
+        adapter.to_str().expect("path"),
+    ]);
+    let selection = selection_for(&workspace, &run_id, &["paper-0000"]);
+    workspace.run(&[
+        "lab",
+        "select",
+        &run_dir_str,
+        selection.to_str().expect("path"),
+    ]);
+
+    let (ok, _, stderr) = workspace.run(&[
+        "lab",
+        "objective",
+        &run_dir_str,
+        objective.to_str().expect("path"),
+    ]);
+    assert!(!ok, "after selection it must be refused");
+    assert!(stderr.contains("before selection"), "{stderr}");
+}
+
+#[test]
+fn an_objective_without_a_completion_condition_is_refused() {
+    let workspace = Workspace::new("objective-unbounded");
+    registry(&workspace);
+    start_run(&workspace, "agentic-systems-dair-ai");
+    let run_dir = workspace.path("run");
+    let unbounded = workspace.write(
+        "unbounded.json",
+        r#"{"objective":"make the Lab better","completion_conditions":[]}"#,
+    );
+    let (ok, _, stderr) = workspace.run(&[
+        "lab",
+        "objective",
+        run_dir.to_str().expect("path"),
+        unbounded.to_str().expect("path"),
+    ]);
+    assert!(!ok);
+    assert!(stderr.contains("completion condition"), "{stderr}");
+}
+
+/// D4: evidence for a mechanism, and the honesty of its absence.
+#[test]
+fn mechanism_evidence_is_recorded_and_gaps_are_named() {
+    let workspace = Workspace::new("mechanism-evidence");
+    registry(&workspace);
+    let run_id = start_run(&workspace, "agentic-systems-dair-ai");
+    let run_dir = workspace.path("run");
+    let run_dir_str = run_dir.to_str().expect("path").to_owned();
+
+    let adapter = adapter_run(&workspace);
+    workspace.run(&[
+        "lab",
+        "refresh",
+        &run_dir_str,
+        adapter.to_str().expect("path"),
+    ]);
+    let selection = selection_for(&workspace, &run_id, &["paper-0000"]);
+    workspace.run(&[
+        "lab",
+        "select",
+        &run_dir_str,
+        selection.to_str().expect("path"),
+    ]);
+    let readings = workspace.write(
+        "readings.json",
+        &format!(
+            r#"{{"contract_version":1,"run_id":"{run_id}","readings":[{{"paper_id":"paper-0000","source_class":"preprint","source_uri":"https://example.org/a","content_sha256":"hash-a","read_depth":"full_text","claims":[{{"id":"c1","text":"budgets help","origin":"source_claim","locator":"s4"}}],"limitations":["one benchmark"],"retained_full_text":false}}]}}"#
+        ),
+    );
+    workspace.run(&[
+        "lab",
+        "read",
+        &run_dir_str,
+        readings.to_str().expect("path"),
+    ]);
+    let mechanisms = workspace.write(
+        "mechanisms.json",
+        &format!(
+            r#"{{"contract_version":1,"run_id":"{run_id}","mechanisms":[{{"id":"m1","proposed_mechanism":"declare budgets","affected_contract":"planning::Plan","expected_benefit":"comparable runs","risks":["drift"],"supporting_claim_ids":["c1"]}},{{"id":"m2","proposed_mechanism":"defend an invariant","affected_contract":"lab::RunState","expected_benefit":"stability","risks":["rigidity"],"supporting_claim_ids":["c1"]}}]}}"#
+        ),
+    );
+    workspace.run(&[
+        "lab",
+        "mechanisms",
+        &run_dir_str,
+        mechanisms.to_str().expect("path"),
+    ]);
+
+    let evidence = workspace.write(
+        "evidence.json",
+        &format!(
+            r#"{{"contract_version":1,"run_id":"{run_id}","paired":[{{"contract_version":1,"mechanism_id":"m1","task":"plan a budgeted goal","baseline":{{"observed":"no budget field","locator":"a"}},"treatment":{{"observed":"budget field present","locator":"b"}},"fixed_conditions":[{{"kind":"agent","baseline":"claude","treatment":"claude"}}],"difference":"one field added","limitations":["one task"]}}]}}"#
+        ),
+    );
+    let (ok, stdout, stderr) = workspace.run(&[
+        "lab",
+        "evidence",
+        &run_dir_str,
+        evidence.to_str().expect("path"),
+    ]);
+    assert!(ok, "{stderr}");
+    let receipt: serde_json::Value = serde_json::from_str(&stdout).expect("json");
+    assert_eq!(receipt["paired"], 1);
+    let unaccounted = receipt["unaccounted_mechanisms"]
+        .as_array()
+        .expect("unaccounted");
+    assert_eq!(unaccounted, &[serde_json::json!("m2")]);
+    assert!(
+        receipt["authority"]
+            .as_str()
+            .expect("authority")
+            .starts_with("difference_under_stated_conditions")
+    );
+
+    let plans = workspace.write(
+        "plans.json",
+        &format!(
+            r#"{{"contract_version":1,"run_id":"{run_id}","plans":[{{"id":"P1","title":"budgets","mechanism_ids":["m1","m2"],"deliverables":["field"],"acceptance_checks":["valid passes","bad fails"],"dependencies":[]}}]}}"#
+        ),
+    );
+    workspace.run(&["lab", "plans", &run_dir_str, plans.to_str().expect("path")]);
+    let (ok, _, stderr) = workspace.run(&["lab", "review", &run_dir_str]);
+    assert!(ok, "{stderr}");
+
+    let packet = fs::read_to_string(run_dir.join("review.md")).expect("review");
+    assert!(
+        packet.contains("## Evidence for these mechanisms"),
+        "{packet}"
+    );
+    assert!(packet.contains("Difference: one field added"));
+    assert!(packet.contains("Held fixed: agent"));
+    assert!(
+        packet.contains("**Unaccounted.**") && packet.contains("m2"),
+        "a mechanism with no evidence must be named, not omitted"
+    );
+    assert!(packet.contains("difference_under_stated_conditions"));
+}
+
+/// A pair whose conditions moved is refused at the CLI boundary too.
+#[test]
+fn the_cli_refuses_an_uncontrolled_pair() {
+    let workspace = Workspace::new("uncontrolled-pair");
+    registry(&workspace);
+    let run_id = start_run(&workspace, "agentic-systems-dair-ai");
+    let run_dir = workspace.path("run");
+    let run_dir_str = run_dir.to_str().expect("path").to_owned();
+
+    let adapter = adapter_run(&workspace);
+    workspace.run(&[
+        "lab",
+        "refresh",
+        &run_dir_str,
+        adapter.to_str().expect("path"),
+    ]);
+    let selection = selection_for(&workspace, &run_id, &["paper-0000"]);
+    workspace.run(&[
+        "lab",
+        "select",
+        &run_dir_str,
+        selection.to_str().expect("path"),
+    ]);
+    let readings = workspace.write(
+        "readings.json",
+        &format!(
+            r#"{{"contract_version":1,"run_id":"{run_id}","readings":[{{"paper_id":"paper-0000","source_class":"preprint","source_uri":"https://example.org/a","content_sha256":"hash-a","read_depth":"full_text","claims":[{{"id":"c1","text":"budgets help","origin":"source_claim","locator":"s4"}}],"limitations":["one benchmark"],"retained_full_text":false}}]}}"#
+        ),
+    );
+    workspace.run(&[
+        "lab",
+        "read",
+        &run_dir_str,
+        readings.to_str().expect("path"),
+    ]);
+    let mechanisms = workspace.write(
+        "mechanisms.json",
+        &format!(
+            r#"{{"contract_version":1,"run_id":"{run_id}","mechanisms":[{{"id":"m1","proposed_mechanism":"x","affected_contract":"y","expected_benefit":"z","risks":["r"],"supporting_claim_ids":["c1"]}}]}}"#
+        ),
+    );
+    workspace.run(&[
+        "lab",
+        "mechanisms",
+        &run_dir_str,
+        mechanisms.to_str().expect("path"),
+    ]);
+
+    let bad = workspace.write(
+        "bad-evidence.json",
+        &format!(
+            r#"{{"contract_version":1,"run_id":"{run_id}","paired":[{{"contract_version":1,"mechanism_id":"m1","task":"t","baseline":{{"observed":"a","locator":"a"}},"treatment":{{"observed":"b","locator":"b"}},"fixed_conditions":[{{"kind":"agent","baseline":"claude","treatment":"another model"}}],"difference":"d","limitations":["one task"]}}]}}"#
+        ),
+    );
+    let (ok, stdout, stderr) =
+        workspace.run(&["lab", "evidence", &run_dir_str, bad.to_str().expect("path")]);
+    assert!(!ok);
+    assert!(stdout.is_empty(), "a refused pair writes no receipt");
+    assert!(stderr.contains("was not held fixed"), "{stderr}");
+    assert!(
+        !run_dir.join("mechanism-evidence.json").exists(),
+        "a refused pair must not persist"
+    );
+}

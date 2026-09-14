@@ -520,3 +520,70 @@ Three rules make carried evidence safe rather than merely convenient:
 Carried evidence is `proposal_only`. It informs a later run and constrains what
 that run may silently discard. It accepts nothing, and becoming a planning input
 still requires the ordinary owner approval.
+
+### Bounded objectives
+
+A question can be answered at any width, so a run can widen as it goes and
+nothing notices. An objective states what the run is for, in terms that can be
+checked, and what it deliberately leaves alone.
+
+```bash
+mozak lab objective <run-dir> <objective.json>
+```
+
+```json
+{
+  "objective": "decide how planning should represent budgets",
+  "completion_conditions": ["a plan card names the budget field"],
+  "excludes": ["runtime budget enforcement"]
+}
+```
+
+An objective with no observable completion condition is refused: without one,
+"done" is whatever the run later decides it is. It must be declared before
+selection, because a boundary set after the run chose what to read is a
+description rather than a bound.
+
+The exclusions matter as much as the objective. A boundary stated only as what
+was included cannot be checked, since anything absent looks like an oversight
+rather than a decision.
+
+### Evidence for a mechanism
+
+MOZAK's validators are structural. Kevin et al. (arXiv:2608.20614) measured what
+that is worth as a predictor of usefulness: across 145 real skills, structural
+gates and live outcome judgement correlated at Spearman 0.14, and only 72.8% of
+skills showed positive lift at all.
+
+```bash
+mozak lab evidence <run-dir> <evidence.json>
+```
+
+A paired observation runs the same bounded task with and without one mechanism,
+holding declared conditions fixed, and reports the difference. A condition that
+did not actually stay fixed is rejected rather than reported: an uncontrolled
+difference attributed to the mechanism is worse than no measurement, because it
+looks like evidence.
+
+A mechanism may be promoted without a pair, but never silently. It carries a
+recorded reason, and a mechanism with neither is listed in the packet as
+unaccounted. A mechanism cannot carry both, since a reader could not then tell
+which the promotion rested on.
+
+A pair reports a difference under stated conditions. The contract has no field
+for "better", because a difference on one bounded task is the only thing a pair
+can establish.
+
+### Why the Lab stops at owner review
+
+Kim et al., *Metan* (arXiv:2608.24735), state the constraint: a system that
+edits its own editing machinery must leave part of it untouched to stay stable,
+which caps realized meta-depth at roughly two. Their answer is to keep the
+meta-operation fixed and recurse on its input instead.
+
+MOZAK's Lab is that shape. The Lab contract is the fixed operation and Scope
+evidence is the growing input. A run may propose changing the Lab itself, and
+that proposal still stops at `owner_reviewed` for a separately authorized phase.
+
+Removing the stop would let a run apply its own proposed contract change, which
+is the unstable configuration Metan avoids rather than solves.

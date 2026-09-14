@@ -161,7 +161,7 @@ impl Module {
                 "attestation.rs",
             ],
             Self::MetaKb => &["kb.rs", "meta_kb.rs", "concept.rs", "package_import.rs"],
-            Self::ImproveLab => &["lab.rs", "lab_evidence.rs"],
+            Self::ImproveLab => &["lab.rs", "lab_evidence.rs", "lab_evaluation.rs"],
             Self::Skill => &["distribution.rs"],
         }
     }
@@ -230,6 +230,28 @@ impl RunState {
     }
 
     /// Whether the planning-only lifecycle ends here.
+    ///
+    /// # Why this invariant exists
+    ///
+    /// Stopping at owner review is not caution. It is the property that keeps
+    /// a self-improving system stable.
+    ///
+    /// Kim et al., *Metan* (arXiv:2608.24735) state the constraint directly:
+    /// a system that edits its own editing machinery "must leave part of its
+    /// own editing machinery untouched to stay stable", which caps realized
+    /// meta-depth at roughly two. Their answer is to keep the meta-operation
+    /// fixed and recurse on its input instead, so the operation "cannot
+    /// destabilize the system" while its input strictly grows.
+    ///
+    /// MOZAK's Lab is that shape. The Lab contract is the fixed operation;
+    /// Scope evidence is the growing input. A Lab run may propose changing the
+    /// Lab itself, and that proposal still stops here, to be implemented by a
+    /// separately authorized phase.
+    ///
+    /// Removing this stop would let a run apply its own proposed contract
+    /// change, which is precisely the unstable configuration Metan avoids
+    /// rather than solves. If you are here to make the Lab act on its own
+    /// findings, that is the thing this prevents, deliberately.
     #[must_use]
     pub const fn is_terminal(self) -> bool {
         matches!(self, Self::OwnerReviewed)
@@ -305,6 +327,31 @@ impl AcceptanceKind {
     }
 }
 
+/// What a run set out to settle, and what it deliberately left alone.
+///
+/// A free-text question can be answered at any width, so a run could widen as
+/// it went and nothing would notice. Feng et al., *Harness-of-Harness*
+/// (arXiv:2609.01481) §3.4 make the opposite choice: each loop selects one
+/// coherent objective "while excluding unrelated changes", and establishing
+/// that scope *before* modification is what gives the increment "observable
+/// completion conditions".
+///
+/// The exclusions matter as much as the objective. A boundary stated only as
+/// what was included cannot be checked, because anything absent looks like
+/// something nobody thought of rather than something ruled out.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct RunObjective {
+    /// The single coherent thing this run is for.
+    pub objective: String,
+    /// Observable conditions that would show the objective was met. Without at
+    /// least one, "done" is whatever the run later decides it is.
+    pub completion_conditions: Vec<String>,
+    /// What this run deliberately does not cover.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub excludes: Vec<String>,
+}
+
 /// The scoped improvement question and its authorized boundaries.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
@@ -331,6 +378,10 @@ pub struct ImproveRequest {
     /// cannot assert independence it does not have.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub acceptance: Option<AcceptanceKind>,
+    /// What this run is bounded to. Absent in runs recorded before objectives
+    /// were contracted; present ones must carry a completion condition.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scope_boundary: Option<RunObjective>,
 }
 
 impl ImproveRequest {
@@ -658,6 +709,22 @@ pub fn validate_request(request: &ImproveRequest) -> Result<(), LabError> {
                 }
             },
         )?;
+    }
+
+    // An objective with no observable completion condition is a restatement of
+    // the question, and "done" becomes whatever the run later decides it is.
+    if let Some(boundary) = &request.scope_boundary {
+        require_filled(&boundary.objective, "objective")?;
+        require(
+            !boundary.completion_conditions.is_empty(),
+            "an objective must declare at least one observable completion condition",
+        )?;
+        for condition in &boundary.completion_conditions {
+            require_filled(condition, "completion condition")?;
+        }
+        for exclusion in &boundary.excludes {
+            require_filled(exclusion, "exclusion")?;
+        }
     }
     Ok(())
 }
@@ -1056,64 +1123,100 @@ fn render_inherited(out: &mut String, inherited: Option<&crate::lab_evidence::Sc
     }
 }
 
-/// Renders the owner review packet.
-#[must_use]
-pub fn render_review(
-    request: &ImproveRequest,
-    literature: &LiteratureRun,
-    selection: &Selection,
+/// Renders the declared boundary: what the run set out to settle, and what it
+/// ruled out.
+///
+/// Exclusions are shown beside the objective rather than below the findings,
+/// because a reader judging whether a gap is an oversight or a decision needs
+/// both at once.
+fn render_objective(out: &mut String, request: &ImproveRequest) {
+    let Some(boundary) = &request.scope_boundary else {
+        return;
+    };
+    let _ = writeln!(out, "## Objective\n");
+    let _ = writeln!(out, "{}\n", boundary.objective);
+    let _ = writeln!(out, "Complete when:\n");
+    for condition in &boundary.completion_conditions {
+        let _ = writeln!(out, "- {condition}");
+    }
+    let _ = writeln!(out);
+    if !boundary.excludes.is_empty() {
+        let _ = writeln!(out, "Deliberately excluded:\n");
+        for exclusion in &boundary.excludes {
+            let _ = writeln!(out, "- {exclusion}");
+        }
+        let _ = writeln!(out);
+    }
+}
+
+/// Renders what was actually measured about each mechanism.
+///
+/// A mechanism with neither a pair nor a stated reason is listed as
+/// unaccounted, because silence about evidence reads as evidence to a reader
+/// skimming for problems.
+fn render_mechanism_evidence(
+    out: &mut String,
+    evidence: Option<&crate::lab_evaluation::MechanismEvidence>,
+    map: &MechanismMap,
+) {
+    let Some(evidence) = evidence else {
+        return;
+    };
+    let _ = writeln!(out, "## Evidence for these mechanisms\n");
+    for pair in &evidence.paired {
+        let _ = writeln!(out, "### {} (paired observation)\n", pair.mechanism_id);
+        let _ = writeln!(out, "- Task: {}", pair.task);
+        let _ = writeln!(out, "- Without it: {}", pair.baseline.observed);
+        let _ = writeln!(out, "- With it: {}", pair.treatment.observed);
+        let _ = writeln!(out, "- Difference: {}", pair.difference);
+        let held = pair
+            .fixed_conditions
+            .iter()
+            .map(|condition| condition.kind.as_str())
+            .collect::<Vec<_>>()
+            .join(", ");
+        let _ = writeln!(out, "- Held fixed: {held}");
+        for limitation in &pair.limitations {
+            let _ = writeln!(out, "- Limitation: {limitation}");
+        }
+        let _ = writeln!(out);
+    }
+    for unpaired in &evidence.unpaired {
+        let _ = writeln!(
+            out,
+            "- `{}` has no paired observation: {}",
+            unpaired.mechanism_id, unpaired.reason
+        );
+    }
+    if !evidence.unpaired.is_empty() {
+        let _ = writeln!(out);
+    }
+    let ids = map
+        .mechanisms
+        .iter()
+        .map(|mechanism| mechanism.id.as_str())
+        .collect::<Vec<_>>();
+    let unaccounted = crate::lab_evaluation::unaccounted(evidence, &ids);
+    if !unaccounted.is_empty() {
+        let _ = writeln!(
+            out,
+            "**Unaccounted.** These mechanisms carry no paired observation and no stated reason for lacking one: {}\n",
+            unaccounted.join(", ")
+        );
+    }
+    let _ = writeln!(out, "{}\n", crate::lab_evaluation::authority());
+}
+
+/// Renders what this run read, proposed, and planned.
+///
+/// Split from the packet assembler so each renderer stays short enough to read
+/// in one screen, which is the same reason the sections exist at all.
+fn render_findings(
+    out: &mut String,
     readings: &Readings,
     map: &MechanismMap,
     plans: &ImplementationPlans,
-    inherited: Option<&crate::lab_evidence::ScopeEvidence>,
-) -> String {
-    let mut out = String::new();
-    let _ = writeln!(out, "# Improvement review: {}\n", request.run_id);
-    let _ = writeln!(out, "- Scope: `{}`", request.scope_id);
-    let _ = writeln!(out, "- Module: `{}`", request.module.as_str());
-    let _ = writeln!(out, "- Question: {}", request.question);
-    let _ = writeln!(
-        out,
-        "- Candidates: {} ({} new, {} unchanged)",
-        literature.candidates.len(),
-        literature.new_candidates.len(),
-        literature.unchanged_candidates.len()
-    );
-    let _ = writeln!(
-        out,
-        "- Read: {} of {} selected",
-        readings.readings.len(),
-        selection.included.len()
-    );
-    // Acceptance sits in the header, next to what the run covered, because a
-    // reader weighs the findings by who checked them. Buried at the end it
-    // would arrive after the conclusions it qualifies.
-    match request.derived_acceptance() {
-        Some(AcceptanceKind::SelfReview) => {
-            let _ = writeln!(
-                out,
-                "- Acceptance: **self-review** ({} both performed and accepted this run)\n",
-                request.performed_by.as_deref().unwrap_or("the same actor")
-            );
-        }
-        Some(AcceptanceKind::Independent) => {
-            let _ = writeln!(
-                out,
-                "- Acceptance: independent ({} performed, {} accepted)\n",
-                request.performed_by.as_deref().unwrap_or("unrecorded"),
-                request.evaluated_by.as_deref().unwrap_or("unrecorded")
-            );
-        }
-        None => {
-            let _ = writeln!(
-                out,
-                "- Acceptance: **not recorded** (this run does not say who performed or accepted it)\n"
-            );
-        }
-    }
-
-    render_inherited(&mut out, inherited);
-
+) {
     let _ = writeln!(out, "## Sources read\n");
     for reading in &readings.readings {
         let _ = writeln!(
@@ -1167,6 +1270,90 @@ pub fn render_review(
     // structural gates and live outcome judgement correlate at Spearman 0.14
     // across 145 real skills. Saying so here costs two lines and stops a valid
     // receipt from being read as a verdict on the work.
+}
+
+/// Everything the owner packet is rendered from.
+///
+/// Grouped rather than passed positionally: eight same-shaped references in a
+/// row is a call site where two arguments can be swapped silently, and the two
+/// optional ones at the end are exactly the pair most easily confused.
+#[derive(Debug, Clone, Copy)]
+pub struct ReviewInputs<'a> {
+    pub request: &'a ImproveRequest,
+    pub literature: &'a LiteratureRun,
+    pub selection: &'a Selection,
+    pub readings: &'a Readings,
+    pub map: &'a MechanismMap,
+    pub plans: &'a ImplementationPlans,
+    /// What earlier runs on this Scope established.
+    pub inherited: Option<&'a crate::lab_evidence::ScopeEvidence>,
+    /// What was actually measured about this run's mechanisms.
+    pub evidence: Option<&'a crate::lab_evaluation::MechanismEvidence>,
+}
+
+/// Renders the owner review packet.
+#[must_use]
+pub fn render_review(packet: &ReviewInputs<'_>) -> String {
+    let ReviewInputs {
+        request,
+        literature,
+        selection,
+        readings,
+        map,
+        plans,
+        inherited,
+        evidence,
+    } = *packet;
+    let mut out = String::new();
+    let _ = writeln!(out, "# Improvement review: {}\n", request.run_id);
+    let _ = writeln!(out, "- Scope: `{}`", request.scope_id);
+    let _ = writeln!(out, "- Module: `{}`", request.module.as_str());
+    let _ = writeln!(out, "- Question: {}", request.question);
+    let _ = writeln!(
+        out,
+        "- Candidates: {} ({} new, {} unchanged)",
+        literature.candidates.len(),
+        literature.new_candidates.len(),
+        literature.unchanged_candidates.len()
+    );
+    let _ = writeln!(
+        out,
+        "- Read: {} of {} selected",
+        readings.readings.len(),
+        selection.included.len()
+    );
+    // Acceptance sits in the header, next to what the run covered, because a
+    // reader weighs the findings by who checked them. Buried at the end it
+    // would arrive after the conclusions it qualifies.
+    match request.derived_acceptance() {
+        Some(AcceptanceKind::SelfReview) => {
+            let _ = writeln!(
+                out,
+                "- Acceptance: **self-review** ({} both performed and accepted this run)\n",
+                request.performed_by.as_deref().unwrap_or("the same actor")
+            );
+        }
+        Some(AcceptanceKind::Independent) => {
+            let _ = writeln!(
+                out,
+                "- Acceptance: independent ({} performed, {} accepted)\n",
+                request.performed_by.as_deref().unwrap_or("unrecorded"),
+                request.evaluated_by.as_deref().unwrap_or("unrecorded")
+            );
+        }
+        None => {
+            let _ = writeln!(
+                out,
+                "- Acceptance: **not recorded** (this run does not say who performed or accepted it)\n"
+            );
+        }
+    }
+
+    render_objective(&mut out, request);
+    render_inherited(&mut out, inherited);
+
+    render_findings(&mut out, readings, map, plans);
+    render_mechanism_evidence(&mut out, evidence, map);
     out.push_str(
         "\n## Status\n\nPlanning only. No MOZAK code was changed. Implementation and promotion require explicit owner authorization.\n\nValidation of this run checked structural conformance to the Lab contract. It did not assess whether the mechanisms are sound or the plans worth implementing, and a valid run is not evidence that they are.\n",
     );

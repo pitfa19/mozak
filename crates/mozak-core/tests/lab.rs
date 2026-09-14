@@ -1,7 +1,7 @@
 use mozak_core::lab::{
     AdapterRunRef, CONTRACT_VERSION, Candidate, ClaimOrigin, ImplementationPlan,
     ImplementationPlans, ImproveRequest, LiteratureRun, Mechanism, MechanismMap, Module,
-    PaperReading, ReadClaim, ReadDepth, Readings, RunLedger, RunState, Selection,
+    PaperReading, ReadClaim, ReadDepth, Readings, ReviewInputs, RunLedger, RunState, Selection,
     SelectionDecision, SourceClass, advance, classify_candidates, render_review,
     validate_literature, validate_mechanisms, validate_plans, validate_readings, validate_request,
     validate_selection,
@@ -23,6 +23,7 @@ fn request() -> ImproveRequest {
         performed_by: None,
         evaluated_by: None,
         acceptance: None,
+        scope_boundary: None,
     }
 }
 
@@ -166,15 +167,16 @@ fn accepts_a_complete_planning_run() {
     let plans = plans();
     validate_plans(&plans, &map).expect("plans");
 
-    let review = render_review(
-        &request,
-        &literature,
-        &selection,
-        &readings,
-        &map,
-        &plans,
-        None,
-    );
+    let review = render_review(&ReviewInputs {
+        request: &request,
+        literature: &literature,
+        selection: &selection,
+        readings: &readings,
+        map: &map,
+        plans: &plans,
+        inherited: None,
+        evidence: None,
+    });
     assert!(review.contains("Planning only. No MOZAK code was changed."));
     assert!(review.contains("single benchmark family"));
     assert!(review.contains("PLAN-1"));
@@ -545,18 +547,19 @@ mod packet_disclosure {
             },
             ..request()
         };
-        render_review(
-            &request,
-            &literature(vec![
+        render_review(&ReviewInputs {
+            request: &request,
+            literature: &literature(vec![
                 candidate("paper-0000", "aaa"),
                 candidate("paper-0001", "bbb"),
             ]),
-            &selection(),
-            &readings(),
-            &mechanisms(),
-            &plans(),
-            None,
-        )
+            selection: &selection(),
+            readings: &readings(),
+            map: &mechanisms(),
+            plans: &plans(),
+            inherited: None,
+            evidence: None,
+        })
     }
 
     #[test]
@@ -627,4 +630,115 @@ fn lab_and_case_records_use_one_acceptance_vocabulary() {
 
     assert_eq!(AcceptanceKind::SelfReview.as_str(), "self_review");
     assert_eq!(AcceptanceKind::Independent.as_str(), "independent");
+}
+
+/// D3: a run must say what it is bounded to, in terms that can be checked.
+mod objective {
+    use super::*;
+    use mozak_core::lab::RunObjective;
+
+    fn bounded(conditions: &[&str], excludes: &[&str]) -> ImproveRequest {
+        ImproveRequest {
+            scope_boundary: Some(RunObjective {
+                objective: "decide how planning should represent budgets".to_owned(),
+                completion_conditions: conditions.iter().map(|c| (*c).to_owned()).collect(),
+                excludes: excludes.iter().map(|e| (*e).to_owned()).collect(),
+            }),
+            ..request()
+        }
+    }
+
+    /// Without an observable condition, "done" is whatever the run later says.
+    #[test]
+    fn an_objective_without_completion_conditions_is_rejected() {
+        let error = validate_request(&bounded(&[], &[]))
+            .expect_err("must be refused")
+            .0;
+        assert!(error.contains("completion condition"), "{error}");
+    }
+
+    #[test]
+    fn an_objective_with_an_empty_condition_is_rejected() {
+        assert!(validate_request(&bounded(&["  "], &[])).is_err());
+    }
+
+    #[test]
+    fn an_objective_with_an_observable_condition_is_accepted() {
+        validate_request(&bounded(
+            &["a plan card exists naming the budget field"],
+            &["runtime budget enforcement"],
+        ))
+        .expect("a bounded objective is valid");
+    }
+
+    /// Runs recorded before objectives existed must stay valid.
+    #[test]
+    fn a_run_without_an_objective_remains_valid() {
+        assert!(request().scope_boundary.is_none());
+        validate_request(&request()).expect("legacy runs stay valid");
+    }
+
+    /// D3 check 2: the packet shows the objective beside what was excluded.
+    #[test]
+    fn the_packet_shows_the_objective_and_its_exclusions() {
+        let request = bounded(
+            &["a plan card exists naming the budget field"],
+            &["runtime budget enforcement"],
+        );
+        let rendered = render_review(&ReviewInputs {
+            request: &request,
+            literature: &literature(vec![
+                candidate("paper-0000", "aaa"),
+                candidate("paper-0001", "bbb"),
+            ]),
+            selection: &selection(),
+            readings: &readings(),
+            map: &mechanisms(),
+            plans: &plans(),
+            inherited: None,
+            evidence: None,
+        });
+        assert!(rendered.contains("## Objective"), "{rendered}");
+        assert!(rendered.contains("Complete when:"));
+        assert!(rendered.contains("a plan card exists naming the budget field"));
+        assert!(rendered.contains("Deliberately excluded:"));
+        assert!(rendered.contains("runtime budget enforcement"));
+
+        let objective = rendered.find("## Objective").expect("objective");
+        let mechanisms = rendered.find("## Proposed mechanisms").expect("mechanisms");
+        assert!(
+            objective < mechanisms,
+            "the boundary must precede the findings it bounds"
+        );
+    }
+}
+
+/// D3 check 3: a run proposing a Lab change still stops, and says why.
+#[test]
+fn the_meta_boundary_is_terminal_and_its_rationale_is_recorded() {
+    assert!(RunState::OwnerReviewed.is_terminal());
+    for state in [
+        RunState::Requested,
+        RunState::LiteratureRefreshed,
+        RunState::PapersSelected,
+        RunState::PapersRead,
+        RunState::MechanismsExtracted,
+        RunState::ImplementationPlansProposed,
+    ] {
+        assert!(!state.is_terminal(), "{state:?} must not end the lifecycle");
+    }
+
+    // The rationale lives on the invariant itself, where an editor removing the
+    // stop would have to read past it first.
+    let source = include_str!("../src/lab.rs");
+    let doc_start = source
+        .find("/// Whether the planning-only lifecycle ends here.")
+        .expect("is_terminal doc");
+    let doc = &source[doc_start..doc_start + 1600];
+    assert!(doc.contains("Metan"), "the rationale must cite its source");
+    assert!(doc.contains("stable"));
+    assert!(
+        doc.contains("separately authorized phase"),
+        "it must say what does happen instead"
+    );
 }
