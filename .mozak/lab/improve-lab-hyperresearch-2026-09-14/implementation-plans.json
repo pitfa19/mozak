@@ -1,0 +1,71 @@
+{
+  "contract_version": 1,
+  "run_id": "improve-b72c0ba7d046209c1807e342",
+  "plans": [
+    {
+      "id": "P1",
+      "title": "Multi-source literature refresh with exact provenance",
+      "mechanism_ids": [
+        "m-multi-refresh"
+      ],
+      "deliverables": [
+        "LiteratureRun supports multiple AdapterRunRef values",
+        "refresh identifies the actual matching binding instead of always selecting the first",
+        "cross-source dedup accounting and CLI receipts",
+        "tests covering DAIR.AI plus GitHub and rejected adapter/binding mismatches"
+      ],
+      "acceptance_checks": [
+        "A run ingests two validated adapter runs in order and retains both exact binding ids and artifact hashes",
+        "Refreshing with an adapter run that does not match any declared binding fails without advancing or writing partial state",
+        "Duplicate content across sources is represented once while preserving both provenance references"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "P2",
+      "title": "Question decomposition and coverage contract",
+      "mechanism_ids": [
+        "m-coverage-contract",
+        "m-resume-recommendation"
+      ],
+      "deliverables": [
+        "Decomposition artifact schema",
+        "bounded light/full tier rules",
+        "coverage gaps in status and owner review",
+        "exact next-step recommendation in status"
+      ],
+      "acceptance_checks": [
+        "Every atomic subquestion is covered or explicitly marked as a gap before selection completes",
+        "A light-tier run may use a smaller workflow without silently skipping required states",
+        "Status names one valid next command and the predecessor artifact it requires"
+      ],
+      "dependencies": [
+        "P1"
+      ]
+    },
+    {
+      "id": "P3",
+      "title": "Adversarial evidence and claim-verification gate",
+      "mechanism_ids": [
+        "m-adversarial-gap-loop",
+        "m-claim-verification"
+      ],
+      "deliverables": [
+        "Contradiction and overturning-source review artifact",
+        "single bounded gap-refresh transition",
+        "claim-to-pinned-bytes verification artifact",
+        "critical support failure gate in review"
+      ],
+      "acceptance_checks": [
+        "A mechanism supported only by a claim whose locator cannot be reproduced is rejected",
+        "One bounded gap refresh can add evidence while a second loop is refused unless a new run is opened",
+        "The owner packet lists unresolved contradictions, source limitations, and verification failures",
+        "Temporary full text is deleted while hashes, locators, and verification results remain reproducible"
+      ],
+      "dependencies": [
+        "P1",
+        "P2"
+      ]
+    }
+  ]
+}

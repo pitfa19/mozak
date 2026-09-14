@@ -1,0 +1,20 @@
+{
+  "contract_version": 1,
+  "run_id": "improve-b72c0ba7d046209c1807e342",
+  "included": [
+    {"paper_id": "paper-0006", "reason": "HyperResearch is the user-selected deep-research harness and directly documents staged decomposition, adversarial gap finding, claim verification, resumability, and provenance mechanisms relevant to improve-lab."}
+  ],
+  "excluded": [
+    {"paper_id": "paper-0000", "reason": "Codex activity metadata does not expose a research-improvement mechanism in this retrieval."},
+    {"paper_id": "paper-0001", "reason": "Utopia is knowledge-state tooling rather than a planning-only research review workflow."},
+    {"paper_id": "paper-0002", "reason": "Jcode activity metadata does not expose a research-improvement mechanism in this retrieval."},
+    {"paper_id": "paper-0003", "reason": "The MCP specification is not directly about evidence review or research planning."},
+    {"paper_id": "paper-0004", "reason": "Cognee is primarily memory infrastructure and is outside this run's bounded question."},
+    {"paper_id": "paper-0005", "reason": "Academic Research Skills is relevant but was not prioritized over the user's explicitly selected HyperResearch repository for this focused run."},
+    {"paper_id": "paper-0007", "reason": "Graphiti is memory infrastructure and is outside this run's bounded question."},
+    {"paper_id": "paper-0008", "reason": "Sigstore concerns supply-chain verification rather than research-claim verification."},
+    {"paper_id": "paper-0009", "reason": "Anthropic Skills activity metadata does not expose a research-improvement mechanism in this retrieval."},
+    {"paper_id": "paper-0010", "reason": "The MCP registry is tooling publication infrastructure rather than a research workflow."},
+    {"paper_id": "paper-0011", "reason": "in-toto concerns software supply-chain attestations rather than literature review."}
+  ]
+}

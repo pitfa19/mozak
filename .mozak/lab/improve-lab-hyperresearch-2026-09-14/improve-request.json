@@ -1,0 +1,16 @@
+{
+  "contract_version": 1,
+  "run_id": "improve-b72c0ba7d046209c1807e342",
+  "scope_id": "topic-agentic-systems",
+  "module": "improve-lab",
+  "question": "Which mechanisms from current deep-research systems should improve MOZAK's planning-only Self Improvement Lab while preserving explicit provenance, bounded evidence, and owner authority?",
+  "constraints": [
+    "planning only; no MOZAK code changes",
+    "full text is temporary; retain hashes and claims only"
+  ],
+  "adapter_bindings": [
+    "agentic-tooling-watch"
+  ],
+  "stop_at": "owner_reviewed",
+  "created_at": "2026-09-14T01:56:54Z"
+}

@@ -1,0 +1,28 @@
+{
+  "contract_version": 1,
+  "run_id": "improve-b72c0ba7d046209c1807e342",
+  "readings": [
+    {
+      "paper_id": "paper-0006",
+      "source_class": "documentation",
+      "source_uri": "recorded:github-tooling:jordan-gibbs/hyperresearch@v0.11.1",
+      "content_sha256": "3835bfb67113aa76953c3312f504d214ec0811204da7e5c5993d018b4efa89ff",
+      "read_depth": "documentation",
+      "claims": [
+        {"id": "hr-c1", "text": "HyperResearch decomposes a canonical query into atomic items and a coverage matrix, then routes work through tier-specific staged pipelines.", "origin": "source_claim", "locator": "README.md@v0.11.1, 'The 16-step research pipeline' steps 1-2 and 'Tiers and gears'"},
+        {"id": "hr-c2", "text": "The canonical user query is persisted once and re-read by each later step and subagent, while wrapper requirements remain a separate contract.", "origin": "source_claim", "locator": "README.md@v0.11.1, 'The two load-bearing principles', item 2"},
+        {"id": "hr-c3", "text": "The workflow explicitly searches for contradictions, asks what source would overturn the current direction, and performs targeted gap fetching before and after drafting.", "origin": "source_claim", "locator": "README.md@v0.11.1, pipeline steps 3, 8, 12, and 13"},
+        {"id": "hr-c4", "text": "Citation-sentence bindings, quote integrity, retraction checks, and unresolved critical findings are enforced as ship gates rather than advisory prose.", "origin": "source_claim", "locator": "README.md@v0.11.1, 'Runs: resumable, budgeted, verified' and 'What's structurally enforced'"},
+        {"id": "hr-c5", "text": "Each run has an isolated manifest, exposes step-by-step status, and can resume at the exact next step after interruption.", "origin": "source_claim", "locator": "README.md@v0.11.1, 'Runs: resumable, budgeted, verified'"},
+        {"id": "hr-c6", "text": "HyperResearch's benchmark lead is described as an internal forward-looking projection with third-party validation still pending.", "origin": "source_claim", "locator": "README.md@v0.11.1, benchmark caption and opening claims"}
+      ],
+      "limitations": [
+        "Repository documentation is self-authored and not independent validation of effectiveness.",
+        "The GitHub adapter retained only repository metadata; README v0.11.1 was read separately and is identified by tag and section locators, but its byte hash is not pinned by the Lab candidate contract.",
+        "The headline benchmark claim is internally benchmarked and explicitly awaits third-party validation.",
+        "HyperResearch retains full source text persistently, while MOZAK's Lab requires temporary full text and must adapt mechanisms without copying that retention policy."
+      ],
+      "retained_full_text": false
+    }
+  ]
+}
