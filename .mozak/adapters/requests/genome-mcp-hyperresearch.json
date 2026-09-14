@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "scope_id": "genome-mcp",
+  "scope_id": "topic-genome-family",
   "vault_root": "/home/pitfa/Documents/research-vaults/genome-mcp",
   "select": {
     "note_ids": [],
     "tags": []
   },
   "max_records": 100,
-  "question": "Which sources has HyperResearch read into the genome-mcp vault as candidate evidence for this Scope family?"
+  "question": "Which sources has HyperResearch read into the topic-genome-family vault as candidate evidence for this family?"
 }

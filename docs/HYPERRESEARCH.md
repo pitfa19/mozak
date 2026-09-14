@@ -165,10 +165,14 @@ evidence itself.
 
 ## One vault per Scope family
 
-A Scope is already the container for a family of related repositories: `rinalmo2`
-covers RiNALMo and RiNALMo2, `genome` covers the MCP, its benchmark, and its
-paper. Research belongs at that level, because a question about the family is
-rarely a question about one checkout.
+A Scope is already the container for a family of related work: `genome` covers
+the MCP, its benchmark, and its paper; `rinalmo2` covers the RiNALMo2 project and
+the upstream RiNALMo lineage it succeeds. Research belongs at that level, because
+a question about the family is rarely a question about one checkout.
+
+A vault is bound to a *family topic* rather than to one project, because evidence
+about a lineage is not owned by any single repository in it. The installer
+targets `topic-<family>-family` for exactly that reason.
 
 ```bash
 MOZAK=<repo>/target/release/mozak \
@@ -207,3 +211,16 @@ Snapshotting a vault with no matching note fails with a message saying the vault
 is empty or the selection matched nothing, and writes no run. A run asserting
 that zero sources were read would be an artifact carrying no observation, and it
 would sit in the evidence store looking like a finding.
+
+### Upstream repositories are not bound as projects
+
+A family often includes code someone else maintains. The original RiNALMo is
+upstream work by other authors; binding it as a project would have MOZAK claim
+owned paths in a repository the owner does not own, and a project manifest is a
+statement of ownership rather than of interest.
+
+Such a repository enters the family as *subject matter*, not as a bound project:
+its paper and its README are fetched into the family vault like any other source,
+and the family topic's intent names the lineage explicitly. `mozak kb tree` then
+shows the family, and the evidence is addressable, without MOZAK asserting
+authority it does not have.
