@@ -257,3 +257,28 @@ A failed snapshot leaves no run directory. That matters twice: a partial run loo
 like evidence while holding none, and since the route refuses to overwrite an
 existing directory, residue would block every retry until someone deleted it by
 hand. Only a completed fixture earns a directory that persists.
+
+## The full pipeline needs Claude Code
+
+The CLI half runs on its own. The 16-step pipeline is built from Claude Code
+skills and subagents, so it needs Claude Code installed and logged in, and its
+subagent roster spends Anthropic usage.
+
+```bash
+npm install -g @anthropic-ai/claude-code
+claude                                  # log in once
+cd <vault> && hyperresearch install     # 19 skills, 16 subagents
+```
+
+Installing also sets up crawl4ai, which is the fetch path the pipeline is tuned
+for. Without it the default `builtin` provider does plain HTTP and no search.
+
+### Paywalls are normal, and recovery handles them
+
+A major publisher will often block a headless fetch outright. Fetching by DOI
+rather than by publisher URL lets open-access recovery do its job: a blocked
+request becomes a lookup through Unpaywall, Europe PMC and CORE, and the note
+records `oa_recovery_kind: rescued` with `nothing_from_source: true` when every
+word came from the open copy instead. Set `HYPERRESEARCH_CONTACT_EMAIL` to a
+real address, which Unpaywall's terms require and which also buys the OpenAlex
+and Crossref polite pools.
