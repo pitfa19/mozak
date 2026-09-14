@@ -20,6 +20,9 @@ fn request() -> ImproveRequest {
         adapter_bindings: vec!["agentic-systems-dair-ai".to_owned()],
         stop_at: RunState::OwnerReviewed,
         created_at: "2026-09-06T00:00:00Z".to_owned(),
+        performed_by: None,
+        evaluated_by: None,
+        acceptance: None,
     }
 }
 
@@ -412,4 +415,207 @@ fn module_identifiers_round_trip() {
         assert!(!module.source_areas().is_empty());
     }
     assert!(Module::parse("nonexistent").is_err());
+}
+
+/// D2: a Lab run must not read as though someone else checked it.
+///
+/// The case-record contract already refuses to call review independent when one
+/// actor both performed and evaluated the work. A Lab run could not express the
+/// distinction at all, so a self-accepted run was indistinguishable from a
+/// reviewed one. These tests pin the rule at the same strength, in the same
+/// vocabulary.
+mod acceptance {
+    use super::*;
+    use mozak_core::lab::AcceptanceKind;
+
+    fn with_actors(performed: &str, evaluated: &str) -> ImproveRequest {
+        ImproveRequest {
+            performed_by: Some(performed.to_owned()),
+            evaluated_by: Some(evaluated.to_owned()),
+            acceptance: None,
+            ..request()
+        }
+    }
+
+    #[test]
+    fn one_actor_is_self_review_and_two_are_independent() {
+        assert_eq!(
+            with_actors("pitfa", "pitfa").derived_acceptance(),
+            Some(AcceptanceKind::SelfReview)
+        );
+        assert_eq!(
+            with_actors("pitfa", "a reviewer").derived_acceptance(),
+            Some(AcceptanceKind::Independent)
+        );
+    }
+
+    /// Whitespace must not manufacture a second actor.
+    #[test]
+    fn surrounding_whitespace_does_not_create_independence() {
+        assert_eq!(
+            with_actors("pitfa", "  pitfa  ").derived_acceptance(),
+            Some(AcceptanceKind::SelfReview)
+        );
+    }
+
+    #[test]
+    fn a_run_cannot_claim_independence_it_does_not_have() {
+        let mut overclaiming = with_actors("pitfa", "pitfa");
+        overclaiming.acceptance = Some(AcceptanceKind::Independent);
+        let error = validate_request(&overclaiming)
+            .expect_err("must be refused")
+            .0;
+        assert!(
+            error.contains("same actor performed and evaluated"),
+            "{error}"
+        );
+    }
+
+    /// The inverse also fails: understating is still a claim that disagrees
+    /// with the actors, and the actors are the fact.
+    #[test]
+    fn a_run_cannot_understate_a_real_independent_review() {
+        let mut understating = with_actors("pitfa", "a reviewer");
+        understating.acceptance = Some(AcceptanceKind::SelfReview);
+        assert!(validate_request(&understating).is_err());
+    }
+
+    #[test]
+    fn an_honest_claim_is_accepted() {
+        let mut honest = with_actors("pitfa", "pitfa");
+        honest.acceptance = Some(AcceptanceKind::SelfReview);
+        validate_request(&honest).expect("self_review with one actor is honest");
+
+        let mut independent = with_actors("pitfa", "a reviewer");
+        independent.acceptance = Some(AcceptanceKind::Independent);
+        validate_request(&independent).expect("independent with two actors is honest");
+    }
+
+    /// A half-recorded pair cannot be checked against anything, so it would let
+    /// an unverifiable claim sit in the record looking verified.
+    #[test]
+    fn recording_one_actor_without_the_other_is_refused() {
+        let mut half = request();
+        half.performed_by = Some("pitfa".to_owned());
+        let error = validate_request(&half).expect_err("must be refused").0;
+        assert!(error.contains("or neither"), "{error}");
+
+        let mut other_half = request();
+        other_half.evaluated_by = Some("pitfa".to_owned());
+        assert!(validate_request(&other_half).is_err());
+    }
+
+    #[test]
+    fn acceptance_cannot_be_claimed_without_actors() {
+        let mut claimed = request();
+        claimed.acceptance = Some(AcceptanceKind::Independent);
+        let error = validate_request(&claimed).expect_err("must be refused").0;
+        assert!(error.contains("without recording"), "{error}");
+    }
+
+    /// A run recorded before acceptance existed reports nothing rather than a
+    /// default, because silence and self-review are different states.
+    #[test]
+    fn a_legacy_run_without_actors_reports_no_acceptance() {
+        assert_eq!(request().derived_acceptance(), None);
+        validate_request(&request()).expect("a run predating acceptance stays valid");
+    }
+}
+
+/// D2: the packet must say who checked the run, and what validity means.
+mod packet_disclosure {
+    use super::*;
+    use mozak_core::lab::{AcceptanceKind, render_review};
+
+    fn packet(performed: Option<&str>, evaluated: Option<&str>) -> String {
+        let request = ImproveRequest {
+            performed_by: performed.map(str::to_owned),
+            evaluated_by: evaluated.map(str::to_owned),
+            acceptance: match (performed, evaluated) {
+                (Some(p), Some(e)) => Some(AcceptanceKind::derive(p, e)),
+                _ => None,
+            },
+            ..request()
+        };
+        render_review(
+            &request,
+            &literature(vec![
+                candidate("paper-0000", "aaa"),
+                candidate("paper-0001", "bbb"),
+            ]),
+            &selection(),
+            &readings(),
+            &mechanisms(),
+            &plans(),
+        )
+    }
+
+    #[test]
+    fn a_self_reviewed_run_says_so_prominently() {
+        let rendered = packet(Some("pitfa"), Some("pitfa"));
+        assert!(rendered.contains("self-review"), "{rendered}");
+        assert!(
+            rendered.contains("both performed and accepted"),
+            "the label must say what it means, not only name itself"
+        );
+    }
+
+    #[test]
+    fn an_independent_run_names_both_actors() {
+        let rendered = packet(Some("pitfa"), Some("a reviewer"));
+        assert!(rendered.contains("independent"));
+        assert!(rendered.contains("a reviewer"));
+    }
+
+    #[test]
+    fn an_unrecorded_acceptance_is_not_silently_a_self_review() {
+        let rendered = packet(None, None);
+        assert!(rendered.contains("not recorded"), "{rendered}");
+        assert!(!rendered.contains("self-review"));
+    }
+
+    /// Acceptance qualifies the findings, so it must arrive before them.
+    #[test]
+    fn acceptance_appears_before_the_mechanisms_it_qualifies() {
+        let rendered = packet(Some("pitfa"), Some("pitfa"));
+        let acceptance = rendered.find("Acceptance:").expect("acceptance line");
+        let mechanisms = rendered
+            .find("## Proposed mechanisms")
+            .expect("mechanisms section");
+        assert!(acceptance < mechanisms);
+    }
+
+    #[test]
+    fn the_packet_states_that_validity_is_structural_only() {
+        let rendered = packet(Some("pitfa"), Some("pitfa"));
+        assert!(rendered.contains("structural conformance"), "{rendered}");
+        assert!(
+            rendered.contains("not evidence that they are"),
+            "a valid run must not read as a verdict on the work"
+        );
+    }
+}
+
+/// D2 check 4: the Lab and case records must name acceptance the same way.
+///
+/// Two vocabularies for one idea would let a reader think a self-reviewed Lab
+/// run and a self-reviewed case were different kinds of claim.
+#[test]
+fn lab_and_case_records_use_one_acceptance_vocabulary() {
+    use mozak_core::case_study::ReviewKind;
+    use mozak_core::lab::AcceptanceKind;
+
+    let lab_self = serde_json::to_string(&AcceptanceKind::SelfReview).expect("json");
+    let case_self = serde_json::to_string(&ReviewKind::SelfReview).expect("json");
+    assert_eq!(
+        lab_self, case_self,
+        "self-review must serialize identically"
+    );
+
+    let lab_independent = serde_json::to_string(&AcceptanceKind::Independent).expect("json");
+    let case_independent = serde_json::to_string(&ReviewKind::Independent).expect("json");
+    assert_eq!(lab_independent, case_independent);
+
+    assert_eq!(AcceptanceKind::SelfReview.as_str(), "self_review");
+    assert_eq!(AcceptanceKind::Independent.as_str(), "independent");
 }

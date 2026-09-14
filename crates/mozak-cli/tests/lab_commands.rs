@@ -583,3 +583,120 @@ fn refresh_is_the_first_step_after_start() {
     let value: serde_json::Value = serde_json::from_str(&stdout).expect("json");
     assert_eq!(value["state"], "literature_refreshed");
 }
+
+/// D2: acceptance must be recorded automatically and honestly.
+///
+/// An owner will not hand-write who reviewed a run, so if the CLI does not
+/// record it the field stays empty and the packet keeps reading as though
+/// someone had checked the work. These tests pin the default and the override.
+#[test]
+fn a_run_records_self_review_by_default_and_says_so_in_the_packet() {
+    let workspace = Workspace::new("acceptance-default");
+    registry(&workspace);
+    let run_id = start_run(&workspace, "agentic-systems-dair-ai");
+    let run_dir = workspace.path("run");
+    let run_dir_str = run_dir.to_str().expect("path").to_owned();
+
+    let request: serde_json::Value = serde_json::from_str(
+        &fs::read_to_string(run_dir.join("improve-request.json")).expect("request"),
+    )
+    .expect("json");
+    assert_eq!(
+        request["acceptance"], "self_review",
+        "one actor performing and accepting is a self-review"
+    );
+    assert_eq!(request["performed_by"], request["evaluated_by"]);
+
+    let adapter = adapter_run(&workspace);
+    workspace.run(&[
+        "lab",
+        "refresh",
+        &run_dir_str,
+        adapter.to_str().expect("path"),
+    ]);
+    let selection = selection_for(&workspace, &run_id, &["paper-0000"]);
+    workspace.run(&[
+        "lab",
+        "select",
+        &run_dir_str,
+        selection.to_str().expect("path"),
+    ]);
+    let readings = workspace.write(
+        "readings.json",
+        &format!(
+            r#"{{"contract_version":1,"run_id":"{run_id}","readings":[{{"paper_id":"paper-0000","source_class":"preprint","source_uri":"https://example.org/a","content_sha256":"hash-a","read_depth":"full_text","claims":[{{"id":"c1","text":"budgets help","origin":"source_claim","locator":"s4"}}],"limitations":["one benchmark"],"retained_full_text":false}}]}}"#
+        ),
+    );
+    workspace.run(&[
+        "lab",
+        "read",
+        &run_dir_str,
+        readings.to_str().expect("path"),
+    ]);
+    let mechanisms = workspace.write(
+        "mechanisms.json",
+        &format!(
+            r#"{{"contract_version":1,"run_id":"{run_id}","mechanisms":[{{"id":"m1","proposed_mechanism":"declare budgets","affected_contract":"planning::Plan","expected_benefit":"comparable runs","risks":["drift"],"supporting_claim_ids":["c1"]}}]}}"#
+        ),
+    );
+    workspace.run(&[
+        "lab",
+        "mechanisms",
+        &run_dir_str,
+        mechanisms.to_str().expect("path"),
+    ]);
+    let plans = workspace.write(
+        "plans.json",
+        &format!(
+            r#"{{"contract_version":1,"run_id":"{run_id}","plans":[{{"id":"P1","title":"budgets","mechanism_ids":["m1"],"deliverables":["field"],"acceptance_checks":["valid plan passes","bad plan fails"],"dependencies":[]}}]}}"#
+        ),
+    );
+    workspace.run(&["lab", "plans", &run_dir_str, plans.to_str().expect("path")]);
+
+    let (ok, stdout, stderr) = workspace.run(&["lab", "review", &run_dir_str]);
+    assert!(ok, "{stderr}");
+    let receipt: serde_json::Value = serde_json::from_str(&stdout).expect("json");
+    assert_eq!(receipt["acceptance"], "self_review");
+    assert!(
+        receipt["validation_boundary"]
+            .as_str()
+            .expect("boundary")
+            .contains("structural"),
+        "a receipt must name what its validity covers"
+    );
+
+    let packet = fs::read_to_string(run_dir.join("review.md")).expect("review");
+    assert!(packet.contains("self-review"), "{packet}");
+    assert!(packet.contains("structural conformance"));
+
+    let (ok, stdout, stderr) = workspace.run(&["lab", "status", &run_dir_str]);
+    assert!(ok, "{stderr}");
+    let status: serde_json::Value = serde_json::from_str(&stdout).expect("json");
+    assert_eq!(status["acceptance"], "self_review");
+}
+
+#[test]
+fn naming_a_second_reviewer_makes_the_run_independent() {
+    let workspace = Workspace::new("acceptance-independent");
+    registry(&workspace);
+    let run_dir = workspace.path("run");
+    let output = std::process::Command::new(binary())
+        .args([
+            "lab",
+            "start",
+            run_dir.to_str().expect("path"),
+            "topic-agentic-systems",
+            "plans",
+            "How should planning represent budgets?",
+            "agentic-systems-dair-ai",
+        ])
+        .env("HOME", &workspace.root)
+        .env("MOZAK_EVALUATED_BY", "an independent reviewer")
+        .output()
+        .expect("run mozak");
+    assert!(output.status.success());
+    let receipt: serde_json::Value = serde_json::from_slice(&output.stdout).expect("json");
+    assert_eq!(receipt["acceptance"], "independent");
+    assert_eq!(receipt["evaluated_by"], "an independent reviewer");
+    assert_ne!(receipt["performed_by"], receipt["evaluated_by"]);
+}

@@ -112,6 +112,17 @@ fn start(
         adapter_bindings: bindings.to_vec(),
         stop_at: RunState::OwnerReviewed,
         created_at: created_at.clone(),
+        // The actor that runs the CLI authors the run. Absent a second actor,
+        // the honest label is self-review, and recording it here is what stops
+        // the packet from reading as though someone else had checked the work.
+        // MOZAK_EVALUATED_BY names a real second reviewer when there is one.
+        performed_by: Some(actor()),
+        evaluated_by: Some(env::var("MOZAK_EVALUATED_BY").unwrap_or_else(|_| actor())),
+        acceptance: None,
+    };
+    let request = ImproveRequest {
+        acceptance: request.derived_acceptance(),
+        ..request
     };
     validate_request(&request).map_err(|error| error.to_string())?;
 
@@ -146,6 +157,10 @@ fn start(
         "state": ledger.state.as_str(),
         "stop_at": ledger.stop_at.as_str(),
         "adapter_bindings": bindings,
+        "performed_by": request.performed_by,
+        "evaluated_by": request.evaluated_by,
+        "acceptance": request.acceptance.map(mozak_core::lab::AcceptanceKind::as_str),
+        "validation_boundary": "structural conformance to the Lab contract only; it asserts nothing about whether the work is sound",
     }))
 }
 
@@ -393,6 +408,8 @@ fn review(run_dir: &Path) -> Result<ExitCode, String> {
         "run_id": request.run_id,
         "state": ledger.state.as_str(),
         "review": display(&review_path),
+        "acceptance": request.acceptance.map(mozak_core::lab::AcceptanceKind::as_str),
+        "validation_boundary": "structural conformance to the Lab contract only; it asserts nothing about whether the mechanisms are sound",
         "next": "owner decision required; implementation is not authorized by this run",
     }))
 }
@@ -400,6 +417,12 @@ fn review(run_dir: &Path) -> Result<ExitCode, String> {
 /// Reports the current position of a run.
 fn status(run_dir: &Path) -> Result<ExitCode, String> {
     let ledger: RunLedger = read_json(&run_dir.join(LEDGER_FILE))?;
+    // Status reads the request when it can, so acceptance is visible without
+    // opening the packet. A run recorded before acceptance existed reports
+    // null rather than a guess.
+    let acceptance = read_json::<ImproveRequest>(&run_dir.join(REQUEST_FILE))
+        .ok()
+        .and_then(|request| request.acceptance);
     print_json(&json!({
         "schema_version": 1,
         "command": "lab status",
@@ -411,6 +434,7 @@ fn status(run_dir: &Path) -> Result<ExitCode, String> {
         "terminal": ledger.state.is_terminal(),
         "transitions": ledger.transitions.len(),
         "tracked_sources": ledger.seen_sources.len(),
+        "acceptance": acceptance.map(mozak_core::lab::AcceptanceKind::as_str),
     }))
 }
 
