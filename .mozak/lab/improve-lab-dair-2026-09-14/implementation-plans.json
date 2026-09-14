@@ -1,0 +1,99 @@
+{
+  "contract_version": 1,
+  "run_id": "improve-77388f6038bb61bcacbc6ef6",
+  "plans": [
+    {
+      "id": "D1",
+      "title": "Scope evidence state that survives between runs",
+      "mechanism_ids": [
+        "m-evidence-state-carry",
+        "m-validated-becomes-preservation"
+      ],
+      "deliverables": [
+        "An evidence-state artifact owned by a Scope, separate from accepted inputs",
+        "Entries carrying claim, status of held, unsupported or open failure, and the run that recorded it",
+        "lab start reads existing evidence state and reports what is already known",
+        "Verified claims emit named preservation requirements",
+        "Tests covering carry-forward, contradiction between runs, and the owner-gate boundary"
+      ],
+      "acceptance_checks": [
+        "A second Lab run on the same Scope reads the first run's evidence state instead of starting empty",
+        "A claim recorded as verified appears as a preservation requirement in a later run's packet",
+        "Evidence state cannot become an accepted planning input without the ordinary owner approval",
+        "A later run recording a claim that contradicts an earlier held claim is surfaced rather than silently overwriting it"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "D2",
+      "title": "Honest acceptance labelling in Lab runs",
+      "mechanism_ids": [
+        "m-independent-acceptance-role",
+        "m-structural-checks-are-not-outcome"
+      ],
+      "deliverables": [
+        "performed_by and evaluated_by fields on a Lab run, mirroring the case contract",
+        "The review packet states self_review when the two match",
+        "Validation receipts state that they check structural conformance only",
+        "Tests asserting a run cannot claim independent acceptance when author and acceptor are the same"
+      ],
+      "acceptance_checks": [
+        "A run whose author and acceptor are the same is labelled self_review in the rendered packet",
+        "A run claiming independent acceptance with matching actors is rejected",
+        "Every validation receipt names its boundary, so a valid receipt cannot be read as an outcome claim",
+        "The existing case-record rule and the new Lab rule use the same vocabulary"
+      ],
+      "dependencies": [
+        "D1"
+      ]
+    },
+    {
+      "id": "D3",
+      "title": "Bounded objective and a defended meta-boundary",
+      "mechanism_ids": [
+        "m-bounded-objective-per-run",
+        "m-fixed-meta-operation"
+      ],
+      "deliverables": [
+        "A declared objective with observable completion conditions, recorded before selection",
+        "An explicit exclusion list stating what the run is not covering",
+        "The improve-lab module boundary documented as a deliberate invariant with its stability rationale",
+        "Tests covering an objective with no completion condition and a run attempting to apply its own proposal"
+      ],
+      "acceptance_checks": [
+        "A run without observable completion conditions is rejected before selection",
+        "The packet shows the declared objective beside what the run excluded",
+        "A run proposing a change to the Lab contract still stops at owner_reviewed and applies nothing",
+        "The invariant's rationale is recorded where a future editor would encounter it"
+      ],
+      "dependencies": [
+        "D1"
+      ]
+    },
+    {
+      "id": "D4",
+      "title": "Paired trials and versioned gate criteria",
+      "mechanism_ids": [
+        "m-paired-mechanism-trial",
+        "m-gate-lifecycle"
+      ],
+      "deliverables": [
+        "A paired-observation artifact holding the mechanism under test with agent, harness, environment and grader fixed",
+        "A promotion gate requiring either a paired observation or a recorded reason why one is impractical",
+        "Each acceptance gate declares its criteria and the date they last changed",
+        "Tests covering an uncontrolled pair, a missing fixed condition, and a gate whose recorded criteria drift from its implementation"
+      ],
+      "acceptance_checks": [
+        "A paired observation that fails to hold a declared condition fixed is rejected rather than reported as a result",
+        "A mechanism promoted without a paired observation carries a recorded reason in the packet",
+        "A gate whose declared criteria no longer match its implemented check is reported as drift",
+        "The contribution of a mechanism is reported as a difference under fixed conditions, never as an absolute quality claim"
+      ],
+      "dependencies": [
+        "D1",
+        "D2",
+        "D3"
+      ]
+    }
+  ]
+}

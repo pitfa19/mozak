@@ -1,0 +1,224 @@
+{
+  "contract_version": 1,
+  "run_id": "improve-77388f6038bb61bcacbc6ef6",
+  "adapter_runs": [
+    {
+      "binding_id": "agentic-systems-dair-ai",
+      "adapter_id": "adapter-dair-ai-v1",
+      "adapter_run_id": "run-03cd23e62ee33913a97b318a",
+      "artifact_hash": "405d6e44d8c316ae416d57ba1c623fd3666d0f2ee10815dfa6749c878b71cd2d",
+      "source_revision": "789f644f9cf213c192e5625fecbc57e580a4cced"
+    }
+  ],
+  "candidates": [
+    {
+      "paper_id": "paper-0000",
+      "title": "Skill Lift",
+      "source_uri": "recorded:dair-ai:789f644f9cf213c192e5625fecbc57e580a4cced:0",
+      "content_sha256": "0d385bca74463b13e613f68c2b32658923821fd151d9bd66fac2ab2920160642",
+      "clusters": [
+        "topologies",
+        "budgets",
+        "containment",
+        "harness-evidence"
+      ]
+    },
+    {
+      "paper_id": "paper-0001",
+      "title": "CORAL",
+      "source_uri": "recorded:dair-ai:789f644f9cf213c192e5625fecbc57e580a4cced:1",
+      "content_sha256": "a1a0485b2ae46cb174d5e7003c7ada7b4e8ee15cbf9f38d1b989016912b41a24",
+      "clusters": [
+        "topologies",
+        "containment",
+        "harness-evidence"
+      ]
+    },
+    {
+      "paper_id": "paper-0002",
+      "title": "E-Commerce Bench",
+      "source_uri": "recorded:dair-ai:789f644f9cf213c192e5625fecbc57e580a4cced:2",
+      "content_sha256": "fd084e45428632b32dcea486ff4e7924e638daa35597f9dd6c75eee56a06b4d6",
+      "clusters": [
+        "budgets",
+        "context-memory",
+        "harness-evidence"
+      ]
+    },
+    {
+      "paper_id": "paper-0003",
+      "title": "Prime Agent",
+      "source_uri": "recorded:dair-ai:789f644f9cf213c192e5625fecbc57e580a4cced:3",
+      "content_sha256": "91772eef47994d59c1feebc94bcc3d15e3fce6ab4f7431538771f528401948bc",
+      "clusters": [
+        "topologies",
+        "context-memory",
+        "skills"
+      ]
+    },
+    {
+      "paper_id": "paper-0004",
+      "title": "Harness-of-Harness",
+      "source_uri": "recorded:dair-ai:789f644f9cf213c192e5625fecbc57e580a4cced:4",
+      "content_sha256": "275bc502387f256e3257ffe8cbb107e8e1a634e7dd0e3c1a621c11ecccfb8e98",
+      "clusters": [
+        "topologies",
+        "harness-evidence"
+      ]
+    },
+    {
+      "paper_id": "paper-0005",
+      "title": "Context Management as Code",
+      "source_uri": "recorded:dair-ai:789f644f9cf213c192e5625fecbc57e580a4cced:5",
+      "content_sha256": "3dc19319d94a64a54a8914db0aa93c67080af3b92d6b9af153a1f357482be798",
+      "clusters": [
+        "context-memory",
+        "containment"
+      ]
+    },
+    {
+      "paper_id": "paper-0006",
+      "title": "JIT-Agent",
+      "source_uri": "recorded:dair-ai:789f644f9cf213c192e5625fecbc57e580a4cced:6",
+      "content_sha256": "ee5664aab00f2a925ab242c680acae9c1775fce95b57f1b42d0ee28f0501ed20",
+      "clusters": [
+        "topologies",
+        "context-memory"
+      ]
+    },
+    {
+      "paper_id": "paper-0007",
+      "title": "Recuris",
+      "source_uri": "recorded:dair-ai:789f644f9cf213c192e5625fecbc57e580a4cced:7",
+      "content_sha256": "9ca661b8db96b5fd4cf15402059843a704ee9e5c484309be2f1b93941f838a10",
+      "clusters": [
+        "context-memory",
+        "harness-evidence"
+      ]
+    },
+    {
+      "paper_id": "paper-0008",
+      "title": "EvoMal",
+      "source_uri": "recorded:dair-ai:789f644f9cf213c192e5625fecbc57e580a4cced:8",
+      "content_sha256": "e436b402d8046314ff79a9497456a79846a331d3f3890661af71b459d346df58",
+      "clusters": [
+        "containment",
+        "harness-evidence"
+      ]
+    },
+    {
+      "paper_id": "paper-0009",
+      "title": "SKILL.state",
+      "source_uri": "recorded:dair-ai:789f644f9cf213c192e5625fecbc57e580a4cced:9",
+      "content_sha256": "c5d280285056a6492b80cf9c8a1b1f9e21def9dc44241b2c2a793de3e03e402b",
+      "clusters": [
+        "context-memory"
+      ]
+    },
+    {
+      "paper_id": "paper-0010",
+      "title": "Selective Forgetting",
+      "source_uri": "recorded:dair-ai:789f644f9cf213c192e5625fecbc57e580a4cced:10",
+      "content_sha256": "a344f6d6db576f3ed43a4bc3b1fb0db2e620238fb000aa5090df3cd980512355",
+      "clusters": [
+        "harness-evidence"
+      ]
+    },
+    {
+      "paper_id": "paper-0011",
+      "title": "Runtime-Independent Persistent Agents",
+      "source_uri": "recorded:dair-ai:789f644f9cf213c192e5625fecbc57e580a4cced:11",
+      "content_sha256": "87729f1529c27665f2e00d9dfd3abcd698258ee7cc8d3c4fef3fc1e9d305f1d9",
+      "clusters": [
+        "topologies"
+      ]
+    },
+    {
+      "paper_id": "paper-0012",
+      "title": "Judges as a Lifecycle",
+      "source_uri": "recorded:dair-ai:789f644f9cf213c192e5625fecbc57e580a4cced:12",
+      "content_sha256": "b75b07b0bb8613b6551d527946b46ccf02b57c9d6d93d771ad19d7f794a86265",
+      "clusters": [
+        "harness-evidence"
+      ]
+    },
+    {
+      "paper_id": "paper-0013",
+      "title": "What Compaction Destroys",
+      "source_uri": "recorded:dair-ai:789f644f9cf213c192e5625fecbc57e580a4cced:13",
+      "content_sha256": "ad5fe94bf9c340e2c46735930de63036b9a55a34a0c276afac1e8608637124d2",
+      "clusters": [
+        "context-memory"
+      ]
+    },
+    {
+      "paper_id": "paper-0014",
+      "title": "Co-Scientist in Real Labs",
+      "source_uri": "recorded:dair-ai:789f644f9cf213c192e5625fecbc57e580a4cced:14",
+      "content_sha256": "fb167370d6735c13e9d67dcb4857c7f09d204c9ac242665fd18edb3ea766361c",
+      "clusters": [
+        "harness-evidence"
+      ]
+    },
+    {
+      "paper_id": "paper-0015",
+      "title": "Meta^n",
+      "source_uri": "recorded:dair-ai:789f644f9cf213c192e5625fecbc57e580a4cced:15",
+      "content_sha256": "29d3c59d32c7a284f58903b630efe61d85b4fec84e6ffedeceaffec8a7ae6fc4",
+      "clusters": [
+        "skills"
+      ]
+    },
+    {
+      "paper_id": "paper-0016",
+      "title": "Declarative Attention",
+      "source_uri": "recorded:dair-ai:789f644f9cf213c192e5625fecbc57e580a4cced:16",
+      "content_sha256": "d86c2ae2819c8f0a452f778d45796acae07a3a6e41512c9221940a53f1d3b009",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0017",
+      "title": "WikiSkill",
+      "source_uri": "recorded:dair-ai:789f644f9cf213c192e5625fecbc57e580a4cced:17",
+      "content_sha256": "aecfcf821eb20c2ea2aa54362dab9677cdc724186941c9e2da78f8eba56a13df",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0018",
+      "title": "AI Research Preference Models",
+      "source_uri": "recorded:dair-ai:789f644f9cf213c192e5625fecbc57e580a4cced:18",
+      "content_sha256": "ce84ea4fe62846290afd9b3fc922a3dee63016597f26f258b8f2afa12d76f869",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0019",
+      "title": "Trace as State",
+      "source_uri": "recorded:dair-ai:789f644f9cf213c192e5625fecbc57e580a4cced:19",
+      "content_sha256": "2760b7ac0d4272db1a155b5b0e51bbe8856b6b34adb727913850a178d2d91657",
+      "clusters": []
+    }
+  ],
+  "new_candidates": [
+    "paper-0000",
+    "paper-0001",
+    "paper-0002",
+    "paper-0003",
+    "paper-0004",
+    "paper-0005",
+    "paper-0006",
+    "paper-0007",
+    "paper-0008",
+    "paper-0009",
+    "paper-0010",
+    "paper-0011",
+    "paper-0012",
+    "paper-0013",
+    "paper-0014",
+    "paper-0015",
+    "paper-0016",
+    "paper-0017",
+    "paper-0018",
+    "paper-0019"
+  ],
+  "unchanged_candidates": []
+}

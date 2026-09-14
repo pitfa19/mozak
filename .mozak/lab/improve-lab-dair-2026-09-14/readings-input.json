@@ -1,0 +1,174 @@
+{
+  "contract_version": 1,
+  "run_id": "improve-77388f6038bb61bcacbc6ef6",
+  "readings": [
+    {
+      "paper_id": "paper-0004",
+      "source_class": "preprint",
+      "source_uri": "recorded:dair-ai:789f644f9cf213c192e5625fecbc57e580a4cced#harness-of-harness",
+      "content_sha256": "275bc502387f256e3257ffe8cbb107e8e1a634e7dd0e3c1a621c11ecccfb8e98",
+      "read_depth": "full_text",
+      "claims": [
+        {
+          "id": "hoh-c1",
+          "text": "HoH carries two complementary states across every loop boundary: an artifact state holding the current implementation, and a separate evidence state recording which behaviours were verified, which claims remain unsupported, and which observed failures still require work. Neither subsumes the other.",
+          "origin": "source_claim",
+          "locator": "arXiv:2609.01481 §3.3 Cross-Loop State Management"
+        },
+        {
+          "id": "hoh-c2",
+          "text": "A later loop receiving only the artifact must reconstruct development state from the implementation, and that reconstruction can overlook unmet requirements, repeat work whose outcome is already known, forget unresolved failures, or regress validated behaviour.",
+          "origin": "source_claim",
+          "locator": "arXiv:2609.01481 §3.3, paragraph 1"
+        },
+        {
+          "id": "hoh-c3",
+          "text": "Acceptance must be determined from observations of a fixed candidate by a role that did not produce that candidate, because the implementing agent's completion claim cannot establish that the intended behaviour is present.",
+          "origin": "source_claim",
+          "locator": "arXiv:2609.01481 §3.4 Implementation of a HoH Loop"
+        },
+        {
+          "id": "hoh-c4",
+          "text": "Each loop selects one coherent objective grouping interdependent work for an observable increment while excluding unrelated changes, and establishing that scope before artifact modification gives the increment observable completion conditions.",
+          "origin": "source_claim",
+          "locator": "arXiv:2609.01481 §3.2 and §3.4"
+        },
+        {
+          "id": "hoh-c5",
+          "text": "Validated behaviour identified by evaluation becomes a preservation requirement for subsequent loops, so evidence constrains later work rather than only informing it.",
+          "origin": "source_claim",
+          "locator": "arXiv:2609.01481 §3.2, evaluation-informs-next-objective paragraph"
+        },
+        {
+          "id": "hoh-c6",
+          "text": "Reported gains are an average relative 52.25 percent and a maximum 82.86 percent after three iterations across three harness-model pairs on three benchmarks.",
+          "origin": "source_claim",
+          "locator": "arXiv:2609.01481 abstract"
+        }
+      ],
+      "limitations": [
+        "The benchmarks are software-development tasks with executable tests. MOZAK's Lab produces reviewable plans, where no equivalent automatic grader exists, so the reported gains do not transfer as numbers.",
+        "The three-role separation assumes each role can invoke a model. MOZAK's Lab is a contract over artifacts authored by one agent, so independence must be structural rather than organizational.",
+        "A preprint reporting its own framework's gains, with no independent replication cited."
+      ],
+      "retained_full_text": false
+    },
+    {
+      "paper_id": "paper-0012",
+      "source_class": "peer_reviewed",
+      "source_uri": "recorded:dair-ai:789f644f9cf213c192e5625fecbc57e580a4cced#judges-as-a-lifecycle",
+      "content_sha256": "b75b07b0bb8613b6551d527946b46ccf02b57c9d6d93d771ad19d7f794a86265",
+      "read_depth": "full_text",
+      "claims": [
+        {
+          "id": "jl-c1",
+          "text": "Most work treats an LLM judge as a static artifact evaluated once at construction or against a fixed benchmark, whereas a judge in a deployed system is better understood as having a lifecycle that must be built, trained, deployed and continuously maintained as surrounding data evolves.",
+          "origin": "source_claim",
+          "locator": "Kong et al., Netflix, abstract"
+        },
+        {
+          "id": "jl-c2",
+          "text": "The lifecycle's first phase defines explicit evaluation criteria and builds curated benchmark datasets carrying human labels and rationales, not labels alone.",
+          "origin": "source_claim",
+          "locator": "Kong et al., abstract, phase I Birth"
+        },
+        {
+          "id": "jl-c3",
+          "text": "Monitoring runs a continuous human-in-the-loop alignment process that detects drift and triggers re-tuning behind a human review gate, so the judge cannot silently re-tune itself.",
+          "origin": "source_claim",
+          "locator": "Kong et al., abstract, phase IV Monitoring"
+        },
+        {
+          "id": "jl-c4",
+          "text": "One judge is deployed in two distinct online roles, quality gating and reflective generation, rather than as a single pass-fail gate.",
+          "origin": "source_claim",
+          "locator": "Kong et al., abstract, phase III Deployment"
+        }
+      ],
+      "limitations": [
+        "The domain is recommendation explanations with hundreds of thousands of weekly instances. MOZAK's Lab produces a handful of mechanisms per run, so statistical drift detection has no direct analogue.",
+        "Results come from the authors' own production system with no external replication.",
+        "The paper concerns judging generated natural language, not judging whether a proposed engineering mechanism is sound."
+      ],
+      "retained_full_text": false
+    },
+    {
+      "paper_id": "paper-0000",
+      "source_class": "preprint",
+      "source_uri": "recorded:dair-ai:789f644f9cf213c192e5625fecbc57e580a4cced#skill-lift",
+      "content_sha256": "0d385bca74463b13e613f68c2b32658923821fd151d9bd66fac2ab2920160642",
+      "read_depth": "full_text",
+      "claims": [
+        {
+          "id": "sl-c1",
+          "text": "ACES runs paired live trials with and without a target skill and reports Skill Lift as the skill's added value for a fixed task, harness, workspace and scorer.",
+          "origin": "source_claim",
+          "locator": "arXiv:2608.20614 abstract"
+        },
+        {
+          "id": "sl-c2",
+          "text": "Scan-only gates that check structure, style and security measure a facet complementary to live evaluation, with a structural versus LLM-judge Spearman correlation of 0.14 across 145 real skills.",
+          "origin": "source_claim",
+          "locator": "arXiv:2608.20614 abstract, evaluation results"
+        },
+        {
+          "id": "sl-c3",
+          "text": "Current gates scan artifacts for structure, style and security but do not answer whether the capability package helps a live agent complete tasks under the same model, sandbox and grading policy.",
+          "origin": "source_claim",
+          "locator": "arXiv:2608.20614 abstract, opening problem statement"
+        },
+        {
+          "id": "sl-c4",
+          "text": "Mean composite Skill Lift across 947 scored paired cases is 0.2134 with a 95 percent paired-case confidence interval of 0.1967 to 0.2301, and composite lift is positive in 72.8 percent of paired cases, so a substantial minority of skills do not help.",
+          "origin": "source_claim",
+          "locator": "arXiv:2608.20614 abstract, results"
+        }
+      ],
+      "limitations": [
+        "Skills evaluated are enterprise task-completion skills with gradeable outcomes. A MOZAK mechanism changes a contract, and its value appears over many later runs rather than in one paired trial.",
+        "The 0.14 correlation is between two specific instruments on one skill corpus, not a general claim that structural checks are uninformative.",
+        "Vendor-authored preprint reporting its own framework."
+      ],
+      "retained_full_text": false
+    },
+    {
+      "paper_id": "paper-0015",
+      "source_class": "preprint",
+      "source_uri": "recorded:dair-ai:789f644f9cf213c192e5625fecbc57e580a4cced#meta-n",
+      "content_sha256": "29d3c59d32c7a284f58903b630efe61d85b4fec84e6ffedeceaffec8a7ae6fc4",
+      "read_depth": "full_text",
+      "claims": [
+        {
+          "id": "mn-c1",
+          "text": "Self-improving agents refine answers rather than the process that produces them; systems adding a meta-level hold that level fixed, and systems that edit themselves must leave part of their own editing machinery untouched to stay stable, capping realized meta-depth at roughly two.",
+          "origin": "source_claim",
+          "locator": "arXiv:2608.24735 abstract"
+        },
+        {
+          "id": "mn-c2",
+          "text": "Metan keeps the meta-operation fixed and recurses on its input instead, so the operation cannot destabilize the system while its input strictly grows.",
+          "origin": "source_claim",
+          "locator": "arXiv:2608.24735 abstract"
+        },
+        {
+          "id": "mn-c3",
+          "text": "Each layer reads the traces of the solver stack below together with the code that produced them, so improvement is conditioned on execution history rather than on outputs alone.",
+          "origin": "source_claim",
+          "locator": "arXiv:2608.24735 abstract"
+        },
+        {
+          "id": "mn-c4",
+          "text": "Depth is set by convergence rather than fixed in advance, and ablations indicate most of the gain from recursion comes from the conditioning each layer passes to the next.",
+          "origin": "source_claim",
+          "locator": "arXiv:2608.24735 abstract and ablations"
+        }
+      ],
+      "limitations": [
+        "Benchmarks are reasoning tasks with automatic scoring, which is what lets depth be set by convergence. A planning-only Lab has no automatic convergence signal.",
+        "The stability argument rests on the meta-operation being fixed. MOZAK's Lab contract is exactly what a Lab run might propose changing, which is the unstable case the paper avoids rather than solves.",
+        "Preprint with self-reported results."
+      ],
+      "retained_full_text": false
+    }
+  ]
+}

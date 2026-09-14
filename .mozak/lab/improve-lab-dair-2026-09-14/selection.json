@@ -1,0 +1,88 @@
+{
+  "contract_version": 1,
+  "run_id": "improve-77388f6038bb61bcacbc6ef6",
+  "included": [
+    {
+      "paper_id": "paper-0004",
+      "reason": "Harness-of-Harness is the closest published analogue to MOZAK's Lab: a framework that organizes agent work into iterative loops with carried evidence state and independent acceptance."
+    },
+    {
+      "paper_id": "paper-0012",
+      "reason": "Judges as a Lifecycle treats an evaluator as something built, tuned, deployed and monitored rather than fixed, which is directly about the Lab's acceptance gates."
+    },
+    {
+      "paper_id": "paper-0015",
+      "reason": "Meta^n studies recursive self-improvement and why depth stalls at two levels, which is the structural question behind a Lab that improves its own contracts."
+    },
+    {
+      "paper_id": "paper-0000",
+      "reason": "Skill Lift measures whether a capability package helps under a fixed harness and grader, which is the paired-trial method MOZAK lacks for judging its own mechanisms."
+    }
+  ],
+  "excluded": [
+    {
+      "paper_id": "paper-0001",
+      "reason": "CORAL is a production recommender harness; its topology is not about evidence review or improvement planning."
+    },
+    {
+      "paper_id": "paper-0002",
+      "reason": "E-Commerce Bench evaluates long-horizon business operation, useful for benchmarking but not for the Lab's contracts."
+    },
+    {
+      "paper_id": "paper-0003",
+      "reason": "Prime Agent concerns agent topology and skills rather than how evidence becomes a reviewable plan."
+    },
+    {
+      "paper_id": "paper-0005",
+      "reason": "Context Management as Code is about runtime context handling, outside this run's question on Lab contracts."
+    },
+    {
+      "paper_id": "paper-0006",
+      "reason": "JIT-Agent concerns just-in-time topology decisions rather than research or planning gates."
+    },
+    {
+      "paper_id": "paper-0007",
+      "reason": "Recuris is memory-focused and does not bear on evidence-to-plan conversion."
+    },
+    {
+      "paper_id": "paper-0008",
+      "reason": "EvoMal concerns malware and containment, unrelated to research evidence contracts."
+    },
+    {
+      "paper_id": "paper-0009",
+      "reason": "SKILL.state addresses execution-state representation, adjacent but not about improvement planning."
+    },
+    {
+      "paper_id": "paper-0010",
+      "reason": "Selective Forgetting is graph memory management, outside the Lab's bounded question."
+    },
+    {
+      "paper_id": "paper-0011",
+      "reason": "Runtime-Independent Persistent Agents concerns identity portability rather than evidence review."
+    },
+    {
+      "paper_id": "paper-0013",
+      "reason": "What Compaction Destroys is about context compaction loss, relevant to memory rather than to Lab gates."
+    },
+    {
+      "paper_id": "paper-0014",
+      "reason": "Co-Scientist in Real Labs is close in spirit but reports wet-lab deployment rather than transferable evidence contracts; deferred to a later run."
+    },
+    {
+      "paper_id": "paper-0016",
+      "reason": "Declarative Attention is a model-internal mechanism with no Lab contract implication."
+    },
+    {
+      "paper_id": "paper-0017",
+      "reason": "WikiSkill compiles agent experience into a wiki, adjacent to knowledge state rather than to improvement planning."
+    },
+    {
+      "paper_id": "paper-0018",
+      "reason": "AI Research Preference Models concerns preference modelling rather than the Lab's evidence gates."
+    },
+    {
+      "paper_id": "paper-0019",
+      "reason": "Trace as State is a long-context representation technique, outside this run's question."
+    }
+  ]
+}
