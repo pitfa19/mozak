@@ -1,0 +1,114 @@
+{
+  "contract_version": 1,
+  "run_id": "improve-b72c0ba7d046209c1807e342",
+  "adapter_runs": [
+    {
+      "binding_id": "agentic-tooling-watch",
+      "adapter_id": "adapter-github-tooling-v1",
+      "adapter_run_id": "run-ef527d36e5f13470f7756951",
+      "artifact_hash": "c55d90c16cb8e36b2b38944a6d05b85e1e9bf7e52b74099cf68fb7a49aaeac2e",
+      "source_revision": "unrecorded"
+    }
+  ],
+  "candidates": [
+    {
+      "paper_id": "paper-0000",
+      "title": "repository: openai/codex",
+      "source_uri": "recorded:github-tooling:openai/codex@rust-v0.154.0",
+      "content_sha256": "d83c6b8c7a6622809758e0c27ee7631b27cfa1cb15d90457cb99918a36fd71ab",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0001",
+      "title": "repository: deeplethe/utopia",
+      "source_uri": "recorded:github-tooling:deeplethe/utopia@0306d0cf70b5ede6ae78adb440094daa564d56d9",
+      "content_sha256": "542d28bfca7a739811f411b5e76f7d3d4de80f3ceeeb9d478d12c877951b348c",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0002",
+      "title": "repository: 1jehuang/jcode",
+      "source_uri": "recorded:github-tooling:1jehuang/jcode@v0.84.0",
+      "content_sha256": "290cea9574f024b9c7cf712c63730aa4aa5696dbd7d51021ede8bdfd38fadbac",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0003",
+      "title": "repository: modelcontextprotocol/modelcontextprotocol",
+      "source_uri": "recorded:github-tooling:modelcontextprotocol/modelcontextprotocol@2026-07-28",
+      "content_sha256": "66606eb201c07c6faf9a85e610c68b4707b5c0fa7737dd2f7dcc133ae483d79c",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0004",
+      "title": "repository: topoteretes/cognee",
+      "source_uri": "recorded:github-tooling:topoteretes/cognee@v1.5.4",
+      "content_sha256": "50c8d173d0790fdf5174850be50bf9f4ed8db073637d660c814272ddc2432de0",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0005",
+      "title": "repository: Imbad0202/academic-research-skills",
+      "source_uri": "recorded:github-tooling:Imbad0202/academic-research-skills@v3.21.2",
+      "content_sha256": "f708fac9206cee7dbd21c727bb9570a0550b17756238a7e7160d5d6fe42e0f32",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0006",
+      "title": "repository: jordan-gibbs/hyperresearch",
+      "source_uri": "recorded:github-tooling:jordan-gibbs/hyperresearch@v0.11.1",
+      "content_sha256": "3835bfb67113aa76953c3312f504d214ec0811204da7e5c5993d018b4efa89ff",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0007",
+      "title": "repository: getzep/graphiti",
+      "source_uri": "recorded:github-tooling:getzep/graphiti@v0.30.2",
+      "content_sha256": "066ef66c944d769341d724ed7820d736cabcfe9ce275f83ad812be0bb9046489",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0008",
+      "title": "repository: sigstore/sigstore",
+      "source_uri": "recorded:github-tooling:sigstore/sigstore@v1.10.10",
+      "content_sha256": "dc604492838208c1cb75fbf38b17c6f265282dfc4c47ec133c516c29bd92988e",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0009",
+      "title": "repository: anthropics/skills",
+      "source_uri": "recorded:github-tooling:anthropics/skills@34040c9c568585f6929bedeaad110ad08f079624",
+      "content_sha256": "92200a66650740880821eec4abc7e05ab628d19b836d52d22c0e038af9256375",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0010",
+      "title": "repository: modelcontextprotocol/registry",
+      "source_uri": "recorded:github-tooling:modelcontextprotocol/registry@v1.8.1",
+      "content_sha256": "4a2bfba7f47288fcdfa4c8ea1b7c219de739776a74ccaa7d30af6e3400b0d729",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0011",
+      "title": "repository: in-toto/in-toto",
+      "source_uri": "recorded:github-tooling:in-toto/in-toto@v3.1.0",
+      "content_sha256": "278d4aa3a966216ed7d1b202fc1056f41ef75ef239488b425fc30a99400e6413",
+      "clusters": []
+    }
+  ],
+  "new_candidates": [
+    "paper-0000",
+    "paper-0001",
+    "paper-0002",
+    "paper-0003",
+    "paper-0004",
+    "paper-0005",
+    "paper-0006",
+    "paper-0007",
+    "paper-0008",
+    "paper-0009",
+    "paper-0010",
+    "paper-0011"
+  ],
+  "unchanged_candidates": []
+}

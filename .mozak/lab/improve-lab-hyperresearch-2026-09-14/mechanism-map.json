@@ -1,0 +1,72 @@
+{
+  "contract_version": 1,
+  "run_id": "improve-b72c0ba7d046209c1807e342",
+  "mechanisms": [
+    {
+      "id": "m-coverage-contract",
+      "proposed_mechanism": "Add a question decomposition artifact that records atomic subquestions, a coverage matrix, and an explicit research tier before candidate selection.",
+      "affected_contract": "lab::ImproveRequest and pre-selection transition",
+      "expected_benefit": "Makes scope coverage reviewable and exposes unanswered subquestions before the Lab proposes mechanisms.",
+      "risks": [
+        "More ceremony for small questions",
+        "Poor decomposition can create false completeness"
+      ],
+      "supporting_claim_ids": [
+        "hr-c1",
+        "hr-c2"
+      ]
+    },
+    {
+      "id": "m-multi-refresh",
+      "proposed_mechanism": "Allow one Lab run to ingest multiple validated adapter runs, preserving the exact binding id for each run and deduplicating candidates across sources by content identity.",
+      "affected_contract": "lab::LiteratureRun and lab refresh state machine",
+      "expected_benefit": "Lets DAIR.AI, arXiv, and GitHub evidence answer one improvement question without splitting provenance across disconnected Lab runs.",
+      "risks": [
+        "Cross-source identity matching can merge non-equivalent versions",
+        "Larger candidate sets increase review cost"
+      ],
+      "supporting_claim_ids": [
+        "hr-c1",
+        "hr-c5"
+      ]
+    },
+    {
+      "id": "m-adversarial-gap-loop",
+      "proposed_mechanism": "Insert a bounded contradiction and overturning-evidence review after readings and before mechanism extraction, with one optional validated gap-refresh cycle.",
+      "affected_contract": "lab run states between papers_read and mechanisms_extracted",
+      "expected_benefit": "Forces the Lab to seek disconfirming evidence and close high-impact gaps before converting readings into implementation proposals.",
+      "risks": [
+        "Can prolong runs",
+        "A poorly bounded gap loop can become open-ended research"
+      ],
+      "supporting_claim_ids": [
+        "hr-c3"
+      ]
+    },
+    {
+      "id": "m-claim-verification",
+      "proposed_mechanism": "Add a verification artifact that checks each source claim's locator against pinned source bytes and blocks plans with unresolved critical support failures.",
+      "affected_contract": "lab::ReadClaim, readings validation, and review gate",
+      "expected_benefit": "Turns locators from asserted strings into reproducible claim-to-source bindings and prevents unsupported mechanisms from reaching owner review.",
+      "risks": [
+        "Full-text access and stable byte addressing are difficult",
+        "Version substitutions must be represented explicitly"
+      ],
+      "supporting_claim_ids": [
+        "hr-c4"
+      ]
+    },
+    {
+      "id": "m-resume-recommendation",
+      "proposed_mechanism": "Extend Lab status with the exact next accepted command, required input schema, and unresolved blockers derived from the immutable ledger.",
+      "affected_contract": "lab status receipt",
+      "expected_benefit": "Makes interrupted runs straightforward to resume without weakening ordered transitions.",
+      "risks": [
+        "A stale recommendation could mislead if external adapter state drifted"
+      ],
+      "supporting_claim_ids": [
+        "hr-c5"
+      ]
+    }
+  ]
+}
