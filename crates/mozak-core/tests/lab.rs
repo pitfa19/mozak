@@ -764,7 +764,11 @@ fn a_retired_module_id_still_deserializes() {
     ] {
         let module: Module = serde_json::from_value(json!(id))
             .unwrap_or_else(|error| panic!("retired id {id} must still parse: {error}"));
-        assert_eq!(module.as_str(), id, "a retired id must round-trip as itself");
+        assert_eq!(
+            module.as_str(),
+            id,
+            "a retired id must round-trip as itself"
+        );
         assert!(module.is_retired(), "{id} must report itself as retired");
     }
 }
@@ -777,7 +781,8 @@ fn a_retired_id_is_not_silently_mapped_onto_a_current_module() {
     let module: Module = serde_json::from_value(json!("evaluation-and-cases")).expect("parses");
     for current in Module::all() {
         assert_ne!(
-            module, current,
+            module,
+            current,
             "a retired id must not resolve to the current module {}",
             current.as_str()
         );
@@ -814,7 +819,8 @@ fn authoring_a_request_under_a_retired_module_is_refused() {
     // The contract-level guard, independent of the CLI's `parse`.
     let mut request = request();
     request.module = Module::ConceptsAndTranslations;
-    let error = validate_request(&request).expect_err("authoring under a retired module is refused");
+    let error =
+        validate_request(&request).expect_err("authoring under a retired module is refused");
     assert!(
         error.to_string().contains("retired"),
         "the refusal must say why: {error}"
