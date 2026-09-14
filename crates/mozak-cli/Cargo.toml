@@ -1,6 +1,6 @@
 [package]
 name = "mozak-cli"
-version = "0.3.1"
+version = "0.3.2"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
@@ -13,7 +13,7 @@ name = "mozak"
 path = "src/main.rs"
 
 [dependencies]
-mozak-core = { version = "0.3.1", path = "../mozak-core" }
+mozak-core = { version = "0.3.2", path = "../mozak-core" }
 serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
