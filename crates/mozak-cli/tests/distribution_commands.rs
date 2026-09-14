@@ -25,7 +25,13 @@ fn run(args: &[&str]) -> std::process::Output {
 fn version_is_stable() {
     let output = run(&["--version"]);
     assert!(output.status.success());
-    assert_eq!(String::from_utf8(output.stdout).unwrap(), "mozak 0.3.1\n");
+    // Derived from the manifest rather than written out, because a hardcoded
+    // literal makes every release bump look like a regression and trains the
+    // releaser to edit the test without reading what it was asserting.
+    assert_eq!(
+        String::from_utf8(output.stdout).unwrap(),
+        format!("mozak {}\n", env!("CARGO_PKG_VERSION"))
+    );
 }
 
 #[test]
