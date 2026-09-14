@@ -261,6 +261,50 @@ pub struct RunLedger {
     pub seen_sources: BTreeMap<String, String>,
 }
 
+/// Who evaluated a Lab run's own output.
+///
+/// A case record already refuses to call review independent when one actor both
+/// performed and evaluated the work. A Lab run could not make that distinction
+/// at all, so a run that authored its own mechanisms and then accepted them
+/// read exactly like one an independent reader had checked. The weaker evidence
+/// was indistinguishable from the stronger, which is the confusion this names.
+///
+/// Kong et al. (Netflix) argue the same point from the other direction: an
+/// evaluator is not a fixed artifact, and treating it as one hides whose
+/// judgement is actually being recorded.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum AcceptanceKind {
+    /// The same actor authored the run and accepted it.
+    SelfReview,
+    /// A different actor accepted what the author produced.
+    Independent,
+}
+
+impl AcceptanceKind {
+    /// Stable identifier for the acceptance kind.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::SelfReview => "self_review",
+            Self::Independent => "independent",
+        }
+    }
+
+    /// The only honest label for a given pair of actors.
+    ///
+    /// Derived rather than declared, because a declaration can disagree with
+    /// the actors it describes and the actors are the fact.
+    #[must_use]
+    pub fn derive(performed_by: &str, evaluated_by: &str) -> Self {
+        if performed_by.trim() == evaluated_by.trim() {
+            Self::SelfReview
+        } else {
+            Self::Independent
+        }
+    }
+}
+
 /// The scoped improvement question and its authorized boundaries.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
@@ -275,6 +319,35 @@ pub struct ImproveRequest {
     pub adapter_bindings: Vec<String>,
     pub stop_at: RunState,
     pub created_at: String,
+    /// Who authored the run's readings, mechanisms and plans. Absent in runs
+    /// recorded before acceptance was contracted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub performed_by: Option<String>,
+    /// Who accepted that output. Must differ from `performed_by` before a run
+    /// may be called independently accepted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub evaluated_by: Option<String>,
+    /// The claimed acceptance kind. Validated against the actors, so a run
+    /// cannot assert independence it does not have.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub acceptance: Option<AcceptanceKind>,
+}
+
+impl ImproveRequest {
+    /// The acceptance this run can honestly claim.
+    ///
+    /// A run that recorded no actors gets `None` rather than a default, because
+    /// an unrecorded acceptance and a self-reviewed one are different states and
+    /// collapsing them would let silence read as a claim.
+    #[must_use]
+    pub fn derived_acceptance(&self) -> Option<AcceptanceKind> {
+        match (&self.performed_by, &self.evaluated_by) {
+            (Some(performed), Some(evaluated)) => {
+                Some(AcceptanceKind::derive(performed, evaluated))
+            }
+            _ => None,
+        }
+    }
 }
 
 /// A candidate paper discovered through an adapter run.
@@ -547,7 +620,46 @@ pub fn validate_request(request: &ImproveRequest) -> Result<(), LabError> {
     require(
         request.stop_at == RunState::OwnerReviewed,
         "phase A runs must stop at owner_reviewed",
-    )
+    )?;
+
+    // Acceptance is optional, but a half-recorded pair is not: one actor
+    // without the other cannot be checked against anything, so it would let an
+    // unverifiable claim sit in the record looking like a verified one.
+    match (&request.performed_by, &request.evaluated_by) {
+        (None, None) => {}
+        (Some(performed), Some(evaluated)) => {
+            require_filled(performed, "performed_by")?;
+            require_filled(evaluated, "evaluated_by")?;
+        }
+        _ => {
+            return Err(LabError(
+                "record both performed_by and evaluated_by, or neither".to_owned(),
+            ));
+        }
+    }
+
+    // The actors are the fact; the label is a claim about them. A claim of
+    // independence from a single actor is the overstatement this refuses.
+    if let Some(claimed) = request.acceptance {
+        let derived = request.derived_acceptance().ok_or_else(|| {
+            LabError(
+                "acceptance cannot be claimed without recording performed_by and evaluated_by"
+                    .to_owned(),
+            )
+        })?;
+        require(
+            claimed == derived,
+            match derived {
+                AcceptanceKind::SelfReview => {
+                    "acceptance cannot be independent when the same actor performed and evaluated the run"
+                }
+                AcceptanceKind::Independent => {
+                    "acceptance is independent when different actors performed and evaluated the run"
+                }
+            },
+        )?;
+    }
+    Ok(())
 }
 
 /// Validates a literature refresh and its dedup accounting.
@@ -911,10 +1023,36 @@ pub fn render_review(
     );
     let _ = writeln!(
         out,
-        "- Read: {} of {} selected\n",
+        "- Read: {} of {} selected",
         readings.readings.len(),
         selection.included.len()
     );
+    // Acceptance sits in the header, next to what the run covered, because a
+    // reader weighs the findings by who checked them. Buried at the end it
+    // would arrive after the conclusions it qualifies.
+    match request.derived_acceptance() {
+        Some(AcceptanceKind::SelfReview) => {
+            let _ = writeln!(
+                out,
+                "- Acceptance: **self-review** ({} both performed and accepted this run)\n",
+                request.performed_by.as_deref().unwrap_or("the same actor")
+            );
+        }
+        Some(AcceptanceKind::Independent) => {
+            let _ = writeln!(
+                out,
+                "- Acceptance: independent ({} performed, {} accepted)\n",
+                request.performed_by.as_deref().unwrap_or("unrecorded"),
+                request.evaluated_by.as_deref().unwrap_or("unrecorded")
+            );
+        }
+        None => {
+            let _ = writeln!(
+                out,
+                "- Acceptance: **not recorded** (this run does not say who performed or accepted it)\n"
+            );
+        }
+    }
 
     let _ = writeln!(out, "## Sources read\n");
     for reading in &readings.readings {
@@ -964,8 +1102,13 @@ pub fn render_review(
             let _ = writeln!(out, "- {}: {limitation}", reading.paper_id);
         }
     }
+    // A reader who takes contract validity as evidence of quality is making a
+    // conflation the field has measured: Kevin et al. (arXiv:2608.20614) found
+    // structural gates and live outcome judgement correlate at Spearman 0.14
+    // across 145 real skills. Saying so here costs two lines and stops a valid
+    // receipt from being read as a verdict on the work.
     out.push_str(
-        "\n## Status\n\nPlanning only. No MOZAK code was changed. Implementation and promotion require explicit owner authorization.\n",
+        "\n## Status\n\nPlanning only. No MOZAK code was changed. Implementation and promotion require explicit owner authorization.\n\nValidation of this run checked structural conformance to the Lab contract. It did not assess whether the mechanisms are sound or the plans worth implementing, and a valid run is not evidence that they are.\n",
     );
     out
 }
