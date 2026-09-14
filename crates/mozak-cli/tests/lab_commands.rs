@@ -700,3 +700,217 @@ fn naming_a_second_reviewer_makes_the_run_independent() {
     assert_eq!(receipt["evaluated_by"], "an independent reviewer");
     assert_ne!(receipt["performed_by"], receipt["evaluated_by"]);
 }
+
+/// Drives a complete run to `owner_reviewed`, so a second run has something to
+/// inherit. Everything before this test asserted one run in isolation, which is
+/// exactly the blind spot D1 exists to close.
+fn complete_run(workspace: &Workspace, dir: &str, claim_text: &str) -> String {
+    let run_dir = workspace.path(dir);
+    let run_dir_str = run_dir.to_str().expect("path").to_owned();
+    let (ok, stdout, stderr) = workspace.run(&[
+        "lab",
+        "start",
+        &run_dir_str,
+        "topic-agentic-systems",
+        "improve-lab",
+        "carry evidence forward",
+        "agentic-systems-dair-ai",
+    ]);
+    assert!(ok, "lab start failed: {stderr}");
+    let run_id = serde_json::from_str::<serde_json::Value>(&stdout).expect("json")["run_id"]
+        .as_str()
+        .expect("run_id")
+        .to_owned();
+
+    let adapter = adapter_run(workspace);
+    workspace.run(&[
+        "lab",
+        "refresh",
+        &run_dir_str,
+        adapter.to_str().expect("path"),
+    ]);
+
+    let literature: serde_json::Value = serde_json::from_str(
+        &fs::read_to_string(run_dir.join("literature-run.json")).expect("literature"),
+    )
+    .expect("json");
+    let mut include = Vec::new();
+    let mut exclude = Vec::new();
+    for candidate in literature["candidates"].as_array().expect("candidates") {
+        let id = candidate["paper_id"].as_str().expect("paper_id");
+        if id == "paper-0000" {
+            include.push(format!(r#"{{"paper_id":"{id}","reason":"on topic"}}"#));
+        } else {
+            exclude.push(format!(
+                r#"{{"paper_id":"{id}","reason":"not prioritized"}}"#
+            ));
+        }
+    }
+    let selection = workspace.write(
+        &format!("{dir}-selection.json"),
+        &format!(
+            r#"{{"contract_version":1,"run_id":"{run_id}","included":[{}],"excluded":[{}]}}"#,
+            include.join(","),
+            exclude.join(",")
+        ),
+    );
+    workspace.run(&[
+        "lab",
+        "select",
+        &run_dir_str,
+        selection.to_str().expect("path"),
+    ]);
+
+    let readings = workspace.write(
+        &format!("{dir}-readings.json"),
+        &format!(
+            r#"{{"contract_version":1,"run_id":"{run_id}","readings":[{{"paper_id":"paper-0000","source_class":"preprint","source_uri":"https://example.org/a","content_sha256":"{}","read_depth":"full_text","claims":[{{"id":"c1","text":"{claim_text}","origin":"source_claim","locator":"s4"}},{{"id":"c2","text":"this probably transfers","origin":"lab_inference","locator":"lab reasoning"}}],"limitations":["one benchmark"],"retained_full_text":false}}]}}"#,
+            "a".repeat(64)
+        ),
+    );
+    workspace.run(&[
+        "lab",
+        "read",
+        &run_dir_str,
+        readings.to_str().expect("path"),
+    ]);
+
+    let mechanisms = workspace.write(
+        &format!("{dir}-mechanisms.json"),
+        &format!(
+            r#"{{"contract_version":1,"run_id":"{run_id}","mechanisms":[{{"id":"m1","proposed_mechanism":"do the thing","affected_contract":"lab::Run","expected_benefit":"clarity","risks":["drift"],"supporting_claim_ids":["c1"]}}]}}"#
+        ),
+    );
+    workspace.run(&[
+        "lab",
+        "mechanisms",
+        &run_dir_str,
+        mechanisms.to_str().expect("path"),
+    ]);
+
+    let plans = workspace.write(
+        &format!("{dir}-plans.json"),
+        &format!(
+            r#"{{"contract_version":1,"run_id":"{run_id}","plans":[{{"id":"P1","title":"do it","mechanism_ids":["m1"],"deliverables":["field"],"acceptance_checks":["valid passes","bad fails"],"dependencies":[]}}]}}"#
+        ),
+    );
+    workspace.run(&["lab", "plans", &run_dir_str, plans.to_str().expect("path")]);
+
+    let (ok, _, stderr) = workspace.run(&["lab", "review", &run_dir_str]);
+    assert!(ok, "lab review failed: {stderr}");
+    run_id
+}
+
+/// D1: the whole point. A second run must not start blind.
+#[test]
+fn a_second_run_inherits_what_the_first_established() {
+    let workspace = Workspace::new("evidence-carry");
+    registry(&workspace);
+    complete_run(&workspace, "run-one", "budgets reduce wasted rollouts");
+
+    let second = workspace.path("run-two");
+    let (ok, stdout, stderr) = workspace.run(&[
+        "lab",
+        "start",
+        second.to_str().expect("path"),
+        "topic-agentic-systems",
+        "improve-lab",
+        "a later question",
+        "agentic-systems-dair-ai",
+    ]);
+    assert!(ok, "{stderr}");
+    let receipt: serde_json::Value = serde_json::from_str(&stdout).expect("json");
+
+    assert_eq!(
+        receipt["inherited_evidence"], 1,
+        "the second run must see the first run's source claim"
+    );
+    let requirements = receipt["preservation_requirements"]
+        .as_array()
+        .expect("requirements");
+    assert_eq!(requirements.len(), 1);
+    assert_eq!(requirements[0]["claim_id"], "paper-0000::c1");
+    assert!(
+        receipt["evidence_authority"]
+            .as_str()
+            .expect("authority")
+            .starts_with("proposal_only"),
+        "carried evidence must state that it authorizes nothing"
+    );
+}
+
+/// A lab inference is this run's reasoning, not the Scope's knowledge.
+#[test]
+fn only_source_claims_are_carried_forward() {
+    let workspace = Workspace::new("evidence-origin");
+    registry(&workspace);
+    complete_run(&workspace, "run-one", "a source said this");
+
+    let evidence: serde_json::Value = serde_json::from_str(
+        &fs::read_to_string(
+            workspace
+                .root
+                .join("topic-agentic-systems-scope-evidence.json"),
+        )
+        .expect("evidence"),
+    )
+    .expect("json");
+    let entries = evidence["entries"].as_array().expect("entries");
+    assert_eq!(entries.len(), 1, "the lab inference must not be carried");
+    assert_eq!(entries[0]["claim_id"], "paper-0000::c1");
+    assert_eq!(entries[0]["standing"], "held");
+}
+
+/// D1 check 2, end to end: the inherited requirement must reach the packet.
+#[test]
+fn the_second_packet_shows_what_it_inherited() {
+    let workspace = Workspace::new("evidence-packet");
+    registry(&workspace);
+    complete_run(&workspace, "run-one", "budgets reduce wasted rollouts");
+    complete_run(&workspace, "run-two", "budgets reduce wasted rollouts");
+
+    let packet = fs::read_to_string(workspace.path("run-two").join("review.md")).expect("review");
+    assert!(packet.contains("## Carried from earlier runs"), "{packet}");
+    assert!(packet.contains("Preservation requirements"));
+    assert!(packet.contains("paper-0000::c1"));
+    assert!(
+        packet.contains("proposal_only"),
+        "the packet must carry the authority boundary"
+    );
+
+    let carried = packet.find("Carried from earlier runs").expect("section");
+    let mechanisms = packet.find("## Proposed mechanisms").expect("mechanisms");
+    assert!(
+        carried < mechanisms,
+        "inherited constraints must arrive before the plans they constrain"
+    );
+}
+
+/// The first run has nothing to inherit, and must not pretend otherwise.
+#[test]
+fn a_first_run_reports_no_inherited_evidence() {
+    let workspace = Workspace::new("evidence-first");
+    registry(&workspace);
+    let run_dir = workspace.path("run");
+    let (ok, stdout, stderr) = workspace.run(&[
+        "lab",
+        "start",
+        run_dir.to_str().expect("path"),
+        "topic-agentic-systems",
+        "improve-lab",
+        "the first question",
+        "agentic-systems-dair-ai",
+    ]);
+    assert!(ok, "{stderr}");
+    let receipt: serde_json::Value = serde_json::from_str(&stdout).expect("json");
+    assert_eq!(receipt["inherited_evidence"], 0);
+    assert!(
+        receipt["preservation_requirements"]
+            .as_array()
+            .expect("array")
+            .is_empty()
+    );
+
+    let packet_exists = workspace.path("run").join("review.md").exists();
+    assert!(!packet_exists, "no packet before review");
+}

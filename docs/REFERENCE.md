@@ -488,3 +488,35 @@ executable specification rather than production code; its contracts, schemas,
 adversarial histories, and reference validator live under
 [`spec/m0`](../spec/m0/README.md). A change to a contract changes its
 specification under `spec/` in the same commit.
+
+### Scope evidence
+
+A Lab run does not start blind. What earlier runs on the same Scope established
+is carried forward, so a later run inherits knowledge instead of reconstructing
+it from whatever files survived.
+
+```bash
+mozak lab start <run-dir> <scope-id> <module> "<question>" <binding-id>
+# reports inherited_evidence, preservation_requirements and open_failures
+```
+
+Evidence lives beside the run directories as `<scope-id>-scope-evidence.json`,
+because it belongs to the Scope and outlives any single run. It is written when
+a run reaches `owner_reviewed`: a run abandoned midway leaves it untouched.
+
+Three rules make carried evidence safe rather than merely convenient:
+
+- **Only source claims carry.** A lab inference is that run's reasoning, and
+  promoting it would make an inference indistinguishable from something a source
+  actually said.
+- **Disagreement is recorded, not resolved.** A later run reaching a different
+  standing for the same claim writes a contradiction; the earlier entry
+  survives. History is append-only, and the newest run cannot rewrite it by
+  being newest.
+- **A held claim binds.** It becomes a preservation requirement that later work
+  must honour or retire with a reason, and it appears in the packet before the
+  mechanisms it constrains.
+
+Carried evidence is `proposal_only`. It informs a later run and constrains what
+that run may silently discard. It accepts nothing, and becoming a planning input
+still requires the ordinary owner approval.

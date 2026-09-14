@@ -9,6 +9,7 @@ use mozak_core::lab::{
     validate_literature, validate_mechanisms, validate_plans, validate_readings, validate_request,
     validate_selection,
 };
+use mozak_core::lab_evidence::{ClaimStanding, EvidenceEntry, ScopeEvidence};
 use serde::de::DeserializeOwned;
 use serde_json::json;
 use sha2::{Digest, Sha256};
@@ -26,6 +27,33 @@ const READINGS_FILE: &str = "paper-readings.json";
 const MECHANISMS_FILE: &str = "mechanism-map.json";
 const PLANS_FILE: &str = "implementation-plans.json";
 const REVIEW_FILE: &str = "review.md";
+/// Evidence lives beside the run directories rather than inside one, because it
+/// belongs to the Scope and outlives any single run.
+const EVIDENCE_FILE: &str = "scope-evidence.json";
+
+/// Where a Scope's evidence state lives, given one of its run directories.
+///
+/// Sibling rather than child: a state stored inside a run would vanish from a
+/// later run's view, which is the exact failure this feature exists to fix.
+fn evidence_path(run_dir: &Path, scope_id: &str) -> PathBuf {
+    run_dir
+        .parent()
+        .unwrap_or(run_dir)
+        .join(format!("{scope_id}-{EVIDENCE_FILE}"))
+}
+
+/// Reads a Scope's evidence, treating absence as an empty state.
+///
+/// A malformed state is an error rather than an empty one. Silently starting
+/// fresh would discard history precisely when something had gone wrong with it.
+fn read_evidence(path: &Path, scope_id: &str) -> Result<ScopeEvidence, String> {
+    if !path.exists() {
+        return Ok(ScopeEvidence::new(scope_id));
+    }
+    let raw = read(path)?;
+    mozak_core::lab_evidence::validate_json(&raw)
+        .map_err(|error| format!("existing Scope evidence is invalid: {error}"))
+}
 
 pub fn run(args: &[String]) -> Result<ExitCode, String> {
     match args
@@ -147,6 +175,24 @@ fn start(
     write_json(&run_dir.join(REQUEST_FILE), &request)?;
     write_json(&run_dir.join(LEDGER_FILE), &ledger)?;
 
+    // What this Scope already knows, reported at the moment a run opens. The
+    // alternative is that the opener has to remember an earlier run existed,
+    // which is exactly the reconstruction burden this feature removes.
+    let evidence_file = evidence_path(run_dir, scope_id);
+    let evidence = read_evidence(&evidence_file, scope_id)?;
+    let preservation = evidence
+        .preservation_requirements()
+        .iter()
+        .map(|entry| {
+            json!({ "claim_id": entry.claim_id, "text": entry.text, "locator": entry.locator })
+        })
+        .collect::<Vec<_>>();
+    let open_failures = evidence
+        .open_failures()
+        .iter()
+        .map(|entry| json!({ "claim_id": entry.claim_id, "text": entry.text }))
+        .collect::<Vec<_>>();
+
     print_json(&json!({
         "schema_version": 1,
         "command": "lab start",
@@ -161,6 +207,10 @@ fn start(
         "evaluated_by": request.evaluated_by,
         "acceptance": request.acceptance.map(mozak_core::lab::AcceptanceKind::as_str),
         "validation_boundary": "structural conformance to the Lab contract only; it asserts nothing about whether the work is sound",
+        "inherited_evidence": evidence.entries.len(),
+        "preservation_requirements": preservation,
+        "open_failures": open_failures,
+        "evidence_authority": mozak_core::lab_evidence::authority(),
     }))
 }
 
@@ -389,7 +439,19 @@ fn review(run_dir: &Path) -> Result<ExitCode, String> {
     let map: MechanismMap = read_json(&run_dir.join(MECHANISMS_FILE))?;
     let plans: ImplementationPlans = read_json(&run_dir.join(PLANS_FILE))?;
 
-    let packet = render_review(&request, &literature, &selection, &readings, &map, &plans);
+    // Read the prior state before this run appends to it, so the packet shows
+    // what was inherited rather than what this run just wrote.
+    let evidence_file = evidence_path(run_dir, &request.scope_id);
+    let inherited = read_evidence(&evidence_file, &request.scope_id)?;
+    let packet = render_review(
+        &request,
+        &literature,
+        &selection,
+        &readings,
+        &map,
+        &plans,
+        Some(&inherited),
+    );
     advance(
         &mut ledger,
         RunState::OwnerReviewed,
@@ -402,6 +464,44 @@ fn review(run_dir: &Path) -> Result<ExitCode, String> {
     fs::write(&review_path, &packet)
         .map_err(|error| format!("cannot write {}: {error}", review_path.display()))?;
     write_json(&run_dir.join(LEDGER_FILE), &ledger)?;
+
+    // Evidence is emitted at review rather than at read, because a claim only
+    // becomes this Scope's knowledge once the run that read it closed. A run
+    // abandoned midway leaves the Scope's evidence untouched.
+    //
+    // Only source claims are carried. A lab inference is this run's reasoning,
+    // and promoting it to durable Scope knowledge would let an inference
+    // become indistinguishable from something a source actually said.
+    let recorded_at = timestamp();
+    let entries = readings
+        .readings
+        .iter()
+        .flat_map(|reading| {
+            reading
+                .claims
+                .iter()
+                .filter(|claim| claim.origin == mozak_core::lab::ClaimOrigin::SourceClaim)
+                .map(|claim| EvidenceEntry {
+                    claim_id: format!("{}::{}", reading.paper_id, claim.id),
+                    text: claim.text.clone(),
+                    // A claim read from a source and used in this run held for
+                    // it. A run that found otherwise records the disagreement
+                    // by reading the same claim and reaching another standing.
+                    standing: ClaimStanding::Held,
+                    locator: claim.locator.clone(),
+                    recorded_by_run: request.run_id.clone(),
+                    recorded_at: recorded_at.clone(),
+                    source_sha256: reading.content_sha256.clone(),
+                })
+        })
+        .collect::<Vec<_>>();
+
+    let mut evidence = inherited;
+    let contradictions = evidence
+        .record(&request.scope_id, entries)
+        .map_err(|error| error.to_string())?;
+    write_json(&evidence_file, &evidence)?;
+
     print_json(&json!({
         "schema_version": 1,
         "command": "lab review",
@@ -410,6 +510,10 @@ fn review(run_dir: &Path) -> Result<ExitCode, String> {
         "review": display(&review_path),
         "acceptance": request.acceptance.map(mozak_core::lab::AcceptanceKind::as_str),
         "validation_boundary": "structural conformance to the Lab contract only; it asserts nothing about whether the mechanisms are sound",
+        "scope_evidence": display(&evidence_file),
+        "evidence_recorded": evidence.entries.len(),
+        "contradictions_found": contradictions.len(),
+        "evidence_authority": mozak_core::lab_evidence::authority(),
         "next": "owner decision required; implementation is not authorized by this run",
     }))
 }

@@ -161,7 +161,7 @@ impl Module {
                 "attestation.rs",
             ],
             Self::MetaKb => &["kb.rs", "meta_kb.rs", "concept.rs", "package_import.rs"],
-            Self::ImproveLab => &["lab.rs"],
+            Self::ImproveLab => &["lab.rs", "lab_evidence.rs"],
             Self::Skill => &["distribution.rs"],
         }
     }
@@ -999,6 +999,63 @@ pub fn classify_candidates(
     (fresh, unchanged)
 }
 
+/// Renders what the Scope already knew, before what this run found.
+///
+/// A reader who meets the new mechanisms first has no way to tell which are
+/// genuinely new, and a preservation requirement discovered after the plans is
+/// a constraint arriving too late to constrain anything.
+fn render_inherited(out: &mut String, inherited: Option<&crate::lab_evidence::ScopeEvidence>) {
+    let Some(evidence) = inherited else {
+        return;
+    };
+
+    let requirements = evidence.preservation_requirements();
+    let failures = evidence.open_failures();
+    if !requirements.is_empty() || !failures.is_empty() {
+        let _ = writeln!(out, "## Carried from earlier runs\n");
+        if !requirements.is_empty() {
+            let _ = writeln!(
+                out,
+                "Preservation requirements. Later work must honour these or retire them with a reason.\n"
+            );
+            for entry in requirements {
+                let _ = writeln!(
+                    out,
+                    "- `{}` {} (recorded by {}, at {})",
+                    entry.claim_id, entry.text, entry.recorded_by_run, entry.locator
+                );
+            }
+            let _ = writeln!(out);
+        }
+        if !failures.is_empty() {
+            let _ = writeln!(out, "Open failures from earlier runs.\n");
+            for entry in failures {
+                let _ = writeln!(out, "- `{}` {}", entry.claim_id, entry.text);
+            }
+            let _ = writeln!(out);
+        }
+        if !evidence.contradictions.is_empty() {
+            let _ = writeln!(
+                out,
+                "Contradictions between runs, recorded rather than resolved.\n"
+            );
+            for conflict in &evidence.contradictions {
+                let _ = writeln!(
+                    out,
+                    "- `{}` was {} in {}, now {} in {}",
+                    conflict.claim_id,
+                    conflict.earlier_standing.as_str(),
+                    conflict.earlier_run,
+                    conflict.later_standing.as_str(),
+                    conflict.later_run
+                );
+            }
+            let _ = writeln!(out);
+        }
+        let _ = writeln!(out, "{}\n", crate::lab_evidence::authority());
+    }
+}
+
 /// Renders the owner review packet.
 #[must_use]
 pub fn render_review(
@@ -1008,6 +1065,7 @@ pub fn render_review(
     readings: &Readings,
     map: &MechanismMap,
     plans: &ImplementationPlans,
+    inherited: Option<&crate::lab_evidence::ScopeEvidence>,
 ) -> String {
     let mut out = String::new();
     let _ = writeln!(out, "# Improvement review: {}\n", request.run_id);
@@ -1053,6 +1111,8 @@ pub fn render_review(
             );
         }
     }
+
+    render_inherited(&mut out, inherited);
 
     let _ = writeln!(out, "## Sources read\n");
     for reading in &readings.readings {

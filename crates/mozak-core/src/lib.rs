@@ -7,6 +7,7 @@ pub mod execution;
 pub mod kb;
 pub mod knowledge_package;
 pub mod lab;
+pub mod lab_evidence;
 pub mod landmark;
 pub mod meta_kb;
 pub mod package_import;
