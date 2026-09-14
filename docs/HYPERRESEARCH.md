@@ -162,3 +162,48 @@ mozak adapter run agentic-systems-hyperresearch
 Jcode can drive all of it. What you give up without the pipeline is the
 adversarial critics, the contradiction graph, and the written report, not the
 evidence itself.
+
+## One vault per Scope family
+
+A Scope is already the container for a family of related repositories: `rinalmo2`
+covers RiNALMo and RiNALMo2, `genome` covers the MCP, its benchmark, and its
+paper. Research belongs at that level, because a question about the family is
+rarely a question about one checkout.
+
+```bash
+MOZAK=<repo>/target/release/mozak \
+  scripts/adapters/hyperresearch_scope_install.sh <scope-id>
+```
+
+It initializes the vault, writes the request, registers a `<scope-id>-hyperresearch`
+binding, and refuses a Scope the KB does not know. Running it twice is safe: an
+existing vault, request, or binding is reused rather than replaced.
+
+### Why the vault lives outside the Scope
+
+Vaults go in `~/Documents/research-vaults/<scope-id>/`, not inside the Scope root
+or a project repository. A Scope pins its manifest hash and a project declares
+the paths it owns, so a vault stored inside either would make every fetch look
+like drift, and the family would fail validation for doing exactly what it was
+set up to do.
+
+### Adding a repository to a family
+
+A repository only shares a family's research once it is bound to that Scope:
+
+```bash
+mozak scope add-project <scope-root> <project-id> "<title>" "<intent>" <repo-root>
+mozak kb repin <kb-root> <registration-id> <scope-root>
+```
+
+Editing a registered Scope invalidates its pin by design, and a configured KB
+then needs `project discover`, `project review`, and an owner-approved
+`project refresh`. That sequence is not a workaround; it is the KB refusing to
+accept a changed registry without the owner saying so.
+
+### An empty vault records nothing
+
+Snapshotting a vault with no matching note fails with a message saying the vault
+is empty or the selection matched nothing, and writes no run. A run asserting
+that zero sources were read would be an artifact carrying no observation, and it
+would sit in the evidence store looking like a finding.
