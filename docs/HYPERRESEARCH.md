@@ -170,9 +170,11 @@ the MCP, its benchmark, and its paper; `rinalmo2` covers the RiNALMo2 project an
 the upstream RiNALMo lineage it succeeds. Research belongs at that level, because
 a question about the family is rarely a question about one checkout.
 
-A vault is bound to a *family topic* rather than to one project, because evidence
-about a lineage is not owned by any single repository in it. The installer
-targets `topic-<family>-family` for exactly that reason.
+A vault binds to the Scope id you name, and a family topic such as
+`topic-genome-family` or `topic-rinalmo-family` records what the family is and
+which Scopes it ties together. Binding a vault to a project Scope works and is
+what is installed today; pointing it at a family topic instead is a
+re-registration, not an edit, for the reason in the next section.
 
 ```bash
 MOZAK=<repo>/target/release/mozak \
@@ -224,3 +226,15 @@ its paper and its README are fetched into the family vault like any other source
 and the family topic's intent names the lineage explicitly. `mozak kb tree` then
 shows the family, and the evidence is addressable, without MOZAK asserting
 authority it does not have.
+
+
+### Changing a binding's target is a re-registration
+
+Editing a pinned request moves its binding to `needs_recheck` and makes it
+non-callable, and `adapter recheck` refuses an edit that retargets the Scope. So
+a request's `scope_id` cannot be changed in place. Retargeting means registering
+a new binding against the new Scope and leaving or replacing the old one.
+
+That refusal is the contract working. A binding records that a specific runner
+and request were reviewed for a specific Scope, and silently accepting a new
+target would let evidence land against a Scope no one approved it for.

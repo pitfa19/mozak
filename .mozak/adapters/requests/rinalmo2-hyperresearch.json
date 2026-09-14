@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "scope_id": "topic-rinalmo-family",
+  "scope_id": "rinalmo2",
   "vault_root": "/home/pitfa/Documents/research-vaults/rinalmo2",
   "select": {
     "note_ids": [],
     "tags": []
   },
   "max_records": 100,
-  "question": "Which sources has HyperResearch read into the topic-rinalmo-family vault as candidate evidence for this family?"
+  "question": "Which sources has HyperResearch read into the rinalmo2 vault as candidate evidence for this Scope family?"
 }
