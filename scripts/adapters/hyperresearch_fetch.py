@@ -507,6 +507,21 @@ def main(argv: list[str]) -> int:
         started_at = utc_now()
         notes, export_hash = export_vault(request, output)
         kept, total_matched = selected(notes, request)
+        # An empty vault is not evidence of anything, and recording it as a
+        # failed run would put an artifact carrying no observation into the
+        # evidence store. Say what is actually wrong instead: the research has
+        # not happened yet, or the selection matched nothing.
+        if not kept:
+            shutil.rmtree(output, ignore_errors=True)
+            where = (
+                "the declared selection matched no note"
+                if (request["select"]["note_ids"] or request["select"]["tags"])
+                else "the vault is empty"
+            )
+            raise AdapterError(
+                f"nothing to record: {where} in {request['vault_root']}. "
+                "Run HyperResearch into this vault first."
+            )
         fixture = build_fixture(request, kept, total_matched, export_hash, started_at)
         (output / "fixture.json").write_bytes(canonical_json_bytes(fixture) + b"\n")
         print(
