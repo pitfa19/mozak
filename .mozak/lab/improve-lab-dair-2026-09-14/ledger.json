@@ -1,0 +1,74 @@
+{
+  "contract_version": 1,
+  "run_id": "improve-77388f6038bb61bcacbc6ef6",
+  "scope_id": "topic-agentic-systems",
+  "module": "improve-lab",
+  "state": "owner_reviewed",
+  "stop_at": "owner_reviewed",
+  "transitions": [
+    {
+      "state": "requested",
+      "actor": "pitfa",
+      "at": "2026-09-14T05:17:46Z",
+      "input_hash": "b3634bff9db3ddcd7008429f4600020a7eb2512bf0aa48f8ffc188b8eef7b2cb"
+    },
+    {
+      "state": "literature_refreshed",
+      "actor": "pitfa",
+      "at": "2026-09-14T05:17:46Z",
+      "input_hash": "4c352baa5fcb89c54ea09ab3c55779a20dd52d193863ce484f8839107d809396"
+    },
+    {
+      "state": "papers_selected",
+      "actor": "pitfa",
+      "at": "2026-09-14T05:19:06Z",
+      "input_hash": "1ead112f3c8d913caab2da1308d289fa15f8e596a3922061960f0db879fe5629"
+    },
+    {
+      "state": "papers_read",
+      "actor": "pitfa",
+      "at": "2026-09-14T05:19:56Z",
+      "input_hash": "e279804d6d0032e1ee546c2c8092b5c370336f390fec53f5f7ccaffac9267380"
+    },
+    {
+      "state": "mechanisms_extracted",
+      "actor": "pitfa",
+      "at": "2026-09-14T05:20:41Z",
+      "input_hash": "44869a1928c9e5308ba8dfd2f4a965b9772f412771316076082e80fe0f0eb54a"
+    },
+    {
+      "state": "implementation_plans_proposed",
+      "actor": "pitfa",
+      "at": "2026-09-14T05:21:08Z",
+      "input_hash": "47768eb321df444f847e52caf7c879d4b68704177244c01e8bbdca7ba18fa9cd"
+    },
+    {
+      "state": "owner_reviewed",
+      "actor": "pitfa",
+      "at": "2026-09-14T05:21:08Z",
+      "input_hash": "8a1f0b1539d99d50f2e5c86b92f5f4af013ccf0304da9b9ec9bc59a8f2409797"
+    }
+  ],
+  "seen_sources": {
+    "paper-0000": "0d385bca74463b13e613f68c2b32658923821fd151d9bd66fac2ab2920160642",
+    "paper-0001": "a1a0485b2ae46cb174d5e7003c7ada7b4e8ee15cbf9f38d1b989016912b41a24",
+    "paper-0002": "fd084e45428632b32dcea486ff4e7924e638daa35597f9dd6c75eee56a06b4d6",
+    "paper-0003": "91772eef47994d59c1feebc94bcc3d15e3fce6ab4f7431538771f528401948bc",
+    "paper-0004": "275bc502387f256e3257ffe8cbb107e8e1a634e7dd0e3c1a621c11ecccfb8e98",
+    "paper-0005": "3dc19319d94a64a54a8914db0aa93c67080af3b92d6b9af153a1f357482be798",
+    "paper-0006": "ee5664aab00f2a925ab242c680acae9c1775fce95b57f1b42d0ee28f0501ed20",
+    "paper-0007": "9ca661b8db96b5fd4cf15402059843a704ee9e5c484309be2f1b93941f838a10",
+    "paper-0008": "e436b402d8046314ff79a9497456a79846a331d3f3890661af71b459d346df58",
+    "paper-0009": "c5d280285056a6492b80cf9c8a1b1f9e21def9dc44241b2c2a793de3e03e402b",
+    "paper-0010": "a344f6d6db576f3ed43a4bc3b1fb0db2e620238fb000aa5090df3cd980512355",
+    "paper-0011": "87729f1529c27665f2e00d9dfd3abcd698258ee7cc8d3c4fef3fc1e9d305f1d9",
+    "paper-0012": "b75b07b0bb8613b6551d527946b46ccf02b57c9d6d93d771ad19d7f794a86265",
+    "paper-0013": "ad5fe94bf9c340e2c46735930de63036b9a55a34a0c276afac1e8608637124d2",
+    "paper-0014": "fb167370d6735c13e9d67dcb4857c7f09d204c9ac242665fd18edb3ea766361c",
+    "paper-0015": "29d3c59d32c7a284f58903b630efe61d85b4fec84e6ffedeceaffec8a7ae6fc4",
+    "paper-0016": "d86c2ae2819c8f0a452f778d45796acae07a3a6e41512c9221940a53f1d3b009",
+    "paper-0017": "aecfcf821eb20c2ea2aa54362dab9677cdc724186941c9e2da78f8eba56a13df",
+    "paper-0018": "ce84ea4fe62846290afd9b3fc922a3dee63016597f26f258b8f2afa12d76f869",
+    "paper-0019": "2760b7ac0d4272db1a155b5b0e51bbe8856b6b34adb727913850a178d2d91657"
+  }
+}

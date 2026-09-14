@@ -1,0 +1,16 @@
+{
+  "contract_version": 1,
+  "run_id": "improve-77388f6038bb61bcacbc6ef6",
+  "scope_id": "topic-agentic-systems",
+  "module": "improve-lab",
+  "question": "Which mechanisms from current research on self-improving harnesses, evaluation lifecycles and agent memory should improve MOZAK's Improve Lab and its evidence contracts?",
+  "constraints": [
+    "planning only; no MOZAK code changes",
+    "full text is temporary; retain hashes and claims only"
+  ],
+  "adapter_bindings": [
+    "agentic-systems-dair-ai"
+  ],
+  "stop_at": "owner_reviewed",
+  "created_at": "2026-09-14T05:17:46Z"
+}

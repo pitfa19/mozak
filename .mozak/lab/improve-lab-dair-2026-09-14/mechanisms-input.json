@@ -1,0 +1,94 @@
+{
+  "contract_version": 1,
+  "run_id": "improve-77388f6038bb61bcacbc6ef6",
+  "mechanisms": [
+    {
+      "id": "m-evidence-state-carry",
+      "proposed_mechanism": "Give a Scope a durable evidence state, separate from its accepted inputs, recording which claims were checked and held, which remain unsupported, and which observed failures are still open. A later Lab run or planning decision reads that state rather than reconstructing it from artifacts.",
+      "affected_contract": "scope::Scope and a new evidence-state artifact read by lab::ImproveRequest",
+      "expected_benefit": "Stops each run from rebuilding project knowledge out of whatever files survived. MOZAK already carries the artifact side well; it carries almost nothing about what was already checked and found wanting.",
+      "risks": [
+        "Evidence state can rot into a second source of truth that disagrees with the artifacts",
+        "It must not become an accepted-input back door that skips the owner gate"
+      ],
+      "supporting_claim_ids": ["hoh-c1", "hoh-c2"]
+    },
+    {
+      "id": "m-validated-becomes-preservation",
+      "proposed_mechanism": "When a Lab run records a claim as verified, emit it as a named preservation requirement that later plan cards must either honour or explicitly retire with a reason.",
+      "affected_contract": "lab::ReadClaim to a preservation list consumed by lab::ImplementationPlan",
+      "expected_benefit": "Turns evidence into a constraint on future work instead of a note that only informed one decision. Regression becomes a contract violation rather than an oversight.",
+      "risks": [
+        "Accumulated preservation requirements can ossify the design",
+        "A wrongly verified claim becomes a wrongly binding constraint"
+      ],
+      "supporting_claim_ids": ["hoh-c5", "hoh-c1"]
+    },
+    {
+      "id": "m-independent-acceptance-role",
+      "proposed_mechanism": "Record acceptance as produced by a role that did not author the artifact, and make the Lab packet state plainly when author and acceptor are the same. Where they are the same, the run is labelled self-reviewed and cannot claim independent acceptance.",
+      "affected_contract": "lab::Readings and the review packet, mirroring case_study::ReviewKind",
+      "expected_benefit": "MOZAK already enforces this for case records but not for Lab runs, so a Lab run can currently self-accept without the packet saying so. This closes that asymmetry.",
+      "risks": [
+        "A solo owner cannot always supply an independent acceptor, so the honest label will often be self_review",
+        "Labelling is not the same as achieving independence"
+      ],
+      "supporting_claim_ids": ["hoh-c3", "jl-c1"]
+    },
+    {
+      "id": "m-bounded-objective-per-run",
+      "proposed_mechanism": "Require a Lab run to declare one bounded objective with observable completion conditions before selection, and record what it deliberately excludes.",
+      "affected_contract": "lab::ImproveRequest, a pre-selection transition",
+      "expected_benefit": "Scope is currently a free-text question, so a run can drift or quietly widen. An explicit objective plus exclusions makes the boundary reviewable at the start rather than inferable at the end.",
+      "risks": [
+        "Over-narrow objectives can miss the connection that mattered",
+        "More ceremony for a small question"
+      ],
+      "supporting_claim_ids": ["hoh-c4"]
+    },
+    {
+      "id": "m-gate-lifecycle",
+      "proposed_mechanism": "Treat MOZAK's acceptance gates as versioned artifacts with recorded criteria and a change history, rather than as fixed code. Each gate states what it checks, when its criteria last changed, and why.",
+      "affected_contract": "the validation surfaces across lab, research and planning",
+      "expected_benefit": "A gate whose criteria are implicit cannot be audited or deliberately revised. Recording them makes the evaluator itself reviewable.",
+      "risks": [
+        "Versioned criteria invite drift between the recorded criterion and the implemented check",
+        "The record must not become a substitute for the check"
+      ],
+      "supporting_claim_ids": ["jl-c1", "jl-c2", "jl-c3"]
+    },
+    {
+      "id": "m-paired-mechanism-trial",
+      "proposed_mechanism": "Before promoting a mechanism, record a paired observation of the same bounded task performed with and without it, holding the agent, harness, environment and grader fixed, and report the difference as the mechanism's contribution.",
+      "affected_contract": "case_study::CaseControl and a promotion gate for lab mechanisms",
+      "expected_benefit": "MOZAK currently has no way to tell a mechanism that helps from one that merely sounds right. The case contract already demands a comparable control; this extends that demand to Lab mechanisms.",
+      "risks": [
+        "A contract-level mechanism's value appears over many runs, so one paired trial may be uninformative",
+        "Paired trials are expensive and could discourage recording anything"
+      ],
+      "supporting_claim_ids": ["sl-c1", "sl-c3", "sl-c4"]
+    },
+    {
+      "id": "m-structural-checks-are-not-outcome",
+      "proposed_mechanism": "State in the Lab packet and in research receipts that contract validation measures structural conformance only, and that it is a weak predictor of whether the recorded work was useful.",
+      "affected_contract": "lab review packet and research validation receipts",
+      "expected_benefit": "MOZAK's validators are structural. A reader who takes a valid receipt as evidence of quality is making exactly the conflation the ACES correlation of 0.14 measured.",
+      "risks": [
+        "Repeated disclaimers dilute attention",
+        "Understating validation's value could discourage its use"
+      ],
+      "supporting_claim_ids": ["sl-c2", "sl-c3"]
+    },
+    {
+      "id": "m-fixed-meta-operation",
+      "proposed_mechanism": "Keep the Lab's own contract fixed within a run and let successive runs recurse on accumulated evidence instead. A run that proposes changing the Lab contract must stop at review and be implemented by a separately authorized phase, never applied by the run that proposed it.",
+      "affected_contract": "lab run state machine and the improve-lab module boundary",
+      "expected_benefit": "This is already MOZAK's behaviour, and Meta^n explains why it is the stable choice: a system that edits its own editing machinery must hold part of it fixed. Recording the reason turns an accident of design into a defended invariant.",
+      "risks": [
+        "Fixing the meta-operation caps how fast the Lab can improve itself",
+        "The invariant must be stated where someone would otherwise remove it"
+      ],
+      "supporting_claim_ids": ["mn-c1", "mn-c2", "mn-c4"]
+    }
+  ]
+}
