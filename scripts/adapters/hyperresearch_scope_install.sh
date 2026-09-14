@@ -109,10 +109,30 @@ mkdir -p "$RUNS_DIR"
 if "$MOZAK" adapter show "$BINDING" >/dev/null 2>&1; then
   echo "binding already registered, rechecking its pins"
   "$MOZAK" adapter recheck "$BINDING" >/dev/null 2>&1 || true
-else
-  "$MOZAK" adapter setup hyperresearch "$BINDING" "$SCOPE_ID" \
-    "$REQUEST" "$HERE/hyperresearch_run.sh" "$RUNS_DIR" >/dev/null
+elif SETUP_OUT="$("$MOZAK" adapter setup hyperresearch "$BINDING" "$SCOPE_ID" \
+    "$REQUEST" "$HERE/hyperresearch_run.sh" "$RUNS_DIR" 2>&1)"; then
   echo "binding registered"
+else
+  # Registering a binding always resolves the configured KB, and no explicit
+  # root can substitute. So a drifted pin blocks registration outright, and the
+  # vault and request above are usable groundwork rather than a broken install.
+  # Say exactly that, and name the repair, instead of surfacing a bare hash
+  # mismatch from two layers down.
+  echo
+  echo "vault and request are ready, but the binding could not be registered:" >&2
+  echo "$SETUP_OUT" | sed 's/^/  /' >&2
+  if grep -q "configured KB drifted" <<<"$SETUP_OUT"; then
+    cat >&2 <<REPAIR
+
+  Registering a binding requires the configured KB pin, which has drifted.
+  Repair it, then re-run this installer to finish:
+
+    $MOZAK project discover $KB_ROOT \$HOME/Documents > discovery.json
+    $MOZAK project review discovery.json
+    # then an owner-approved: $MOZAK project refresh discovery.json approval.json
+REPAIR
+  fi
+  exit 1
 fi
 
 echo
