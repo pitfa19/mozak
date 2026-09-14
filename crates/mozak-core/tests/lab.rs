@@ -166,7 +166,15 @@ fn accepts_a_complete_planning_run() {
     let plans = plans();
     validate_plans(&plans, &map).expect("plans");
 
-    let review = render_review(&request, &literature, &selection, &readings, &map, &plans);
+    let review = render_review(
+        &request,
+        &literature,
+        &selection,
+        &readings,
+        &map,
+        &plans,
+        None,
+    );
     assert!(review.contains("Planning only. No MOZAK code was changed."));
     assert!(review.contains("single benchmark family"));
     assert!(review.contains("PLAN-1"));
@@ -547,6 +555,7 @@ mod packet_disclosure {
             &readings(),
             &mechanisms(),
             &plans(),
+            None,
         )
     }
 
