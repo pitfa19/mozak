@@ -6,6 +6,7 @@
   "question": "What have the harnesses, standards and knowledge-state projects MOZAK's modules depend on released recently?",
   "watchlist": [
     "1jehuang/jcode",
+    "alibaba/open-code-review",
     "modelcontextprotocol/registry",
     "modelcontextprotocol/modelcontextprotocol",
     "anthropics/skills",
