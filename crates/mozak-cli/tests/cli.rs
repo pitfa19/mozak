@@ -272,13 +272,20 @@ fn compact_restore(binary: &str, root: &Path, approval_path: &Path) -> PathBuf {
 }
 
 fn corrupt_first_archive_blob(root: &Path) {
-    let shard = fs::read_dir(root.join(".mozak/planning/archive/sha256"))
+    let index: serde_json::Value =
+        serde_json::from_slice(&fs::read(root.join(".mozak/planning/active-index.json")).unwrap())
+            .unwrap();
+    let sha256 = index["entries"]
+        .as_array()
         .unwrap()
-        .next()
-        .unwrap()
-        .unwrap()
-        .path();
-    let blob = fs::read_dir(shard).unwrap().next().unwrap().unwrap().path();
+        .iter()
+        .find(|entry| entry["kind"] == "plan")
+        .and_then(|entry| entry["sha256"].as_str())
+        .unwrap();
+    let blob = root
+        .join(".mozak/planning/archive/sha256")
+        .join(&sha256[..2])
+        .join(format!("{sha256}.json"));
     fs::write(blob, b"corrupt").unwrap();
 }
 
