@@ -1,0 +1,88 @@
+{
+  "contract_version": 1,
+  "run_id": "improve-515e558a8f7d263647c8613d",
+  "included": [
+    {
+      "paper_id": "paper-0004",
+      "reason": "Procedural Graphs directly concerns compact persistent execution structures rather than retaining an append-only narrative."
+    },
+    {
+      "paper_id": "paper-0011",
+      "reason": "SKILL.state explicitly compares structured current state with append-only history and bears directly on the active-versus-archived split."
+    },
+    {
+      "paper_id": "paper-0012",
+      "reason": "Selective Forgetting examines selective retention instead of uniform compaction and can inform artifact-class policies."
+    },
+    {
+      "paper_id": "paper-0013",
+      "reason": "Runtime-Independent Persistent Agents bears on preserving identity and state across installations, a required MOZAK portability boundary."
+    },
+    {
+      "paper_id": "paper-0017",
+      "reason": "WikiSkill compiles experience into a persistent navigable representation and can inform derived indexes over lossless source artifacts."
+    },
+    {
+      "paper_id": "paper-0019",
+      "reason": "Trace as State treats histories as conditional states and can inform state projections without deleting provenance."
+    }
+  ],
+  "excluded": [
+    {
+      "paper_id": "paper-0000",
+      "reason": "CORAL was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0001",
+      "reason": "E-Commerce Bench was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0002",
+      "reason": "FrogNano was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0003",
+      "reason": "Harness-of-Harness was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0005",
+      "reason": "AI-Native Design Docs was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0006",
+      "reason": "PARSER was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0007",
+      "reason": "Proactive Thought Partners was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0008",
+      "reason": "Codebook Agent was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0009",
+      "reason": "Co-Evolving Harnesses and Models was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0010",
+      "reason": "Recursive Self-Improvement Survey was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0014",
+      "reason": "STAIR was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0015",
+      "reason": "Research Swarm Cheating was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0016",
+      "reason": "Declarative Attention was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0018",
+      "reason": "AI Research Preference Models was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    }
+  ]
+}

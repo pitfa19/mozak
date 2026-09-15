@@ -1,0 +1,51 @@
+{
+  "contract_version": 1,
+  "run_id": "improve-5c50dfdabeda3c132e4d669f",
+  "mechanisms": [
+    {
+      "id": "m-project-local-derived-index",
+      "proposed_mechanism": "Build a deterministic project-local index over canonical archived artifacts, containing hashes, status, relationships, one-line summaries, and locators while keeping source artifacts independently portable.",
+      "affected_contract": "new project artifact index and list/overview readers",
+      "expected_benefit": "Gives agents and humans fast navigation without flattening authoritative files into a lossy summary.",
+      "risks": [
+        "The index may become stale",
+        "SQLite or another binary index must remain rebuildable and must not become the only readable representation"
+      ],
+      "supporting_claim_ids": [
+        "atlas-c1",
+        "zen-c1",
+        "signet-c1"
+      ]
+    },
+    {
+      "id": "m-portable-lossless-archive",
+      "proposed_mechanism": "Export packed history as a self-describing archive containing canonical JSON artifacts, a sorted manifest, content hashes, supersession links, and restoration metadata; active files remain ordinary readable files.",
+      "affected_contract": "new compaction archive and restore contracts",
+      "expected_benefit": "Moves cold history out of hot folders while preserving offline transfer and exact restoration.",
+      "risks": [
+        "Archive corruption could hide multiple artifacts at once",
+        "Compression format availability can harm portability"
+      ],
+      "supporting_claim_ids": [
+        "edge-c1",
+        "utopia-c1",
+        "mem-c1"
+      ]
+    },
+    {
+      "id": "m-raw-history-plus-derived-view",
+      "proposed_mechanism": "Keep raw history and exact evidence immutable, and treat summaries, graph projections, and active working sets as derived views with an audit path back to source identifiers.",
+      "affected_contract": "overview, graph, package, and compact receipts",
+      "expected_benefit": "Allows aggressive navigation compaction because every displayed statement remains recoverable.",
+      "risks": [
+        "Derived views can overstate completeness",
+        "Source-linked retrieval needs exact integrity checks"
+      ],
+      "supporting_claim_ids": [
+        "signet-c1",
+        "utopia-c1",
+        "atlas-c1"
+      ]
+    }
+  ]
+}

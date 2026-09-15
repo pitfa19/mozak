@@ -1,0 +1,15 @@
+{
+  "objective": "Identify repository-backed mechanisms for a lossless MOZAK artifact archive with a small active working set.",
+  "completion_conditions": [
+    "Relevant repositories are separated from unrelated discovery results with explicit reasons.",
+    "Repository-derived claims are limited to what was actually observed and do not treat popularity as quality.",
+    "Any mechanism proposed from repositories preserves local-first operation, stable addressing, and reversible recovery.",
+    "The review states the discovery truncation and topic-filter limitations."
+  ],
+  "excludes": [
+    "Adopting a repository or dependency.",
+    "Treating stars or recent pushes as evidence of fitness.",
+    "Retaining repository README prose.",
+    "Implementing or promoting the resulting plan."
+  ]
+}

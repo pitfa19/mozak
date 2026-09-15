@@ -1,0 +1,52 @@
+{
+  "contract_version": 1,
+  "run_id": "improve-515e558a8f7d263647c8613d",
+  "plans": [
+    {
+      "id": "C1",
+      "title": "Canonical archive and active planning projection",
+      "mechanism_ids": [
+        "m-active-projection-over-lossless-history",
+        "m-class-aware-retention",
+        "m-rejection-and-supersession-memory"
+      ],
+      "deliverables": [
+        "A versioned compaction manifest classifying every planning artifact as active, verbatim, archived-lossless, or derived-disposable",
+        "A content-addressed archive that stores canonical bytes for every superseded artifact",
+        "A generated active index containing the current plan, ready goals, unresolved failures, direct hashes, and supersession links",
+        "Overview, list, graph, planning-next, release, and package readers that resolve both active and archived artifacts"
+      ],
+      "acceptance_checks": [
+        "On a copy of the real Genome project, dry-run classifies all 39 planning files and proposes no deletion of authoritative bytes",
+        "After compaction, project validate and overview still report 21 valid planning artifacts, v12 current, and 11 superseded predecessors",
+        "planning next still accepts v12 and refuses v11 as superseded using the archived chain",
+        "Unpacking the archive reproduces every original artifact byte-for-byte by SHA-256",
+        "Deleting or altering one archived member makes validation fail naming the missing or changed artifact"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "C2",
+      "title": "Transactional compact, restore, and rollback workflow",
+      "mechanism_ids": [
+        "m-checkpoint-validate-rebind"
+      ],
+      "deliverables": [
+        "A read-only `mozak project compact PROJECT --dry-run` report",
+        "An owner-approved compact route that stages output outside the project and atomically swaps only after full validation",
+        "A `mozak project restore` or rollback route driven by the compaction receipt",
+        "A receipt pinning project identity, pre/post manifests, archive hash, active-index hash, and exact file movements"
+      ],
+      "acceptance_checks": [
+        "An interrupted staging run leaves the canonical project byte-for-byte unchanged",
+        "A compacted project copied offline validates and restores without Git or network access",
+        "A forced archive corruption blocks restore and preserves the current project",
+        "Compact then restore yields the original planning tree byte-for-byte",
+        "CLI and all five typed MCP tools return the same project state before and after compaction"
+      ],
+      "dependencies": [
+        "C1"
+      ]
+    }
+  ]
+}

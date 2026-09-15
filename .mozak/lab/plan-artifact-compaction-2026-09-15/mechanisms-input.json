@@ -1,0 +1,65 @@
+{
+  "contract_version": 1,
+  "run_id": "improve-515e558a8f7d263647c8613d",
+  "mechanisms": [
+    {
+      "id": "m-active-projection-over-lossless-history",
+      "proposed_mechanism": "Keep the complete immutable lifecycle history authoritative, but derive a small active projection containing the current plan, ready goals, active input set, unresolved failures, and direct hash-addressed links to archived predecessors.",
+      "affected_contract": "plans module project overview, planning inventory, and a new artifact index contract",
+      "expected_benefit": "Reduces directory and agent orientation cost without asking a summary to become the source of truth.",
+      "risks": [
+        "The active projection can drift from the archive unless derived and validated",
+        "A user may mistake the projection for a complete export"
+      ],
+      "supporting_claim_ids": [
+        "ss-c1",
+        "ss-c2",
+        "ws-c1",
+        "ts-c1"
+      ]
+    },
+    {
+      "id": "m-class-aware-retention",
+      "proposed_mechanism": "Assign lifecycle artifacts a retention class: verbatim constraints and approvals, current structured state, recoverable superseded history, or disposable derived cache. Only disposable caches may be deleted; superseded history may be packed but not semantically summarized away.",
+      "affected_contract": "planning artifact classification and compaction manifest",
+      "expected_benefit": "Prevents uniform compaction from erasing exact constraints while allowing low-value projections to stay small.",
+      "risks": [
+        "Misclassification can erase required evidence",
+        "Retention classes add migration work for existing projects"
+      ],
+      "supporting_claim_ids": [
+        "sf-c1",
+        "sf-c2",
+        "ws-c1"
+      ]
+    },
+    {
+      "id": "m-checkpoint-validate-rebind",
+      "proposed_mechanism": "Treat compaction as a migration: quiesce the project, checkpoint all artifact hashes, build archive and active projection in staging, validate both representations, atomically bind the new layout, then verify rehydration and retain rollback metadata.",
+      "affected_contract": "new project compact lifecycle and receipt",
+      "expected_benefit": "Makes compaction reversible and fail-closed instead of a best-effort file move.",
+      "risks": [
+        "Atomic replacement is platform-sensitive",
+        "Large histories may make validation slower"
+      ],
+      "supporting_claim_ids": [
+        "ri-c1",
+        "ri-c2"
+      ]
+    },
+    {
+      "id": "m-rejection-and-supersession-memory",
+      "proposed_mechanism": "Retain compact records for rejected or superseded states with exact identities, reasons, and predecessor-successor links so removed active files do not cause old proposals to recur or lineage to disappear.",
+      "affected_contract": "plan supersession index and Lab/project history",
+      "expected_benefit": "Keeps negative and historical knowledge navigable without keeping every version in the hot directory.",
+      "risks": [
+        "A terse rejection record may omit the future-relevant reason",
+        "Index chains can become inconsistent without whole-history validation"
+      ],
+      "supporting_claim_ids": [
+        "pg-c2",
+        "ws-c2"
+      ]
+    }
+  ]
+}

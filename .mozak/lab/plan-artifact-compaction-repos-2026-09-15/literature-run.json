@@ -1,0 +1,338 @@
+{
+  "contract_version": 1,
+  "run_id": "improve-5c50dfdabeda3c132e4d669f",
+  "adapter_runs": [
+    {
+      "binding_id": "agentic-tooling-discover",
+      "adapter_id": "adapter-github-tooling-v1",
+      "adapter_run_id": "run-941be655290739eaaaf99bc6",
+      "artifact_hash": "ff3b6b661b1a8c81a7211f430e495119009e0c4170d5e860fa1becc12e99e18f",
+      "source_revision": "unrecorded"
+    }
+  ],
+  "candidates": [
+    {
+      "paper_id": "paper-0000",
+      "title": "repository: modelcontextprotocol/rust-sdk",
+      "source_uri": "recorded:github-tooling:modelcontextprotocol/rust-sdk@rmcp-v3.4.0",
+      "content_sha256": "eee70e4f6078c86c96f53f747acde72cb3d337002917824e8b166a4f391177f4",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0001",
+      "title": "repository: OtoDock/oto-dock",
+      "source_uri": "recorded:github-tooling:OtoDock/oto-dock@v1.6.0",
+      "content_sha256": "7fa9c7744c63943bdb39171362ec0f7918e990524b5680fb129e3525891fdd9d",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0002",
+      "title": "repository: n8n-io/n8n",
+      "source_uri": "recorded:github-tooling:n8n-io/n8n@n8n@2.39.5",
+      "content_sha256": "44027f72f7ca3442849a9d15fe3c074388181b0d07e22e6d434b5d0146034180",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0003",
+      "title": "repository: yifanfeng97/Hyper-Extract",
+      "source_uri": "recorded:github-tooling:yifanfeng97/Hyper-Extract@v0.10.1",
+      "content_sha256": "1efe662fcf7bff1fd9a5f0af07c6fd6cc93bdaf51ac12931992062cbd1f56446",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0004",
+      "title": "repository: modelcontextprotocol/ruby-sdk",
+      "source_uri": "recorded:github-tooling:modelcontextprotocol/ruby-sdk@v1.5.1",
+      "content_sha256": "709341a38f74ad529f181e004fff54df0da0efa99cf2873b81793ae070404b8d",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0005",
+      "title": "repository: fabio-rovai/open-ontologies",
+      "source_uri": "recorded:github-tooling:fabio-rovai/open-ontologies@v1.4.0",
+      "content_sha256": "1e7bd87ffd26129642ba566110c526967a9393bfce976be7f99a0066d19728da",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0006",
+      "title": "repository: webiny/webiny-js",
+      "source_uri": "recorded:github-tooling:webiny/webiny-js@v6.4.11",
+      "content_sha256": "cba24e860946424391852b92ec70ca9185425d57060c3019579894efdd7b2e59",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0007",
+      "title": "repository: tianma-if/edgeever",
+      "source_uri": "recorded:github-tooling:tianma-if/edgeever@v1.73.2",
+      "content_sha256": "bdc4716de4c52884f83f21430a9759eb5c04d927235c7ef1e2a31e0b0698fa86",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0008",
+      "title": "repository: caura-ai/caura",
+      "source_uri": "recorded:github-tooling:caura-ai/caura@backend-v3.12.1",
+      "content_sha256": "1d82bfc1eef31881329f67bc8dfc5ff07abd19df48be80fbf4965c36479e3d12",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0009",
+      "title": "repository: mastra-ai/mastra",
+      "source_uri": "recorded:github-tooling:mastra-ai/mastra@@mastra/core@1.66.0",
+      "content_sha256": "995cef2c4b50f0fc82685012f5530f08bd63d74c160c409d9515b621815a4754",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0010",
+      "title": "repository: mlflow/mlflow",
+      "source_uri": "recorded:github-tooling:mlflow/mlflow@v3.16.0",
+      "content_sha256": "82e1976abf6fdad0123cfc3d73823a7bcdf7d81459c31e1ad06248dc46780934",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0011",
+      "title": "repository: diegosouzapw/OmniRoute",
+      "source_uri": "recorded:github-tooling:diegosouzapw/OmniRoute@v3.8.50",
+      "content_sha256": "366119177c3ee5898e3e1c3b0f9beb8c7a3cca151babab9dc8c13b36b03497a2",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0012",
+      "title": "repository: echoVic/blade-code",
+      "source_uri": "recorded:github-tooling:echoVic/blade-code@v0.10.199",
+      "content_sha256": "39dd9d659871bca209b90cf1321f7249095403fda26badede5f25e982faaafa3",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0013",
+      "title": "repository: devswha/patina",
+      "source_uri": "recorded:github-tooling:devswha/patina@v8.7.0",
+      "content_sha256": "a63c928cb38ef064b4a57f79cd9aa400108edd0353cad1a684ac1a88a6234bc2",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0014",
+      "title": "repository: obot-platform/obot",
+      "source_uri": "recorded:github-tooling:obot-platform/obot@v0.25.5",
+      "content_sha256": "fbedd6ac194a6e8d4835ab550a761e03b68e36e4da19f7f6f063963114a7ba2f",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0015",
+      "title": "repository: Signet-AI/signetai",
+      "source_uri": "recorded:github-tooling:Signet-AI/signetai@v0.157.3",
+      "content_sha256": "b3a72dc5aa99ab403cdceaf1f6097d9bbd879bff73d94e856b5ce84370d4168c",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0016",
+      "title": "repository: wanshuiyin/Auto-claude-code-research-in-sleep",
+      "source_uri": "recorded:github-tooling:wanshuiyin/Auto-claude-code-research-in-sleep@v0.4.24",
+      "content_sha256": "dd9eae5d3db28fcc8d643c187d7e4dc59d91950254ef7cf180dad86b21d247d2",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0017",
+      "title": "repository: desplega-ai/agent-swarm",
+      "source_uri": "recorded:github-tooling:desplega-ai/agent-swarm@v1.149.1",
+      "content_sha256": "cd383653d7248b4bb170b92c040eac1fac0f25a60e0539d1178428a424b8b7da",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0018",
+      "title": "repository: Higangssh/homebutler",
+      "source_uri": "recorded:github-tooling:Higangssh/homebutler@v0.33.0",
+      "content_sha256": "5dbf2bf212789b6524cfae1cbfe50fa5a0fde4b9ca040eb5faa54553ad10c3f9",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0019",
+      "title": "repository: callstack/agent-device",
+      "source_uri": "recorded:github-tooling:callstack/agent-device@v0.21.2",
+      "content_sha256": "4f097bb165edf306c7a8f2e3c1490e869aaa1dbcb8d44a6024be4b816fdf92e3",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0020",
+      "title": "repository: QwenLM/qwen-code",
+      "source_uri": "recorded:github-tooling:QwenLM/qwen-code@v0.23.4",
+      "content_sha256": "d5fd75a4f4793fe5cde54a21046d54140fd2305fb14be263bbaf3a9ecfcc8331",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0021",
+      "title": "repository: ImFeH2/huddol",
+      "source_uri": "recorded:github-tooling:ImFeH2/huddol@535e1aea9109a130aeac9965d949f4721bce191c",
+      "content_sha256": "62bbf518919bc5eabb98e9b87015d46f1a05521978d95938a93e92d2c0f9eccc",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0022",
+      "title": "repository: decocms/studio",
+      "source_uri": "recorded:github-tooling:decocms/studio@native-v4.361.0",
+      "content_sha256": "a98549e7cbc4b8439c9c14a04e14b440111e6d25a704ffadf66b71265a8cb84e",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0023",
+      "title": "repository: pingcap/tidb",
+      "source_uri": "recorded:github-tooling:pingcap/tidb@v8.5.8",
+      "content_sha256": "3cc176d82b99daa445dbd64bc86960590f0a0c101169d2832675e16bb77046a1",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0024",
+      "title": "repository: t8y2/dbx",
+      "source_uri": "recorded:github-tooling:t8y2/dbx@v0.6.13",
+      "content_sha256": "fd3a9e3b29c737e30235d9aeb4bea1e7f6ad013688d8a73fbc5bde4100aded28",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0025",
+      "title": "repository: macro-inc/macro",
+      "source_uri": "recorded:github-tooling:macro-inc/macro@v2026.9.14.0",
+      "content_sha256": "23c9600f841500f12232632defdd61c95a74bdbe77b8e47550b6086705749c0b",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0026",
+      "title": "repository: yyjeqhc/webcodex",
+      "source_uri": "recorded:github-tooling:yyjeqhc/webcodex@v0.4.1",
+      "content_sha256": "19f5c32a022dcaef51f3505207262a4a5ceb963b10d11cc6968672fb7598addf",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0027",
+      "title": "repository: syncable-dev/memtrace-public",
+      "source_uri": "recorded:github-tooling:syncable-dev/memtrace-public@v1.2.5",
+      "content_sha256": "3fb5355c5d29a9a434a5efdcdef0dc35b4c59fe9f19afe96ce592fd35a09ef51",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0028",
+      "title": "repository: deeplethe/utopia",
+      "source_uri": "recorded:github-tooling:deeplethe/utopia@dab92a3cc5809dbb678c934e195d300e11c5e2cf",
+      "content_sha256": "aa8c01e8bfe7fbcff250bb4b3d3fdf20f562518875ed548f4b2e3e92ecb4591d",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0029",
+      "title": "repository: LING71671/open-reverselab",
+      "source_uri": "recorded:github-tooling:LING71671/open-reverselab@v1.2.1",
+      "content_sha256": "b5424512533b8a45178a61ac2600f5dd232f43ca2fad20a461b30b7683133d72",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0030",
+      "title": "repository: nikolai-vysotskyi/trace-mcp",
+      "source_uri": "recorded:github-tooling:nikolai-vysotskyi/trace-mcp@v3.26.0",
+      "content_sha256": "e3c7d0c89dd8926a299cdc9cd326ea56ac54043a874edfe48269497bf6f931cf",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0031",
+      "title": "repository: repowise-dev/repowise",
+      "source_uri": "recorded:github-tooling:repowise-dev/repowise@v0.50.0",
+      "content_sha256": "bb2bf36d8060a395d8da6e5df0361ae342e7045283f5fc9e1bd3d676211c0fdf",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0032",
+      "title": "repository: styler-ai/ProjectAtlas",
+      "source_uri": "recorded:github-tooling:styler-ai/ProjectAtlas@v0.4.5",
+      "content_sha256": "8678dfd52b4fb229a58d1825404969a43e0451e6f13790dae1c91f4a181d29e2",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0033",
+      "title": "repository: ZenNotes/zennotes",
+      "source_uri": "recorded:github-tooling:ZenNotes/zennotes@v2.50.3",
+      "content_sha256": "abc68ffd6add764fe94ceaa51f48554c3ab1a292a6efebb1341ff1d5463f1060",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0034",
+      "title": "repository: dnotitia/akb",
+      "source_uri": "recorded:github-tooling:dnotitia/akb@backend-v0.14.2",
+      "content_sha256": "ed278c32ef5521302f61e521246eea5505ef0c5233e4725e828e4f910142faf4",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0035",
+      "title": "repository: blogminhquy/javis-os",
+      "source_uri": "recorded:github-tooling:blogminhquy/javis-os@07ddefc5f957a2d7abb0e7cfb79c5d21df67fcb0",
+      "content_sha256": "51150d16b28316e116cdeb1004bf006e8e264fec59770310c0a52e13f0016b45",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0036",
+      "title": "repository: activepieces/activepieces",
+      "source_uri": "recorded:github-tooling:activepieces/activepieces@0.91.0",
+      "content_sha256": "1f3880237aaf357e8b132bab81d6d2573d5336bd62ddefbf3d3f58021cf5b5f0",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0037",
+      "title": "repository: Peiiii/nextclaw",
+      "source_uri": "recorded:github-tooling:Peiiii/nextclaw@nextclaw@0.56.0",
+      "content_sha256": "4981be4c4f48aabc7d6f1a459ffce8654af2bdf0d235e89507b87257c088615d",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0038",
+      "title": "repository: PDFMathTranslate/PDFMathTranslate",
+      "source_uri": "recorded:github-tooling:PDFMathTranslate/PDFMathTranslate@v1.9.11",
+      "content_sha256": "534419870f180ce9f831161719bebbafd0f38f8f7c86f43eac4d1b3d60258e61",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0039",
+      "title": "repository: triggerdotdev/trigger.dev",
+      "source_uri": "recorded:github-tooling:triggerdotdev/trigger.dev@v4.6.0",
+      "content_sha256": "b1fb214d37d453973fbcdd4c9d0801eaf8a79a7a76f141682e0df911d53d044b",
+      "clusters": []
+    }
+  ],
+  "new_candidates": [
+    "paper-0000",
+    "paper-0001",
+    "paper-0002",
+    "paper-0003",
+    "paper-0004",
+    "paper-0005",
+    "paper-0006",
+    "paper-0007",
+    "paper-0008",
+    "paper-0009",
+    "paper-0010",
+    "paper-0011",
+    "paper-0012",
+    "paper-0013",
+    "paper-0014",
+    "paper-0015",
+    "paper-0016",
+    "paper-0017",
+    "paper-0018",
+    "paper-0019",
+    "paper-0020",
+    "paper-0021",
+    "paper-0022",
+    "paper-0023",
+    "paper-0024",
+    "paper-0025",
+    "paper-0026",
+    "paper-0027",
+    "paper-0028",
+    "paper-0029",
+    "paper-0030",
+    "paper-0031",
+    "paper-0032",
+    "paper-0033",
+    "paper-0034",
+    "paper-0035",
+    "paper-0036",
+    "paper-0037",
+    "paper-0038",
+    "paper-0039"
+  ],
+  "unchanged_candidates": []
+}
