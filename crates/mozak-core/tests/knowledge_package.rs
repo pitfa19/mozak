@@ -123,6 +123,54 @@ fn canonical_package_validates_and_identity_is_deterministic() {
 }
 
 #[test]
+fn planning_archive_artifact_is_included_and_schema_validated() {
+    let temp = Temp::new();
+    build(&temp.0, "r", 1, None, None, None);
+    let archive = br#"{"schema_version":1,"project_root":"/project","generated_at":"2026-09-15T00:00:00Z","archive_root":".mozak/planning/archive/sha256","active_index_path":".mozak/planning/active-index.json","entries":[]}
+"#;
+    fs::write(temp.0.join("planning-archive.json"), archive).unwrap();
+    rewrite_manifest(
+        &temp.0,
+        |value| {
+            value["artifacts"]
+                .as_array_mut()
+                .unwrap()
+                .push(serde_json::json!({
+                    "kind": "planning_archive",
+                    "path": "planning-archive.json",
+                    "media_type": "application/vnd.mozak.planning-archive+json",
+                    "sha256": hash(archive),
+                    "bytes": archive.len()
+                }));
+        },
+        true,
+    );
+    assert!(load_knowledge_package(&temp.0).is_ok());
+
+    fs::write(
+        temp.0.join("planning-archive.json"),
+        b"{\"schema_version\":999}",
+    )
+    .unwrap();
+    rewrite_manifest(
+        &temp.0,
+        |value| {
+            let bytes = b"{\"schema_version\":999}";
+            let artifact = value["artifacts"]
+                .as_array_mut()
+                .unwrap()
+                .iter_mut()
+                .find(|artifact| artifact["kind"] == "planning_archive")
+                .unwrap();
+            artifact["sha256"] = hash(bytes).into();
+            artifact["bytes"] = bytes.len().into();
+        },
+        true,
+    );
+    assert!(load_knowledge_package(&temp.0).is_err());
+}
+
+#[test]
 #[allow(clippy::too_many_lines, clippy::type_complexity)]
 fn rejects_unknowns_identity_hash_media_binary_paths_duplicates_and_bounds() {
     let cases: Vec<(&str, Box<dyn Fn(&Temp)>)> = vec![

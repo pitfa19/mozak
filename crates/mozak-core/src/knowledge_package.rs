@@ -37,6 +37,7 @@ pub enum ArtifactKind {
     HumanOverview,
     ResearchMarkdown,
     PlanningMarkdown,
+    PlanningArchive,
 }
 
 impl ArtifactKind {
@@ -46,6 +47,7 @@ impl ArtifactKind {
             Self::HumanOverview | Self::ResearchMarkdown | Self::PlanningMarkdown => {
                 "text/markdown; charset=utf-8"
             }
+            Self::PlanningArchive => "application/vnd.mozak.planning-archive+json",
         }
     }
 }
@@ -226,6 +228,18 @@ pub fn load_knowledge_package(root: &Path) -> Result<ValidatedKnowledgePackage, 
             std::str::from_utf8(&bytes).map_err(|_| {
                 PackageError(format!("Markdown artifact is not UTF-8: {}", artifact.path))
             })?;
+        }
+        if artifact.kind == ArtifactKind::PlanningArchive {
+            let parsed: crate::planning_archive::PlanningCompactionPlan =
+                serde_json::from_slice(&bytes).map_err(|e| {
+                    PackageError(format!("invalid PlanningArchive {}: {e}", artifact.path))
+                })?;
+            if parsed.schema_version != crate::planning_archive::COMPACTION_SCHEMA_VERSION {
+                return Err(PackageError(format!(
+                    "invalid PlanningArchive schema_version: {}",
+                    artifact.path
+                )));
+            }
         }
         if artifact.kind == ArtifactKind::ProjectRelease {
             let parsed: ProjectRelease = serde_json::from_slice(&bytes).map_err(|e| {

@@ -30,6 +30,11 @@ fn write_artifacts(root: &Path) {
         br#"{"contract_version":1,"id":"plan","version":1,"input_set_id":"inputs","goals":[{"id":"g1","version":1,"title":"Do it","status":"ready","priority":1,"input_ids":["i1"],"recovery_attempts":0}],"dependencies":[],"recovery":{"max_attempts_per_goal":1,"allowed_failed_transition":"blocked"}}"#,
     )
     .expect("plan");
+    fs::write(
+        root.join(".mozak/planning/notes.txt"),
+        b"planning note" as &[u8],
+    )
+    .expect("note");
 }
 
 fn write_plan_and_approval(root: &Path) -> (PathBuf, PathBuf, String) {
@@ -71,7 +76,7 @@ fn compaction_archives_losslessly_and_restores_from_deterministic_index() {
 
     let receipt = apply_compaction_plan(&root, &plan_path, &approval_path).expect("apply");
     assert_eq!(receipt.plan_sha256, hash);
-    assert_eq!(receipt.entries.len(), 2);
+    assert_eq!(receipt.entries.len(), 3);
     let index = root.join(".mozak/planning/active-index.json");
     assert!(index.is_file());
 
@@ -137,13 +142,13 @@ fn stale_approval_changed_artifact_and_corrupt_archive_fail_closed() {
 }
 
 #[test]
-fn stale_staging_is_cleared_before_apply() {
+fn stale_staging_is_refused_before_apply() {
     let root = temp_root("archive-staging");
     write_artifacts(&root);
     let staging = root.join(".mozak/planning/.compact-staging/archive/junk");
     fs::create_dir_all(&staging).expect("staging");
     fs::write(staging.join("leftover"), b"partial" as &[u8]).expect("leftover");
     let (plan_path, approval_path, _) = write_plan_and_approval(&root);
-    apply_compaction_plan(&root, &plan_path, &approval_path).expect("apply");
-    assert!(!root.join(".mozak/planning/.compact-staging").exists());
+    let err = apply_compaction_plan(&root, &plan_path, &approval_path).expect_err("stale staging");
+    assert!(err.to_string().contains("staging already exists"));
 }

@@ -4,12 +4,16 @@ use mozak_core::{
         Plan, next_ready_goals, superseded_by, validate_input_set_json, validate_plan_json,
     },
     planning_archive::{
-        apply_compaction_plan, build_compaction_plan, plan_sha256, restore_compaction,
+        apply_compaction_plan, archived_planning_artifacts, build_compaction_plan, plan_sha256,
+        restore_compaction,
     },
     research::{normalize_provider_arxiv, normalize_provider_dair_ai, validate_run_json},
 };
 use serde_json::json;
-use std::{fs, path::Path};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 pub fn research_validate(path: &Path) -> Result<(), String> {
     let input = read(path)?;
@@ -147,7 +151,12 @@ pub fn planning_compact_restore(
 pub fn planning_next(inputs_path: &Path, plan_path: &Path) -> Result<(), String> {
     let inputs = validate_input_set_json(&read(inputs_path)?).map_err(|error| error.to_string())?;
     let plan = validate_plan_json(&read(plan_path)?, &inputs).map_err(|error| error.to_string())?;
-    let siblings = sibling_plans(plan_path, &plan);
+    let mut siblings = sibling_plans(plan_path, &plan);
+    if let Some(root) = project_root_from_planning_path(plan_path) {
+        let (_, archived) =
+            archived_planning_artifacts(&root).map_err(|error| error.to_string())?;
+        siblings.extend(archived.into_iter().map(|(_, plan)| plan));
+    }
     if let Some(successor) = superseded_by(&siblings, &plan) {
         return Err(format!(
             "plan {} version {} is superseded by version {}; \
@@ -175,6 +184,15 @@ pub fn planning_next(inputs_path: &Path, plan_path: &Path) -> Result<(), String>
             })
         }).collect::<Vec<_>>()
     }))
+}
+
+fn project_root_from_planning_path(path: &Path) -> Option<PathBuf> {
+    for ancestor in path.ancestors() {
+        if ancestor.file_name().and_then(|value| value.to_str()) == Some("planning") {
+            return ancestor.parent()?.parent().map(Path::to_path_buf);
+        }
+    }
+    None
 }
 
 /// Loads sibling plan files that declare supersession of the selected plan.
