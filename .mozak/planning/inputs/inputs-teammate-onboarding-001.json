@@ -1,0 +1,22 @@
+{
+  "contract_version": 1,
+  "id": "inputs-teammate-onboarding-001",
+  "accepted_at": "2026-09-15T09:35:57Z",
+  "inputs": [
+    {
+      "id": "input-teammate-onboarding-approval",
+      "text": "The owner approved a five-step MOZAK teammate-onboarding improvement: focused teammate quickstart, reliable piped-install configuration, a shorter supported happy path, stale-command truth checks, and a clean-machine acceptance journey covering install, existing-project continuation, MCP, update, and rollback.",
+      "provenance": {"kind":"human_decision","decision_id":"decision-teammate-onboarding-2026-09-15","actor":"pitfa"}
+    },
+    {
+      "id": "input-teammate-existing-projects",
+      "text": "The teammate will continue projects already onboarded by the owner, especially ANPIT and Potjera projects, rather than creating an independent project system from scratch. The installed MOZAK skill must ship with the tool.",
+      "provenance": {"kind":"human_decision","decision_id":"decision-teammate-existing-projects-2026-09-15","actor":"pitfa"}
+    },
+    {
+      "id": "input-onboarding-audit-observation",
+      "text": "At repository revision af2f2df502d487c3994865ae1dffd51794aefc74, an isolated stable install, skill parity, doctor, project init, MCP startup, update, and rollback succeeded, but curl-pipe install left local_config null; project context then failed because config.json did not exist. The 366-line quickstart also presents legacy execution validation as a current completion path and does not foreground how a teammate joins existing registered projects.",
+      "provenance": {"kind":"codebase_observation","observation_id":"obs-teammate-onboarding-audit-2026-09-15","repository_revision":"af2f2df502d487c3994865ae1dffd51794aefc74","paths":["README.md","docs/QUICKSTART.md","docs/REFERENCE.md","docs/distribution/INSTALL.md","scripts/install.sh"]}
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "contract_version": 1,
+  "id": "plan-teammate-onboarding",
+  "version": 1,
+  "input_set_id": "inputs-teammate-onboarding-001",
+  "goals": [
+    {
+      "id": "verified-teammate-onboarding",
+      "version": 1,
+      "title": "Ship a verified teammate install and existing-project continuation journey",
+      "status": "ready",
+      "priority": 1,
+      "input_ids": [
+        "input-teammate-onboarding-approval",
+        "input-teammate-existing-projects",
+        "input-onboarding-audit-observation"
+      ],
+      "recovery_attempts": 0
+    }
+  ],
+  "dependencies": [],
+  "recovery": {
+    "max_attempts_per_goal": 2,
+    "allowed_failed_transition": "blocked"
+  }
+}
