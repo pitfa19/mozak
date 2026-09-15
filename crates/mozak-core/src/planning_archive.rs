@@ -7,6 +7,8 @@ use std::{
     path::{Component, Path, PathBuf},
 };
 
+use crate::planning::{Plan, PlanningInputSet, validate_input_set_json, validate_plan_json};
+
 pub const COMPACTION_SCHEMA_VERSION: u64 = 1;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -24,6 +26,7 @@ impl std::error::Error for PlanningArchiveError {}
 pub struct PlanningArchiveEntry {
     pub relative_path: String,
     pub kind: PlanningArtifactKind,
+    pub retention: PlanningRetentionClass,
     pub sha256: String,
     pub bytes: u64,
 }
@@ -33,8 +36,17 @@ pub struct PlanningArchiveEntry {
 pub enum PlanningArtifactKind {
     AcceptedInputs,
     Plan,
-    ActiveIndex,
     LegacyAcceptedInputs,
+    ActiveIndex,
+    Other,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PlanningRetentionClass {
+    ActiveContract,
+    LegacyContract,
+    SupportArtifact,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -74,6 +86,8 @@ pub struct PlanningCompactionReceipt {
     pub entries: Vec<PlanningArchiveEntry>,
 }
 
+pub type ArchivedPlanningArtifacts = (Vec<(String, PlanningInputSet)>, Vec<(String, Plan)>);
+
 /// Builds a deterministic active planning artifact index without mutating artifacts.
 ///
 /// # Errors
@@ -88,27 +102,7 @@ pub fn build_compaction_plan(
         fail("missing .mozak/planning directory")?;
     }
     let mut entries = Vec::new();
-    collect_json(
-        &root,
-        &planning.join("inputs"),
-        PlanningArtifactKind::AcceptedInputs,
-        &mut entries,
-    )?;
-    collect_json(
-        &root,
-        &planning.join("plans"),
-        PlanningArtifactKind::Plan,
-        &mut entries,
-    )?;
-    let legacy = planning.join("accepted-inputs.json");
-    if legacy.is_file() {
-        push_entry(
-            &root,
-            &legacy,
-            PlanningArtifactKind::LegacyAcceptedInputs,
-            &mut entries,
-        )?;
-    }
+    collect_planning_files(&root, &planning, &mut entries)?;
     entries.sort_by(|a, b| a.relative_path.cmp(&b.relative_path));
     let active_index_path = ".mozak/planning/active-index.json".to_owned();
     let archive_root = ".mozak/planning/archive/sha256".to_owned();
@@ -149,10 +143,12 @@ pub fn apply_compaction_plan(
     validate_approval(&plan, &approval, &expected)?;
     let root = canonical_existing_dir(root, "project root")?;
     verify_sources(&root, &plan.entries)?;
+    let lock = acquire_lock(&root)?;
     let staging = root.join(".mozak/planning/.compact-staging");
     if staging.exists() {
-        fs::remove_dir_all(&staging)
-            .map_err(|e| PlanningArchiveError(format!("cannot clear stale staging: {e}")))?;
+        fail(
+            "compaction staging already exists; remove it only after verifying no operation is active",
+        )?;
     }
     fs::create_dir_all(&staging)
         .map_err(|e| PlanningArchiveError(format!("cannot create staging: {e}")))?;
@@ -179,6 +175,7 @@ pub fn apply_compaction_plan(
     atomic_replace(&index_stage, &root.join(&plan.active_index_path))?;
     fs::remove_dir_all(&staging)
         .map_err(|e| PlanningArchiveError(format!("cannot remove staging: {e}")))?;
+    drop(lock);
     Ok(receipt("apply", &approval.owner, &expected, &plan, None))
 }
 
@@ -201,7 +198,8 @@ pub fn restore_compaction(
         .map_err(|e| PlanningArchiveError(format!("invalid compaction approval JSON: {e}")))?;
     validate_approval(&plan, &approval, &expected)?;
     let root = canonical_existing_dir(root, "project root")?;
-    let output = prepare_output_root(output_root)?;
+    let lock = acquire_lock(&root)?;
+    let mut verified = Vec::with_capacity(plan.entries.len());
     for entry in &plan.entries {
         let source = root
             .join(&plan.archive_root)
@@ -219,8 +217,19 @@ pub fn restore_compaction(
                 entry.relative_path
             ))?;
         }
+        if bytes.len() as u64 != entry.bytes {
+            fail(&format!(
+                "archive blob byte count mismatch for {}",
+                entry.relative_path
+            ))?;
+        }
+        verified.push((entry, bytes));
+    }
+    let output = prepare_output_root_staged(output_root)?;
+    let output_stage = output.with_extension("restore-staging");
+    for (entry, bytes) in verified {
         let target_rel = safe_relative(&entry.relative_path)?;
-        let target = output.join(target_rel);
+        let target = output_stage.join(target_rel);
         if let Some(parent) = target.parent() {
             fs::create_dir_all(parent).map_err(|e| {
                 PlanningArchiveError(format!("cannot create restore directory: {e}"))
@@ -230,6 +239,9 @@ pub fn restore_compaction(
             PlanningArchiveError(format!("cannot restore {}: {e}", target.display()))
         })?;
     }
+    fs::rename(&output_stage, &output)
+        .map_err(|e| PlanningArchiveError(format!("cannot install restore output: {e}")))?;
+    drop(lock);
     Ok(receipt(
         "restore",
         &approval.owner,
@@ -239,10 +251,111 @@ pub fn restore_compaction(
     ))
 }
 
-fn collect_json(
+/// Loads archived accepted input sets and plans from the active index.
+///
+/// # Errors
+/// Returns an error when an active index exists but is malformed, unsafe, corrupt, or internally inconsistent.
+pub fn archived_planning_artifacts(
+    root: &Path,
+) -> Result<ArchivedPlanningArtifacts, PlanningArchiveError> {
+    let root = canonical_existing_dir(root, "project root")?;
+    let index = root.join(".mozak/planning/active-index.json");
+    if !index.exists() {
+        return Ok((Vec::new(), Vec::new()));
+    }
+    let text = read_text(&index)?;
+    let archive: PlanningCompactionPlan = serde_json::from_str(&text)
+        .map_err(|e| PlanningArchiveError(format!("invalid active index JSON: {e}")))?;
+    validate_plan_shape(&root, &archive)?;
+    let mut inputs = Vec::new();
+    for entry in archive.entries.iter().filter(|entry| {
+        matches!(
+            entry.kind,
+            PlanningArtifactKind::AcceptedInputs | PlanningArtifactKind::LegacyAcceptedInputs
+        )
+    }) {
+        let bytes = read_archive_blob(&root, &archive, entry)?;
+        let parsed = validate_input_set_json(std::str::from_utf8(&bytes).map_err(|_| {
+            PlanningArchiveError(format!(
+                "archived input is not UTF-8: {}",
+                entry.relative_path
+            ))
+        })?)
+        .map_err(|e| {
+            PlanningArchiveError(format!(
+                "invalid archived input {}: {e}",
+                entry.relative_path
+            ))
+        })?;
+        inputs.push((entry.relative_path.clone(), parsed));
+    }
+    let input_map = inputs
+        .iter()
+        .map(|(_, input)| (input.id.clone(), input.clone()))
+        .collect::<std::collections::BTreeMap<_, _>>();
+    let mut plans = Vec::new();
+    for entry in archive
+        .entries
+        .iter()
+        .filter(|entry| entry.kind == PlanningArtifactKind::Plan)
+    {
+        let bytes = read_archive_blob(&root, &archive, entry)?;
+        let text = std::str::from_utf8(&bytes).map_err(|_| {
+            PlanningArchiveError(format!(
+                "archived plan is not UTF-8: {}",
+                entry.relative_path
+            ))
+        })?;
+        let candidate: Plan = serde_json::from_str(text).map_err(|e| {
+            PlanningArchiveError(format!(
+                "invalid archived plan JSON {}: {e}",
+                entry.relative_path
+            ))
+        })?;
+        let input = input_map.get(&candidate.input_set_id).ok_or_else(|| {
+            PlanningArchiveError(format!(
+                "archived plan references missing archived input set: {}",
+                candidate.input_set_id
+            ))
+        })?;
+        let plan = validate_plan_json(text, input).map_err(|e| {
+            PlanningArchiveError(format!(
+                "invalid archived plan {}: {e}",
+                entry.relative_path
+            ))
+        })?;
+        plans.push((entry.relative_path.clone(), plan));
+    }
+    Ok((inputs, plans))
+}
+
+fn read_archive_blob(
+    root: &Path,
+    archive: &PlanningCompactionPlan,
+    entry: &PlanningArchiveEntry,
+) -> Result<Vec<u8>, PlanningArchiveError> {
+    let source = root
+        .join(&archive.archive_root)
+        .join(&entry.sha256[..2])
+        .join(format!("{}.json", entry.sha256));
+    let bytes = fs::read(&source).map_err(|e| {
+        PlanningArchiveError(format!(
+            "cannot read archive blob {}: {e}",
+            source.display()
+        ))
+    })?;
+    if sha_bytes(&bytes) != entry.sha256 || bytes.len() as u64 != entry.bytes {
+        fail(&format!(
+            "archive blob corruption detected for {}",
+            entry.relative_path
+        ))?;
+    }
+    Ok(bytes)
+}
+
+fn collect_planning_files(
     root: &Path,
     dir: &Path,
-    kind: PlanningArtifactKind,
     entries: &mut Vec<PlanningArchiveEntry>,
 ) -> Result<(), PlanningArchiveError> {
     if !dir.exists() {
@@ -254,13 +367,58 @@ fn collect_json(
         let path = entry
             .map_err(|e| PlanningArchiveError(e.to_string()))?
             .path();
+        let rel = path
+            .strip_prefix(root)
+            .map_err(|_| PlanningArchiveError("artifact outside project root".into()))?
+            .to_string_lossy()
+            .replace('\\', "/");
+        if is_compaction_internal(&rel) {
+            continue;
+        }
         if path.is_dir() {
-            collect_json(root, &path, kind, entries)?;
-        } else if path.extension().is_some_and(|e| e == "json") {
+            collect_planning_files(root, &path, entries)?;
+        } else if fs::metadata(&path)
+            .map_err(|e| PlanningArchiveError(format!("cannot inspect {}: {e}", path.display())))?
+            .is_file()
+        {
+            let kind = classify_planning_file(&rel);
             push_entry(root, &path, kind, entries)?;
         }
     }
     Ok(())
+}
+
+fn classify_planning_file(relative: &str) -> PlanningArtifactKind {
+    if relative == ".mozak/planning/accepted-inputs.json" {
+        PlanningArtifactKind::LegacyAcceptedInputs
+    } else if relative == ".mozak/planning/active-index.json" {
+        PlanningArtifactKind::ActiveIndex
+    } else if relative.starts_with(".mozak/planning/inputs/") && has_json_extension(relative) {
+        PlanningArtifactKind::AcceptedInputs
+    } else if relative.starts_with(".mozak/planning/")
+        && has_json_extension(relative)
+        && (relative.starts_with(".mozak/planning/plans/")
+            || relative
+                .rsplit('/')
+                .next()
+                .is_some_and(|name| name.starts_with("goal-dag")))
+    {
+        PlanningArtifactKind::Plan
+    } else {
+        PlanningArtifactKind::Other
+    }
+}
+
+fn has_json_extension(value: &str) -> bool {
+    Path::new(value)
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("json"))
+}
+
+fn is_compaction_internal(relative: &str) -> bool {
+    relative == ".mozak/planning/.compact-lock"
+        || relative.starts_with(".mozak/planning/archive/")
+        || relative.starts_with(".mozak/planning/.compact-staging")
 }
 
 fn push_entry(
@@ -280,10 +438,21 @@ fn push_entry(
     entries.push(PlanningArchiveEntry {
         relative_path: relative,
         kind,
+        retention: retention_for(kind),
         sha256: sha_bytes(&bytes),
         bytes: bytes.len() as u64,
     });
     Ok(())
+}
+
+fn retention_for(kind: PlanningArtifactKind) -> PlanningRetentionClass {
+    match kind {
+        PlanningArtifactKind::AcceptedInputs
+        | PlanningArtifactKind::Plan
+        | PlanningArtifactKind::ActiveIndex => PlanningRetentionClass::ActiveContract,
+        PlanningArtifactKind::LegacyAcceptedInputs => PlanningRetentionClass::LegacyContract,
+        PlanningArtifactKind::Other => PlanningRetentionClass::SupportArtifact,
+    }
 }
 
 fn validate_plan_shape(
@@ -362,18 +531,39 @@ fn verify_sources(
     Ok(())
 }
 
-fn prepare_output_root(path: &Path) -> Result<PathBuf, PlanningArchiveError> {
+fn prepare_output_root_staged(path: &Path) -> Result<PathBuf, PlanningArchiveError> {
     if path.exists() {
         fail("restore output already exists")?;
+    }
+    let staging = path.with_extension("restore-staging");
+    if staging.exists() {
+        fail("restore staging already exists; refusing to overwrite possible interrupted restore")?;
     }
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)
             .map_err(|e| PlanningArchiveError(format!("cannot create restore parent: {e}")))?;
     }
-    fs::create_dir(path)
-        .map_err(|e| PlanningArchiveError(format!("cannot create restore output: {e}")))?;
-    path.canonicalize()
-        .map_err(|e| PlanningArchiveError(format!("cannot resolve restore output: {e}")))
+    fs::create_dir(&staging)
+        .map_err(|e| PlanningArchiveError(format!("cannot create restore staging: {e}")))?;
+    path.canonicalize().or_else(|_| Ok(path.to_path_buf()))
+}
+
+struct CompactLock(PathBuf);
+
+impl Drop for CompactLock {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(&self.0);
+    }
+}
+
+fn acquire_lock(root: &Path) -> Result<CompactLock, PlanningArchiveError> {
+    let path = root.join(".mozak/planning/.compact-lock");
+    fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&path)
+        .map_err(|e| PlanningArchiveError(format!("cannot acquire compaction lock: {e}")))?;
+    Ok(CompactLock(path))
 }
 
 fn safe_relative(value: &str) -> Result<PathBuf, PlanningArchiveError> {

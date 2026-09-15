@@ -3,9 +3,10 @@ use mozak_core::{
     concept::{Adoption, Concept, Translation, validate_concept_json, validate_translation},
     execution::{ExecutionBundle, validate_bundle_json},
     planning::{
-        GoalStatus, Plan, PlanningInputSet, next_ready_goals, superseded_by,
-        validate_input_set_json, validate_plan_json,
+        GoalStatus, Plan, PlanHistory, PlanningInputSet, next_ready_goals, superseded_by,
+        validate_input_set_json, validate_plan_history_with_input_sets, validate_plan_json,
     },
+    planning_archive::archived_planning_artifacts,
     project_context::{ContextStatus, validate_context_manifest_json},
     project_contract::{validate_idea_markdown, validate_project_yaml},
     project_release::{ProjectRelease, generate_project_release, validate_project_release},
@@ -200,6 +201,7 @@ fn retain_current_plans(
         .collect()
 }
 
+#[allow(clippy::too_many_lines)]
 pub fn snapshot(root: &Path) -> Result<WorkflowSnapshot, String> {
     if !root.is_dir() {
         return Err(format!(
@@ -220,13 +222,44 @@ pub fn snapshot(root: &Path) -> Result<WorkflowSnapshot, String> {
         ("concept".into(), empty_counts()),
     ]);
 
-    let (manifest_valid, idea_valid, revision, input_sets) =
+    let (manifest_valid, idea_valid, revision, mut input_sets) =
         inspect_foundation(&root, &mut counts, &mut findings);
+    let mut archived_plans = Vec::new();
+    match archived_planning_artifacts(&root) {
+        Ok((archived_inputs, plans)) => {
+            for (path, inputs) in archived_inputs {
+                input_sets.entry(inputs.id.clone()).or_insert(inputs);
+                recognized(&mut counts, "planning");
+                valid(&mut counts, "planning");
+                let _ = path;
+            }
+            archived_plans = plans
+                .into_iter()
+                .map(|(path, plan)| (root.join(path), plan))
+                .collect();
+        }
+        Err(message) => {
+            invalid(&mut counts, "planning");
+            finding(
+                &root,
+                &root.join(".mozak/planning/active-index.json"),
+                "invalid",
+                message.to_string(),
+                &mut findings,
+            );
+        }
+    }
 
     discover_research(&root, &mut counts, &mut findings)?;
     let contexts = discover_contexts(&root, &mut counts, &mut findings)?;
     let concepts = discover_concepts(&root, &mut counts, &mut findings)?;
-    let valid_plans = discover_plans(&root, &input_sets, &mut counts, &mut findings)?;
+    let mut valid_plans = discover_plans(&root, &input_sets, &mut counts, &mut findings)?;
+    for archived in archived_plans {
+        recognized(&mut counts, "planning");
+        valid(&mut counts, "planning");
+        valid_plans.push(archived);
+    }
+    validate_plan_histories(&root, &valid_plans, &input_sets, &mut counts, &mut findings);
     discover_execution(&root, revision.as_deref(), &mut counts, &mut findings)?;
     discover_releases(&root, &mut counts, &mut findings)?;
     discover_unknown(&root, &mut counts, &mut findings)?;
@@ -235,9 +268,8 @@ pub fn snapshot(root: &Path) -> Result<WorkflowSnapshot, String> {
     let latest = current_plans
         .into_iter()
         .max_by(|(path_a, a), (path_b, b)| {
-            a.version
-                .cmp(&b.version)
-                .then_with(|| a.id.cmp(&b.id))
+            a.id.cmp(&b.id)
+                .then_with(|| a.version.cmp(&b.version))
                 .then_with(|| path_a.cmp(path_b))
         });
     let (latest_valid_plan, goals, ready_goals) = match latest {
@@ -298,6 +330,37 @@ pub fn snapshot(root: &Path) -> Result<WorkflowSnapshot, String> {
         findings,
         next_actions,
     })
+}
+
+fn validate_plan_histories(
+    root: &Path,
+    plans: &[(PathBuf, Plan)],
+    input_sets: &BTreeMap<String, PlanningInputSet>,
+    counts: &mut BTreeMap<String, ArtifactCounts>,
+    findings: &mut Vec<Finding>,
+) {
+    let mut by_id = BTreeMap::<String, Vec<Plan>>::new();
+    for (_, plan) in plans {
+        by_id.entry(plan.id.clone()).or_default().push(plan.clone());
+    }
+    for (id, mut versions) in by_id {
+        versions.sort_by_key(|plan| plan.version);
+        let used_inputs = versions
+            .iter()
+            .filter_map(|plan| input_sets.get(&plan.input_set_id).cloned())
+            .collect::<Vec<_>>();
+        let history = PlanHistory { versions };
+        if let Err(error) = validate_plan_history_with_input_sets(&history, &used_inputs) {
+            invalid(counts, "planning");
+            finding(
+                root,
+                &root.join(".mozak/planning"),
+                "invalid",
+                format!("invalid complete plan history for {id}: {error}"),
+                findings,
+            );
+        }
+    }
 }
 
 fn discover_contexts(
