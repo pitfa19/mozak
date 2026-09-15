@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "scope_id": "topic-genome-family",
+  "mode": "discover",
+  "pushed_since": "2025-01-01",
+  "min_stars": 20,
+  "max_records": 80,
+  "question": "Which active repositories implement versioned bioinformatics tool metadata, environment locking, executable validation, workflow provenance, or reproducibility testing?",
+  "queries": [
+    {"name": "genome-assembly", "terms": ["topic:genome-assembly"]},
+    {"name": "bioinformatics-workflows", "terms": ["topic:bioinformatics-workflow", "topic:scientific-workflows"]},
+    {"name": "reproducible-research", "terms": ["topic:reproducible-research", "topic:provenance"]},
+    {"name": "package-environments", "terms": ["topic:bioconda", "topic:containers"]}
+  ]
+}

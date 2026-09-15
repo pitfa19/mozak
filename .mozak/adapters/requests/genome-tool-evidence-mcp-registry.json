@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "scope_id": "topic-genome-family",
+  "updated_since": "2025-01-01T00:00:00Z",
+  "max_records": 80,
+  "question": "Which MCP servers expose software inventory, provenance, package metadata, workflow execution, testing, or scientific tooling useful to Genome's tool-evidence design?",
+  "interests": [
+    {"name": "provenance", "terms": ["provenance", "attestation", "lineage", "audit", "evidence"]},
+    {"name": "software-inventory", "terms": ["package", "dependency", "version", "container", "sbom", "environment"]},
+    {"name": "workflow-validation", "terms": ["workflow", "test", "validation", "execution", "bioinformatics", "genomics"]}
+  ]
+}

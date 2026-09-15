@@ -99,6 +99,34 @@ fn register_initial(kb: &Path, ws: &Path, xdg: &Path, base: &Path) -> Value {
 }
 
 #[test]
+fn registrations_lists_exact_configured_ids_even_when_the_live_kb_drifted() {
+    let t = Temp::new("registrations-during-kb-drift");
+    let kb = valid_kb(&t.0);
+    let ws = t.0.join("workspace");
+    project(&ws.join("genome"), "genome-mcp");
+    let xdg = t.0.join("xdg");
+    register_initial(&kb, &ws, &xdg, &t.0);
+
+    fs::write(kb.join("kb.json"), b"live KB changed after registration").unwrap();
+    let out = run(&["project", "registrations"], &xdg);
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let report: Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(report["command"], "project registrations");
+    assert_eq!(report["live_kb_consulted"], false);
+    assert_eq!(report["mutation"], false);
+    assert_eq!(report["projects"][0]["id"], "genome-mcp");
+    assert_eq!(report["projects"][0]["name"], "Test Project");
+    assert_eq!(
+        report["projects"][0]["root"],
+        ws.join("genome").to_string_lossy().as_ref()
+    );
+}
+
+#[test]
 #[allow(clippy::too_many_lines)]
 fn review_reports_exact_register_and_refresh_deltas_without_mutation() {
     let t = Temp::new("review-deltas");
