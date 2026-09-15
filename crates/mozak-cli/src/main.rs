@@ -154,6 +154,7 @@ fn run_scope_command(args: &[String]) -> Result<ExitCode, String> {
     }
 }
 
+#[allow(clippy::too_many_lines)]
 fn run() -> Result<ExitCode, String> {
     let args = env::args().skip(1).collect::<Vec<_>>();
     if let Some(result) = run_distribution_command(&args) {
@@ -175,6 +176,33 @@ fn run() -> Result<ExitCode, String> {
         }
         [research, command, path] if research == "research" && command == "validate" => {
             lifecycle::research_validate(Path::new(path))?;
+            Ok(ExitCode::SUCCESS)
+        }
+        [planning, compact, command, root, output, generated_at]
+            if planning == "planning" && compact == "compact" && command == "plan" =>
+        {
+            lifecycle::planning_compact_plan(Path::new(root), Path::new(output), generated_at)?;
+            Ok(ExitCode::SUCCESS)
+        }
+        [planning, compact, command, root, plan, approval]
+            if planning == "planning" && compact == "compact" && command == "apply" =>
+        {
+            lifecycle::planning_compact_apply(
+                Path::new(root),
+                Path::new(plan),
+                Path::new(approval),
+            )?;
+            Ok(ExitCode::SUCCESS)
+        }
+        [planning, compact, command, root, index, approval, output]
+            if planning == "planning" && compact == "compact" && command == "restore" =>
+        {
+            lifecycle::planning_compact_restore(
+                Path::new(root),
+                Path::new(index),
+                Path::new(approval),
+                Path::new(output),
+            )?;
             Ok(ExitCode::SUCCESS)
         }
         [planning, command, inputs, plan] if planning == "planning" && command == "next" => {

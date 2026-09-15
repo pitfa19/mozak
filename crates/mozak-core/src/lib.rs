@@ -13,6 +13,7 @@ pub mod landmark;
 pub mod meta_kb;
 pub mod package_import;
 pub mod planning;
+pub mod planning_archive;
 pub mod project_context;
 pub mod project_contract;
 pub mod project_release;
