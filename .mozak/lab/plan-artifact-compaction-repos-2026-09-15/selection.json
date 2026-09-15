@@ -1,0 +1,168 @@
+{
+  "contract_version": 1,
+  "run_id": "improve-5c50dfdabeda3c132e4d669f",
+  "included": [
+    {
+      "paper_id": "paper-0007",
+      "reason": "Edgeever is local-first and uses SQLite/R2, relevant to portable indexed storage rather than loose active files."
+    },
+    {
+      "paper_id": "paper-0015",
+      "reason": "SignetAI is explicitly an agent-memory system spanning several agent hosts, relevant to cross-host working-set projections."
+    },
+    {
+      "paper_id": "paper-0027",
+      "reason": "Memtrace advertises local-first, structural, bitemporal memory, directly relevant to recoverable history and temporal identity."
+    },
+    {
+      "paper_id": "paper-0028",
+      "reason": "Utopia declares bitemporal knowledge and Rust, relevant to immutable history plus current projections."
+    },
+    {
+      "paper_id": "paper-0032",
+      "reason": "ProjectAtlas is a Rust repository map backed by SQLite, relevant to derived navigation over a larger source tree."
+    },
+    {
+      "paper_id": "paper-0033",
+      "reason": "ZenNotes is local-first Markdown software, relevant to portable human-editable active views over durable storage."
+    }
+  ],
+  "excluded": [
+    {
+      "paper_id": "paper-0000",
+      "reason": "repository: modelcontextprotocol/rust-sdk was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0001",
+      "reason": "repository: OtoDock/oto-dock was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0002",
+      "reason": "repository: n8n-io/n8n was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0003",
+      "reason": "repository: yifanfeng97/Hyper-Extract was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0004",
+      "reason": "repository: modelcontextprotocol/ruby-sdk was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0005",
+      "reason": "repository: fabio-rovai/open-ontologies was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0006",
+      "reason": "repository: webiny/webiny-js was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0008",
+      "reason": "repository: caura-ai/caura was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0009",
+      "reason": "repository: mastra-ai/mastra was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0010",
+      "reason": "repository: mlflow/mlflow was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0011",
+      "reason": "repository: diegosouzapw/OmniRoute was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0012",
+      "reason": "repository: echoVic/blade-code was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0013",
+      "reason": "repository: devswha/patina was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0014",
+      "reason": "repository: obot-platform/obot was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0016",
+      "reason": "repository: wanshuiyin/Auto-claude-code-research-in-sleep was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0017",
+      "reason": "repository: desplega-ai/agent-swarm was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0018",
+      "reason": "repository: Higangssh/homebutler was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0019",
+      "reason": "repository: callstack/agent-device was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0020",
+      "reason": "repository: QwenLM/qwen-code was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0021",
+      "reason": "repository: ImFeH2/huddol was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0022",
+      "reason": "repository: decocms/studio was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0023",
+      "reason": "repository: pingcap/tidb was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0024",
+      "reason": "repository: t8y2/dbx was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0025",
+      "reason": "repository: macro-inc/macro was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0026",
+      "reason": "repository: yyjeqhc/webcodex was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0029",
+      "reason": "repository: LING71671/open-reverselab was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0030",
+      "reason": "repository: nikolai-vysotskyi/trace-mcp was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0031",
+      "reason": "repository: repowise-dev/repowise was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0034",
+      "reason": "repository: dnotitia/akb was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0035",
+      "reason": "repository: blogminhquy/javis-os was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0036",
+      "reason": "repository: activepieces/activepieces was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0037",
+      "reason": "repository: Peiiii/nextclaw was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0038",
+      "reason": "repository: PDFMathTranslate/PDFMathTranslate was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    },
+    {
+      "paper_id": "paper-0039",
+      "reason": "repository: triggerdotdev/trigger.dev was excluded because the recorded metadata does not directly address lossless artifact compaction, stable historical addressing, or local-first archive recovery."
+    }
+  ]
+}

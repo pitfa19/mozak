@@ -1,0 +1,212 @@
+{
+  "contract_version": 1,
+  "run_id": "improve-515e558a8f7d263647c8613d",
+  "adapter_runs": [
+    {
+      "binding_id": "agentic-systems-dair-ai",
+      "adapter_id": "adapter-dair-ai-v1",
+      "adapter_run_id": "run-75f0d03a63a519b0adbea847",
+      "artifact_hash": "75add40478329bc449f2021b56ac99d19e81ea26ca25bac59ed8298b62c24f89",
+      "source_revision": "7e9d1a3c538b79ee94233992a732f2a0062931b0"
+    }
+  ],
+  "candidates": [
+    {
+      "paper_id": "paper-0000",
+      "title": "CORAL",
+      "source_uri": "recorded:dair-ai:7e9d1a3c538b79ee94233992a732f2a0062931b0:0",
+      "content_sha256": "5f4c37e06d9b513d5fde58acf1a0d3029d2f79f8933d10b856596076fade545b",
+      "clusters": [
+        "topologies",
+        "containment",
+        "harness-evidence"
+      ]
+    },
+    {
+      "paper_id": "paper-0001",
+      "title": "E-Commerce Bench",
+      "source_uri": "recorded:dair-ai:7e9d1a3c538b79ee94233992a732f2a0062931b0:1",
+      "content_sha256": "33e66bc7961ceb1903b2012373eb59c65f704cf46529f02fc93182126a64c246",
+      "clusters": [
+        "budgets",
+        "context-memory",
+        "harness-evidence"
+      ]
+    },
+    {
+      "paper_id": "paper-0002",
+      "title": "FrogNano",
+      "source_uri": "recorded:dair-ai:7e9d1a3c538b79ee94233992a732f2a0062931b0:2",
+      "content_sha256": "910efc7992f0de5518f34aed1ddfe1d92560e6b8feb0fd72eab09ff783c5be23",
+      "clusters": [
+        "topologies",
+        "harness-evidence"
+      ]
+    },
+    {
+      "paper_id": "paper-0003",
+      "title": "Harness-of-Harness",
+      "source_uri": "recorded:dair-ai:7e9d1a3c538b79ee94233992a732f2a0062931b0:3",
+      "content_sha256": "2b7375fbb8578c092f038b08b7fe2ff756686282083f46fecde205501c47e8b6",
+      "clusters": [
+        "topologies",
+        "harness-evidence"
+      ]
+    },
+    {
+      "paper_id": "paper-0004",
+      "title": "Procedural Graphs",
+      "source_uri": "recorded:dair-ai:7e9d1a3c538b79ee94233992a732f2a0062931b0:4",
+      "content_sha256": "66f84584c5ea56845969e9c23ae3f9232eba706e6a1201ff16ad33021c838a32",
+      "clusters": [
+        "context-memory"
+      ]
+    },
+    {
+      "paper_id": "paper-0005",
+      "title": "AI-Native Design Docs",
+      "source_uri": "recorded:dair-ai:7e9d1a3c538b79ee94233992a732f2a0062931b0:5",
+      "content_sha256": "97faa5705c761dab99ef7644206f83e4c35515e97002fa18847ca536ea51e265",
+      "clusters": [
+        "harness-evidence"
+      ]
+    },
+    {
+      "paper_id": "paper-0006",
+      "title": "PARSER",
+      "source_uri": "recorded:dair-ai:7e9d1a3c538b79ee94233992a732f2a0062931b0:6",
+      "content_sha256": "39997cf77c20a8a9ea548b2952aed5892d1f083b916dba3d824c037ea1f22603",
+      "clusters": [
+        "harness-evidence"
+      ]
+    },
+    {
+      "paper_id": "paper-0007",
+      "title": "Proactive Thought Partners",
+      "source_uri": "recorded:dair-ai:7e9d1a3c538b79ee94233992a732f2a0062931b0:7",
+      "content_sha256": "e1c8a4d8b5ed81539d0eeb9c96aeb7f3c3acaa347948214f2aba343fe094e166",
+      "clusters": [
+        "harness-evidence"
+      ]
+    },
+    {
+      "paper_id": "paper-0008",
+      "title": "Codebook Agent",
+      "source_uri": "recorded:dair-ai:7e9d1a3c538b79ee94233992a732f2a0062931b0:8",
+      "content_sha256": "c8b5db13050a21c7f710c91277fc4c6c8ce700b3bb709e3a77189768a211db42",
+      "clusters": [
+        "topologies"
+      ]
+    },
+    {
+      "paper_id": "paper-0009",
+      "title": "Co-Evolving Harnesses and Models",
+      "source_uri": "recorded:dair-ai:7e9d1a3c538b79ee94233992a732f2a0062931b0:9",
+      "content_sha256": "029053748516d5aae0df624e89cd8794eb5c7b764cc8cc737730e897fd509964",
+      "clusters": [
+        "topologies"
+      ]
+    },
+    {
+      "paper_id": "paper-0010",
+      "title": "Recursive Self-Improvement Survey",
+      "source_uri": "recorded:dair-ai:7e9d1a3c538b79ee94233992a732f2a0062931b0:10",
+      "content_sha256": "a2a24a1ac3110e5fed9f388d54a5d940ab90b354ca81d5eda2443ae9cd7c418f",
+      "clusters": [
+        "skills"
+      ]
+    },
+    {
+      "paper_id": "paper-0011",
+      "title": "SKILL.state",
+      "source_uri": "recorded:dair-ai:7e9d1a3c538b79ee94233992a732f2a0062931b0:11",
+      "content_sha256": "06302a1cf9d54cc00153d13141fdb46b1d45e3f9496a088a3c4e78c51d6928ad",
+      "clusters": [
+        "context-memory"
+      ]
+    },
+    {
+      "paper_id": "paper-0012",
+      "title": "Selective Forgetting",
+      "source_uri": "recorded:dair-ai:7e9d1a3c538b79ee94233992a732f2a0062931b0:12",
+      "content_sha256": "4c04cebbd347127086c1c894296f6ab30accae9c20be4eafb3f29170ec2a6aac",
+      "clusters": [
+        "harness-evidence"
+      ]
+    },
+    {
+      "paper_id": "paper-0013",
+      "title": "Runtime-Independent Persistent Agents",
+      "source_uri": "recorded:dair-ai:7e9d1a3c538b79ee94233992a732f2a0062931b0:13",
+      "content_sha256": "04c08ebe659020b20f7825916d7251d5579836bfdf9f084d3dd4a82cd43b8245",
+      "clusters": [
+        "topologies"
+      ]
+    },
+    {
+      "paper_id": "paper-0014",
+      "title": "STAIR",
+      "source_uri": "recorded:dair-ai:7e9d1a3c538b79ee94233992a732f2a0062931b0:14",
+      "content_sha256": "0b0a39da88b761a097dc9811bd2fb8b006ec7f0cadc45c4756f340d470579c8f",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0015",
+      "title": "Research Swarm Cheating",
+      "source_uri": "recorded:dair-ai:7e9d1a3c538b79ee94233992a732f2a0062931b0:15",
+      "content_sha256": "8a7b313d83abc789b6172db3aa7c85b1af121f74c157c10a7f8a724ff7a7fe8d",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0016",
+      "title": "Declarative Attention",
+      "source_uri": "recorded:dair-ai:7e9d1a3c538b79ee94233992a732f2a0062931b0:16",
+      "content_sha256": "a6dbf2a781c3ebee5d669fdc8d46d60b9fd3285dd9fac8b2b470fcf24b6d9698",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0017",
+      "title": "WikiSkill",
+      "source_uri": "recorded:dair-ai:7e9d1a3c538b79ee94233992a732f2a0062931b0:17",
+      "content_sha256": "b0ba804bf393c19196a0c5054db9130ac2f96d71aa5e47e1d8d16f56d8a5e158",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0018",
+      "title": "AI Research Preference Models",
+      "source_uri": "recorded:dair-ai:7e9d1a3c538b79ee94233992a732f2a0062931b0:18",
+      "content_sha256": "c9d8f09011b1fbe5f5ac3a147234cac18625d152aded6870a65ee1f5040f06cf",
+      "clusters": []
+    },
+    {
+      "paper_id": "paper-0019",
+      "title": "Trace as State",
+      "source_uri": "recorded:dair-ai:7e9d1a3c538b79ee94233992a732f2a0062931b0:19",
+      "content_sha256": "da0659b0bcc73dbbd06e00486977794bae408605f13b9679d3e961551d1411a3",
+      "clusters": []
+    }
+  ],
+  "new_candidates": [
+    "paper-0000",
+    "paper-0001",
+    "paper-0002",
+    "paper-0003",
+    "paper-0004",
+    "paper-0005",
+    "paper-0006",
+    "paper-0007",
+    "paper-0008",
+    "paper-0009",
+    "paper-0010",
+    "paper-0011",
+    "paper-0012",
+    "paper-0013",
+    "paper-0014",
+    "paper-0015",
+    "paper-0016",
+    "paper-0017",
+    "paper-0018",
+    "paper-0019"
+  ],
+  "unchanged_candidates": []
+}

@@ -1,0 +1,168 @@
+{
+  "contract_version": 1,
+  "scope_id": "topic-agentic-systems",
+  "entries": [
+    {
+      "claim_id": "paper-0004::pg-c1",
+      "text": "A Procedural Graph keeps an explicit editable directed graph of procedures outside the model and retrieves only the active node neighbourhood for situational guidance.",
+      "standing": "held",
+      "locator": "§1 Introduction",
+      "recorded_by_run": "improve-515e558a8f7d263647c8613d",
+      "recorded_at": "2026-09-15T15:49:40Z",
+      "source_sha256": "66f84584c5ea56845969e9c23ae3f9232eba706e6a1201ff16ad33021c838a32"
+    },
+    {
+      "claim_id": "paper-0004::pg-c2",
+      "text": "Rejected graph edits are retained as negative constraints while only candidates that preserve or improve held-out validation are adopted.",
+      "standing": "held",
+      "locator": "§1 Introduction",
+      "recorded_by_run": "improve-515e558a8f7d263647c8613d",
+      "recorded_at": "2026-09-15T15:49:40Z",
+      "source_sha256": "66f84584c5ea56845969e9c23ae3f9232eba706e6a1201ff16ad33021c838a32"
+    },
+    {
+      "claim_id": "paper-0011::ss-c1",
+      "text": "SKILL.state separates an immutable procedural specification, current structured execution state, and latest observation instead of replaying append-only history.",
+      "standing": "held",
+      "locator": "§1 Introduction, Equation 1",
+      "recorded_by_run": "improve-515e558a8f7d263647c8613d",
+      "recorded_at": "2026-09-15T15:49:40Z",
+      "source_sha256": "06302a1cf9d54cc00153d13141fdb46b1d45e3f9496a088a3c4e78c51d6928ad"
+    },
+    {
+      "claim_id": "paper-0011::ss-c2",
+      "text": "Intermediate reasoning is discarded only after producing a validated state update, making current state authoritative for execution.",
+      "standing": "held",
+      "locator": "§1 Introduction",
+      "recorded_by_run": "improve-515e558a8f7d263647c8613d",
+      "recorded_at": "2026-09-15T15:49:40Z",
+      "source_sha256": "06302a1cf9d54cc00153d13141fdb46b1d45e3f9496a088a3c4e78c51d6928ad"
+    },
+    {
+      "claim_id": "paper-0012::sf-c1",
+      "text": "The evaluated forgetting policy scores nodes by recency, access frequency, degree centrality, and age rather than applying one uniform compression rate.",
+      "standing": "held",
+      "locator": "§1 Introduction and forgetting module",
+      "recorded_by_run": "improve-515e558a8f7d263647c8613d",
+      "recorded_at": "2026-09-15T15:49:40Z",
+      "source_sha256": "4c04cebbd347127086c1c894296f6ab30accae9c20be4eafb3f29170ec2a6aac"
+    },
+    {
+      "claim_id": "paper-0012::sf-c2",
+      "text": "The reported pruning removed 9.8 percent of nodes and 9.5 percent of bytes with token F1 unchanged, but the result is limited to one graph pipeline and benchmark.",
+      "standing": "held",
+      "locator": "Abstract",
+      "recorded_by_run": "improve-515e558a8f7d263647c8613d",
+      "recorded_at": "2026-09-15T15:49:40Z",
+      "source_sha256": "4c04cebbd347127086c1c894296f6ab30accae9c20be4eafb3f29170ec2a6aac"
+    },
+    {
+      "claim_id": "paper-0013::ri-c1",
+      "text": "A continuity-bearing substrate is separated from replaceable execution bindings, so migration preserves identity and attributable lineage rather than creating new state.",
+      "standing": "held",
+      "locator": "§2.1 Persistent substrate",
+      "recorded_by_run": "improve-515e558a8f7d263647c8613d",
+      "recorded_at": "2026-09-15T15:49:40Z",
+      "source_sha256": "04c08ebe659020b20f7825916d7251d5579836bfdf9f084d3dd4a82cd43b8245"
+    },
+    {
+      "claim_id": "paper-0013::ri-c2",
+      "text": "The migration protocol is quiesce, checkpoint, validate, bind, rehydrate, resume with explicit failure semantics.",
+      "standing": "held",
+      "locator": "Abstract and migration protocol",
+      "recorded_by_run": "improve-515e558a8f7d263647c8613d",
+      "recorded_at": "2026-09-15T15:49:40Z",
+      "source_sha256": "04c08ebe659020b20f7825916d7251d5579836bfdf9f084d3dd4a82cd43b8245"
+    },
+    {
+      "claim_id": "paper-0017::ws-c1",
+      "text": "WikiSkill separates immutable raw execution traces, a persistent structured wiki, and evolving executable skills into layers with different write rules.",
+      "standing": "held",
+      "locator": "§1 Introduction",
+      "recorded_by_run": "improve-515e558a8f7d263647c8613d",
+      "recorded_at": "2026-09-15T15:49:40Z",
+      "source_sha256": "b0ba804bf393c19196a0c5054db9130ac2f96d71aa5e47e1d8d16f56d8a5e158"
+    },
+    {
+      "claim_id": "paper-0017::ws-c2",
+      "text": "Skill updates are gated and reversible while the accumulated wiki persists, allowing active procedures to change without erasing evidence.",
+      "standing": "held",
+      "locator": "§1 Introduction",
+      "recorded_by_run": "improve-515e558a8f7d263647c8613d",
+      "recorded_at": "2026-09-15T15:49:40Z",
+      "source_sha256": "b0ba804bf393c19196a0c5054db9130ac2f96d71aa5e47e1d8d16f56d8a5e158"
+    },
+    {
+      "claim_id": "paper-0019::ts-c1",
+      "text": "Trace as State places a compact task-state proxy before the long context on a fresh pass, so the state guides rereading rather than being appended after history.",
+      "standing": "held",
+      "locator": "§1 Introduction",
+      "recorded_by_run": "improve-515e558a8f7d263647c8613d",
+      "recorded_at": "2026-09-15T15:49:40Z",
+      "source_sha256": "da0659b0bcc73dbbd06e00486977794bae408605f13b9679d3e961551d1411a3"
+    },
+    {
+      "claim_id": "paper-0019::ts-c2",
+      "text": "The matched placement control used identical trace content after the context and lost in 26 of 27 reported combinations, showing that working-set ordering matters independently of retained source content.",
+      "standing": "held",
+      "locator": "Abstract",
+      "recorded_by_run": "improve-515e558a8f7d263647c8613d",
+      "recorded_at": "2026-09-15T15:49:40Z",
+      "source_sha256": "da0659b0bcc73dbbd06e00486977794bae408605f13b9679d3e961551d1411a3"
+    },
+    {
+      "claim_id": "paper-0007::edge-c1",
+      "text": "EdgeEver documents a lossless ZIP export containing Markdown, front matter, nested folders, relative attachments, and version histories for restoration.",
+      "standing": "held",
+      "locator": "README, Features: Lossless ZIP Backup & Portability",
+      "recorded_by_run": "improve-5c50dfdabeda3c132e4d669f",
+      "recorded_at": "2026-09-15T15:49:40Z",
+      "source_sha256": "bdc4716de4c52884f83f21430a9759eb5c04d927235c7ef1e2a31e0b0698fa86"
+    },
+    {
+      "claim_id": "paper-0015::signet-c1",
+      "text": "Signet documents a derived semantic layer over raw history with an audit path back to the source, and supplies relevant context before a prompt while retaining deeper retrieval.",
+      "standing": "held",
+      "locator": "README, overview and Why Signet",
+      "recorded_by_run": "improve-5c50dfdabeda3c132e4d669f",
+      "recorded_at": "2026-09-15T15:49:40Z",
+      "source_sha256": "b3a72dc5aa99ab403cdceaf1f6097d9bbd879bff73d94e856b5ce84370d4168c"
+    },
+    {
+      "claim_id": "paper-0027::mem-c1",
+      "text": "Memtrace presents structural, bitemporal memory with source-linked retrieval across multiple agent harnesses.",
+      "standing": "held",
+      "locator": "README, repository overview",
+      "recorded_by_run": "improve-5c50dfdabeda3c132e4d669f",
+      "recorded_at": "2026-09-15T15:49:40Z",
+      "source_sha256": "3fb5355c5d29a9a434a5efdcdef0dc35b4c59fe9f19afe96ce592fd35a09ef51"
+    },
+    {
+      "claim_id": "paper-0028::utopia-c1",
+      "text": "Utopia documents bitemporal knowledge intended to preserve both current knowledge and how its history unfolded, with offline deployment.",
+      "standing": "held",
+      "locator": "README, Philosophy",
+      "recorded_by_run": "improve-5c50dfdabeda3c132e4d669f",
+      "recorded_at": "2026-09-15T15:49:40Z",
+      "source_sha256": "aa8c01e8bfe7fbcff250bb4b3d3fdf20f562518875ed548f4b2e3e92ecb4591d"
+    },
+    {
+      "claim_id": "paper-0032::atlas-c1",
+      "text": "ProjectAtlas documents a project-local SQLite map containing deterministic summaries, symbols, hashes, and graph relationships so agents navigate without opening every file.",
+      "standing": "held",
+      "locator": "README, About",
+      "recorded_by_run": "improve-5c50dfdabeda3c132e4d669f",
+      "recorded_at": "2026-09-15T15:49:40Z",
+      "source_sha256": "8678dfd52b4fb229a58d1825404969a43e0451e6f13790dae1c91f4a181d29e2"
+    },
+    {
+      "claim_id": "paper-0033::zen-c1",
+      "text": "ZenNotes keeps authoritative notes as ordinary Markdown files while providing derived search, archive, and multiple runtime surfaces.",
+      "standing": "held",
+      "locator": "README, overview",
+      "recorded_by_run": "improve-5c50dfdabeda3c132e4d669f",
+      "recorded_at": "2026-09-15T15:49:40Z",
+      "source_sha256": "abc68ffd6add764fe94ceaa51f48554c3ab1a292a6efebb1341ff1d5463f1060"
+    }
+  ]
+}

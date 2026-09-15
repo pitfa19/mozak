@@ -1,0 +1,15 @@
+{
+  "objective": "Produce implementation-ready plan cards for keeping MOZAK project working directories small without losing authoritative lifecycle history.",
+  "completion_conditions": [
+    "The review distinguishes navigational summarization from authoritative lossless storage.",
+    "Every proposed compaction mechanism preserves stable identity, hashes, supersession history, offline validation, packaging, and rollback.",
+    "The plan defines a dry-run acceptance workflow against the real Genome project and a fail-closed recovery path.",
+    "The review identifies which existing MOZAK mechanisms already satisfy part of the design and what remains open."
+  ],
+  "excludes": [
+    "Deleting authoritative artifacts based only on age or completion status.",
+    "Using Git history as the only archive.",
+    "Automatically accepting or implementing the resulting plans.",
+    "Compacting model prompts or chat transcripts except where their mechanisms transfer to durable project artifacts."
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "contract_version": 1,
+  "run_id": "improve-5c50dfdabeda3c132e4d669f",
+  "plans": [
+    {
+      "id": "R1",
+      "title": "Rebuildable project-local artifact index",
+      "mechanism_ids": [
+        "m-project-local-derived-index",
+        "m-raw-history-plus-derived-view"
+      ],
+      "deliverables": [
+        "A deterministic index generated from canonical active files and archived manifests",
+        "Terminal tree and overview projections that default to active state and expose explicit history detail commands",
+        "A rebuild command or automatic deterministic rebuild after index loss"
+      ],
+      "acceptance_checks": [
+        "Deleting the derived index does not invalidate canonical project state and rebuilding produces the same hash",
+        "Every summary row resolves to an exact artifact hash and locator",
+        "The index never becomes a release or package source of truth"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "R2",
+      "title": "Portable self-describing history bundle",
+      "mechanism_ids": [
+        "m-portable-lossless-archive"
+      ],
+      "deliverables": [
+        "A stable archive format using canonical JSON members plus a sorted JSON manifest",
+        "Whole-archive and per-member SHA-256 integrity",
+        "Versioned restoration metadata and no dependency on repository Git history"
+      ],
+      "acceptance_checks": [
+        "A bundle round-trip reproduces all source artifacts byte-for-byte",
+        "The bundle can be validated and restored on an offline clean machine with the installed MOZAK binary",
+        "Unknown archive versions and path traversal members fail before extraction",
+        "The archive format remains inspectable with standard tools even when the derived index is unavailable"
+      ],
+      "dependencies": [
+        "R1"
+      ]
+    }
+  ]
+}

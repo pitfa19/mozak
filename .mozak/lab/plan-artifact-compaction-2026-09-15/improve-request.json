@@ -1,0 +1,35 @@
+{
+  "contract_version": 1,
+  "run_id": "improve-515e558a8f7d263647c8613d",
+  "scope_id": "topic-agentic-systems",
+  "module": "plans",
+  "question": "How should MOZAK compact superseded plans and other lifecycle artifacts so active project folders stay cognitively small while exact history, hashes, provenance, validation, rollback, packaging, and offline portability remain lossless?",
+  "constraints": [
+    "planning only; no MOZAK code changes",
+    "full text is temporary; retain hashes and claims only"
+  ],
+  "adapter_bindings": [
+    "agentic-systems-dair-ai",
+    "agentic-tooling-discover"
+  ],
+  "stop_at": "owner_reviewed",
+  "created_at": "2026-09-15T15:44:56Z",
+  "performed_by": "pitfa",
+  "evaluated_by": "pitfa",
+  "acceptance": "self_review",
+  "scope_boundary": {
+    "objective": "Produce implementation-ready plan cards for keeping MOZAK project working directories small without losing authoritative lifecycle history.",
+    "completion_conditions": [
+      "The review distinguishes navigational summarization from authoritative lossless storage.",
+      "Every proposed compaction mechanism preserves stable identity, hashes, supersession history, offline validation, packaging, and rollback.",
+      "The plan defines a dry-run acceptance workflow against the real Genome project and a fail-closed recovery path.",
+      "The review identifies which existing MOZAK mechanisms already satisfy part of the design and what remains open."
+    ],
+    "excludes": [
+      "Deleting authoritative artifacts based only on age or completion status.",
+      "Using Git history as the only archive.",
+      "Automatically accepting or implementing the resulting plans.",
+      "Compacting model prompts or chat transcripts except where their mechanisms transfer to durable project artifacts."
+    ]
+  }
+}

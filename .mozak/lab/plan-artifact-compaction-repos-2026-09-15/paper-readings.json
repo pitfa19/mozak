@@ -1,0 +1,126 @@
+{
+  "contract_version": 1,
+  "run_id": "improve-5c50dfdabeda3c132e4d669f",
+  "readings": [
+    {
+      "paper_id": "paper-0007",
+      "source_class": "documentation",
+      "source_uri": "recorded:github-tooling:tianma-if/edgeever@v1.73.2",
+      "content_sha256": "bdc4716de4c52884f83f21430a9759eb5c04d927235c7ef1e2a31e0b0698fa86",
+      "read_depth": "documentation",
+      "claims": [
+        {
+          "id": "edge-c1",
+          "text": "EdgeEver documents a lossless ZIP export containing Markdown, front matter, nested folders, relative attachments, and version histories for restoration.",
+          "origin": "source_claim",
+          "locator": "README, Features: Lossless ZIP Backup & Portability"
+        }
+      ],
+      "limitations": [
+        "Repository documentation is self-authored and was not independently verified.",
+        "Discovery and documentation establish a mechanism candidate, not quality, security, or fitness for MOZAK."
+      ],
+      "retained_full_text": false
+    },
+    {
+      "paper_id": "paper-0015",
+      "source_class": "documentation",
+      "source_uri": "recorded:github-tooling:Signet-AI/signetai@v0.157.3",
+      "content_sha256": "b3a72dc5aa99ab403cdceaf1f6097d9bbd879bff73d94e856b5ce84370d4168c",
+      "read_depth": "documentation",
+      "claims": [
+        {
+          "id": "signet-c1",
+          "text": "Signet documents a derived semantic layer over raw history with an audit path back to the source, and supplies relevant context before a prompt while retaining deeper retrieval.",
+          "origin": "source_claim",
+          "locator": "README, overview and Why Signet"
+        }
+      ],
+      "limitations": [
+        "Repository documentation is self-authored and was not independently verified.",
+        "Discovery and documentation establish a mechanism candidate, not quality, security, or fitness for MOZAK."
+      ],
+      "retained_full_text": false
+    },
+    {
+      "paper_id": "paper-0027",
+      "source_class": "documentation",
+      "source_uri": "recorded:github-tooling:syncable-dev/memtrace-public@v1.2.5",
+      "content_sha256": "3fb5355c5d29a9a434a5efdcdef0dc35b4c59fe9f19afe96ce592fd35a09ef51",
+      "read_depth": "documentation",
+      "claims": [
+        {
+          "id": "mem-c1",
+          "text": "Memtrace presents structural, bitemporal memory with source-linked retrieval across multiple agent harnesses.",
+          "origin": "source_claim",
+          "locator": "README, repository overview"
+        }
+      ],
+      "limitations": [
+        "Repository documentation is self-authored and was not independently verified.",
+        "Discovery and documentation establish a mechanism candidate, not quality, security, or fitness for MOZAK."
+      ],
+      "retained_full_text": false
+    },
+    {
+      "paper_id": "paper-0028",
+      "source_class": "documentation",
+      "source_uri": "recorded:github-tooling:deeplethe/utopia@dab92a3cc5809dbb678c934e195d300e11c5e2cf",
+      "content_sha256": "aa8c01e8bfe7fbcff250bb4b3d3fdf20f562518875ed548f4b2e3e92ecb4591d",
+      "read_depth": "documentation",
+      "claims": [
+        {
+          "id": "utopia-c1",
+          "text": "Utopia documents bitemporal knowledge intended to preserve both current knowledge and how its history unfolded, with offline deployment.",
+          "origin": "source_claim",
+          "locator": "README, Philosophy"
+        }
+      ],
+      "limitations": [
+        "Repository documentation is self-authored and was not independently verified.",
+        "Discovery and documentation establish a mechanism candidate, not quality, security, or fitness for MOZAK."
+      ],
+      "retained_full_text": false
+    },
+    {
+      "paper_id": "paper-0032",
+      "source_class": "documentation",
+      "source_uri": "recorded:github-tooling:styler-ai/ProjectAtlas@v0.4.5",
+      "content_sha256": "8678dfd52b4fb229a58d1825404969a43e0451e6f13790dae1c91f4a181d29e2",
+      "read_depth": "documentation",
+      "claims": [
+        {
+          "id": "atlas-c1",
+          "text": "ProjectAtlas documents a project-local SQLite map containing deterministic summaries, symbols, hashes, and graph relationships so agents navigate without opening every file.",
+          "origin": "source_claim",
+          "locator": "README, About"
+        }
+      ],
+      "limitations": [
+        "Repository documentation is self-authored and was not independently verified.",
+        "Discovery and documentation establish a mechanism candidate, not quality, security, or fitness for MOZAK."
+      ],
+      "retained_full_text": false
+    },
+    {
+      "paper_id": "paper-0033",
+      "source_class": "documentation",
+      "source_uri": "recorded:github-tooling:ZenNotes/zennotes@v2.50.3",
+      "content_sha256": "abc68ffd6add764fe94ceaa51f48554c3ab1a292a6efebb1341ff1d5463f1060",
+      "read_depth": "documentation",
+      "claims": [
+        {
+          "id": "zen-c1",
+          "text": "ZenNotes keeps authoritative notes as ordinary Markdown files while providing derived search, archive, and multiple runtime surfaces.",
+          "origin": "source_claim",
+          "locator": "README, overview"
+        }
+      ],
+      "limitations": [
+        "Repository documentation is self-authored and was not independently verified.",
+        "Discovery and documentation establish a mechanism candidate, not quality, security, or fitness for MOZAK."
+      ],
+      "retained_full_text": false
+    }
+  ]
+}

@@ -1,0 +1,162 @@
+{
+  "contract_version": 1,
+  "run_id": "improve-515e558a8f7d263647c8613d",
+  "readings": [
+    {
+      "paper_id": "paper-0004",
+      "source_class": "preprint",
+      "source_uri": "https://arxiv.org/html/2609.09153",
+      "content_sha256": "66f84584c5ea56845969e9c23ae3f9232eba706e6a1201ff16ad33021c838a32",
+      "read_depth": "full_text",
+      "claims": [
+        {
+          "id": "pg-c1",
+          "text": "A Procedural Graph keeps an explicit editable directed graph of procedures outside the model and retrieves only the active node neighbourhood for situational guidance.",
+          "origin": "source_claim",
+          "locator": "\u00a71 Introduction"
+        },
+        {
+          "id": "pg-c2",
+          "text": "Rejected graph edits are retained as negative constraints while only candidates that preserve or improve held-out validation are adopted.",
+          "origin": "source_claim",
+          "locator": "\u00a71 Introduction"
+        }
+      ],
+      "limitations": [
+        "The source concerns agent context or knowledge representations rather than filesystem lifecycle artifacts, so only the separation, addressing, and recovery mechanisms transfer.",
+        "The paper is a preprint and does not independently validate a MOZAK implementation."
+      ],
+      "retained_full_text": false
+    },
+    {
+      "paper_id": "paper-0011",
+      "source_class": "preprint",
+      "source_uri": "https://arxiv.org/html/2608.26263",
+      "content_sha256": "06302a1cf9d54cc00153d13141fdb46b1d45e3f9496a088a3c4e78c51d6928ad",
+      "read_depth": "full_text",
+      "claims": [
+        {
+          "id": "ss-c1",
+          "text": "SKILL.state separates an immutable procedural specification, current structured execution state, and latest observation instead of replaying append-only history.",
+          "origin": "source_claim",
+          "locator": "\u00a71 Introduction, Equation 1"
+        },
+        {
+          "id": "ss-c2",
+          "text": "Intermediate reasoning is discarded only after producing a validated state update, making current state authoritative for execution.",
+          "origin": "source_claim",
+          "locator": "\u00a71 Introduction"
+        }
+      ],
+      "limitations": [
+        "The source concerns agent context or knowledge representations rather than filesystem lifecycle artifacts, so only the separation, addressing, and recovery mechanisms transfer.",
+        "The paper is a preprint and does not independently validate a MOZAK implementation."
+      ],
+      "retained_full_text": false
+    },
+    {
+      "paper_id": "paper-0012",
+      "source_class": "preprint",
+      "source_uri": "https://arxiv.org/html/2608.28978",
+      "content_sha256": "4c04cebbd347127086c1c894296f6ab30accae9c20be4eafb3f29170ec2a6aac",
+      "read_depth": "full_text",
+      "claims": [
+        {
+          "id": "sf-c1",
+          "text": "The evaluated forgetting policy scores nodes by recency, access frequency, degree centrality, and age rather than applying one uniform compression rate.",
+          "origin": "source_claim",
+          "locator": "\u00a71 Introduction and forgetting module"
+        },
+        {
+          "id": "sf-c2",
+          "text": "The reported pruning removed 9.8 percent of nodes and 9.5 percent of bytes with token F1 unchanged, but the result is limited to one graph pipeline and benchmark.",
+          "origin": "source_claim",
+          "locator": "Abstract"
+        }
+      ],
+      "limitations": [
+        "The source concerns agent context or knowledge representations rather than filesystem lifecycle artifacts, so only the separation, addressing, and recovery mechanisms transfer.",
+        "The paper is a preprint and does not independently validate a MOZAK implementation."
+      ],
+      "retained_full_text": false
+    },
+    {
+      "paper_id": "paper-0013",
+      "source_class": "preprint",
+      "source_uri": "https://arxiv.org/html/2609.00546",
+      "content_sha256": "04c08ebe659020b20f7825916d7251d5579836bfdf9f084d3dd4a82cd43b8245",
+      "read_depth": "full_text",
+      "claims": [
+        {
+          "id": "ri-c1",
+          "text": "A continuity-bearing substrate is separated from replaceable execution bindings, so migration preserves identity and attributable lineage rather than creating new state.",
+          "origin": "source_claim",
+          "locator": "\u00a72.1 Persistent substrate"
+        },
+        {
+          "id": "ri-c2",
+          "text": "The migration protocol is quiesce, checkpoint, validate, bind, rehydrate, resume with explicit failure semantics.",
+          "origin": "source_claim",
+          "locator": "Abstract and migration protocol"
+        }
+      ],
+      "limitations": [
+        "The source concerns agent context or knowledge representations rather than filesystem lifecycle artifacts, so only the separation, addressing, and recovery mechanisms transfer.",
+        "The paper is a preprint and does not independently validate a MOZAK implementation."
+      ],
+      "retained_full_text": false
+    },
+    {
+      "paper_id": "paper-0017",
+      "source_class": "preprint",
+      "source_uri": "https://arxiv.org/html/2608.27454",
+      "content_sha256": "b0ba804bf393c19196a0c5054db9130ac2f96d71aa5e47e1d8d16f56d8a5e158",
+      "read_depth": "full_text",
+      "claims": [
+        {
+          "id": "ws-c1",
+          "text": "WikiSkill separates immutable raw execution traces, a persistent structured wiki, and evolving executable skills into layers with different write rules.",
+          "origin": "source_claim",
+          "locator": "\u00a71 Introduction"
+        },
+        {
+          "id": "ws-c2",
+          "text": "Skill updates are gated and reversible while the accumulated wiki persists, allowing active procedures to change without erasing evidence.",
+          "origin": "source_claim",
+          "locator": "\u00a71 Introduction"
+        }
+      ],
+      "limitations": [
+        "The source concerns agent context or knowledge representations rather than filesystem lifecycle artifacts, so only the separation, addressing, and recovery mechanisms transfer.",
+        "The paper is a preprint and does not independently validate a MOZAK implementation."
+      ],
+      "retained_full_text": false
+    },
+    {
+      "paper_id": "paper-0019",
+      "source_class": "preprint",
+      "source_uri": "https://arxiv.org/html/2609.02702",
+      "content_sha256": "da0659b0bcc73dbbd06e00486977794bae408605f13b9679d3e961551d1411a3",
+      "read_depth": "full_text",
+      "claims": [
+        {
+          "id": "ts-c1",
+          "text": "Trace as State places a compact task-state proxy before the long context on a fresh pass, so the state guides rereading rather than being appended after history.",
+          "origin": "source_claim",
+          "locator": "\u00a71 Introduction"
+        },
+        {
+          "id": "ts-c2",
+          "text": "The matched placement control used identical trace content after the context and lost in 26 of 27 reported combinations, showing that working-set ordering matters independently of retained source content.",
+          "origin": "source_claim",
+          "locator": "Abstract"
+        }
+      ],
+      "limitations": [
+        "The source concerns agent context or knowledge representations rather than filesystem lifecycle artifacts, so only the separation, addressing, and recovery mechanisms transfer.",
+        "The paper is a preprint and does not independently validate a MOZAK implementation."
+      ],
+      "retained_full_text": false
+    }
+  ]
+}
