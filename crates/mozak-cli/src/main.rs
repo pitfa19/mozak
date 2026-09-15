@@ -291,6 +291,9 @@ fn run_project_registry_command(args: &[String]) -> Option<Result<ExitCode, Stri
         [project, command, discovery] if project == "project" && command == "review" => {
             Some(project_registry::review(Path::new(discovery)))
         }
+        [project, command] if project == "project" && command == "registrations" => {
+            Some(project_registry::registrations())
+        }
         [project, refresh, command]
             if project == "project" && refresh == "refresh" && command == "history" =>
         {

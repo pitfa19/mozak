@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "topic_id": "topic-genome-family",
+  "mode": "query",
+  "categories": ["q-bio.GN", "q-bio.QM", "cs.SE", "cs.DC"],
+  "clusters": [
+    {
+      "name": "bioinformatics-tool-reproducibility",
+      "terms": ["bioinformatics software reproducibility", "genome assembly workflow reproducibility", "bioinformatics tool version provenance", "workflow provenance genomics"]
+    },
+    {
+      "name": "executable-evidence",
+      "terms": ["software environment validation", "scientific software testing", "executable provenance", "workflow conformance testing"]
+    },
+    {
+      "name": "failure-attribution",
+      "terms": ["bioinformatics workflow failure diagnosis", "technical biological failure classification", "genome assembly quality control"]
+    }
+  ],
+  "days": 90,
+  "max_records_per_cluster": 40,
+  "max_records": 100,
+  "question": "What established mechanisms support version-pinned bioinformatics tool profiles, executable probes, provenance, and separation of technical execution failure from biological inadequacy?"
+}

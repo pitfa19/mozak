@@ -402,6 +402,46 @@ pub fn refresh_history() -> Result<ExitCode, String> {
     Ok(ExitCode::SUCCESS)
 }
 
+/// Lists the exact locally configured project identifiers without consulting the
+/// live KB. This remains usable when the KB pin has drifted, so callers can
+/// resolve an exact project id before deciding whether a reviewed refresh is
+/// required.
+pub fn registrations() -> Result<ExitCode, String> {
+    let config_path = default_config_path()?;
+    validate_target_path(&config_path)?;
+    let bytes = read_optional_regular(&config_path)?
+        .ok_or_else(|| format!("local config does not exist: {}", config_path.display()))?;
+    let config: LocalConfig = serde_json::from_slice(&bytes)
+        .map_err(|e| format!("invalid local config {}: {e}", config_path.display()))?;
+    validate_local_config(&config)?;
+    let projects = config
+        .projects
+        .values()
+        .map(|project| {
+            serde_json::json!({
+                "id": project.id,
+                "name": project.name,
+                "root": project.root,
+            })
+        })
+        .collect::<Vec<_>>();
+    println!(
+        "{}",
+        serde_json::to_string(&serde_json::json!({
+            "schema_version": 1,
+            "command": "project registrations",
+            "config_path": path_text(&config_path)?,
+            "config_sha256": hash(&bytes),
+            "configured_owner": configured_owner(&config),
+            "projects": projects,
+            "live_kb_consulted": false,
+            "mutation": false,
+        }))
+        .map_err(|e| e.to_string())?
+    );
+    Ok(ExitCode::SUCCESS)
+}
+
 pub fn refresh_rollback(target_digest: &str) -> Result<ExitCode, String> {
     validate_lower_hex("rollback target config SHA-256", target_digest, 64)?;
     let config_path = default_config_path()?;

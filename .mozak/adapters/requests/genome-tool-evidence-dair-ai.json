@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "scope_id": "topic-genome-family",
+  "weeks": 12,
+  "clusters": [
+    {
+      "name": "tool-evidence",
+      "terms": ["tool use", "tool verification", "software testing", "provenance", "reproducibility", "workflow"]
+    },
+    {
+      "name": "failure-attribution",
+      "terms": ["failure diagnosis", "uncertainty", "evaluation", "scientific agent", "bioinformatics"]
+    }
+  ],
+  "max_records": 100,
+  "question": "Which recently curated papers describe mechanisms useful for versioned tool knowledge, runtime probes, provenance, or technical failure attribution?"
+}

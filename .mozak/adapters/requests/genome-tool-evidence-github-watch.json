@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "scope_id": "topic-genome-family",
+  "mode": "watch",
+  "max_records": 30,
+  "question": "What do current releases of Genome's assemblers and reproducibility ecosystems expose that can support version-pinned profiles and executable probes?",
+  "watchlist": [
+    "chhylp123/hifiasm",
+    "marbl/verkko",
+    "bioconda/bioconda-recipes",
+    "nf-core/tools",
+    "common-workflow-language/cwltool",
+    "nextflow-io/nextflow",
+    "GalaxyProject/galaxy",
+    "in-toto/in-toto",
+    "sigstore/cosign"
+  ]
+}
