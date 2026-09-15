@@ -40,20 +40,28 @@ class LinuxReleaseBuilderTests(unittest.TestCase):
             self.assertEqual(hashlib.sha256(outputs[0].read_bytes()).digest(), hashlib.sha256(outputs[1].read_bytes()).digest())
             with tarfile.open(outputs[0], "r:gz") as bundle:
                 members = bundle.getmembers()
-                names = [Path(member.name).name for member in members if member.isfile()]
-                self.assertEqual(
-                    names,
-                    [
-                        "INSTALL.md",
-                        "LICENSE",
-                        "README.md",
-                        "build.json",
-                        "install.py",
-                        "launcher.py",
-                        "mozak",
-                        "mozak-mcp",
-                    ],
+                archive_root = Path(members[0].name).parts[0]
+                names = {
+                    str(Path(member.name).relative_to(archive_root))
+                    for member in members
+                    if member.isfile()
+                }
+                expected = {
+                    "INSTALL.md",
+                    "LICENSE",
+                    "README.md",
+                    "build.json",
+                    "install.py",
+                    "launcher.py",
+                    "mozak",
+                    "mozak-mcp",
+                }
+                expected.update(
+                    str(Path("docs") / path.relative_to(ROOT / "docs"))
+                    for path in (ROOT / "docs").rglob("*")
+                    if path.is_file()
                 )
+                self.assertEqual(names, expected)
                 for member in members:
                     self.assertEqual(member.mtime, 0)
                     self.assertEqual(member.uid, 0)

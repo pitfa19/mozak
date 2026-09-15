@@ -138,3 +138,19 @@ if [[ "$auto" == 1 ]]; then args+=(--enable-auto); else args+=(--disable-auto); 
 if [[ -n "$owner" ]]; then args+=(--owner "$owner" --kb-root "$kb_root"); fi
 python3 "$bundle/install.py" "${args[@]}"
 "$prefix/bin/mozak" delivery status
+
+# A tool-only install is valid, but it is not enough for `project context` or
+# rootless KB commands.  A piped bootstrap has no interactive stdin, so do not
+# silently leave a new teammate at the first-use failure with no recovery path.
+config_home=${XDG_CONFIG_HOME:-$home/.config}
+if [[ -z "$owner" && ! -f "$config_home/mozak/config.json" ]]; then
+  cat >&2 <<EOF
+MOZAK is installed, including mozak-mcp and the agent skill.
+Project context is not configured yet. To continue existing projects, first make
+their shared KB and repository checkouts available, then run:
+  mozak setup install "$home" --owner YOUR_NAME --kb-root /absolute/path/to/mozak-kb
+  mozak project discover /absolute/path/to/mozak-kb /absolute/path/to/workspace > discovery.json
+  mozak project review discovery.json
+Review additions and removals before asking your MOZAK agent to apply the exact approval.
+EOF
+fi

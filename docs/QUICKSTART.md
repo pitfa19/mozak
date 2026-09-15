@@ -1,11 +1,15 @@
 # MOZAK quickstart
 
-**Steps 1 to 3 take five minutes and are enough to be useful. Stop there unless
-you want the rest.**
+This guide creates a new MOZAK project and then introduces advanced Topics,
+Scopes, and adapters. If someone else already onboarded the projects you need,
+use the shorter [teammate quickstart](TEAMMATE-QUICKSTART.md) instead.
+
+**Steps 1 to 3 take about fifteen minutes with a MOZAK-aware coding agent. Stop
+there unless you want Topics, shared knowledge, and research adapters.**
 
 | Steps | Time | You get |
 |---|---|---|
-| 1 to 3 | 5 min | An onboarded repository, and an agent that knows what is ready |
+| 1 to 3 | 15 min | An onboarded repository, accepted inputs, and a reviewable first plan |
 | 4 to 6 | 10 min | A research Topic and a knowledge base holding both |
 | 7 to 9 | 15 min | Path-free commands and a bound research adapter |
 
@@ -62,7 +66,8 @@ You need two things: **accepted inputs**, the facts you have agreed are true,
 and a **plan**, a goal DAG derived from them.
 
 In practice you do not hand-write either. Ask your agent, which has the MOZAK
-skill installed:
+skill installed. MOZAK currently validates and selects from planning artifacts;
+it does not expose a public command that authors or accepts them for you:
 
 > "Read my idea.md and propose accepted inputs and a first plan."
 
@@ -142,9 +147,9 @@ mozak project overview .
 `goal-search` is not ready because it depends on `goal-store`. That is the
 point: the dependency is declared and checked, not remembered.
 
-Hand `goal-store` to your coding agent. When it finishes, record what was
-actually observed with `mozak execution validate`, which checks the claim
-against the exact repository revision.
+Hand `goal-store` to your coding agent. The project plan and repository commit
+record what changed. `mozak execution validate` is retained only for legacy
+Execution Bundles and is not the completion path for current projects.
 
 **This is a good place to stop.** You have a repository whose plan survives a
 new session. Steps 4 onward add research Topics and a knowledge base spanning

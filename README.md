@@ -22,9 +22,17 @@ curl -fsSL https://raw.githubusercontent.com/pitfa19/mozak/main/scripts/install.
 mozak setup check "$HOME"
 ```
 
+This installs `mozak`, `mozak-mcp`, and the MOZAK skill for Claude Code,
+Jcode, Codex, and agents using the shared `.agents` convention. The installer
+prints the exact configuration step when this is a new machine.
+
 Prefer natural language? Tell your coding agent:
 
 > Install MOZAK from `github.com/pitfa19/mozak`, then onboard this repository.
+
+Joining projects that a teammate already onboarded? Use the
+[teammate quickstart](docs/TEAMMATE-QUICKSTART.md). It covers the local KB and
+project registration step that a binary install cannot safely guess.
 
 ## Why MOZAK
 
@@ -79,7 +87,7 @@ ships reliably, not the reason to use it.
 
 ## Read next
 
-[Quickstart](docs/QUICKSTART.md) · [How it works](docs/ARCHITECTURE.md) ·
+[Teammate quickstart](docs/TEAMMATE-QUICKSTART.md) · [New-project quickstart](docs/QUICKSTART.md) · [How it works](docs/ARCHITECTURE.md) ·
 [Commands](docs/REFERENCE.md) · [Install and update](docs/distribution/INSTALL.md)
 
 MIT licensed. Influences and prior work are listed in

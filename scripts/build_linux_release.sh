@@ -44,6 +44,11 @@ install -m 0755 "$repo/scripts/mozak_launcher.py" "$stage/$name/launcher.py"
 install -m 0644 "$repo/LICENSE" "$stage/$name/LICENSE"
 install -m 0644 "$repo/README.md" "$stage/$name/README.md"
 install -m 0644 "$repo/docs/distribution/INSTALL.md" "$stage/$name/INSTALL.md"
+# README links are part of the offline product too. Ship the public docs at the
+# same relative paths instead of leaving every archive-local link broken.
+cp -R "$repo/docs" "$stage/$name/docs"
+find "$stage/$name/docs" -type d -exec chmod 0755 {} +
+find "$stage/$name/docs" -type f -exec chmod 0644 {} +
 python3 - "$stage/$name/build.json" "$build_id" "$version" "$revision" "$channel" "$repository" <<'PY'
 import json, pathlib, sys
 path, build_id, version, revision, channel, repository = sys.argv[1:]
