@@ -3,6 +3,9 @@ use mozak_core::{
     planning::{
         Plan, next_ready_goals, superseded_by, validate_input_set_json, validate_plan_json,
     },
+    planning_archive::{
+        apply_compaction_plan, build_compaction_plan, plan_sha256, restore_compaction,
+    },
     research::{normalize_provider_arxiv, normalize_provider_dair_ai, validate_run_json},
 };
 use serde_json::json;
@@ -93,6 +96,54 @@ pub fn research_normalize(
     }))
 }
 
+pub fn planning_compact_plan(
+    root: &Path,
+    output_path: &Path,
+    generated_at: &str,
+) -> Result<(), String> {
+    if output_path.exists() {
+        return Err(format!(
+            "refusing to overwrite existing output: {}",
+            output_path.display()
+        ));
+    }
+    let plan = build_compaction_plan(root, generated_at).map_err(|error| error.to_string())?;
+    let hash = plan_sha256(&plan).map_err(|error| error.to_string())?;
+    let serialized = serde_json::to_string_pretty(&plan).map_err(|error| error.to_string())? + "\n";
+    fs::write(output_path, serialized)
+        .map_err(|error| format!("cannot write {}: {error}", output_path.display()))?;
+    print_json(&json!({
+        "schema_version": 1,
+        "command": "planning compact plan",
+        "state": "planned",
+        "project_root": plan.project_root,
+        "plan": display(output_path)?,
+        "plan_sha256": hash,
+        "entry_count": plan.entries.len(),
+        "authority": "owner_approval_required"
+    }))
+}
+
+pub fn planning_compact_apply(
+    root: &Path,
+    plan_path: &Path,
+    approval_path: &Path,
+) -> Result<(), String> {
+    let receipt =
+        apply_compaction_plan(root, plan_path, approval_path).map_err(|error| error.to_string())?;
+    print_json(&serde_json::to_value(receipt).map_err(|error| error.to_string())?)
+}
+
+pub fn planning_compact_restore(
+    root: &Path,
+    index_path: &Path,
+    approval_path: &Path,
+    output_root: &Path,
+) -> Result<(), String> {
+    let receipt = restore_compaction(root, index_path, approval_path, output_root)
+        .map_err(|error| error.to_string())?;
+    print_json(&serde_json::to_value(receipt).map_err(|error| error.to_string())?)
+}
 pub fn planning_next(inputs_path: &Path, plan_path: &Path) -> Result<(), String> {
     let inputs = validate_input_set_json(&read(inputs_path)?).map_err(|error| error.to_string())?;
     let plan = validate_plan_json(&read(plan_path)?, &inputs).map_err(|error| error.to_string())?;
