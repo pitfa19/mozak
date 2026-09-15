@@ -15,6 +15,12 @@ release manifest and SHA-256, installs an immutable version directory under
 `$HOME/.local/lib/mozak/versions`, enables a once-daily stable update check, and
 runs the installed launcher.
 
+The same release installs `mozak-mcp` and the version-matched MOZAK skill under
+`.agents`, `.jcode`, `.claude`, and `.codex`. A tool-only install does not guess
+your owner identity, KB path, or project roots. On a new machine the bootstrap
+prints the exact next configuration commands. To continue projects somebody
+else already onboarded, follow the [teammate quickstart](../TEAMMATE-QUICKSTART.md).
+
 Flags for either form, passed as `-s -- <flag>`: `--channel main` selects the
 rolling build, `--no-auto-update` disables automatic checks, and `--prefix` and
 `--home` accept absolute paths.
@@ -31,9 +37,10 @@ mozak setup check "$HOME"
 This leaves automatic updates disabled unless you pass
 `--enable-auto --channel stable|main`.
 
-`mozak doctor "$HOME"` additionally checks optional integrations, including
-the external `termaid` graph renderer. It exits `2` when one is absent even
-though the installed CLI, MCP server, and managed skill are ready.
+`mozak doctor "$HOME"` additionally checks the external `termaid` graph
+renderer. It exits `2` when Termaid is absent even though the installed CLI,
+MCP server, managed skill, and non-graph commands are ready. `graph-source`
+commands remain available without the renderer.
 
 ## Update and roll back
 

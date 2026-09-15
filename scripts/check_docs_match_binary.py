@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Fails when a doc claims something the binary does not.
 
-Three checks, all cheap enough to run in CI:
+Four checks, all cheap enough to run in CI:
 
 1. The module map diagram in docs/ARCHITECTURE.md is byte-identical to
    `mozak-module-map.mmd`, so the single source really is single. The README
@@ -9,6 +9,8 @@ Three checks, all cheap enough to run in CI:
 2. Every module id `mozak lab modules` returns appears in README.md and
    docs/MODULES.md, and no retired id survives anywhere in the docs.
 3. No doc claims a module count that disagrees with the binary.
+4. The teammate journey names current public commands and does not present the
+   compatibility-only Execution Bundle validator as the current completion path.
 """
 
 from __future__ import annotations
@@ -70,6 +72,17 @@ def module_ids() -> list[str]:
     return [module["id"] for module in json.loads(raw)["modules"]]
 
 
+def usage() -> str:
+    result = subprocess.run(
+        [mozak_binary()],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode == 0:
+        raise AssertionError("mozak with no arguments unexpectedly succeeded")
+    return result.stderr
+
+
 def mermaid_blocks(text: str) -> list[str]:
     return [block.strip() for block in re.findall(r"```mermaid\n(.*?)```", text, re.S)]
 
@@ -79,6 +92,7 @@ def main() -> int:
 
     ids = module_ids()
     source = DIAGRAM.read_text().strip()
+    current_usage = usage()
 
     for doc in DOCS_WITH_DIAGRAM:
         blocks = mermaid_blocks(doc.read_text())
@@ -117,13 +131,39 @@ def main() -> int:
                     f"reports {len(ids)}"
                 )
 
+    teammate = (ROOT / "docs/TEAMMATE-QUICKSTART.md").read_text()
+    current_commands = {
+        "mozak setup install": "mozak setup <install|check>",
+        "mozak setup check": "mozak setup <install|check>",
+        "mozak project discover": "mozak project discover",
+        "mozak project review": "mozak project review",
+        "mozak project registrations": "mozak project registrations",
+        "mozak project context": "mozak project context",
+    }
+    for command, usage_marker in current_commands.items():
+        if usage_marker not in current_usage:
+            failures.append(
+                f"binary usage does not expose documented route '{command.removeprefix('mozak ')}'"
+            )
+        if command not in teammate:
+            failures.append(f"docs/TEAMMATE-QUICKSTART.md omits '{command}'")
+
+    quickstart = (ROOT / "docs/QUICKSTART.md").read_text()
+    if re.search(r"When it finishes,.*mozak execution validate", quickstart, re.S):
+        failures.append(
+            "docs/QUICKSTART.md presents legacy execution validate as the current completion path"
+        )
+
     if failures:
         print("Documentation disagrees with the binary:", file=sys.stderr)
         for failure in sorted(set(failures)):
             print(f"  - {failure}", file=sys.stderr)
         return 1
 
-    print(f"ok: {len(ids)} modules, diagram single-sourced, no retired ids")
+    print(
+        f"ok: {len(ids)} modules, diagram single-sourced, no retired ids, "
+        "teammate routes current"
+    )
     return 0
 
 

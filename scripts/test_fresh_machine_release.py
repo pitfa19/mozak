@@ -88,6 +88,9 @@ def main() -> int:
         archive_root = next(extracted.glob("*"))
         archive_binary = archive_root / "mozak"
         archive_installer = archive_root / "install.py"
+        assert (archive_root / "docs/TEAMMATE-QUICKSTART.md").is_file()
+        assert (archive_root / "docs/QUICKSTART.md").is_file()
+        assert (archive_root / "docs/REFERENCE.md").is_file()
 
         home = base / "home"
         xdg = base / "xdg"

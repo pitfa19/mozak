@@ -19,6 +19,7 @@ Exit codes: `0` valid, `2` incomplete, `3` invalid, `1` bad invocation.
 | Say this | Agent runs |
 |---|---|
 | "Work on mozak." | `mozak project context mozak` |
+| "Which projects are configured on this machine?" | `mozak project registrations` |
 | "What's the status of this project?" | `mozak project status .` then `mozak project overview .` |
 | "What should I do next here?" | `mozak project overview .` |
 | "Onboard this repo into MOZAK." | `mozak project init .` (creates two files) |
@@ -46,6 +47,7 @@ mozak project review <discovery.json>
 mozak project register <discovery.json> <approval.json>          # mutation
 mozak project refresh <discovery.json> <approval.json>           # mutation
 mozak project context <project-id>
+mozak project registrations
 mozak project refresh history
 mozak project refresh rollback <config-sha256>
 mozak scope init|add-topic <scope-root> <scope-id> <title> <intent>          # mutation

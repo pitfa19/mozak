@@ -146,6 +146,12 @@ def main() -> int:
         status = json.loads(result.stdout.strip().splitlines()[-1])
         assert status["active_build"].endswith(REVISION[:12])
         assert status["channel"] == "stable" and status["auto_update"] is True
+        assert "Project context is not configured yet" in result.stderr
+        assert "mozak setup install" in result.stderr
+        assert (home / ".agents/skills/mozak/SKILL.md").is_file()
+        assert (home / ".claude/skills/mozak/SKILL.md").is_file()
+        assert (home / ".jcode/skills/mozak/SKILL.md").is_file()
+        assert (home / ".codex/skills/mozak/SKILL.md").is_file()
         requests = Path(env["STUB_LOG"]).read_text().split()
         assert requests and set(requests) == {"anon"}, requests
         version = subprocess.run([str(prefix / "bin/mozak"), "--version"], env=env, capture_output=True, text=True)
@@ -169,6 +175,7 @@ def main() -> int:
         private_status = json.loads(private.stdout.strip().splitlines()[-1])
         assert private_status["active_build"].endswith(REVISION[:12])
         assert private_status["auto_update"] is False
+        assert "Project context is not configured yet" in private.stderr
         requests = Path(env["STUB_LOG"]).read_text().split()
         assert requests and set(requests) == {"auth"}, requests
 
