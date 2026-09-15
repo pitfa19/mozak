@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
-    collections::BTreeSet,
+    collections::{BTreeMap, BTreeSet},
     fmt::{Display, Formatter},
     fs,
     path::{Component, Path, PathBuf},
@@ -143,6 +143,7 @@ pub fn apply_compaction_plan(
     validate_approval(&plan, &approval, &expected)?;
     let root = canonical_existing_dir(root, "project root")?;
     verify_sources(&root, &plan.entries)?;
+    let retained = retained_active_paths(&root, &plan)?;
     let lock = acquire_lock(&root)?;
     let staging = root.join(".mozak/planning/.compact-staging");
     if staging.exists() {
@@ -171,8 +172,21 @@ pub fn apply_compaction_plan(
         + "\n";
     fs::write(&index_stage, index_text)
         .map_err(|e| PlanningArchiveError(format!("cannot stage active index: {e}")))?;
-    move_tree_contents(&archive_stage, &root.join(&plan.archive_root))?;
-    atomic_replace(&index_stage, &root.join(&plan.active_index_path))?;
+    let archive_root = root.join(&plan.archive_root);
+    let index_path = root.join(&plan.active_index_path);
+    let rollback = apply_transaction(
+        &root,
+        &plan,
+        &retained,
+        &archive_stage,
+        &index_stage,
+        &archive_root,
+        &index_path,
+    );
+    if let Err(error) = rollback {
+        let _ = fs::remove_dir_all(&staging);
+        return Err(error);
+    }
     fs::remove_dir_all(&staging)
         .map_err(|e| PlanningArchiveError(format!("cannot remove staging: {e}")))?;
     drop(lock);
@@ -268,13 +282,14 @@ pub fn archived_planning_artifacts(
         .map_err(|e| PlanningArchiveError(format!("invalid active index JSON: {e}")))?;
     validate_plan_shape(&root, &archive)?;
     let mut inputs = Vec::new();
+    let mut input_map = BTreeMap::new();
     for entry in archive.entries.iter().filter(|entry| {
         matches!(
             entry.kind,
             PlanningArtifactKind::AcceptedInputs | PlanningArtifactKind::LegacyAcceptedInputs
         )
     }) {
-        let bytes = read_archive_blob(&root, &archive, entry)?;
+        let (bytes, loose_present) = read_logical_artifact(&root, &archive, entry)?;
         let parsed = validate_input_set_json(std::str::from_utf8(&bytes).map_err(|_| {
             PlanningArchiveError(format!(
                 "archived input is not UTF-8: {}",
@@ -287,19 +302,18 @@ pub fn archived_planning_artifacts(
                 entry.relative_path
             ))
         })?;
-        inputs.push((entry.relative_path.clone(), parsed));
+        input_map.insert(parsed.id.clone(), parsed.clone());
+        if !loose_present {
+            inputs.push((entry.relative_path.clone(), parsed));
+        }
     }
-    let input_map = inputs
-        .iter()
-        .map(|(_, input)| (input.id.clone(), input.clone()))
-        .collect::<std::collections::BTreeMap<_, _>>();
     let mut plans = Vec::new();
     for entry in archive
         .entries
         .iter()
         .filter(|entry| entry.kind == PlanningArtifactKind::Plan)
     {
-        let bytes = read_archive_blob(&root, &archive, entry)?;
+        let (bytes, loose_present) = read_logical_artifact(&root, &archive, entry)?;
         let text = std::str::from_utf8(&bytes).map_err(|_| {
             PlanningArchiveError(format!(
                 "archived plan is not UTF-8: {}",
@@ -324,9 +338,137 @@ pub fn archived_planning_artifacts(
                 entry.relative_path
             ))
         })?;
-        plans.push((entry.relative_path.clone(), plan));
+        if !loose_present {
+            plans.push((entry.relative_path.clone(), plan));
+        }
     }
     Ok((inputs, plans))
+}
+
+fn read_logical_artifact(
+    root: &Path,
+    archive: &PlanningCompactionPlan,
+    entry: &PlanningArchiveEntry,
+) -> Result<(Vec<u8>, bool), PlanningArchiveError> {
+    let loose = root.join(safe_relative(&entry.relative_path)?);
+    if loose.is_file() {
+        let bytes = fs::read(&loose).map_err(|e| {
+            PlanningArchiveError(format!(
+                "cannot read active artifact {}: {e}",
+                loose.display()
+            ))
+        })?;
+        if bytes.len() as u64 != entry.bytes || sha_bytes(&bytes) != entry.sha256 {
+            fail(&format!(
+                "active/archive hash disagreement for {}",
+                entry.relative_path
+            ))?;
+        }
+        return Ok((bytes, true));
+    }
+    Ok((read_archive_blob(root, archive, entry)?, false))
+}
+
+fn retained_active_paths(
+    root: &Path,
+    plan: &PlanningCompactionPlan,
+) -> Result<BTreeSet<String>, PlanningArchiveError> {
+    let mut inputs_by_id = BTreeMap::<String, String>::new();
+    let mut plans = Vec::<(String, Plan)>::new();
+    for entry in &plan.entries {
+        match entry.kind {
+            PlanningArtifactKind::AcceptedInputs | PlanningArtifactKind::LegacyAcceptedInputs => {
+                let text = fs::read_to_string(root.join(&entry.relative_path)).map_err(|e| {
+                    PlanningArchiveError(format!(
+                        "cannot read planning input {}: {e}",
+                        entry.relative_path
+                    ))
+                })?;
+                let input = validate_input_set_json(&text).map_err(|e| {
+                    PlanningArchiveError(format!(
+                        "invalid planning input {}: {e}",
+                        entry.relative_path
+                    ))
+                })?;
+                inputs_by_id
+                    .entry(input.id)
+                    .or_insert_with(|| entry.relative_path.clone());
+            }
+            PlanningArtifactKind::Plan => {
+                let text = fs::read_to_string(root.join(&entry.relative_path)).map_err(|e| {
+                    PlanningArchiveError(format!(
+                        "cannot read planning plan {}: {e}",
+                        entry.relative_path
+                    ))
+                })?;
+                let plan: Plan = serde_json::from_str(&text).map_err(|e| {
+                    PlanningArchiveError(format!(
+                        "invalid planning plan JSON {}: {e}",
+                        entry.relative_path
+                    ))
+                })?;
+                plans.push((entry.relative_path.clone(), plan));
+            }
+            _ => {}
+        }
+    }
+    let superseded = plans
+        .iter()
+        .filter_map(|(_, plan)| {
+            plan.supersedes
+                .as_ref()
+                .map(|prev| (prev.id.clone(), prev.version))
+        })
+        .collect::<BTreeSet<_>>();
+    let mut retained = BTreeSet::from([plan.active_index_path.clone()]);
+    for (path, candidate) in plans {
+        if !superseded.contains(&(candidate.id.clone(), candidate.version)) {
+            retained.insert(path);
+            if let Some(input_path) = inputs_by_id.get(&candidate.input_set_id) {
+                retained.insert(input_path.clone());
+            }
+        }
+    }
+    Ok(retained)
+}
+
+fn apply_transaction(
+    root: &Path,
+    plan: &PlanningCompactionPlan,
+    retained: &BTreeSet<String>,
+    archive_stage: &Path,
+    index_stage: &Path,
+    archive_root: &Path,
+    index_path: &Path,
+) -> Result<(), PlanningArchiveError> {
+    let rollback = root.join(".mozak/planning/.compact-staging/rollback");
+    move_tree_contents(archive_stage, archive_root)?;
+    atomic_replace(index_stage, index_path)?;
+    archived_planning_artifacts(root)?;
+    for entry in &plan.entries {
+        if retained.contains(&entry.relative_path) || entry.relative_path == plan.active_index_path
+        {
+            continue;
+        }
+        let source = root.join(&entry.relative_path);
+        if source.is_file() {
+            let target = rollback.join(&entry.relative_path);
+            if let Some(parent) = target.parent() {
+                fs::create_dir_all(parent).map_err(|e| {
+                    PlanningArchiveError(format!("cannot stage removal rollback: {e}"))
+                })?;
+            }
+            fs::rename(&source, &target).map_err(|e| {
+                PlanningArchiveError(format!("cannot remove loose planning artifact: {e}"))
+            })?;
+        }
+    }
+    if let Err(error) = archived_planning_artifacts(root) {
+        let _ = move_tree_contents(&rollback, root);
+        return Err(error);
+    }
+    let _ = fs::remove_dir_all(&rollback);
+    Ok(())
 }
 
 fn read_archive_blob(

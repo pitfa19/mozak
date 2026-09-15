@@ -72,6 +72,7 @@ fn write_plan_and_approval(root: &Path) -> (PathBuf, PathBuf, String) {
 fn compaction_archives_losslessly_and_restores_from_deterministic_index() {
     let root = temp_root("archive-roundtrip");
     write_artifacts(&root);
+    let originals = planning_bytes(&root);
     let (plan_path, approval_path, hash) = write_plan_and_approval(&root);
 
     let receipt = apply_compaction_plan(&root, &plan_path, &approval_path).expect("apply");
@@ -83,11 +84,39 @@ fn compaction_archives_losslessly_and_restores_from_deterministic_index() {
     let restore = root.join("restored");
     let restored = restore_compaction(&root, &index, &approval_path, &restore).expect("restore");
     assert_eq!(restored.action, "restore");
-    for entry in receipt.entries {
-        let original = fs::read(root.join(&entry.relative_path)).expect("original");
-        let copied = fs::read(restore.join(&entry.relative_path)).expect("restored");
-        assert_eq!(copied, original);
+    assert_eq!(planning_bytes(&restore), originals);
+}
+
+fn planning_bytes(root: &Path) -> Vec<(String, Vec<u8>)> {
+    let mut bytes = files_under(&root.join(".mozak/planning"))
+        .into_iter()
+        .filter(|path| !path.to_string_lossy().contains("/archive/"))
+        .map(|path| {
+            let rel = path
+                .strip_prefix(root)
+                .expect("relative")
+                .to_string_lossy()
+                .replace('\\', "/");
+            (rel, fs::read(path).expect("bytes"))
+        })
+        .collect::<Vec<_>>();
+    bytes.sort_by(|a, b| a.0.cmp(&b.0));
+    bytes
+}
+
+fn files_under(dir: &Path) -> Vec<PathBuf> {
+    let mut files = Vec::new();
+    if let Ok(entries) = fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                files.extend(files_under(&path));
+            } else if path.is_file() {
+                files.push(path);
+            }
+        }
     }
+    files
 }
 
 #[test]

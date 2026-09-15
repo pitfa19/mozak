@@ -149,13 +149,26 @@ pub fn planning_compact_restore(
     print_json(&serde_json::to_value(receipt).map_err(|error| error.to_string())?)
 }
 pub fn planning_next(inputs_path: &Path, plan_path: &Path) -> Result<(), String> {
-    let inputs = validate_input_set_json(&read(inputs_path)?).map_err(|error| error.to_string())?;
-    let plan = validate_plan_json(&read(plan_path)?, &inputs).map_err(|error| error.to_string())?;
+    let archived = project_root_from_planning_path(plan_path)
+        .map(|root| archived_planning_artifacts(&root).map_err(|error| error.to_string()))
+        .transpose()?;
+    let inputs = match read(inputs_path) {
+        Ok(text) => validate_input_set_json(&text).map_err(|error| error.to_string())?,
+        Err(error) => archived
+            .as_ref()
+            .and_then(|(inputs, _)| archived_input_for_path(inputs_path, inputs))
+            .ok_or(error)?,
+    };
+    let plan = match read(plan_path) {
+        Ok(text) => validate_plan_json(&text, &inputs).map_err(|error| error.to_string())?,
+        Err(error) => archived
+            .as_ref()
+            .and_then(|(_, plans)| archived_plan_for_path(plan_path, plans))
+            .ok_or(error)?,
+    };
     let mut siblings = sibling_plans(plan_path, &plan);
-    if let Some(root) = project_root_from_planning_path(plan_path) {
-        let (_, archived) =
-            archived_planning_artifacts(&root).map_err(|error| error.to_string())?;
-        siblings.extend(archived.into_iter().map(|(_, plan)| plan));
+    if let Some((_, archived_plans)) = archived {
+        siblings.extend(archived_plans.into_iter().map(|(_, plan)| plan));
     }
     if let Some(successor) = superseded_by(&siblings, &plan) {
         return Err(format!(
@@ -184,6 +197,25 @@ pub fn planning_next(inputs_path: &Path, plan_path: &Path) -> Result<(), String>
             })
         }).collect::<Vec<_>>()
     }))
+}
+
+fn archived_input_for_path(
+    path: &Path,
+    inputs: &[(String, mozak_core::planning::PlanningInputSet)],
+) -> Option<mozak_core::planning::PlanningInputSet> {
+    let wanted = path.to_string_lossy().replace('\\', "/");
+    inputs
+        .iter()
+        .find(|(relative, _)| wanted.ends_with(relative))
+        .map(|(_, input)| input.clone())
+}
+
+fn archived_plan_for_path(path: &Path, plans: &[(String, Plan)]) -> Option<Plan> {
+    let wanted = path.to_string_lossy().replace('\\', "/");
+    plans
+        .iter()
+        .find(|(relative, _)| wanted.ends_with(relative))
+        .map(|(_, plan)| plan.clone())
 }
 
 fn project_root_from_planning_path(path: &Path) -> Option<PathBuf> {
