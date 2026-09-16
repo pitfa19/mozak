@@ -88,6 +88,24 @@ pub struct PlanningCompactionReceipt {
 
 pub type ArchivedPlanningArtifacts = (Vec<(String, PlanningInputSet)>, Vec<(String, Plan)>);
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct CompactionRecommendation {
+    pub recommended: bool,
+    pub compactable_count: usize,
+    pub compactable_bytes: u64,
+    pub retained_count: usize,
+    pub reasons: Vec<String>,
+    pub plan_command: String,
+    pub apply_requires_approval: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PlanningArtifactResolver {
+    pub archived_inputs: Vec<(String, PlanningInputSet)>,
+    pub archived_plans: Vec<(String, Plan)>,
+}
+
 /// Builds a deterministic active planning artifact index without mutating artifacts.
 ///
 /// # Errors
@@ -272,10 +290,28 @@ pub fn restore_compaction(
 pub fn archived_planning_artifacts(
     root: &Path,
 ) -> Result<ArchivedPlanningArtifacts, PlanningArchiveError> {
+    let resolver = resolve_planning_artifacts(root)?;
+    Ok((resolver.archived_inputs, resolver.archived_plans))
+}
+
+/// Validates and resolves the project planning archive once for all public readers.
+///
+/// Loose active files win only when their bytes exactly match the active index. Missing
+/// loose files are loaded from content-addressed archive blobs, and corruption fails closed.
+///
+/// # Errors
+/// Returns an error when the project root, active index, archive blob, loose artifact,
+/// or referenced plan/input pair is missing, unsafe, corrupt, or invalid.
+pub fn resolve_planning_artifacts(
+    root: &Path,
+) -> Result<PlanningArtifactResolver, PlanningArchiveError> {
     let root = canonical_existing_dir(root, "project root")?;
     let index = root.join(".mozak/planning/active-index.json");
     if !index.exists() {
-        return Ok((Vec::new(), Vec::new()));
+        return Ok(PlanningArtifactResolver {
+            archived_inputs: Vec::new(),
+            archived_plans: Vec::new(),
+        });
     }
     let text = read_text(&index)?;
     let archive: PlanningCompactionPlan = serde_json::from_str(&text)
@@ -342,7 +378,58 @@ pub fn archived_planning_artifacts(
             plans.push((entry.relative_path.clone(), plan));
         }
     }
-    Ok((inputs, plans))
+    Ok(PlanningArtifactResolver {
+        archived_inputs: inputs,
+        archived_plans: plans,
+    })
+}
+
+/// Returns a read-only compaction recommendation for overview/context surfaces.
+///
+/// This never mutates project bytes and never implies approval. The apply route remains
+/// gated by an exact owner approval artifact pinned to the generated plan hash.
+///
+/// # Errors
+/// Returns an error when planning artifacts cannot be indexed, parsed, or classified safely.
+pub fn compaction_recommendation(
+    root: &Path,
+    generated_at: &str,
+) -> Result<CompactionRecommendation, PlanningArchiveError> {
+    let plan = build_compaction_plan(root, generated_at)?;
+    let root = canonical_existing_dir(root, "project root")?;
+    let retained = retained_active_paths(&root, &plan)?;
+    let compactable = plan
+        .entries
+        .iter()
+        .filter(|entry| {
+            !retained.contains(&entry.relative_path)
+                && entry.relative_path != plan.active_index_path
+                && matches!(
+                    entry.kind,
+                    PlanningArtifactKind::AcceptedInputs
+                        | PlanningArtifactKind::LegacyAcceptedInputs
+                        | PlanningArtifactKind::Plan
+                )
+        })
+        .collect::<Vec<_>>();
+    let compactable_bytes = compactable.iter().map(|entry| entry.bytes).sum();
+    let compactable_count = compactable.len();
+    let mut reasons = Vec::new();
+    if compactable_count > 0 {
+        reasons.push("superseded planning predecessors are recoverable from the archive while active plan families keep their referenced input sets loose".to_owned());
+    }
+    Ok(CompactionRecommendation {
+        recommended: compactable_count > 0,
+        compactable_count,
+        compactable_bytes,
+        retained_count: retained.len(),
+        reasons,
+        plan_command: format!(
+            "mozak planning compact plan {} <output-plan.json>",
+            shell_path(&root)
+        ),
+        apply_requires_approval: true,
+    })
 }
 
 fn read_logical_artifact(
@@ -555,6 +642,11 @@ fn has_json_extension(value: &str) -> bool {
     Path::new(value)
         .extension()
         .is_some_and(|ext| ext.eq_ignore_ascii_case("json"))
+}
+
+fn shell_path(path: &Path) -> String {
+    let text = path.to_string_lossy();
+    format!("'{}'", text.replace('\'', "'\\''"))
 }
 
 fn is_compaction_internal(relative: &str) -> bool {

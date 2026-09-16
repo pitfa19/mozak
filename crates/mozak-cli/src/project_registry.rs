@@ -634,7 +634,7 @@ pub fn context(id: &str, mode: ContextOutputMode) -> Result<ExitCode, String> {
             "revision_matches_git_head": revision_matches_head
         },
         "idea": idea.map(|v| serde_json::json!({"title": v.title, "intent": v.sections.get("Intent").cloned().unwrap_or_default()})),
-        "workflow": snapshot.as_ref().map(|s| serde_json::json!({"state": s.state, "latest_plan": s.latest_valid_plan, "ready_goals": s.ready_goals})),
+        "workflow": snapshot.as_ref().map(|s| serde_json::json!({"state": s.state, "latest_plan": s.latest_valid_plan, "ready_goals": s.ready_goals, "compaction": s.compaction})),
         "workflow_error": workflow_error,
         "context_notes": context_notes,
         "next_actions": snapshot.as_ref().map_or_else(|| vec!["Run `mozak project validate <project-root>` to inspect invalid current project bytes.".to_owned()], |s| s.next_actions.clone()),

@@ -89,6 +89,7 @@ fn overview_has_closed_stable_shape_and_production_ready_order() {
         [
             "artifact_counts",
             "command",
+            "compaction",
             "concepts",
             "contexts",
             "findings",
