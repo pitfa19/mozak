@@ -1,0 +1,124 @@
+{
+  "contract_version": 1,
+  "id": "plan-archive-aware-compaction",
+  "version": 3,
+  "input_set_id": "inputs-archive-aware-compaction-002",
+  "goals": [
+    {
+      "id": "classify-superseded-planning-history",
+      "version": 1,
+      "title": "Classify complete supersession chains and archive only predecessors that are no longer independently active",
+      "status": "ready",
+      "priority": 1,
+      "input_ids": [
+        "input-owner-request-compaction-plan",
+        "input-observation-compaction-unused",
+        "input-compaction-safety-boundary",
+        "input-owner-approve-archive-aware-compaction"
+      ],
+      "recovery_attempts": 0
+    },
+    {
+      "id": "resolve-active-and-archived-artifacts",
+      "version": 1,
+      "title": "Introduce one validated resolver for active files and archived history across project overview, planning next, supersession, CLI, and MCP",
+      "status": "planned",
+      "priority": 2,
+      "input_ids": [
+        "input-owner-request-compaction-plan",
+        "input-compaction-safety-boundary",
+        "input-owner-approve-archive-aware-compaction"
+      ],
+      "recovery_attempts": 0
+    },
+    {
+      "id": "compact-referenced-input-history",
+      "version": 1,
+      "title": "Keep every input set referenced by an active plan and archive only input sets reachable exclusively from archived predecessors",
+      "status": "planned",
+      "priority": 3,
+      "input_ids": [
+        "input-observation-compaction-unused",
+        "input-compaction-safety-boundary",
+        "input-owner-approve-archive-aware-compaction"
+      ],
+      "recovery_attempts": 0
+    },
+    {
+      "id": "surface-default-compaction-recommendations",
+      "version": 1,
+      "title": "Make project context and overview automatically report compactable artifact count, bytes, reasons, and the exact approval-gated apply command",
+      "status": "planned",
+      "priority": 4,
+      "input_ids": [
+        "input-owner-request-compaction-plan",
+        "input-compaction-safety-boundary",
+        "input-owner-approve-archive-aware-compaction"
+      ],
+      "recovery_attempts": 0
+    },
+    {
+      "id": "prove-lossless-compaction-acceptance",
+      "version": 1,
+      "title": "Prove Genome-sized apply, archive-aware reads, stale and corrupt refusal, concurrent mutation safety, installation compatibility, and byte-exact restore",
+      "status": "planned",
+      "priority": 5,
+      "input_ids": [
+        "input-observation-compaction-unused",
+        "input-compaction-safety-boundary",
+        "input-owner-approve-archive-aware-compaction"
+      ],
+      "recovery_attempts": 0
+    }
+  ],
+  "dependencies": [
+    {
+      "goal_id": "resolve-active-and-archived-artifacts",
+      "depends_on_goal_id": "classify-superseded-planning-history",
+      "provenance": {
+        "kind": "declared",
+        "input_ids": [
+          "input-owner-request-compaction-plan"
+        ]
+      }
+    },
+    {
+      "goal_id": "compact-referenced-input-history",
+      "depends_on_goal_id": "resolve-active-and-archived-artifacts",
+      "provenance": {
+        "kind": "declared",
+        "input_ids": [
+          "input-compaction-safety-boundary"
+        ]
+      }
+    },
+    {
+      "goal_id": "surface-default-compaction-recommendations",
+      "depends_on_goal_id": "compact-referenced-input-history",
+      "provenance": {
+        "kind": "declared",
+        "input_ids": [
+          "input-owner-request-compaction-plan"
+        ]
+      }
+    },
+    {
+      "goal_id": "prove-lossless-compaction-acceptance",
+      "depends_on_goal_id": "surface-default-compaction-recommendations",
+      "provenance": {
+        "kind": "declared",
+        "input_ids": [
+          "input-compaction-safety-boundary"
+        ]
+      }
+    }
+  ],
+  "recovery": {
+    "max_attempts_per_goal": 3,
+    "allowed_failed_transition": "blocked"
+  },
+  "supersedes": {
+    "id": "plan-archive-aware-compaction",
+    "version": 2
+  }
+}
