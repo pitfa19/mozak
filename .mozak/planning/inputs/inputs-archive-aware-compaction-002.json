@@ -1,0 +1,48 @@
+{
+  "contract_version": 1,
+  "id": "inputs-archive-aware-compaction-002",
+  "accepted_at": "2026-09-16T01:55:40+08:00",
+  "inputs": [
+    {
+      "id": "input-owner-request-compaction-plan",
+      "text": "The owner requested a MOZAK implementation plan, but has not yet approved implementation, for making planning compaction useful by default. MOZAK should automatically compute and report safe compaction opportunities while retaining explicit owner approval before moving canonical project files.",
+      "provenance": {
+        "kind": "human_decision",
+        "decision_id": "decision-plan-archive-aware-compaction-20260916",
+        "actor": "pitfa"
+      }
+    },
+    {
+      "id": "input-observation-compaction-unused",
+      "text": "The installed compaction implementation is lossless, content-addressed, transactional, approval-gated, and restorable, but no registered project currently has .mozak/planning/active-index.json. Genome has 56 planning files totaling 514341 bytes, and the current preview classifies all 25 plan versions as active_contract, so it cannot reduce the superseded history that motivated the feature.",
+      "provenance": {
+        "kind": "codebase_observation",
+        "observation_id": "observation-compaction-usage-20260916",
+        "repository_revision": "6ec976344fdc7868f777426a5c00c818250ce7f4",
+        "paths": [
+          "crates/mozak-core/src/planning_archive.rs",
+          "crates/mozak-cli/src/lifecycle.rs",
+          "crates/mozak-cli/src/project_workflow.rs"
+        ]
+      }
+    },
+    {
+      "id": "input-compaction-safety-boundary",
+      "text": "Compaction may automatically inspect, classify, preview, and recommend. It must not automatically move or delete canonical planning files. Applying or restoring compaction remains an exact owner-approved mutation with complete-hash validation, atomic rollback, corruption refusal, path-safety checks, and byte-exact restoration.",
+      "provenance": {
+        "kind": "human_decision",
+        "decision_id": "decision-compaction-approval-boundary-20260916",
+        "actor": "pitfa"
+      }
+    },
+    {
+      "id": "input-owner-approve-archive-aware-compaction",
+      "text": "Owner approved implementation of the complete five-step archive-aware compaction plan. Implement supersession-aware classification, archive-aware public readers, referenced-input retention, default read-only recommendations, and Genome-scale lossless acceptance. Canonical apply and restore operations remain separately exact-approval-gated.",
+      "provenance": {
+        "kind": "human_decision",
+        "decision_id": "decision-approve-archive-aware-compaction-20260916",
+        "actor": "pitfa"
+      }
+    }
+  ]
+}
