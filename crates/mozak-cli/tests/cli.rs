@@ -121,7 +121,10 @@ fn planning_compact_cli_roundtrips_dynamic_scratch_fixture() {
         "{}",
         String::from_utf8_lossy(&apply.stderr)
     );
-    let restore = root.join("restore");
+    let restore = root.with_file_name(format!(
+        "{}-restore",
+        root.file_name().unwrap().to_string_lossy()
+    ));
     let restore_output = Command::new(binary)
         .args([
             "planning",
@@ -256,7 +259,10 @@ fn assert_archived_predecessor_detects_successor(binary: &str, root: &Path) {
 }
 
 fn compact_restore(binary: &str, root: &Path, approval_path: &Path) -> PathBuf {
-    let restore = root.join("restore");
+    let restore = root.with_file_name(format!(
+        "{}-restore",
+        root.file_name().unwrap().to_string_lossy()
+    ));
     assert!(
         Command::new(binary)
             .args([
