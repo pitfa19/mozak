@@ -24,11 +24,15 @@
     },
     {
       "prompt": "Start background agents that continuously research, feed a Meta KB, and improve MOZAK automatically.",
-      "expected": "Explain that the local Meta KB supports only read-only validation, listing, and graphing. Reject unsupported automatic ingestion, networking, background-agent, registry, and self-improvement claims, then offer a bounded external-agent workflow."
+      "expected": "Explain that the configured KB can read registered Concept candidates and prepare target Translation packets, but still cannot automatically discover or accept research, rank relevance, adopt a Concept, mutate the Meta KB, run background agents, or self-improve. Offer the bounded read-only transfer workflow instead."
     },
     {
       "prompt": "Validate and graph my local MOZAK Meta KB.",
       "expected": "Use meta validate followed by meta graph as read-only operations. Present actual Termaid terminal output and do not imply that relationships automatically transfer truth or authorize actions."
+    },
+    {
+      "prompt": "Find knowledge from my other projects that could help genome-mcp, then prepare the strongest Concept for adoption.",
+      "expected": "Run kb concept candidates genome-mcp and present its deterministic, unranked advisory inventory. After the owner or agent chooses one exact Concept, run kb concept translation-packet with its canonical hash. State that supplied research is proposal-only, the packet is not a Translation, the target must provide target-side evidence for every assumption, and nothing was adopted or mutated."
     }
   ]
 }

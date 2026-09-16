@@ -89,7 +89,7 @@ one. [MODULES.md](MODULES.md) explains each one and where its design came from.
 | **Scope** | `scope` `project_contract` `project_context` | Inputs are immutable and content-addressed; a project states its own identity |
 | **Research** | `research` `adapter_workflow` `landmark` `case_study` | Untrusted external data can never authorize an action; a summary stays addressable or fails closed |
 | **Plans** | `planning` `execution` `project_release` `knowledge_package` `attestation` | A plan derives only from accepted inputs; claims must match the observed revision; every byte is pinned |
-| **Meta KB** | `kb` `meta_kb` `concept` `package_import` | A registry records but never confers trust; reuse requires re-deriving every assumption |
+| **Meta KB** | `kb` `meta_kb` `concept` `meta_transfer` `package_import` | A registry records but never confers trust; reuse requires re-deriving every assumption |
 | **Improve Lab** | `lab` | Planning-only; stops at owner review |
 | **Skill** | `distribution` | Managed files are hash-pinned; drift is refused, not overwritten |
 
@@ -111,6 +111,7 @@ No module may mutate accepted state without an approval that pins exact hashes.
 | `project_registry` | `project discover/review/register/refresh/context` |
 | `scope_workflow` | `scope init/add-topic/add-project/add-goal/validate/list/graph/export/ingest-links` |
 | `kb_workflow` | `kb validate/list/tree/graph/register/repin/parity/import-package` |
+| `meta_transfer_workflow` | `kb concept candidates/translation-packet` |
 | `meta_workflow` | `meta validate/list/graph` |
 | `package_workflow` | `package validate/list/attest/history` |
 | `concept_workflow` | `concept validate/list/translation` |
@@ -187,6 +188,15 @@ otherwise:
 - **Cases sit under Research**, not under Plans, because a case is an observation, held to the same evidence discipline as a paper.
 - **Packages sit under Plans**, not under Meta KB, because a package is what finished work is sealed into, and the Meta KB merely composes it afterwards.
 - **Adapters are not a module.** They are the network boundary Research owns. A boundary and a module are different things, and splitting them would reopen the question of which module a research run belongs to.
+
+Cross-project reuse begins with `kb concept candidates`, which reads only the
+configured, hash-pinned registry and returns a deterministic inventory rather
+than a relevance ranking. Explicitly supplied research runs remain
+proposal-only. After a person or agent selects an exact Concept hash, `kb
+concept translation-packet` enumerates the source assumptions and the evidence
+the target must produce. The packet is read-only preparation, not a Translation
+and not adoption. The target still owns, authors, and validates the resulting
+Translation.
 
 ## A module is an improvement surface
 

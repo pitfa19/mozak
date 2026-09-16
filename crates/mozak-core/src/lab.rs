@@ -231,7 +231,13 @@ impl Module {
                 "knowledge_package.rs",
                 "attestation.rs",
             ],
-            Self::MetaKb => &["kb.rs", "meta_kb.rs", "concept.rs", "package_import.rs"],
+            Self::MetaKb => &[
+                "kb.rs",
+                "meta_kb.rs",
+                "meta_transfer.rs",
+                "concept.rs",
+                "package_import.rs",
+            ],
             Self::ImproveLab => &["lab.rs", "lab_evidence.rs", "lab_evaluation.rs"],
             Self::Skill => &["distribution.rs"],
             // Deliberately empty. The files a retired boundary covered have

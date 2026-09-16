@@ -1,0 +1,42 @@
+{
+  "contract_version": 1,
+  "id": "inputs-meta-kb-translation-001",
+  "accepted_at": "2026-09-16T05:05:53Z",
+  "inputs": [
+    {
+      "id": "input-meta-kb-owner-approval",
+      "text": "The owner approved steps 1 through 5 of the Meta KB implementation plan: define the registry-versus-transfer contract, add deterministic cross-project Concept candidates, add target-owned translation packets, preserve a separate proposal-only research lane, and expose and verify the complete CLI, MCP, skill, and Genome workflow.",
+      "provenance": {
+        "kind": "human_decision",
+        "decision_id": "decision-meta-kb-translation-2026-09-16",
+        "actor": "pitfa"
+      }
+    },
+    {
+      "id": "input-meta-kb-current-state",
+      "text": "At repository revision 310b42d8aa6e890eeaf57ffa5aaa6c94855a0081, rootless KB commands resolve the explicit configured registry, local Meta KB commands only validate, list, and graph release relationships, Concepts and Translations already enforce advisory authority and target-side re-derivation, and no public candidate or translation-packet command exists.",
+      "provenance": {
+        "kind": "codebase_observation",
+        "observation_id": "obs-meta-kb-current-state-2026-09-16",
+        "repository_revision": "310b42d8aa6e890eeaf57ffa5aaa6c94855a0081",
+        "paths": [
+          "crates/mozak-core/src/kb.rs",
+          "crates/mozak-core/src/meta_kb.rs",
+          "crates/mozak-core/src/concept.rs",
+          "crates/mozak-cli/src/meta_workflow.rs",
+          "crates/mozak-mcp/src/main.rs",
+          "skills/mozak/SKILL.md"
+        ]
+      }
+    },
+    {
+      "id": "input-meta-kb-authority-boundary",
+      "text": "Cross-project discovery must remain deterministic and read-only. A source Concept is advisory only, a target owns its Translation, every source assumption must be re-derived in the target, unaccepted research remains proposal-only, and no candidate, packet, Concept, or relationship authorizes adoption, execution, mutation, or truth transfer.",
+      "provenance": {
+        "kind": "human_decision",
+        "decision_id": "decision-meta-kb-authority-boundary-2026-09-16",
+        "actor": "pitfa"
+      }
+    }
+  ]
+}
