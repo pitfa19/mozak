@@ -270,7 +270,14 @@ fn preflight(home: &Path) -> Result<Vec<Value>, String> {
             let target = home.join(&combined);
             let (status, actual) = match fs::symlink_metadata(&target) {
                 Ok(meta) if meta.file_type().is_symlink() => {
-                    return Err(format!("managed path is a symlink: {}", target.display()));
+                    if is_allowed_legacy_alias(home, &target)? {
+                        let bytes = fs::read(&target)
+                            .map_err(|e| format!("cannot read {}: {e}", target.display()))?;
+                        let hash = sha256(&bytes);
+                        (if bytes == *expected { "ok" } else { "drift" }, Some(hash))
+                    } else {
+                        return Err(format!("managed path is a symlink: {}", target.display()));
+                    }
                 }
                 Ok(meta) if !meta.is_file() => {
                     return Err(format!(
@@ -322,6 +329,9 @@ fn reject_symlink_components(home: &Path, relative: &Path) -> Result<(), String>
         current.push(component.as_os_str());
         match fs::symlink_metadata(&current) {
             Ok(meta) if meta.file_type().is_symlink() => {
+                if is_allowed_legacy_alias(home, &current)? {
+                    continue;
+                }
                 return Err(format!(
                     "managed path component is a symlink: {}",
                     current.display()
@@ -333,6 +343,25 @@ fn reject_symlink_components(home: &Path, relative: &Path) -> Result<(), String>
         }
     }
     Ok(())
+}
+
+fn is_allowed_legacy_alias(home: &Path, path: &Path) -> Result<bool, String> {
+    let alias = home.join(".claude/skills/i-have-adhd");
+    if path != alias {
+        return Ok(false);
+    }
+    let target = fs::read_link(path)
+        .map_err(|error| format!("cannot inspect legacy alias {}: {error}", path.display()))?;
+    let resolved = if target.is_absolute() {
+        target
+    } else {
+        path.parent()
+            .ok_or_else(|| "legacy alias has no parent".to_owned())?
+            .join(target)
+    }
+    .canonicalize()
+    .map_err(|error| format!("cannot resolve legacy alias {}: {error}", path.display()))?;
+    Ok(resolved == home.join(".agents/skills/i-have-adhd"))
 }
 
 fn install_file(target: &Path, bytes: &[u8]) -> Result<(), String> {

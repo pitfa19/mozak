@@ -19,6 +19,8 @@ LAUNCHER_MARKER = b"MOZAK_MANAGED_LAUNCHER_V1"
 BUILD_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+-]{0,127}$")
 MOZAK_MANAGED_FILENAMES = {"SKILL.md", "install.py", "mcp.json", "tests/test_skill.py", "evals/evals.json", "companion-recommendations.json"}
 ADHD_MANAGED_FILENAMES = {"SKILL.md"}
+LEGACY_ALIAS = Path(".claude/skills/i-have-adhd")
+LEGACY_ALIAS_TARGET = Path(".agents/skills/i-have-adhd")
 
 
 def existing_real_directory(path: Path, label: str) -> Path:
@@ -67,6 +69,32 @@ def regular_bytes(path: Path, label: str) -> bytes:
     if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISREG(metadata.st_mode):
         raise RuntimeError(f"{label} must be a regular file: {path}")
     return path.read_bytes()
+
+
+def allowed_legacy_alias(home: Path, path: Path) -> bool:
+    if path != home / LEGACY_ALIAS:
+        return False
+    try:
+        return path.resolve(strict=True) == (home / LEGACY_ALIAS_TARGET).resolve(strict=True)
+    except OSError:
+        return False
+
+
+def snapshot_managed_path(home: Path, path: Path) -> tuple[str, bytes | str, int]:
+    alias = home / LEGACY_ALIAS
+    if path == alias or alias in path.parents:
+        metadata = alias.lstat()
+        if not stat.S_ISLNK(metadata.st_mode) or not allowed_legacy_alias(home, alias):
+            raise RuntimeError(f"managed skill path is unsafe: {alias}")
+        return ("symlink", os.readlink(alias), stat.S_IMODE(metadata.st_mode))
+    metadata = path.lstat()
+    if stat.S_ISLNK(metadata.st_mode):
+        if not allowed_legacy_alias(home, path):
+            raise RuntimeError(f"managed skill path is unsafe: {path}")
+        return ("symlink", os.readlink(path), stat.S_IMODE(metadata.st_mode))
+    if not stat.S_ISREG(metadata.st_mode):
+        raise RuntimeError(f"managed skill path is unsafe: {path}")
+    return ("file", path.read_bytes(), stat.S_IMODE(metadata.st_mode))
 
 
 def load_build(path: Path) -> dict[str, Any]:
@@ -180,16 +208,26 @@ def allowed_managed_report_path(path: Path) -> bool:
     return False
 
 
-def restore_files(backup: dict[Path, tuple[bytes, int]], new_paths: list[Path]) -> None:
+def restore_files(backup: dict[Path, tuple[str, bytes | str, int]], new_paths: list[Path]) -> None:
     for path in new_paths:
         if path.exists() and path.is_file() and not path.is_symlink():
             path.unlink()
-    for path, (data, mode) in backup.items():
+    for path, (kind, data, mode) in backup.items():
         path.parent.mkdir(parents=True, exist_ok=True)
-        atomic_regular_file(path, data, mode)
+        if kind == "symlink":
+            if path.exists() or path.is_symlink():
+                if path.is_dir() and not path.is_symlink():
+                    shutil.rmtree(path)
+                else:
+                    path.unlink()
+            elif path.is_dir():
+                shutil.rmtree(path)
+            path.symlink_to(data)
+        else:
+            atomic_regular_file(path, data, mode)
 
 
-def migrate_skills(old_binary: Path | None, new_binary: Path, home: Path, owner: str | None = None, kb_root: Path | None = None) -> dict[Path, tuple[bytes, int]]:
+def migrate_skills(old_binary: Path | None, new_binary: Path, home: Path, owner: str | None = None, kb_root: Path | None = None) -> dict[Path, tuple[str, bytes | str, int]]:
     new_check, new_report = setup_report(new_binary, "check", home)
     if new_check.returncode == 0 and new_report and new_report.get("state") == "ready":
         if old_binary is None and owner is not None and kb_root is not None:
@@ -198,19 +236,22 @@ def migrate_skills(old_binary: Path | None, new_binary: Path, home: Path, owner:
                 raise RuntimeError("new embedded skill installation failed")
         return {}
     new_paths = report_paths(new_report, home)
-    backup: dict[Path, tuple[bytes, int]] = {}
+    backup: dict[Path, tuple[str, bytes | str, int]] = {}
     if old_binary is not None:
         old_check, old_report = setup_report(old_binary, "check", home)
         if old_check.returncode != 0 or not old_report or old_report.get("state") != "ready":
             raise RuntimeError("installed managed skills drifted; refusing automatic migration")
         old_paths = report_paths(old_report, home)
         for path in old_paths:
-            metadata = path.lstat()
-            if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISREG(metadata.st_mode):
-                raise RuntimeError(f"managed skill path is unsafe: {path}")
-            backup[path] = (path.read_bytes(), stat.S_IMODE(metadata.st_mode))
+            alias = home / LEGACY_ALIAS
+            backup_path = alias if path == alias or alias in path.parents else path
+            backup[backup_path] = snapshot_managed_path(home, backup_path)
         for path in old_paths:
-            path.unlink()
+            alias = home / LEGACY_ALIAS
+            if path == alias or alias in path.parents:
+                alias.unlink(missing_ok=True)
+            else:
+                path.unlink()
     try:
         install, report = setup_report(new_binary, "install", home, owner if old_binary is None else None, kb_root if old_binary is None else None)
         if install.returncode != 0 or not report or report.get("state") != "ready":
