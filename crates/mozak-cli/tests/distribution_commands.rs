@@ -135,6 +135,75 @@ fn symlink_hazards_fail_closed() {
     fs::remove_dir_all(outside).unwrap();
 }
 
+#[cfg(unix)]
+#[test]
+fn exact_legacy_adhd_alias_inside_home_is_allowed_without_rewriting_target() {
+    use std::os::unix::fs::symlink;
+    let home = scratch("legacy-alias");
+    let home_arg = home.to_str().unwrap();
+    let install = run(&["setup", "install", home_arg]);
+    assert!(install.status.success());
+    let target = home.join(".agents/skills/i-have-adhd");
+    let target_file = target.join("SKILL.md");
+    let original = fs::read(&target_file).unwrap();
+    fs::remove_dir_all(home.join(".claude/skills/i-have-adhd")).unwrap();
+    symlink(&target, home.join(".claude/skills/i-have-adhd")).unwrap();
+
+    let check = run(&["setup", "check", home_arg]);
+    assert!(check.status.success());
+    let reinstall = run(&["setup", "install", home_arg]);
+    assert!(reinstall.status.success());
+    assert_eq!(fs::read(&target_file).unwrap(), original);
+    assert!(home.join(".claude/skills/i-have-adhd").is_symlink());
+    fs::remove_dir_all(home).unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn non_exact_adhd_aliases_and_external_targets_fail_closed() {
+    use std::os::unix::fs::symlink;
+    for (name, alias, target) in [
+        (
+            "external-claude",
+            ".claude/skills/i-have-adhd",
+            "outside/i-have-adhd",
+        ),
+        (
+            "different-root",
+            ".jcode/skills/i-have-adhd",
+            "home/.agents/skills/i-have-adhd",
+        ),
+        (
+            "mozak-alias",
+            ".claude/skills/mozak",
+            "home/.agents/skills/mozak",
+        ),
+    ] {
+        let root = scratch(name);
+        let home = root.join("home");
+        let outside = root.join("outside");
+        fs::create_dir_all(&home).unwrap();
+        fs::create_dir_all(outside.join("i-have-adhd")).unwrap();
+        fs::create_dir_all(home.join(".agents/skills/i-have-adhd")).unwrap();
+        fs::create_dir_all(home.join(".agents/skills/mozak")).unwrap();
+        let alias_path = home.join(alias);
+        fs::create_dir_all(alias_path.parent().unwrap()).unwrap();
+        symlink(root.join(target), &alias_path).unwrap();
+        let output = run(&["setup", "check", home.to_str().unwrap()]);
+        assert_eq!(output.status.code(), Some(3), "{name}");
+        let report: Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(report["state"], "invalid", "{name}");
+        assert!(
+            report["checks"][0]["message"]
+                .as_str()
+                .unwrap()
+                .contains("symlink"),
+            "{name}: {report}"
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+}
+
 #[test]
 fn doctor_reports_honest_incomplete_and_invalid_states() {
     let home = scratch("doctor");
