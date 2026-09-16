@@ -223,6 +223,13 @@ fn assert_compacted_overview(binary: &str, root: &Path, before_files: usize) {
     let overview_json: serde_json::Value = serde_json::from_slice(&overview.stdout).unwrap();
     assert_eq!(overview_json["state"], "valid");
     assert_eq!(overview_json["artifact_counts"]["planning"]["invalid"], 0);
+    assert_eq!(overview_json["compaction"]["apply_requires_approval"], true);
+    assert!(
+        overview_json["compaction"]["plan_command"]
+            .as_str()
+            .unwrap()
+            .contains("planning compact plan")
+    );
 }
 
 fn assert_archived_predecessor_detects_successor(binary: &str, root: &Path) {

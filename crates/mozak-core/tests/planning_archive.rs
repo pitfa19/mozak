@@ -1,6 +1,6 @@
 use mozak_core::planning_archive::{
-    PlanningCompactionApproval, apply_compaction_plan, build_compaction_plan, plan_sha256,
-    restore_compaction,
+    PlanningCompactionApproval, apply_compaction_plan, archived_planning_artifacts,
+    build_compaction_plan, compaction_recommendation, plan_sha256, restore_compaction,
 };
 use std::{
     fs,
@@ -180,4 +180,86 @@ fn stale_staging_is_refused_before_apply() {
     let (plan_path, approval_path, _) = write_plan_and_approval(&root);
     let err = apply_compaction_plan(&root, &plan_path, &approval_path).expect_err("stale staging");
     assert!(err.to_string().contains("staging already exists"));
+}
+
+#[test]
+fn compaction_keeps_inputs_for_active_plan_families_only() {
+    let root = temp_root("archive-families");
+    write_input(&root, "inputs-a1", "a1");
+    write_input(&root, "inputs-a2", "a2");
+    write_input(&root, "inputs-b1", "b1");
+    write_family_plan(&root, "alpha-v1", "alpha", 1, "inputs-a1", None);
+    write_family_plan(&root, "alpha-v2", "alpha", 2, "inputs-a2", Some(1));
+    write_family_plan(&root, "beta-v1", "beta", 1, "inputs-b1", None);
+
+    let recommendation =
+        compaction_recommendation(&root, "2026-09-15T00:00:00Z").expect("recommendation");
+    assert!(recommendation.recommended);
+    assert!(recommendation.compactable_count >= 2);
+    assert!(recommendation.apply_requires_approval);
+
+    let (plan_path, approval_path, _) = write_plan_and_approval(&root);
+    apply_compaction_plan(&root, &plan_path, &approval_path).expect("apply");
+
+    assert!(!root.join(".mozak/planning/plans/alpha-v1.json").exists());
+    assert!(!root.join(".mozak/planning/inputs/inputs-a1.json").exists());
+    assert!(root.join(".mozak/planning/plans/alpha-v2.json").is_file());
+    assert!(root.join(".mozak/planning/inputs/inputs-a2.json").is_file());
+    assert!(root.join(".mozak/planning/plans/beta-v1.json").is_file());
+    assert!(root.join(".mozak/planning/inputs/inputs-b1.json").is_file());
+
+    let (archived_inputs, archived_plans) =
+        archived_planning_artifacts(&root).expect("archive read");
+    assert_eq!(archived_inputs.len(), 1);
+    assert_eq!(archived_inputs[0].1.id, "inputs-a1");
+    assert_eq!(archived_plans.len(), 1);
+    assert_eq!(archived_plans[0].1.id, "alpha");
+    assert_eq!(archived_plans[0].1.version, 1);
+}
+
+#[test]
+fn incomplete_supersession_history_keeps_observed_tip_active() {
+    let root = temp_root("archive-incomplete-history");
+    write_input(&root, "inputs-a2", "a2");
+    write_family_plan(&root, "alpha-v2", "alpha", 2, "inputs-a2", Some(1));
+
+    let recommendation =
+        compaction_recommendation(&root, "2026-09-15T00:00:00Z").expect("recommendation");
+    assert!(!recommendation.recommended);
+    let (plan_path, approval_path, _) = write_plan_and_approval(&root);
+    apply_compaction_plan(&root, &plan_path, &approval_path).expect("apply");
+
+    assert!(root.join(".mozak/planning/plans/alpha-v2.json").is_file());
+    assert!(root.join(".mozak/planning/inputs/inputs-a2.json").is_file());
+    let (archived_inputs, archived_plans) =
+        archived_planning_artifacts(&root).expect("archive read");
+    assert!(archived_inputs.is_empty());
+    assert!(archived_plans.is_empty());
+}
+
+fn write_input(root: &Path, id: &str, input_id: &str) {
+    fs::write(
+        root.join(format!(".mozak/planning/inputs/{id}.json")),
+        format!(r#"{{"contract_version":2,"id":"{id}","accepted_at":"2026-09-15T00:00:00Z","inputs":[{{"id":"{input_id}","text":"{input_id} exact","retention":"constraint","provenance":{{"kind":"human_decision","decision_id":"d-{input_id}","actor":"owner"}}}}]}}"#),
+    )
+    .expect("input");
+}
+
+fn write_family_plan(
+    root: &Path,
+    file_stem: &str,
+    id: &str,
+    version: u64,
+    input_set_id: &str,
+    supersedes_version: Option<u64>,
+) {
+    let supersedes = supersedes_version.map_or_else(String::new, |previous| {
+        format!(r#","supersedes":{{"id":"{id}","version":{previous}}}"#)
+    });
+    let input_id = input_set_id.strip_prefix("inputs-").unwrap_or(input_set_id);
+    fs::write(
+        root.join(format!(".mozak/planning/plans/{file_stem}.json")),
+        format!(r#"{{"contract_version":1,"id":"{id}","version":{version},"input_set_id":"{input_set_id}"{supersedes},"goals":[{{"id":"g-{id}-{version}","version":1,"title":"Do {id} {version}","status":"ready","priority":1,"input_ids":["{input_id}"],"recovery_attempts":0}}],"dependencies":[],"recovery":{{"max_attempts_per_goal":1,"allowed_failed_transition":"blocked"}}}}"#),
+    )
+    .expect("plan");
 }

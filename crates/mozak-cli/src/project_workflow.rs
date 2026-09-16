@@ -6,7 +6,9 @@ use mozak_core::{
         GoalStatus, Plan, PlanningInputSet, next_ready_goals, superseded_by,
         validate_input_set_json, validate_plan_json,
     },
-    planning_archive::archived_planning_artifacts,
+    planning_archive::{
+        CompactionRecommendation, archived_planning_artifacts, compaction_recommendation,
+    },
     project_context::{ContextStatus, validate_context_manifest_json},
     project_contract::{validate_idea_markdown, validate_project_yaml},
     project_release::{ProjectRelease, generate_project_release, validate_project_release},
@@ -110,6 +112,8 @@ pub struct WorkflowSnapshot {
     pub goals: Vec<GoalView>,
     pub ready_goals: Vec<GoalView>,
     pub findings: Vec<Finding>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub compaction: Option<CompactionRecommendation>,
     pub next_actions: Vec<String>,
 }
 
@@ -315,6 +319,19 @@ pub fn snapshot(root: &Path) -> Result<WorkflowSnapshot, String> {
         latest_valid_plan.is_some(),
         &ready_goals,
     );
+    let compaction = match compaction_recommendation(&root, "1970-01-01T00:00:00Z") {
+        Ok(value) => Some(value),
+        Err(error) => {
+            finding(
+                &root,
+                &root.join(".mozak/planning"),
+                "invalid",
+                format!("cannot compute read-only compaction recommendation: {error}"),
+                &mut findings,
+            );
+            None
+        }
+    };
     Ok(WorkflowSnapshot {
         schema_version: 1,
         command: "project overview",
@@ -327,6 +344,7 @@ pub fn snapshot(root: &Path) -> Result<WorkflowSnapshot, String> {
         goals,
         ready_goals,
         findings,
+        compaction,
         next_actions,
     })
 }
