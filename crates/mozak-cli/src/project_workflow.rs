@@ -304,6 +304,24 @@ pub fn snapshot(root: &Path) -> Result<WorkflowSnapshot, String> {
         }
         None => (None, Vec::new(), Vec::new()),
     };
+    let compaction = if root.join(".mozak/planning").is_dir() {
+        match compaction_recommendation(&root, "1970-01-01T00:00:00Z") {
+            Ok(value) => Some(value),
+            Err(error) => {
+                invalid(&mut counts, "planning");
+                finding(
+                    &root,
+                    &root.join(".mozak/planning"),
+                    "invalid",
+                    format!("cannot compute read-only compaction recommendation: {error}"),
+                    &mut findings,
+                );
+                None
+            }
+        }
+    } else {
+        None
+    };
     let invalid_count = counts.values().map(|count| count.invalid).sum::<usize>();
     let state = if invalid_count > 0 || findings.iter().any(|f| f.status == "invalid") {
         SnapshotState::Invalid
@@ -319,19 +337,6 @@ pub fn snapshot(root: &Path) -> Result<WorkflowSnapshot, String> {
         latest_valid_plan.is_some(),
         &ready_goals,
     );
-    let compaction = match compaction_recommendation(&root, "1970-01-01T00:00:00Z") {
-        Ok(value) => Some(value),
-        Err(error) => {
-            finding(
-                &root,
-                &root.join(".mozak/planning"),
-                "invalid",
-                format!("cannot compute read-only compaction recommendation: {error}"),
-                &mut findings,
-            );
-            None
-        }
-    };
     Ok(WorkflowSnapshot {
         schema_version: 1,
         command: "project overview",

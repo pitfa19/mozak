@@ -1016,6 +1016,24 @@ fn print_context_human(output: &Value) -> Result<(), String> {
             kb.get("drift").and_then(Value::as_bool).unwrap_or(true)
         );
     }
+    if let Some(compaction) = output
+        .get("workflow")
+        .and_then(|workflow| workflow.get("compaction"))
+        .and_then(Value::as_object)
+    {
+        let count = compaction
+            .get("compactable_count")
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
+        println!(
+            "- compaction recommendation: compactable_artifacts={} approval_required={}",
+            count,
+            compaction
+                .get("apply_requires_approval")
+                .and_then(Value::as_bool)
+                .unwrap_or(true)
+        );
+    }
     if let Some(actions) = output.get("next_actions").and_then(Value::as_array) {
         println!("Next actions:");
         for (index, action) in actions.iter().take(5).filter_map(Value::as_str).enumerate() {

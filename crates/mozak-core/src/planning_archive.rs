@@ -97,7 +97,9 @@ pub struct CompactionRecommendation {
     pub retained_count: usize,
     pub reasons: Vec<String>,
     pub plan_command: String,
+    pub apply_command: String,
     pub apply_requires_approval: bool,
+    pub recovery_guidance: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -160,13 +162,13 @@ pub fn apply_compaction_plan(
         .map_err(|e| PlanningArchiveError(format!("invalid compaction approval JSON: {e}")))?;
     validate_approval(&plan, &approval, &expected)?;
     let root = canonical_existing_dir(root, "project root")?;
+    let lock = acquire_lock(&root)?;
     verify_sources(&root, &plan.entries)?;
     let retained = retained_active_paths(&root, &plan)?;
-    let lock = acquire_lock(&root)?;
     let staging = root.join(".mozak/planning/.compact-staging");
     if staging.exists() {
         fail(
-            "compaction staging already exists; remove it only after verifying no operation is active",
+            "compaction staging already exists; remove .mozak/planning/.compact-staging only after verifying no compaction or restore operation is active",
         )?;
     }
     fs::create_dir_all(&staging)
@@ -257,8 +259,7 @@ pub fn restore_compaction(
         }
         verified.push((entry, bytes));
     }
-    let output = prepare_output_root_staged(output_root)?;
-    let output_stage = output.with_extension("restore-staging");
+    let (output, output_stage) = prepare_output_root_staged(&root, output_root)?;
     for (entry, bytes) in verified {
         let target_rel = safe_relative(&entry.relative_path)?;
         let target = output_stage.join(target_rel);
@@ -418,6 +419,8 @@ pub fn compaction_recommendation(
     if compactable_count > 0 {
         reasons.push("superseded planning predecessors are recoverable from the archive while active plan families keep their referenced input sets loose".to_owned());
     }
+    let plan_path = "<output-plan.json>";
+    let approval_path = "<approval.json>";
     Ok(CompactionRecommendation {
         recommended: compactable_count > 0,
         compactable_count,
@@ -425,10 +428,20 @@ pub fn compaction_recommendation(
         retained_count: retained.len(),
         reasons,
         plan_command: format!(
-            "mozak planning compact plan {} <output-plan.json>",
+            "mozak planning compact plan {} {plan_path} {}",
+            shell_path(&root),
+            shell_path(Path::new(generated_at))
+        ),
+        apply_command: format!(
+            "mozak planning compact apply {} {plan_path} {approval_path}",
             shell_path(&root)
         ),
         apply_requires_approval: true,
+        recovery_guidance: vec![
+            "Stale lock recovery: remove .mozak/planning/.compact-lock only after verifying no compaction or restore process is active and preserving its mtime for review.".to_owned(),
+            "Interrupted staging recovery: inspect .mozak/planning/.compact-staging, preserve rollback bytes if present, then remove it only when no operation is active.".to_owned(),
+            "Safe restore roots: choose a new sibling such as ./mozak-restore-output; dotted internal roots like .mozak, .git, .compact-staging, and paths under the source project are refused.".to_owned(),
+        ],
     })
 }
 
@@ -460,8 +473,8 @@ fn retained_active_paths(
     root: &Path,
     plan: &PlanningCompactionPlan,
 ) -> Result<BTreeSet<String>, PlanningArchiveError> {
-    let mut inputs_by_id = BTreeMap::<String, String>::new();
-    let mut plans = Vec::<(String, Plan)>::new();
+    let mut inputs_by_id = BTreeMap::<String, (String, PlanningInputSet)>::new();
+    let mut plans = Vec::<(String, String, Plan)>::new();
     for entry in &plan.entries {
         match entry.kind {
             PlanningArtifactKind::AcceptedInputs | PlanningArtifactKind::LegacyAcceptedInputs => {
@@ -478,8 +491,8 @@ fn retained_active_paths(
                     ))
                 })?;
                 inputs_by_id
-                    .entry(input.id)
-                    .or_insert_with(|| entry.relative_path.clone());
+                    .entry(input.id.clone())
+                    .or_insert_with(|| (entry.relative_path.clone(), input));
             }
             PlanningArtifactKind::Plan => {
                 let text = fs::read_to_string(root.join(&entry.relative_path)).map_err(|e| {
@@ -488,32 +501,43 @@ fn retained_active_paths(
                         entry.relative_path
                     ))
                 })?;
-                let plan: Plan = serde_json::from_str(&text).map_err(|e| {
+                let candidate: Plan = serde_json::from_str(&text).map_err(|e| {
                     PlanningArchiveError(format!(
                         "invalid planning plan JSON {}: {e}",
                         entry.relative_path
                     ))
                 })?;
-                plans.push((entry.relative_path.clone(), plan));
+                let (input_path, input) =
+                    inputs_by_id.get(&candidate.input_set_id).ok_or_else(|| {
+                        PlanningArchiveError(format!(
+                            "planning plan references missing input set: {}",
+                            candidate.input_set_id
+                        ))
+                    })?;
+                let plan = validate_plan_json(&text, input).map_err(|e| {
+                    PlanningArchiveError(format!(
+                        "invalid planning plan {}: {e}",
+                        entry.relative_path
+                    ))
+                })?;
+                plans.push((entry.relative_path.clone(), input_path.clone(), plan));
             }
             _ => {}
         }
     }
     let superseded = plans
         .iter()
-        .filter_map(|(_, plan)| {
+        .filter_map(|(_, _, plan)| {
             plan.supersedes
                 .as_ref()
                 .map(|prev| (prev.id.clone(), prev.version))
         })
         .collect::<BTreeSet<_>>();
     let mut retained = BTreeSet::from([plan.active_index_path.clone()]);
-    for (path, candidate) in plans {
+    for (path, input_path, candidate) in plans {
         if !superseded.contains(&(candidate.id.clone(), candidate.version)) {
             retained.insert(path);
-            if let Some(input_path) = inputs_by_id.get(&candidate.input_set_id) {
-                retained.insert(input_path.clone());
-            }
+            retained.insert(input_path);
         }
     }
     Ok(retained)
@@ -529,11 +553,20 @@ fn apply_transaction(
     index_path: &Path,
 ) -> Result<(), PlanningArchiveError> {
     let rollback = root.join(".mozak/planning/.compact-staging/rollback");
-    move_tree_contents(archive_stage, archive_root)?;
-    atomic_replace(index_stage, index_path)?;
-    archived_planning_artifacts(root)?;
+    let previous_index = fs::read(index_path).ok();
+    let installed = copy_tree_contents(archive_stage, archive_root)?;
+    if let Err(error) = atomic_replace(index_stage, index_path).and_then(|()| {
+        archived_planning_artifacts(root)?;
+        Ok(())
+    }) {
+        rollback_index(index_path, previous_index.as_deref());
+        remove_installed(&installed);
+        return Err(error);
+    }
     for entry in &plan.entries {
-        if retained.contains(&entry.relative_path) || entry.relative_path == plan.active_index_path
+        if retained.contains(&entry.relative_path)
+            || entry.relative_path == plan.active_index_path
+            || matches!(entry.retention, PlanningRetentionClass::SupportArtifact)
         {
             continue;
         }
@@ -552,6 +585,8 @@ fn apply_transaction(
     }
     if let Err(error) = archived_planning_artifacts(root) {
         let _ = move_tree_contents(&rollback, root);
+        rollback_index(index_path, previous_index.as_deref());
+        remove_installed(&installed);
         return Err(error);
     }
     let _ = fs::remove_dir_all(&rollback);
@@ -765,11 +800,30 @@ fn verify_sources(
     Ok(())
 }
 
-fn prepare_output_root_staged(path: &Path) -> Result<PathBuf, PlanningArchiveError> {
+fn prepare_output_root_staged(
+    project_root: &Path,
+    path: &Path,
+) -> Result<(PathBuf, PathBuf), PlanningArchiveError> {
     if path.exists() {
         fail("restore output already exists")?;
     }
-    let staging = path.with_extension("restore-staging");
+    let name = path
+        .file_name()
+        .ok_or_else(|| {
+            PlanningArchiveError("restore output must have a final path component".into())
+        })?
+        .to_string_lossy();
+    if name.starts_with('.') {
+        fail("restore output root must not be a dotted internal directory")?;
+    }
+    let parent = path.parent().unwrap_or_else(|| Path::new("."));
+    let canonical_parent = parent
+        .canonicalize()
+        .map_err(|e| PlanningArchiveError(format!("cannot resolve restore parent: {e}")))?;
+    if canonical_parent.starts_with(project_root) {
+        fail("restore output root must be outside the source project root")?;
+    }
+    let staging = restore_staging_path(path)?;
     if staging.exists() {
         fail("restore staging already exists; refusing to overwrite possible interrupted restore")?;
     }
@@ -779,7 +833,18 @@ fn prepare_output_root_staged(path: &Path) -> Result<PathBuf, PlanningArchiveErr
     }
     fs::create_dir(&staging)
         .map_err(|e| PlanningArchiveError(format!("cannot create restore staging: {e}")))?;
-    path.canonicalize().or_else(|_| Ok(path.to_path_buf()))
+    Ok((path.to_path_buf(), staging))
+}
+
+fn restore_staging_path(path: &Path) -> Result<PathBuf, PlanningArchiveError> {
+    let parent = path.parent().unwrap_or_else(|| Path::new("."));
+    let name = path
+        .file_name()
+        .ok_or_else(|| {
+            PlanningArchiveError("restore output must have a final path component".into())
+        })?
+        .to_string_lossy();
+    Ok(parent.join(format!(".{name}.restore-staging")))
 }
 
 struct CompactLock(PathBuf);
@@ -838,6 +903,50 @@ fn move_tree_contents(from: &Path, to: &Path) -> Result<(), PlanningArchiveError
         }
     }
     Ok(())
+}
+
+fn copy_tree_contents(from: &Path, to: &Path) -> Result<Vec<PathBuf>, PlanningArchiveError> {
+    fs::create_dir_all(to)
+        .map_err(|e| PlanningArchiveError(format!("cannot create archive root: {e}")))?;
+    let mut installed = Vec::new();
+    if !from.exists() {
+        return Ok(installed);
+    }
+    for entry in fs::read_dir(from).map_err(|e| PlanningArchiveError(e.to_string()))? {
+        let source = entry
+            .map_err(|e| PlanningArchiveError(e.to_string()))?
+            .path();
+        let target = to.join(
+            source
+                .file_name()
+                .ok_or_else(|| PlanningArchiveError("invalid staged path".into()))?,
+        );
+        if source.is_dir() {
+            installed.extend(copy_tree_contents(&source, &target)?);
+        } else if !target.exists() {
+            fs::copy(&source, &target)
+                .map_err(|e| PlanningArchiveError(format!("cannot install archive blob: {e}")))?;
+            installed.push(target);
+        }
+    }
+    Ok(installed)
+}
+
+fn rollback_index(index_path: &Path, previous: Option<&[u8]>) {
+    match previous {
+        Some(bytes) => {
+            let _ = fs::write(index_path, bytes);
+        }
+        None => {
+            let _ = fs::remove_file(index_path);
+        }
+    }
+}
+
+fn remove_installed(paths: &[PathBuf]) {
+    for path in paths.iter().rev() {
+        let _ = fs::remove_file(path);
+    }
 }
 
 fn atomic_replace(from: &Path, to: &Path) -> Result<(), PlanningArchiveError> {

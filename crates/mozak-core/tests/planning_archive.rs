@@ -81,7 +81,10 @@ fn compaction_archives_losslessly_and_restores_from_deterministic_index() {
     let index = root.join(".mozak/planning/active-index.json");
     assert!(index.is_file());
 
-    let restore = root.join("restored");
+    let restore = root.with_file_name(format!(
+        "{}-restored",
+        root.file_name().unwrap().to_string_lossy()
+    ));
     let restored = restore_compaction(&root, &index, &approval_path, &restore).expect("restore");
     assert_eq!(restored.action, "restore");
     assert_eq!(planning_bytes(&restore), originals);
@@ -180,6 +183,90 @@ fn stale_staging_is_refused_before_apply() {
     let (plan_path, approval_path, _) = write_plan_and_approval(&root);
     let err = apply_compaction_plan(&root, &plan_path, &approval_path).expect_err("stale staging");
     assert!(err.to_string().contains("staging already exists"));
+}
+
+#[test]
+fn support_artifacts_survive_apply_and_multicycle_restore_handles_active_index() {
+    let root = temp_root("archive-support-multicycle");
+    write_artifacts(&root);
+    let support = root.join(".mozak/planning/notes.txt");
+    let support_before = fs::read(&support).expect("support before");
+
+    let (plan_path, approval_path, _) = write_plan_and_approval(&root);
+    apply_compaction_plan(&root, &plan_path, &approval_path).expect("first apply");
+    assert_eq!(fs::read(&support).expect("support after"), support_before);
+
+    let second_plan = build_compaction_plan(&root, "2026-09-15T00:00:02Z").expect("second plan");
+    let second_plan_path = root.join("compact-plan-2.json");
+    fs::write(
+        &second_plan_path,
+        serde_json::to_string_pretty(&second_plan).expect("json") + "\n",
+    )
+    .expect("second plan write");
+    let second_approval = PlanningCompactionApproval {
+        schema_version: 1,
+        decision: true,
+        owner: "pitfa".into(),
+        approved_at: "2026-09-15T00:00:03Z".into(),
+        plan_sha256: plan_sha256(&second_plan).expect("hash"),
+        project_root: root
+            .canonicalize()
+            .expect("canonical")
+            .to_string_lossy()
+            .into_owned(),
+        rationale: "second cycle approval".into(),
+    };
+    let second_approval_path = root.join("approval-2.json");
+    fs::write(
+        &second_approval_path,
+        serde_json::to_string_pretty(&second_approval).expect("json") + "\n",
+    )
+    .expect("second approval");
+    apply_compaction_plan(&root, &second_plan_path, &second_approval_path).expect("second apply");
+
+    let restore = root.with_file_name(format!(
+        "{}.restore.v1",
+        root.file_name().unwrap().to_string_lossy()
+    ));
+    restore_compaction(
+        &root,
+        &root.join(".mozak/planning/active-index.json"),
+        &second_approval_path,
+        &restore,
+    )
+    .expect("dotted restore");
+    assert!(restore.join(".mozak/planning/plans/plan.json").is_file());
+    assert_eq!(
+        fs::read(restore.join(".mozak/planning/notes.txt")).expect("restored support"),
+        support_before
+    );
+    assert!(
+        !restore
+            .with_file_name(format!(
+                ".{}.restore-staging",
+                restore.file_name().unwrap().to_string_lossy()
+            ))
+            .exists()
+    );
+}
+
+#[test]
+fn stale_lock_blocks_before_source_verification() {
+    let root = temp_root("archive-lock-first");
+    write_artifacts(&root);
+    let (plan_path, approval_path, _) = write_plan_and_approval(&root);
+    fs::write(
+        root.join(".mozak/planning/plans/plan.json"),
+        b"changed" as &[u8],
+    )
+    .expect("mutate");
+    fs::write(
+        root.join(".mozak/planning/.compact-lock"),
+        b"locked" as &[u8],
+    )
+    .expect("lock");
+    let err = apply_compaction_plan(&root, &plan_path, &approval_path).expect_err("locked");
+    assert!(err.to_string().contains("cannot acquire compaction lock"));
 }
 
 #[test]
