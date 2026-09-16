@@ -74,6 +74,8 @@ package-selection claims.
 - Concept validation: `mozak concept validate CONCEPT_JSON`
 - Concept and Translation inventory: `mozak concept list CONCEPT_JSON [TRANSLATION_JSON]`
 - Target-owned Translation validation: `mozak concept translation validate CONCEPT_JSON TRANSLATION_JSON`
+- Deterministic external Concept inventory for one registered target: `mozak kb concept candidates TARGET_SCOPE_ID [RESEARCH_RUN_JSON ...]`. It uses the exact configured KB, excludes target-owned Concepts, performs no relevance ranking, and labels explicitly supplied validated research runs `proposal_only` and `accepted: false`.
+- Hash-pinned Translation preparation: `mozak kb concept translation-packet TARGET_SCOPE_ID CONCEPT_ID CONCEPT_SHA256`. The packet enumerates the source assumptions and target-evidence requirements. It is not a Translation, changes nothing, and authorizes no adoption.
 - Local Meta KB validation: `mozak meta validate META_KB_ROOT`
 - Local Meta KB inventory: `mozak meta list META_KB_ROOT`
 - Local Meta KB graph source: `mozak meta graph-source META_KB_ROOT`
@@ -140,6 +142,8 @@ Treat overview, list, graph-source, graph, validation, status, and next-goal rec
 - A Concept is owned by whoever authored it: a Topic or Project keeps its own under `concepts/` in its Scope root or `.mozak/concepts/` in its repository, and a Translation lives with the adopting target under `.mozak/translations/`. A Concept is advisory only. It records a reusable mechanism, the invariant that must still hold, applicability limits, evidence, and the assumptions it rests on. It never authorizes adoption, execution, or mutation.
 - A Translation is owned by the adopting target. It is valid only when the target re-derived every source assumption as holds, replaced, rejected, or could_not_check. Replacing or rejecting an assumption is qualified adoption, never full adoption, and a load-bearing assumption that was rejected or never checked is not adoption at all.
 - A holding assumption requires evidence observed in the target, not in the source. A Translation pins the exact Concept hash and fails closed on drift.
+- Use `mozak kb concept candidates TARGET_SCOPE_ID [RESEARCH_RUN_JSON ...]` when an agent needs cross-project experience. The output is a deterministic inventory, not a recommendation. Registered Concepts remain `advisory_only`; supplied research runs remain `proposal_only`, are never accepted by this command, and are not discovered by scanning.
+- After choosing one exact candidate, use `mozak kb concept translation-packet TARGET_SCOPE_ID CONCEPT_ID CONCEPT_SHA256`. The target must then author its own Translation, provide target-side evidence for `holds` and `replaced`, and validate it with `mozak concept translation validate`. The packet itself is never an adoption record.
 - A case record is a pinned, calibrated observation of finished real work. Its derived proposals are `proposal_only` and must pass the ordinary planning gates; recording a case never accepts its proposals and never makes them another project's truth.
 - A case must record its own limitations, must separate measured observations from qualitative interpretation, and cannot report a comparative result without a control that declares itself comparable.
 - `mozak kb tree` lists scope-owned Concepts, and `mozak project overview` and `mozak project list` report project-owned Concepts and Translations. A Translation whose source Concept is authored by another owner is reported as an external pin rather than as verified or as a defect.
@@ -165,7 +169,7 @@ Treat overview, list, graph-source, graph, validation, status, and next-goal rec
 - A local Meta KB is rooted at a strict `meta-kb.json` manifest. `meta validate` is the authority for whether its release files, optional human overviews, hashes, identities, and relationships are valid.
 - Use `meta list` for terminal inventory and `meta graph` for an actual Termaid relationship view.
 - Knowledge releases remain immutable project publications. A cross-project relationship or reusable pattern is context for evaluation, not authorization and not automatically another project's truth.
-- Current Meta KB commands are read-only. MOZAK does not yet implement automatic import, networking, registry publication, hosted discovery, or Meta KB mutation.
+- Current Meta KB commands are read-only. The configured KB can now inventory registered external Concepts and prepare target Translation packets, but MOZAK does not yet implement automatic import, relevance ranking, research discovery by scanning, networking, registry publication, hosted discovery, automatic adoption, or Meta KB mutation.
 
 ## Explicit KB registry
 
@@ -236,6 +240,8 @@ For `scope ingest-links`, first validate `SCOPE_ROOT`, inspect the schema-v1 pla
 - “Validate this Scope” → `mozak scope validate SCOPE_ROOT`; report snapshot validity and state explicitly that source freshness was not checked.
 - “Is this Scope source fresh?” → observe the source repository revision, then run `mozak scope source-check SCOPE_ROOT SOURCE_ID SOURCE_ROOT OBSERVED_REVISION`; this compares only safe relative local source bytes and the explicit observed revision, with no networking.
 - “Show my unified KB” → run `mozak kb validate REGISTRY_ROOT`, then `mozak kb tree REGISTRY_ROOT` or `mozak kb graph REGISTRY_ROOT`; do not add or discover roots implicitly.
+- “Find reusable knowledge for this target” → run `mozak kb concept candidates TARGET_SCOPE_ID [RESEARCH_RUN_JSON ...]`; report that Concepts are advisory, supplied research is proposal-only, results are not ranked, and nothing was accepted or changed.
+- “Prepare to apply this Concept to the target” → run `mozak kb concept translation-packet TARGET_SCOPE_ID CONCEPT_ID CONCEPT_SHA256`; hand the assumption checks to the target agent, require target-side evidence, and do not call the packet a Translation or adoption.
 - “Do we have migration parity?” → run `mozak kb parity REGISTRY_ROOT OBSERVATIONS_JSON`; report every gate and never claim parity when the command exits 2 or any gate is failed, unsupported, or blocked.
 
 ## Bounded external-agent workflow

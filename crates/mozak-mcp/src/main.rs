@@ -53,6 +53,25 @@ fn tools() -> Vec<Value> {
             &[],
         ),
         tool(
+            "kb_concept_candidates",
+            "List deterministic external Concept candidates for one registered target. Optional research runs remain proposal-only. Results are not ranked or recommended and transfer no authority.",
+            &json!({
+                "target_scope_id":{"type":"string","minLength":1},
+                "research_runs":{"type":"array","items":{"type":"string","minLength":1}}
+            }),
+            &["target_scope_id"],
+        ),
+        tool(
+            "kb_concept_translation_packet",
+            "Prepare a read-only, hash-pinned assumption-check packet for one exact Concept and target. The packet is not a Translation and authorizes no adoption.",
+            &json!({
+                "target_scope_id":{"type":"string","minLength":1},
+                "concept_id":{"type":"string","minLength":1},
+                "concept_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}
+            }),
+            &["target_scope_id", "concept_id", "concept_sha256"],
+        ),
+        tool(
             "planning_next",
             "Recommend the next goal from explicit accepted-input and plan files without accepting it.",
             &json!({"accepted_inputs":{"type":"string","minLength":1},"plan":{"type":"string","minLength":1}}),
@@ -92,6 +111,23 @@ fn optional_bool(arguments: &Value, key: &str) -> Result<bool, String> {
     }
 }
 
+fn optional_string_array(arguments: &Value, key: &str) -> Result<Vec<String>, String> {
+    match arguments.get(key) {
+        None | Some(Value::Null) => Ok(Vec::new()),
+        Some(Value::Array(values)) => values
+            .iter()
+            .map(|value| {
+                value
+                    .as_str()
+                    .filter(|value| !value.is_empty())
+                    .map(str::to_owned)
+                    .ok_or_else(|| format!("{key} entries must be non-empty strings"))
+            })
+            .collect(),
+        Some(_) => Err(format!("{key} must be an array when supplied")),
+    }
+}
+
 fn argv(name: &str, arguments: &Value) -> Result<Vec<String>, String> {
     let value = match name {
         "project_context" => vec![
@@ -127,6 +163,24 @@ fn argv(name: &str, arguments: &Value) -> Result<Vec<String>, String> {
             }
             args
         }
+        "kb_concept_candidates" => {
+            let mut args = vec![
+                "kb".into(),
+                "concept".into(),
+                "candidates".into(),
+                string_arg(arguments, "target_scope_id")?.into(),
+            ];
+            args.extend(optional_string_array(arguments, "research_runs")?);
+            args
+        }
+        "kb_concept_translation_packet" => vec![
+            "kb".into(),
+            "concept".into(),
+            "translation-packet".into(),
+            string_arg(arguments, "target_scope_id")?.into(),
+            string_arg(arguments, "concept_id")?.into(),
+            string_arg(arguments, "concept_sha256")?.into(),
+        ],
         "planning_next" => vec![
             "planning".into(),
             "next".into(),

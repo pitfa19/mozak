@@ -11,6 +11,7 @@ pub mod lab_evaluation;
 pub mod lab_evidence;
 pub mod landmark;
 pub mod meta_kb;
+pub mod meta_transfer;
 pub mod package_import;
 pub mod planning;
 pub mod planning_archive;

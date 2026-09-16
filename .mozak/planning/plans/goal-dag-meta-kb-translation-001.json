@@ -1,0 +1,26 @@
+{
+  "contract_version": 1,
+  "id": "plan-v1-meta-kb-translation",
+  "version": 1,
+  "input_set_id": "inputs-meta-kb-translation-001",
+  "goals": [
+    {
+      "id": "meta-kb-concept-transfer",
+      "version": 1,
+      "title": "Ship deterministic cross-project Concept discovery and target-owned translation packets",
+      "status": "completed",
+      "priority": 1,
+      "input_ids": [
+        "input-meta-kb-owner-approval",
+        "input-meta-kb-current-state",
+        "input-meta-kb-authority-boundary"
+      ],
+      "recovery_attempts": 0
+    }
+  ],
+  "dependencies": [],
+  "recovery": {
+    "max_attempts_per_goal": 2,
+    "allowed_failed_transition": "blocked"
+  }
+}

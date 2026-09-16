@@ -153,6 +153,8 @@ current core architecture and not the fresh-agent entry point.
 | "I edited a registered scope, fix the pin." | `mozak kb repin <registry> <id> <scope-root>` **(mutation)** |
 | "Import this package into my KB." | `mozak kb import-package ...` **(mutation, needs an approval file)** |
 | "Draw how my projects relate." | `mozak meta graph <meta-kb-root>` |
+| "Find reusable Concepts for this target." | `mozak kb concept candidates <target-scope-id> [research-run.json ...]` |
+| "Prepare to evaluate this exact Concept in the target." | `mozak kb concept translation-packet <target-scope-id> <concept-id> <concept-sha256>` |
 | "Did we re-derive this concept's assumptions?" | `mozak concept translation validate <concept.json> <translation.json>` |
 
 ```bash
@@ -162,6 +164,8 @@ mozak kb register|repin <registry-root> <registration-id> <scope-root>   # mutat
 mozak kb parity <registry-root> <observations.json>
 mozak kb import-package <package-root> <input-registry-root> <approval.json> <output-kb-root>  # mutation
 mozak meta validate|list|graph-source|graph <meta-kb-root>
+mozak kb concept candidates <target-scope-id> [research-run.json ...]
+mozak kb concept translation-packet <target-scope-id> <concept-id> <concept-sha256>
 mozak concept validate|list <concept.json>
 mozak concept list <concept.json> <translation.json>
 mozak concept translation validate <concept.json> <translation.json>
@@ -182,6 +186,22 @@ assumption requires evidence observed in the target, not in the source.
 Replacing or rejecting one is qualified adoption; a load-bearing assumption
 rejected or never checked is not adoption at all. A Translation pins the exact
 Concept hash and fails closed on drift.
+
+`kb concept candidates` is the read-only transfer entry point over the exact
+configured registry. It returns every registered external Concept in stable
+order, excluding Concepts owned by the target. It does not rank, recommend, or
+infer applicability. Shared advisory Meta Goals are reported as context only.
+Exact research-run paths may be supplied explicitly; MOZAK validates each run
+and reports its claims as `proposal_only` with `accepted: false`. It never scans
+for research runs or promotes one.
+
+`kb concept translation-packet` requires the target scope, Concept id, and the
+canonical SHA-256 of the exact Concept. It emits the source mechanism,
+invariant, evidence locators, assumptions, and the target-evidence requirements
+for each allowed outcome. The packet is not a Translation. The target must
+author a target-owned Translation and pass `concept translation validate`
+before claiming adoption. Both transfer commands are deterministic, offline,
+read-only, and authorize no execution or mutation.
 
 ### Improve Lab
 

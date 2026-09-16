@@ -48,6 +48,8 @@ class SkillContractTests(unittest.TestCase):
             "kb validate REGISTRY_ROOT", "kb list REGISTRY_ROOT",
             "kb tree REGISTRY_ROOT", "kb graph-source REGISTRY_ROOT",
             "kb graph REGISTRY_ROOT",
+            "kb concept candidates TARGET_SCOPE_ID [RESEARCH_RUN_JSON ...]",
+            "kb concept translation-packet TARGET_SCOPE_ID CONCEPT_ID CONCEPT_SHA256",
             "mozak kb validate", "mozak kb list", "mozak kb tree",
             "mozak kb graph-source", "mozak kb graph",
             "kb parity REGISTRY_ROOT OBSERVATIONS_JSON",
@@ -213,6 +215,21 @@ class SkillContractTests(unittest.TestCase):
         self.assertIn("current meta kb commands are read-only", lower)
         self.assertIn("not automatically another project's truth", lower)
         self.assertIn("hosted discovery", lower)
+
+    def test_meta_kb_transfer_is_inventory_then_target_owned_translation(self) -> None:
+        lower = TEXT.lower()
+        for phrase in (
+            "mozak kb concept candidates target_scope_id [research_run_json ...]",
+            "mozak kb concept translation-packet target_scope_id concept_id concept_sha256",
+            "deterministic inventory, not a recommendation",
+            "proposal_only",
+            "accepted: false",
+            "target must then author its own translation",
+            "target-side evidence",
+            "packet itself is never an adoption record",
+            "not discovered by scanning",
+        ):
+            self.assertIn(phrase, lower)
 
     def test_explicit_kb_registry_never_infers_parity_or_discovers_roots(self) -> None:
         lower = TEXT.lower()
