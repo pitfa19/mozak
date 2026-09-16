@@ -131,10 +131,13 @@ fn setup_inner(command: &str, home: &Path, args: &[String]) -> Result<ExitCode, 
     } else if command != "check" && command != "install" {
         return Err(crate::usage());
     }
-    let configured = if command == "install" {
+    let configured = if command == "install" && !drift {
         setup_options.apply_config()?
     } else if setup_options.has_config_inputs() {
-        return Err("setup check does not accept owner or KB configuration flags".into());
+        if command == "check" {
+            return Err("setup check does not accept owner or KB configuration flags".into());
+        }
+        None
     } else {
         None
     };

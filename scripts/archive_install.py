@@ -189,14 +189,14 @@ def restore_files(backup: dict[Path, tuple[bytes, int]], new_paths: list[Path]) 
         atomic_regular_file(path, data, mode)
 
 
-def migrate_skills(old_binary: Path | None, new_binary: Path, home: Path, owner: str | None = None, kb_root: Path | None = None) -> None:
+def migrate_skills(old_binary: Path | None, new_binary: Path, home: Path, owner: str | None = None, kb_root: Path | None = None) -> dict[Path, tuple[bytes, int]]:
     new_check, new_report = setup_report(new_binary, "check", home)
     if new_check.returncode == 0 and new_report and new_report.get("state") == "ready":
         if old_binary is None and owner is not None and kb_root is not None:
             install, report = setup_report(new_binary, "install", home, owner, kb_root)
             if install.returncode != 0 or not report or report.get("state") != "ready":
                 raise RuntimeError("new embedded skill installation failed")
-        return
+        return {}
     new_paths = report_paths(new_report, home)
     backup: dict[Path, tuple[bytes, int]] = {}
     if old_binary is not None:
@@ -219,8 +219,10 @@ def migrate_skills(old_binary: Path | None, new_binary: Path, home: Path, owner:
         if check.returncode != 0 or not checked or checked.get("state") != "ready":
             raise RuntimeError("new embedded skill parity check failed")
     except Exception:
-        restore_files(backup, new_paths)
+        if old_binary is not None:
+            restore_files(backup, new_paths)
         raise
+    return backup
 
 
 def publish_version(source: Path, versions: Path, build: dict[str, Any]) -> Path:
@@ -299,7 +301,7 @@ def activate(source: Path, prefix: Path, home: Path, expected_build_id: str | No
         return build
 
     old_binary = old / "mozak" if old is not None else None
-    migrate_skills(old_binary, target / "mozak", home, owner, kb_root)
+    skill_backup = migrate_skills(old_binary, target / "mozak", home, owner, kb_root)
 
     launchers = [bin_directory / name for name in ("mozak", "mozak-mcp")]
     old_launchers: dict[Path, bytes] = {}
@@ -323,6 +325,9 @@ def activate(source: Path, prefix: Path, home: Path, expected_build_id: str | No
     except Exception:
         if old is not None:
             atomic_link(root / "current", f"versions/{old.name}")
+            if skill_backup:
+                new_check, new_report = setup_report(target / "mozak", "check", home)
+                restore_files(skill_backup, report_paths(new_report, home))
         for launcher, old_launcher in old_launchers.items():
             atomic_regular_file(launcher, old_launcher, 0o755)
         raise

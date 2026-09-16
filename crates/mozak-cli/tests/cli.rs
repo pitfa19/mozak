@@ -60,6 +60,32 @@ fn invalid_usage_and_invalid_json_fail() {
 }
 
 #[test]
+fn drifted_setup_install_with_config_inputs_does_not_create_config() {
+    let binary = env!("CARGO_BIN_EXE_mozak");
+    let root = scratch_project("setup-drift-config");
+    let home = root.join("home");
+    let config_home = root.join("config");
+    fs::create_dir_all(home.join(".agents/skills/i-have-adhd")).unwrap();
+    fs::create_dir_all(&config_home).unwrap();
+    fs::write(home.join(".agents/skills/i-have-adhd/SKILL.md"), b"drift").unwrap();
+    let output = Command::new(binary)
+        .env("XDG_CONFIG_HOME", &config_home)
+        .args([
+            "setup",
+            "install",
+            home.to_str().unwrap(),
+            "--owner",
+            "owner",
+            "--kb-root",
+            root.join("missing-kb").to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(3));
+    assert!(!config_home.join("mozak/config.json").exists());
+}
+
+#[test]
 fn planning_compact_cli_roundtrips_dynamic_scratch_fixture() {
     let binary = env!("CARGO_BIN_EXE_mozak");
     let root = scratch_project("compact-cli");
