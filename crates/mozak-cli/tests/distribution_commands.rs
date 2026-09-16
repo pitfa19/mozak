@@ -51,21 +51,38 @@ fn install_and_check_are_embedded_idempotent_and_deterministic() {
     assert_eq!(report["state"], "ready");
     assert_eq!(report["parity"], true);
     assert_eq!(report["embedded"], true);
-    assert_eq!(report["checks"].as_array().unwrap().len(), 24);
+    assert_eq!(report["checks"].as_array().unwrap().len(), 28);
     for root in [".agents", ".jcode", ".claude", ".codex"] {
         assert!(
             home.join(root)
                 .join("skills/mozak/companion-recommendations.json")
                 .is_file()
         );
+        assert!(
+            home.join(root)
+                .join("skills/i-have-adhd/SKILL.md")
+                .is_file()
+        );
     }
     assert_eq!(
         report["companion_recommendations"]["policy"],
-        "missing recommended companions are reported only and are never auto-installed"
+        "MOZAK-managed companions are version-matched embedded payloads; missing recommended companions are reported only and are never auto-installed"
     );
     assert_eq!(
         report["companion_recommendations"]["required"][0]["classification"],
         "required"
+    );
+    assert_eq!(
+        report["companion_recommendations"]["managed"][0]["id"],
+        "adhd-skill"
+    );
+    assert_eq!(
+        report["companion_recommendations"]["managed"][0]["classification"],
+        "managed"
+    );
+    assert_eq!(
+        report["companion_recommendations"]["managed"][0]["status"],
+        "present"
     );
     assert_eq!(
         report["companion_recommendations"]["recommended"][0]["id"],
@@ -86,7 +103,7 @@ fn missing_is_incomplete_and_drift_is_refused_without_overwrite() {
     let missing = run(&["setup", "check", home_arg]);
     assert_eq!(missing.status.code(), Some(2));
     run(&["setup", "install", home_arg]);
-    let skill = home.join(".agents/skills/mozak/SKILL.md");
+    let skill = home.join(".agents/skills/i-have-adhd/SKILL.md");
     fs::write(&skill, b"owner bytes\n").unwrap();
     let drift = run(&["setup", "install", home_arg]);
     assert_eq!(drift.status.code(), Some(3));
@@ -137,6 +154,14 @@ fn doctor_reports_honest_incomplete_and_invalid_states() {
         .unwrap();
     assert_eq!(companion_check["status"], "ready");
     assert_eq!(
+        companion_check["companions"]["managed"][0]["id"],
+        "adhd-skill"
+    );
+    assert_eq!(
+        companion_check["companions"]["managed"][0]["classification"],
+        "managed"
+    );
+    assert_eq!(
         companion_check["companions"]["recommended"][0]["id"],
         "mmdr"
     );
@@ -156,7 +181,6 @@ fn doctor_reports_honest_incomplete_and_invalid_states() {
 #[test]
 fn companion_recommendations_detect_installed_skills_without_installing_missing_tools() {
     let home = scratch("companions");
-    fs::create_dir_all(home.join(".agents/skills/i-have-adhd")).unwrap();
     fs::create_dir_all(home.join(".jcode/skills/caveman")).unwrap();
     fs::create_dir_all(home.join(".claude/skills/archify")).unwrap();
     fs::create_dir_all(home.join(".codex/skills/excalidraw-skill")).unwrap();
@@ -174,7 +198,10 @@ fn companion_recommendations_detect_installed_skills_without_installing_missing_
     assert_eq!(recommended[0]["status"], "missing");
     assert_eq!(recommended[1]["status"], "present");
     assert_eq!(recommended[2]["status"], "present");
-    assert_eq!(recommended[3]["status"], "present");
+    assert_eq!(
+        report["companion_recommendations"]["managed"][0]["status"],
+        "missing"
+    );
     assert!(!home.join(".agents/skills/mmdr").exists());
     fs::remove_dir_all(home).unwrap();
 }

@@ -14,6 +14,12 @@ const DESTINATIONS: [&str; 4] = [
     ".claude/skills/mozak",
     ".codex/skills/mozak",
 ];
+const ADHD_DESTINATIONS: [&str; 4] = [
+    ".agents/skills/i-have-adhd",
+    ".jcode/skills/i-have-adhd",
+    ".claude/skills/i-have-adhd",
+    ".codex/skills/i-have-adhd",
+];
 const FILES: [(&str, &[u8]); 6] = [
     ("SKILL.md", include_bytes!("../../../skills/mozak/SKILL.md")),
     (
@@ -34,6 +40,10 @@ const FILES: [(&str, &[u8]); 6] = [
         include_bytes!("../../../skills/mozak/companion-recommendations.json"),
     ),
 ];
+const ADHD_FILES: [(&str, &[u8]); 1] = [(
+    "SKILL.md",
+    include_bytes!("../../../skills/i-have-adhd/SKILL.md"),
+)];
 
 const SKILL_ROOTS: [&str; 4] = [
     ".agents/skills",
@@ -111,12 +121,10 @@ fn setup_inner(command: &str, home: &Path, args: &[String]) -> Result<ExitCode, 
     let mut checks = preflight(&home)?;
     let drift = checks.iter().any(|check| check["status"] == "drift");
     if command == "install" && !drift {
-        for destination in DESTINATIONS {
-            for (relative, bytes) in FILES {
-                let target = home.join(destination).join(relative);
-                if !target.exists() {
-                    install_file(&target, bytes)?;
-                }
+        for (destination, relative, bytes) in managed_files() {
+            let target = home.join(destination).join(relative);
+            if !target.exists() {
+                install_file(&target, bytes)?;
             }
         }
         checks = preflight(&home)?;
@@ -251,9 +259,9 @@ fn safe_home(home: &Path) -> Result<PathBuf, String> {
 
 fn preflight(home: &Path) -> Result<Vec<Value>, String> {
     let mut checks = Vec::new();
-    for destination in DESTINATIONS {
+    for destination in DESTINATIONS.into_iter().chain(ADHD_DESTINATIONS) {
         reject_symlink_components(home, Path::new(destination))?;
-        for (relative, expected) in FILES {
+        for (relative, expected) in files_for_destination(destination) {
             let combined = Path::new(destination).join(relative);
             reject_symlink_components(home, &combined)?;
             let target = home.join(&combined);
@@ -271,7 +279,7 @@ fn preflight(home: &Path) -> Result<Vec<Value>, String> {
                     let bytes = fs::read(&target)
                         .map_err(|e| format!("cannot read {}: {e}", target.display()))?;
                     let hash = sha256(&bytes);
-                    (if bytes == expected { "ok" } else { "drift" }, Some(hash))
+                    (if bytes == *expected { "ok" } else { "drift" }, Some(hash))
                 }
                 Err(error) if error.kind() == std::io::ErrorKind::NotFound => ("missing", None),
                 Err(error) => return Err(format!("cannot inspect {}: {error}", target.display())),
@@ -280,6 +288,29 @@ fn preflight(home: &Path) -> Result<Vec<Value>, String> {
         }
     }
     Ok(checks)
+}
+
+fn managed_files() -> impl Iterator<Item = (&'static str, &'static str, &'static [u8])> {
+    DESTINATIONS
+        .into_iter()
+        .flat_map(|destination| {
+            FILES
+                .into_iter()
+                .map(move |(relative, bytes)| (destination, relative, bytes))
+        })
+        .chain(ADHD_DESTINATIONS.into_iter().flat_map(|destination| {
+            ADHD_FILES
+                .into_iter()
+                .map(move |(relative, bytes)| (destination, relative, bytes))
+        }))
+}
+
+fn files_for_destination(destination: &str) -> &'static [(&'static str, &'static [u8])] {
+    if ADHD_DESTINATIONS.contains(&destination) {
+        &ADHD_FILES
+    } else {
+        &FILES
+    }
 }
 
 fn reject_symlink_components(home: &Path, relative: &Path) -> Result<(), String> {
@@ -367,15 +398,17 @@ fn companion_checks(home: &Path) -> Value {
     json!({
         "schema_version": 1,
         "manifest_path": "companion-recommendations.json",
-        "policy": "missing recommended companions are reported only and are never auto-installed",
+        "policy": "MOZAK-managed companions are version-matched embedded payloads; missing recommended companions are reported only and are never auto-installed",
+        "managed": [
+            skill_companion(home, "adhd-skill", "ADHD skill", "managed", &["i-have-adhd"]),
+        ],
         "required": [
             executable_companion("termaid", "Termaid", "required"),
         ],
         "recommended": [
             executable_companion("mmdr", "mmdr", "recommended"),
-            skill_companion(home, "adhd-skill", "ADHD skill", &["i-have-adhd"]),
-            skill_companion(home, "caveman-skill", "Caveman skill", &["caveman"]),
-            skill_companion(home, "drawing-skills", "Drawing skills", &["archify", "excalidraw-skill"]),
+            skill_companion(home, "caveman-skill", "Caveman skill", "recommended", &["caveman"]),
+            skill_companion(home, "drawing-skills", "Drawing skills", "recommended", &["archify", "excalidraw-skill"]),
         ]
     })
 }
@@ -401,7 +434,13 @@ fn executable_companion(executable_name: &str, display_name: &str, classificatio
     }
 }
 
-fn skill_companion(home: &Path, id: &str, name: &str, skill_names: &[&str]) -> Value {
+fn skill_companion(
+    home: &Path,
+    id: &str,
+    name: &str,
+    classification: &str,
+    skill_names: &[&str],
+) -> Value {
     let matches = find_exact_skills(home, skill_names);
     let status = if matches.is_empty() {
         "missing"
@@ -411,7 +450,7 @@ fn skill_companion(home: &Path, id: &str, name: &str, skill_names: &[&str]) -> V
     json!({
         "id": id,
         "name": name,
-        "classification": "recommended",
+        "classification": classification,
         "kind": "skill",
         "status": status,
         "matches": matches,

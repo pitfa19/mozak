@@ -21,10 +21,10 @@
     {
       "id": "adhd-skill",
       "name": "ADHD skill",
-      "classification": "recommended",
+      "classification": "managed",
       "kind": "skill",
       "skill_names": ["i-have-adhd"],
-      "reason": "The ADHD skill shapes output for low-friction project operation."
+      "reason": "MOZAK installs this version-matched embedded payload during setup install, update, and rollback, and setup check verifies deterministic drift."
     },
     {
       "id": "caveman-skill",

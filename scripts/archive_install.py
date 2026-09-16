@@ -17,7 +17,8 @@ from typing import Any
 
 LAUNCHER_MARKER = b"MOZAK_MANAGED_LAUNCHER_V1"
 BUILD_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+-]{0,127}$")
-MANAGED_FILENAMES = {"SKILL.md", "install.py", "mcp.json", "tests/test_skill.py", "evals/evals.json", "companion-recommendations.json"}
+MOZAK_MANAGED_FILENAMES = {"SKILL.md", "install.py", "mcp.json", "tests/test_skill.py", "evals/evals.json", "companion-recommendations.json"}
+ADHD_MANAGED_FILENAMES = {"SKILL.md"}
 
 
 def existing_real_directory(path: Path, label: str) -> Path:
@@ -151,15 +152,32 @@ def report_paths(report: dict[str, Any] | None, home: Path) -> list[Path]:
         if not isinstance(relative, str):
             raise RuntimeError("setup report contains an invalid managed path")
         path = Path(relative)
-        if path.is_absolute() or ".." in path.parts or path.as_posix().split("skills/mozak/", 1)[-1] not in MANAGED_FILENAMES:
+        if not allowed_managed_report_path(path):
             raise RuntimeError(f"setup report contains an unexpected managed path: {relative}")
         target = home / path
         if target in paths:
             raise RuntimeError("setup report repeats a managed path")
         paths.append(target)
-    if len(paths) not in {16, 20, 24}:
-        raise RuntimeError("setup report must declare exactly 16 legacy, 20 previous, or 24 current managed files")
+    if len(paths) not in {16, 20, 24, 28}:
+        raise RuntimeError("setup report must declare exactly 16 legacy, 20 previous, 24 current, or 28 ADHD-managed files")
     return paths
+
+
+def allowed_managed_report_path(path: Path) -> bool:
+    if path.is_absolute() or ".." in path.parts:
+        return False
+    parts = path.parts
+    if len(parts) < 4 or parts[1] != "skills":
+        return False
+    if parts[0] not in {".agents", ".jcode", ".claude", ".codex"}:
+        return False
+    skill = parts[2]
+    suffix = "/".join(parts[3:])
+    if skill == "mozak":
+        return suffix in MOZAK_MANAGED_FILENAMES
+    if skill == "i-have-adhd":
+        return suffix in ADHD_MANAGED_FILENAMES
+    return False
 
 
 def restore_files(backup: dict[Path, tuple[bytes, int]], new_paths: list[Path]) -> None:
