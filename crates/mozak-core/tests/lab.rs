@@ -167,7 +167,10 @@ fn group_skill() -> GroupSkill {
     GroupSkill {
         contract_version: CONTRACT_VERSION,
         run_id: "improve-abc123".to_owned(),
+        scope_id: "topic-agentic-systems".to_owned(),
+        topic_id: "budget-topic".to_owned(),
         skill_id: "planning-budgeting".to_owned(),
+        revision: "r1".to_owned(),
         summary: "Compare budgeted planning approaches with verified citations.".to_owned(),
         group_ids: vec!["group-budgeting".to_owned()],
         comparison_guidance: vec![

@@ -742,13 +742,53 @@ pub struct LabConceptCandidate {
 pub struct GroupSkill {
     pub contract_version: u32,
     pub run_id: String,
+    pub scope_id: String,
+    pub topic_id: String,
     pub skill_id: String,
+    pub revision: String,
     pub summary: String,
     pub group_ids: Vec<String>,
     pub comparison_guidance: Vec<String>,
     pub cited_claim_ids: Vec<String>,
     #[serde(default)]
     pub concept_candidates: Vec<LabConceptCandidate>,
+    pub retains_full_text: bool,
+}
+
+/// Strict owner approval for turning a proposal-only group skill into a real skill directory.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct GroupSkillApproval {
+    pub contract_version: u32,
+    pub decision: bool,
+    pub run_id: String,
+    pub scope_id: String,
+    pub topic_id: String,
+    pub skill_id: String,
+    pub revision: String,
+    pub group_skill_sha256: String,
+    pub output_dir: String,
+    pub predecessor_manifest_sha256: Option<String>,
+    pub approved_by: String,
+    pub approved_at: String,
+    pub rationale: String,
+}
+
+/// Manifest written beside the generated SKILL.md.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct GroupSkillManifest {
+    pub contract_version: u32,
+    pub run_id: String,
+    pub scope_id: String,
+    pub topic_id: String,
+    pub skill_id: String,
+    pub revision: String,
+    pub group_skill_sha256: String,
+    pub predecessor_manifest_sha256: Option<String>,
+    pub materialized_by: String,
+    pub materialized_at: String,
+    pub approval_sha256: String,
     pub retains_full_text: bool,
 }
 
@@ -1232,6 +1272,9 @@ pub fn validate_group_skill(
         "group skill run_id must match synthesis and readings",
     )?;
     require_filled(&skill.skill_id, "skill_id")?;
+    require_filled(&skill.scope_id, "scope_id")?;
+    require_filled(&skill.topic_id, "topic_id")?;
+    require_filled(&skill.revision, "skill revision")?;
     require_filled(&skill.summary, "skill summary")?;
     require(
         !skill.retains_full_text,
@@ -1286,6 +1329,57 @@ pub fn validate_group_skill(
             )?;
         }
     }
+    Ok(())
+}
+
+/// Validates a strict materialization approval against the exact proposal and output path.
+pub fn validate_group_skill_approval(
+    approval: &GroupSkillApproval,
+    skill: &GroupSkill,
+    group_skill_sha256: &str,
+    output_dir: &str,
+    predecessor_manifest_sha256: Option<&str>,
+) -> Result<(), LabError> {
+    validate_version(approval.contract_version)?;
+    require(
+        approval.decision,
+        "group skill approval decision must be true",
+    )?;
+    require(
+        approval.run_id == skill.run_id,
+        "approval run_id must match group skill",
+    )?;
+    require(
+        approval.scope_id == skill.scope_id,
+        "approval scope_id must match group skill",
+    )?;
+    require(
+        approval.topic_id == skill.topic_id,
+        "approval topic_id must match group skill",
+    )?;
+    require(
+        approval.skill_id == skill.skill_id,
+        "approval skill_id must match group skill",
+    )?;
+    require(
+        approval.revision == skill.revision,
+        "approval revision must match group skill",
+    )?;
+    require(
+        approval.group_skill_sha256 == group_skill_sha256,
+        "approval must pin exact group skill hash",
+    )?;
+    require(
+        approval.output_dir == output_dir,
+        "approval output_dir must match exact output path",
+    )?;
+    require(
+        approval.predecessor_manifest_sha256.as_deref() == predecessor_manifest_sha256,
+        "approval predecessor_manifest_sha256 must match observed predecessor, or be null for first revision",
+    )?;
+    require_filled(&approval.approved_by, "approved_by")?;
+    require_filled(&approval.approved_at, "approved_at")?;
+    require_filled(&approval.rationale, "approval rationale")?;
     Ok(())
 }
 

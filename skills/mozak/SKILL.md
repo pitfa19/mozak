@@ -136,6 +136,10 @@ Treat overview, list, graph-source, graph, validation, status, and next-goal rec
 - Each claim is labeled `source_claim` or `lab_inference`. A proposed mechanism must cite at least one real source claim, so a mechanism resting only on Lab inference is rejected.
 - Each plan card must cite a known mechanism and carry at least two acceptance checks. `review` renders the owner packet, including limitations, and closes the run.
 - A completed run authorizes nothing. Implementation, evaluation, beta composition, and promotion are separate owner-authorized phases.
+- The group workflow is proposal-only until a strict approval is supplied. Define groups with `mozak lab group define`, synthesize them with `mozak lab group synthesize`, and record the proposal with `mozak lab group skill`; these files do not create a real skill.
+- Materialize a real explanatory skill only with `mozak lab group materialize RUN_DIR APPROVAL_JSON OUTPUT_SKILL_DIR <PREDECESSOR_MANIFEST|none>` after `owner_reviewed`. The approval must set `decision: true` and pin the exact run id, scope id, topic id, skill id, revision, group-skill SHA-256, output directory, and predecessor manifest hash. The first revision uses `null` and `none`; later revisions must pin the previous published `manifest.json` hash.
+- Materialization is create-only and fail-closed: it refuses existing output directories, implicit predecessor guesses, path/hash mismatches, and unapproved proposals. Prefer versioned output directories such as `skill-name-r1` and `skill-name-r2`; do not mutate an older published skill.
+- Generated `SKILL.md` may explain only validated group skill fields, group synthesis, claim locators, source identifiers, and hashes. Paper full text is never retained, and proposal-only Concept candidates remain unaccepted.
 
 ## Concepts, Translations, and case records
 

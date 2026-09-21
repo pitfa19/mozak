@@ -1,3 +1,4 @@
+use sha2::{Digest, Sha256};
 use std::{
     env, fs,
     path::{Path, PathBuf},
@@ -11,6 +12,10 @@ fn binary() -> PathBuf {
         path.pop();
     }
     path.join("mozak")
+}
+
+fn hash(bytes: &[u8]) -> String {
+    format!("{:x}", Sha256::digest(bytes))
 }
 
 struct Workspace {
@@ -112,7 +117,7 @@ fn registry(workspace: &Workspace) {
     fs::create_dir_all(&dir).expect("config dir");
     fs::write(
         dir.join("adapters.json"),
-        r#"{"schema_version":1,"bindings":[{"id":"agentic-systems-dair-ai","adapter":"dair-ai","target_scope_id":"topic-agentic-systems","request_path":"/tmp/r.json","request_sha256":"x","runner_path":"/tmp/r.sh","runner_sha256":"y","runs_dir":"/tmp/runs"}]}"#,
+        r#"{"schema_version":1,"bindings":[{"id":"topic-agentic-systems","adapter":"dair-ai","target_scope_id":"topic-agentic-systems","request_path":"/tmp/r.json","request_sha256":"x","runner_path":"/tmp/r.sh","runner_sha256":"y","runs_dir":"/tmp/runs"}]}"#,
     )
     .expect("registry");
 }
@@ -234,7 +239,7 @@ fn rejects_an_unknown_module() {
         "topic-agentic-systems",
         "not-a-module",
         "question",
-        "agentic-systems-dair-ai",
+        "topic-agentic-systems",
     ]);
     assert!(!ok);
     assert!(stderr.contains("unknown module"));
@@ -244,7 +249,7 @@ fn rejects_an_unknown_module() {
 fn refuses_to_overwrite_an_existing_run() {
     let workspace = Workspace::new("overwrite");
     registry(&workspace);
-    start_run(&workspace, "agentic-systems-dair-ai");
+    start_run(&workspace, "topic-agentic-systems");
     let run_dir = workspace.path("run");
     let (ok, _, stderr) = workspace.run(&[
         "lab",
@@ -253,7 +258,7 @@ fn refuses_to_overwrite_an_existing_run() {
         "topic-agentic-systems",
         "plans",
         "question",
-        "agentic-systems-dair-ai",
+        "topic-agentic-systems",
     ]);
     assert!(!ok);
     assert!(stderr.contains("refusing to overwrite"));
@@ -263,7 +268,7 @@ fn refuses_to_overwrite_an_existing_run() {
 fn runs_the_planning_pipeline_and_stops_at_review() {
     let workspace = Workspace::new("pipeline");
     registry(&workspace);
-    let run_id = start_run(&workspace, "agentic-systems-dair-ai");
+    let run_id = start_run(&workspace, "topic-agentic-systems");
     let run_dir = workspace.path("run");
     let run_dir_str = run_dir.to_str().expect("path").to_owned();
     let adapter = adapter_run(&workspace);
@@ -360,7 +365,7 @@ fn runs_the_planning_pipeline_and_stops_at_review() {
     let skill = workspace.write(
         "group-skill-input.json",
         &format!(
-            r#"{{"contract_version":1,"run_id":"{run_id}","skill_id":"budget-skill","summary":"compare budget approaches","group_ids":["group-budget"],"comparison_guidance":["compare static","compare adaptive"],"cited_claim_ids":["c1"],"concept_candidates":[{{"id":"concept-budget","group_id":"group-budget","title":"Budget concept","invariant":"budgets bound work","applicability_limits":["planning only"],"cited_claim_ids":["c1"],"proposal_only":true,"accepted":false}}],"retains_full_text":false}}"#
+            r#"{{"contract_version":1,"run_id":"{run_id}","scope_id":"topic-agentic-systems","topic_id":"budget-topic","skill_id":"budget-skill","revision":"r1","summary":"compare budget approaches","group_ids":["group-budget"],"comparison_guidance":["compare static","compare adaptive"],"cited_claim_ids":["c1"],"concept_candidates":[{{"id":"concept-budget","group_id":"group-budget","title":"Budget concept","invariant":"budgets bound work","applicability_limits":["planning only"],"cited_claim_ids":["c1"],"proposal_only":true,"accepted":false}}],"retains_full_text":false}}"#
         ),
     );
     let (ok, stdout, stderr) = workspace.run(&[
@@ -420,6 +425,67 @@ fn runs_the_planning_pipeline_and_stops_at_review() {
     assert_eq!(value["state"], "owner_reviewed");
     assert_eq!(value["terminal"], true);
 
+    let materialized = workspace.path("budget-skill-r1");
+    let materialized_str = materialized.display().to_string();
+    let skill_hash = hash(&fs::read(run_dir.join("group-skill.json")).expect("skill proposal"));
+    let approval = workspace.write(
+        "approval.json",
+        &format!(
+            r#"{{"contract_version":1,"decision":true,"run_id":"{run_id}","scope_id":"topic-agentic-systems","topic_id":"budget-topic","skill_id":"budget-skill","revision":"r1","group_skill_sha256":"{skill_hash}","output_dir":"{materialized_str}","predecessor_manifest_sha256":null,"approved_by":"owner","approved_at":"2026-09-21T00:00:00Z","rationale":"publish first explanatory skill revision"}}"#
+        ),
+    );
+    let (ok, stdout, stderr) = workspace.run(&[
+        "lab",
+        "group",
+        "materialize",
+        &run_dir_str,
+        approval.to_str().expect("path"),
+        &materialized_str,
+        "none",
+    ]);
+    assert!(ok, "{stderr}");
+    assert!(stdout.contains("owner_approved_create_only"));
+    let rendered = fs::read_to_string(materialized.join("SKILL.md")).expect("skill md");
+    assert!(rendered.contains("Budget approaches"));
+    assert!(rendered.contains("Content sha256"));
+    assert!(rendered.contains("does not accept Concepts"));
+    let manifest = fs::read_to_string(materialized.join("manifest.json")).expect("manifest");
+    assert!(manifest.contains(r#""predecessor_manifest_sha256": null"#));
+
+    let second = workspace.path("budget-skill-r2");
+    let second_str = second.display().to_string();
+    let predecessor_hash =
+        hash(&fs::read(materialized.join("manifest.json")).expect("manifest bytes"));
+    let revision_two = workspace.write(
+        "group-skill-r2.json",
+        &format!(
+            r#"{{"contract_version":1,"run_id":"{run_id}","scope_id":"topic-agentic-systems","topic_id":"budget-topic","skill_id":"budget-skill","revision":"r2","summary":"compare budget approaches v2","group_ids":["group-budget"],"comparison_guidance":["compare static","compare adaptive"],"cited_claim_ids":["c1"],"concept_candidates":[],"retains_full_text":false}}"#
+        ),
+    );
+    fs::remove_file(run_dir.join("group-skill.json"))
+        .expect("replace proposal for revision fixture");
+    fs::copy(&revision_two, run_dir.join("group-skill.json"))
+        .expect("revision two proposal fixture");
+    let skill_hash = hash(&fs::read(run_dir.join("group-skill.json")).expect("skill proposal"));
+    let approval_two = workspace.write(
+        "approval-r2.json",
+        &format!(
+            r#"{{"contract_version":1,"decision":true,"run_id":"{run_id}","scope_id":"topic-agentic-systems","topic_id":"budget-topic","skill_id":"budget-skill","revision":"r2","group_skill_sha256":"{skill_hash}","output_dir":"{second_str}","predecessor_manifest_sha256":"{predecessor_hash}","approved_by":"owner","approved_at":"2026-09-21T00:01:00Z","rationale":"publish second explanatory skill revision"}}"#
+        ),
+    );
+    let (ok, _, stderr) = workspace.run(&[
+        "lab",
+        "group",
+        "materialize",
+        &run_dir_str,
+        approval_two.to_str().expect("path"),
+        &second_str,
+        materialized.join("manifest.json").to_str().expect("path"),
+    ]);
+    assert!(ok, "{stderr}");
+    let manifest_two = fs::read_to_string(second.join("manifest.json")).expect("manifest two");
+    assert!(manifest_two.contains(&predecessor_hash));
+
     // The terminal gate must block any further step.
     let (ok, _, stderr) =
         workspace.run(&["lab", "plans", &run_dir_str, plans.to_str().expect("path")]);
@@ -434,7 +500,7 @@ fn runs_the_planning_pipeline_and_stops_at_review() {
 fn an_abstract_only_run_is_refused_at_the_mechanism_step() {
     let workspace = Workspace::new("shallow");
     registry(&workspace);
-    let run_id = start_run(&workspace, "agentic-systems-dair-ai");
+    let run_id = start_run(&workspace, "topic-agentic-systems");
     let run_dir = workspace.path("run");
     let run_dir_str = run_dir.to_str().expect("path").to_owned();
     let adapter = adapter_run(&workspace);
@@ -504,7 +570,7 @@ fn an_abstract_only_run_is_refused_at_the_mechanism_step() {
 fn second_refresh_marks_sources_unchanged() {
     let workspace = Workspace::new("dedup");
     registry(&workspace);
-    start_run(&workspace, "agentic-systems-dair-ai");
+    start_run(&workspace, "topic-agentic-systems");
     let run_dir = workspace.path("run");
     let run_dir_str = run_dir.to_str().expect("path").to_owned();
     let adapter = adapter_run(&workspace);
@@ -541,7 +607,7 @@ fn second_refresh_marks_sources_unchanged() {
 fn rejects_readings_that_retain_full_text() {
     let workspace = Workspace::new("fulltext");
     registry(&workspace);
-    let run_id = start_run(&workspace, "agentic-systems-dair-ai");
+    let run_id = start_run(&workspace, "topic-agentic-systems");
     let run_dir_str = workspace.path("run").to_str().expect("path").to_owned();
     let adapter = adapter_run(&workspace);
     workspace.run(&[
@@ -577,7 +643,7 @@ fn rejects_readings_that_retain_full_text() {
 fn rejects_an_out_of_order_step() {
     let workspace = Workspace::new("order");
     registry(&workspace);
-    let run_id = start_run(&workspace, "agentic-systems-dair-ai");
+    let run_id = start_run(&workspace, "topic-agentic-systems");
     let run_dir_str = workspace.path("run").to_str().expect("path").to_owned();
     let selection = workspace.write(
         "selection.json",
@@ -606,7 +672,7 @@ fn a_skipped_step_reports_the_ordering_rule_not_a_missing_file() {
     let workspace = Workspace::new("lab-ordering");
     registry(&workspace);
     let run_dir = workspace.path("run");
-    start_run(&workspace, "agentic-systems-dair-ai");
+    start_run(&workspace, "topic-agentic-systems");
     let run = run_dir.to_str().expect("path");
 
     // Every step that depends on a predecessor must name the ordering rule
@@ -651,7 +717,7 @@ fn refresh_is_the_first_step_after_start() {
     let workspace = Workspace::new("lab-refresh-first");
     registry(&workspace);
     let run_dir = workspace.path("run");
-    start_run(&workspace, "agentic-systems-dair-ai");
+    start_run(&workspace, "topic-agentic-systems");
     let adapter = adapter_run(&workspace);
     let (ok, stdout, stderr) = workspace.run(&[
         "lab",
@@ -673,7 +739,7 @@ fn refresh_is_the_first_step_after_start() {
 fn a_run_records_self_review_by_default_and_says_so_in_the_packet() {
     let workspace = Workspace::new("acceptance-default");
     registry(&workspace);
-    let run_id = start_run(&workspace, "agentic-systems-dair-ai");
+    let run_id = start_run(&workspace, "topic-agentic-systems");
     let run_dir = workspace.path("run");
     let run_dir_str = run_dir.to_str().expect("path").to_owned();
 
@@ -768,7 +834,7 @@ fn naming_a_second_reviewer_makes_the_run_independent() {
             "topic-agentic-systems",
             "plans",
             "How should planning represent budgets?",
-            "agentic-systems-dair-ai",
+            "topic-agentic-systems",
         ])
         .env("HOME", &workspace.root)
         .env("MOZAK_EVALUATED_BY", "an independent reviewer")
@@ -794,7 +860,7 @@ fn complete_run(workspace: &Workspace, dir: &str, claim_text: &str) -> String {
         "topic-agentic-systems",
         "improve-lab",
         "carry evidence forward",
-        "agentic-systems-dair-ai",
+        "topic-agentic-systems",
     ]);
     assert!(ok, "lab start failed: {stderr}");
     let run_id = serde_json::from_str::<serde_json::Value>(&stdout).expect("json")["run_id"]
@@ -896,7 +962,7 @@ fn a_second_run_inherits_what_the_first_established() {
         "topic-agentic-systems",
         "improve-lab",
         "a later question",
-        "agentic-systems-dair-ai",
+        "topic-agentic-systems",
     ]);
     assert!(ok, "{stderr}");
     let receipt: serde_json::Value = serde_json::from_str(&stdout).expect("json");
@@ -979,7 +1045,7 @@ fn a_first_run_reports_no_inherited_evidence() {
         "topic-agentic-systems",
         "improve-lab",
         "the first question",
-        "agentic-systems-dair-ai",
+        "topic-agentic-systems",
     ]);
     assert!(ok, "{stderr}");
     let receipt: serde_json::Value = serde_json::from_str(&stdout).expect("json");
@@ -1001,7 +1067,7 @@ fn a_first_run_reports_no_inherited_evidence() {
 fn an_objective_must_be_declared_before_selection() {
     let workspace = Workspace::new("objective-order");
     registry(&workspace);
-    let run_id = start_run(&workspace, "agentic-systems-dair-ai");
+    let run_id = start_run(&workspace, "topic-agentic-systems");
     let run_dir = workspace.path("run");
     let run_dir_str = run_dir.to_str().expect("path").to_owned();
 
@@ -1050,7 +1116,7 @@ fn an_objective_must_be_declared_before_selection() {
 fn an_objective_without_a_completion_condition_is_refused() {
     let workspace = Workspace::new("objective-unbounded");
     registry(&workspace);
-    start_run(&workspace, "agentic-systems-dair-ai");
+    start_run(&workspace, "topic-agentic-systems");
     let run_dir = workspace.path("run");
     let unbounded = workspace.write(
         "unbounded.json",
@@ -1071,7 +1137,7 @@ fn an_objective_without_a_completion_condition_is_refused() {
 fn mechanism_evidence_is_recorded_and_gaps_are_named() {
     let workspace = Workspace::new("mechanism-evidence");
     registry(&workspace);
-    let run_id = start_run(&workspace, "agentic-systems-dair-ai");
+    let run_id = start_run(&workspace, "topic-agentic-systems");
     let run_dir = workspace.path("run");
     let run_dir_str = run_dir.to_str().expect("path").to_owned();
 
@@ -1169,7 +1235,7 @@ fn mechanism_evidence_is_recorded_and_gaps_are_named() {
 fn the_cli_refuses_an_uncontrolled_pair() {
     let workspace = Workspace::new("uncontrolled-pair");
     registry(&workspace);
-    let run_id = start_run(&workspace, "agentic-systems-dair-ai");
+    let run_id = start_run(&workspace, "topic-agentic-systems");
     let run_dir = workspace.path("run");
     let run_dir_str = run_dir.to_str().expect("path").to_owned();
 

@@ -1,14 +1,16 @@
 //! Planning-only Self Improvement Lab commands.
 //!
 //! The Lab reads MOZAK's adapter registry, records an auditable improvement
-//! run, and stops at owner review. It never edits MOZAK.
+//! run, and stops at owner review. It never edits MOZAK during a run; a separate
+//! strict owner approval can materialize a versioned explanatory skill directory.
 
 use mozak_core::lab::{
-    CONTRACT_VERSION, Candidate, GroupDefinition, GroupSkill, GroupSynthesis, ImplementationPlans,
-    ImproveRequest, LiteratureRun, MechanismMap, Module, Readings, RunLedger, RunState, Selection,
-    SourceInventory, advance, classify_candidates, render_review, validate_group_definition,
-    validate_group_skill, validate_group_synthesis, validate_literature, validate_mechanisms,
-    validate_plans, validate_readings, validate_request, validate_selection,
+    CONTRACT_VERSION, Candidate, GroupDefinition, GroupSkill, GroupSkillApproval,
+    GroupSkillManifest, GroupSynthesis, ImplementationPlans, ImproveRequest, LiteratureRun,
+    MechanismMap, Module, Readings, RunLedger, RunState, Selection, SourceInventory, advance,
+    classify_candidates, render_review, validate_group_definition, validate_group_skill,
+    validate_group_skill_approval, validate_group_synthesis, validate_literature,
+    validate_mechanisms, validate_plans, validate_readings, validate_request, validate_selection,
     validate_source_inventory,
 };
 use mozak_core::lab_evidence::{ClaimStanding, EvidenceEntry, ScopeEvidence};
@@ -33,6 +35,8 @@ const SOURCE_INVENTORY_FILE: &str = "source-inventory.json";
 const GROUPS_FILE: &str = "groups.json";
 const GROUP_SYNTHESIS_FILE: &str = "group-synthesis.json";
 const GROUP_SKILL_FILE: &str = "group-skill.json";
+const GROUP_SKILL_MANIFEST_FILE: &str = "manifest.json";
+const SKILL_MD_FILE: &str = "SKILL.md";
 /// Evidence offered for this run's mechanisms: paired observations, or a
 /// recorded reason for lacking one.
 const MECHANISM_EVIDENCE_FILE: &str = "mechanism-evidence.json";
@@ -99,6 +103,19 @@ pub fn run(args: &[String]) -> Result<ExitCode, String> {
             group_synthesize(Path::new(run_dir), Path::new(synthesis))
         }
         ["group", "skill", run_dir, skill] => group_skill(Path::new(run_dir), Path::new(skill)),
+        [
+            "group",
+            "materialize",
+            run_dir,
+            approval,
+            output_dir,
+            predecessor,
+        ] => group_materialize(
+            Path::new(run_dir),
+            Path::new(approval),
+            Path::new(output_dir),
+            predecessor,
+        ),
         ["review", run_dir] => review(Path::new(run_dir)),
         ["status", run_dir] => status(Path::new(run_dir)),
         _ => Err(crate::usage()),
@@ -176,6 +193,166 @@ fn group_skill(run_dir: &Path, skill_path: &Path) -> Result<ExitCode, String> {
         "authority": "proposal_only_owner_review_required",
         "next": "owner decision required; no Concept was accepted",
     }))
+}
+
+/// Materializes a proposal-only group skill after exact owner approval.
+fn group_materialize(
+    run_dir: &Path,
+    approval_path: &Path,
+    output_dir: &Path,
+    predecessor: &str,
+) -> Result<ExitCode, String> {
+    let ledger: RunLedger = read_json(&run_dir.join(LEDGER_FILE))?;
+    if ledger.state != RunState::OwnerReviewed {
+        return Err(format!(
+            "group materialization requires {}; this run is at {}",
+            RunState::OwnerReviewed.as_str(),
+            ledger.state.as_str()
+        ));
+    }
+    let request: ImproveRequest = read_json(&run_dir.join(REQUEST_FILE))?;
+    let readings: Readings = read_json(&run_dir.join(READINGS_FILE))?;
+    let synthesis: GroupSynthesis = read_json(&run_dir.join(GROUP_SYNTHESIS_FILE))?;
+    let groups: GroupDefinition = read_json(&run_dir.join(GROUPS_FILE))?;
+    let inventory: SourceInventory = read_json(&run_dir.join(SOURCE_INVENTORY_FILE))?;
+    let skill_raw = read(&run_dir.join(GROUP_SKILL_FILE))?;
+    let skill: GroupSkill = serde_json::from_str(&skill_raw).map_err(|error| {
+        format!(
+            "invalid {}: {error}",
+            run_dir.join(GROUP_SKILL_FILE).display()
+        )
+    })?;
+    validate_group_skill(&skill, &synthesis, &readings).map_err(|error| error.to_string())?;
+    if skill.scope_id != request.scope_id {
+        return Err("group skill scope_id must match the Lab run scope_id".to_owned());
+    }
+    if output_dir.exists() {
+        return Err(format!(
+            "refusing to overwrite existing skill directory: {}",
+            output_dir.display()
+        ));
+    }
+
+    let predecessor_hash = if predecessor == "none" {
+        None
+    } else {
+        let raw = fs::read(predecessor)
+            .map_err(|error| format!("cannot read predecessor manifest {predecessor}: {error}"))?;
+        Some(hash(&raw))
+    };
+    let approval_raw = read(approval_path)?;
+    let approval: GroupSkillApproval = serde_json::from_str(&approval_raw)
+        .map_err(|error| format!("invalid {}: {error}", approval_path.display()))?;
+    let skill_hash = hash(skill_raw.as_bytes());
+    let output_text = output_dir.display().to_string();
+    validate_group_skill_approval(
+        &approval,
+        &skill,
+        &skill_hash,
+        &output_text,
+        predecessor_hash.as_deref(),
+    )
+    .map_err(|error| error.to_string())?;
+
+    fs::create_dir(output_dir).map_err(|error| {
+        format!(
+            "cannot create skill directory {}: {error}",
+            output_dir.display()
+        )
+    })?;
+    let manifest = GroupSkillManifest {
+        contract_version: CONTRACT_VERSION,
+        run_id: skill.run_id.clone(),
+        scope_id: skill.scope_id.clone(),
+        topic_id: skill.topic_id.clone(),
+        skill_id: skill.skill_id.clone(),
+        revision: skill.revision.clone(),
+        group_skill_sha256: skill_hash.clone(),
+        predecessor_manifest_sha256: predecessor_hash.clone(),
+        materialized_by: approval.approved_by.clone(),
+        materialized_at: approval.approved_at.clone(),
+        approval_sha256: hash(approval_raw.as_bytes()),
+        retains_full_text: false,
+    };
+    let skill_md = render_group_skill_md(&skill, &groups, &synthesis, &readings, &inventory);
+    fs::write(output_dir.join(SKILL_MD_FILE), skill_md)
+        .map_err(|error| format!("cannot write SKILL.md: {error}"))?;
+    write_json_new(&output_dir.join(GROUP_SKILL_MANIFEST_FILE), &manifest)?;
+    print_json(&json!({
+        "schema_version": 1,
+        "command": "lab group materialize",
+        "skill_dir": output_text,
+        "skill_md": output_dir.join(SKILL_MD_FILE).display().to_string(),
+        "manifest": output_dir.join(GROUP_SKILL_MANIFEST_FILE).display().to_string(),
+        "scope_id": skill.scope_id,
+        "topic_id": skill.topic_id,
+        "skill_id": skill.skill_id,
+        "revision": skill.revision,
+        "predecessor_manifest_sha256": predecessor_hash,
+        "authority": "owner_approved_create_only",
+    }))
+}
+
+fn render_group_skill_md(
+    skill: &GroupSkill,
+    groups: &GroupDefinition,
+    synthesis: &GroupSynthesis,
+    readings: &Readings,
+    inventory: &SourceInventory,
+) -> String {
+    let mut out = String::new();
+    out.push_str(&format!("# {}\n\n", skill.skill_id));
+    out.push_str(&format!("{}\n\n", skill.summary));
+    out.push_str("## Boundary\n\n");
+    out.push_str(&format!("- Scope: `{}`\n", skill.scope_id));
+    out.push_str(&format!("- Topic: `{}`\n", skill.topic_id));
+    out.push_str(&format!("- Lab run: `{}`\n", skill.run_id));
+    out.push_str("- This skill is explanatory guidance. It does not accept Concepts, mutate Scopes, or retain paper full text.\n\n");
+
+    out.push_str("## Group approaches\n\n");
+    for group_id in &skill.group_ids {
+        if let Some(group) = groups.groups.iter().find(|group| &group.id == group_id) {
+            out.push_str(&format!("### {}\n\n", group.title));
+            out.push_str(&format!("{}\n\n", group.purpose));
+            if let Some(entry) = synthesis
+                .syntheses
+                .iter()
+                .find(|entry| entry.group_id == group.id)
+            {
+                out.push_str(&format!("{}\n\n", entry.synthesis));
+                out.push_str("Approaches to compare:\n");
+                for approach in &entry.compared_approaches {
+                    out.push_str(&format!("- {approach}\n"));
+                }
+                out.push('\n');
+            }
+        }
+    }
+
+    out.push_str("## Comparison guidance\n\n");
+    for item in &skill.comparison_guidance {
+        out.push_str(&format!("- {item}\n"));
+    }
+
+    out.push_str("\n## Citations and provenance\n\n");
+    for claim_id in &skill.cited_claim_ids {
+        for reading in &readings.readings {
+            if let Some(claim) = reading.claims.iter().find(|claim| &claim.id == claim_id) {
+                out.push_str(&format!(
+                    "- `{}` {} Source `{}` at `{}`. Content sha256 `{}`.\n",
+                    claim.id, claim.text, reading.source_uri, claim.locator, reading.content_sha256
+                ));
+            }
+        }
+    }
+    out.push_str("\nSource inventory retained identifiers and hashes only:\n");
+    for source in &inventory.sources {
+        out.push_str(&format!(
+            "- `{}` {} sha256 `{}`\n",
+            source.paper_id, source.source_uri, source.content_sha256
+        ));
+    }
+    out
 }
 
 /// Lists the addressable improvement modules.
