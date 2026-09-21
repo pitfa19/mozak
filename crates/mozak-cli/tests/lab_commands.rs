@@ -68,8 +68,17 @@ fn adapter_run(workspace: &Workspace) -> PathBuf {
 
 /// Builds a selection covering every refreshed candidate.
 fn selection_for(workspace: &Workspace, run_id: &str, included: &[&str]) -> PathBuf {
+    selection_for_dir(workspace, &workspace.path("run"), run_id, included)
+}
+
+fn selection_for_dir(
+    workspace: &Workspace,
+    run_dir: &Path,
+    run_id: &str,
+    included: &[&str],
+) -> PathBuf {
     let literature: serde_json::Value = serde_json::from_str(
-        &fs::read_to_string(workspace.path("run").join("literature-run.json")).expect("literature"),
+        &fs::read_to_string(run_dir.join("literature-run.json")).expect("literature"),
     )
     .expect("json");
     let mut include = Vec::new();
@@ -87,7 +96,7 @@ fn selection_for(workspace: &Workspace, run_id: &str, included: &[&str]) -> Path
         }
     }
     workspace.write(
-        "selection.json",
+        &format!("selection-{}.json", run_id),
         &format!(
             r#"{{"contract_version":1,"run_id":"{run_id}","included":[{}],"excluded":[{}]}}"#,
             include.join(","),
@@ -97,14 +106,31 @@ fn selection_for(workspace: &Workspace, run_id: &str, included: &[&str]) -> Path
 }
 
 fn start_run(workspace: &Workspace, binding: &str) -> String {
-    let run_dir = workspace.path("run");
+    start_run_at(workspace, &workspace.path("run"), binding)
+}
+
+fn start_run_at(workspace: &Workspace, run_dir: &Path, binding: &str) -> String {
+    start_run_at_with_question(
+        workspace,
+        run_dir,
+        binding,
+        "How should planning represent budgets?",
+    )
+}
+
+fn start_run_at_with_question(
+    workspace: &Workspace,
+    run_dir: &Path,
+    binding: &str,
+    question: &str,
+) -> String {
     let (ok, stdout, stderr) = workspace.run(&[
         "lab",
         "start",
         run_dir.to_str().expect("path"),
         "topic-agentic-systems",
         "plans",
-        "How should planning represent budgets?",
+        question,
         binding,
     ]);
     assert!(ok, "lab start failed: {stderr}");
@@ -365,7 +391,7 @@ fn runs_the_planning_pipeline_and_stops_at_review() {
     let skill = workspace.write(
         "group-skill-input.json",
         &format!(
-            r#"{{"contract_version":1,"run_id":"{run_id}","scope_id":"topic-agentic-systems","topic_id":"budget-topic","skill_id":"budget-skill","revision":"r1","summary":"compare budget approaches","group_ids":["group-budget"],"comparison_guidance":["compare static","compare adaptive"],"cited_claim_ids":["c1"],"concept_candidates":[{{"id":"concept-budget","group_id":"group-budget","title":"Budget concept","invariant":"budgets bound work","applicability_limits":["planning only"],"cited_claim_ids":["c1"],"proposal_only":true,"accepted":false}}],"retains_full_text":false}}"#
+            r#"{{"contract_version":1,"run_id":"{run_id}","scope_id":"topic-agentic-systems","topic_id":"topic-agentic-systems","skill_id":"budget-skill","revision":"r1","summary":"compare budget approaches","group_ids":["group-budget"],"comparison_guidance":["compare static","compare adaptive"],"cited_claim_ids":["c1"],"concept_candidates":[{{"id":"concept-budget","group_id":"group-budget","title":"Budget concept","invariant":"budgets bound work","applicability_limits":["planning only"],"cited_claim_ids":["c1"],"proposal_only":true,"accepted":false}}],"retains_full_text":false}}"#
         ),
     );
     let (ok, stdout, stderr) = workspace.run(&[
@@ -431,9 +457,81 @@ fn runs_the_planning_pipeline_and_stops_at_review() {
     let approval = workspace.write(
         "approval.json",
         &format!(
-            r#"{{"contract_version":1,"decision":true,"run_id":"{run_id}","scope_id":"topic-agentic-systems","topic_id":"budget-topic","skill_id":"budget-skill","revision":"r1","group_skill_sha256":"{skill_hash}","output_dir":"{materialized_str}","predecessor_manifest_sha256":null,"approved_by":"owner","approved_at":"2026-09-21T00:00:00Z","rationale":"publish first explanatory skill revision"}}"#
+            r#"{{"contract_version":1,"decision":true,"run_id":"{run_id}","scope_id":"topic-agentic-systems","topic_id":"topic-agentic-systems","skill_id":"budget-skill","revision":"r1","group_skill_sha256":"{skill_hash}","output_dir":"{materialized_str}","predecessor_manifest_sha256":null,"approved_by":"owner","approved_at":"2026-09-21T00:00:00Z","rationale":"publish first explanatory skill revision"}}"#
         ),
     );
+    let false_output = workspace.path("budget-skill-false");
+    let false_output_str = false_output.display().to_string();
+    let false_approval = workspace.write(
+        "approval-false.json",
+        &format!(
+            r#"{{"contract_version":1,"decision":false,"run_id":"{run_id}","scope_id":"topic-agentic-systems","topic_id":"topic-agentic-systems","skill_id":"budget-skill","revision":"r1","group_skill_sha256":"{skill_hash}","output_dir":"{false_output_str}","predecessor_manifest_sha256":null,"approved_by":"owner","approved_at":"2026-09-21T00:00:00Z","rationale":"negative test"}}"#
+        ),
+    );
+    let (ok, _, stderr) = workspace.run(&[
+        "lab",
+        "group",
+        "materialize",
+        &run_dir_str,
+        false_approval.to_str().expect("path"),
+        &false_output_str,
+        "none",
+    ]);
+    assert!(!ok);
+    assert!(stderr.contains("decision must be true"));
+    assert!(
+        !false_output.exists(),
+        "failed approval left partial output"
+    );
+
+    let bad_time_output = workspace.path("budget-skill-bad-time");
+    let bad_time_output_str = bad_time_output.display().to_string();
+    let bad_time_approval = workspace.write(
+        "approval-bad-time.json",
+        &format!(
+            r#"{{"contract_version":1,"decision":true,"run_id":"{run_id}","scope_id":"topic-agentic-systems","topic_id":"topic-agentic-systems","skill_id":"budget-skill","revision":"r1","group_skill_sha256":"{skill_hash}","output_dir":"{bad_time_output_str}","predecessor_manifest_sha256":null,"approved_by":"owner","approved_at":"2026-99-99T00:00:00Z","rationale":"negative test"}}"#
+        ),
+    );
+    let (ok, _, stderr) = workspace.run(&[
+        "lab",
+        "group",
+        "materialize",
+        &run_dir_str,
+        bad_time_approval.to_str().expect("path"),
+        &bad_time_output_str,
+        "none",
+    ]);
+    assert!(!ok);
+    assert!(stderr.contains("canonical valid UTC timestamp"));
+    assert!(
+        !bad_time_output.exists(),
+        "bad timestamp left partial output"
+    );
+
+    let mismatch_output = workspace.path("budget-skill-hash-mismatch");
+    let mismatch_output_str = mismatch_output.display().to_string();
+    let mismatch_approval = workspace.write(
+        "approval-hash-mismatch.json",
+        &format!(
+            r#"{{"contract_version":1,"decision":true,"run_id":"{run_id}","scope_id":"topic-agentic-systems","topic_id":"topic-agentic-systems","skill_id":"budget-skill","revision":"r1","group_skill_sha256":"0000","output_dir":"{mismatch_output_str}","predecessor_manifest_sha256":null,"approved_by":"owner","approved_at":"2026-09-21T00:00:00Z","rationale":"negative test"}}"#
+        ),
+    );
+    let (ok, _, stderr) = workspace.run(&[
+        "lab",
+        "group",
+        "materialize",
+        &run_dir_str,
+        mismatch_approval.to_str().expect("path"),
+        &mismatch_output_str,
+        "none",
+    ]);
+    assert!(!ok);
+    assert!(stderr.contains("exact group skill hash"));
+    assert!(
+        !mismatch_output.exists(),
+        "hash mismatch left partial output"
+    );
+
     let (ok, stdout, stderr) = workspace.run(&[
         "lab",
         "group",
@@ -446,38 +544,208 @@ fn runs_the_planning_pipeline_and_stops_at_review() {
     assert!(ok, "{stderr}");
     assert!(stdout.contains("owner_approved_create_only"));
     let rendered = fs::read_to_string(materialized.join("SKILL.md")).expect("skill md");
+    assert!(rendered.starts_with("---\nname: budget-skill\ndescription:"));
     assert!(rendered.contains("Budget approaches"));
     assert!(rendered.contains("Content sha256"));
     assert!(rendered.contains("does not accept Concepts"));
     let manifest = fs::read_to_string(materialized.join("manifest.json")).expect("manifest");
     assert!(manifest.contains(r#""predecessor_manifest_sha256": null"#));
+    let (ok, _, stderr) = workspace.run(&[
+        "lab",
+        "group",
+        "materialize",
+        &run_dir_str,
+        approval.to_str().expect("path"),
+        &materialized_str,
+        "none",
+    ]);
+    assert!(!ok);
+    assert!(stderr.contains("refusing to overwrite"));
+
+    #[cfg(unix)]
+    {
+        let symlink_output = workspace.path("budget-skill-symlink");
+        std::os::unix::fs::symlink(&materialized, &symlink_output).expect("symlink");
+        let symlink_output_str = symlink_output.display().to_string();
+        let symlink_approval = workspace.write(
+            "approval-symlink.json",
+            &format!(
+                r#"{{"contract_version":1,"decision":true,"run_id":"{run_id}","scope_id":"topic-agentic-systems","topic_id":"topic-agentic-systems","skill_id":"budget-skill","revision":"r1","group_skill_sha256":"{skill_hash}","output_dir":"{symlink_output_str}","predecessor_manifest_sha256":null,"approved_by":"owner","approved_at":"2026-09-21T00:00:00Z","rationale":"negative test"}}"#
+            ),
+        );
+        let (ok, _, stderr) = workspace.run(&[
+            "lab",
+            "group",
+            "materialize",
+            &run_dir_str,
+            symlink_approval.to_str().expect("path"),
+            &symlink_output_str,
+            "none",
+        ]);
+        assert!(!ok);
+        assert!(stderr.contains("refusing to overwrite"));
+    }
+
+    let second_run_dir = workspace.path("run-r2");
+    let second_run_id = start_run_at_with_question(
+        &workspace,
+        &second_run_dir,
+        "topic-agentic-systems",
+        "How should planning represent budget skill revisions?",
+    );
+    let second_run_dir_str = second_run_dir.to_str().expect("path").to_owned();
+    let adapter = adapter_run(&workspace);
+    let (ok, _, stderr) = workspace.run(&[
+        "lab",
+        "refresh",
+        &second_run_dir_str,
+        adapter.to_str().expect("path"),
+    ]);
+    assert!(ok, "{stderr}");
+    let selection = selection_for_dir(&workspace, &second_run_dir, &second_run_id, &["paper-0000"]);
+    let (ok, _, stderr) = workspace.run(&[
+        "lab",
+        "select",
+        &second_run_dir_str,
+        selection.to_str().expect("path"),
+    ]);
+    assert!(ok, "{stderr}");
+    let readings = workspace.write(
+        "readings-r2.json",
+        &format!(
+            r#"{{"contract_version":1,"run_id":"{second_run_id}","readings":[{{"paper_id":"paper-0000","source_class":"preprint","source_uri":"https://example.org/a","content_sha256":"hash-a","read_depth":"full_text","claims":[{{"id":"c1","text":"budgets help","origin":"source_claim","locator":"s4"}}],"limitations":["one benchmark"],"retained_full_text":false}}]}}"#
+        ),
+    );
+    let (ok, _, stderr) = workspace.run(&[
+        "lab",
+        "read",
+        &second_run_dir_str,
+        readings.to_str().expect("path"),
+    ]);
+    assert!(ok, "{stderr}");
+    let inventory = workspace.write(
+        "source-inventory-r2.json",
+        &format!(
+            r#"{{"contract_version":1,"run_id":"{second_run_id}","sources":[{{"paper_id":"paper-0000","source_uri":"https://example.org/a","content_sha256":"hash-a","repository":{{"url":"https://github.com/example/repo","revision":"abc123","content_sha256":"repo-hash"}}}}]}}"#
+        ),
+    );
+    let groups = workspace.write(
+        "groups-r2.json",
+        &format!(
+            r#"{{"contract_version":1,"run_id":"{second_run_id}","groups":[{{"id":"group-budget","title":"Budget approaches","purpose":"compare budget designs","paper_ids":["paper-0000"]}}]}}"#
+        ),
+    );
+    let (ok, _, stderr) = workspace.run(&[
+        "lab",
+        "group",
+        "define",
+        &second_run_dir_str,
+        inventory.to_str().expect("path"),
+        groups.to_str().expect("path"),
+    ]);
+    assert!(ok, "{stderr}");
+    let synthesis = workspace.write(
+        "group-synthesis-r2.json",
+        &format!(
+            r#"{{"contract_version":1,"run_id":"{second_run_id}","syntheses":[{{"group_id":"group-budget","compared_approaches":["static","adaptive"],"synthesis":"compare both designs","cited_claim_ids":["c1"],"limitations":[]}}]}}"#
+        ),
+    );
+    let (ok, _, stderr) = workspace.run(&[
+        "lab",
+        "group",
+        "synthesize",
+        &second_run_dir_str,
+        synthesis.to_str().expect("path"),
+    ]);
+    assert!(ok, "{stderr}");
+    let revision_two = workspace.write(
+        "group-skill-r2.json",
+        &format!(
+            r#"{{"contract_version":1,"run_id":"{second_run_id}","scope_id":"topic-agentic-systems","topic_id":"topic-agentic-systems","skill_id":"budget-skill","revision":"r2","summary":"compare budget approaches v2","group_ids":["group-budget"],"comparison_guidance":["compare static","compare adaptive"],"cited_claim_ids":["c1"],"concept_candidates":[],"retains_full_text":false}}"#
+        ),
+    );
+    let (ok, _, stderr) = workspace.run(&[
+        "lab",
+        "group",
+        "skill",
+        &second_run_dir_str,
+        revision_two.to_str().expect("path"),
+    ]);
+    assert!(ok, "{stderr}");
+    let mechanisms = workspace.write(
+        "mechanisms-r2.json",
+        &format!(
+            r#"{{"contract_version":1,"run_id":"{second_run_id}","mechanisms":[{{"id":"m1","proposed_mechanism":"declare budgets","affected_contract":"planning::Plan","expected_benefit":"comparable runs","risks":["drift"],"supporting_claim_ids":["c1"]}}]}}"#
+        ),
+    );
+    let (ok, _, stderr) = workspace.run(&[
+        "lab",
+        "mechanisms",
+        &second_run_dir_str,
+        mechanisms.to_str().expect("path"),
+    ]);
+    assert!(ok, "{stderr}");
+    let plans = workspace.write(
+        "plans-r2.json",
+        &format!(
+            r#"{{"contract_version":1,"run_id":"{second_run_id}","plans":[{{"id":"P1","title":"budgets","mechanism_ids":["m1"],"deliverables":["field"],"acceptance_checks":["valid plan passes","bad plan fails"],"dependencies":[]}}]}}"#
+        ),
+    );
+    let (ok, _, stderr) = workspace.run(&[
+        "lab",
+        "plans",
+        &second_run_dir_str,
+        plans.to_str().expect("path"),
+    ]);
+    assert!(ok, "{stderr}");
+    let (ok, _, stderr) = workspace.run(&["lab", "review", &second_run_dir_str]);
+    assert!(ok, "{stderr}");
 
     let second = workspace.path("budget-skill-r2");
     let second_str = second.display().to_string();
     let predecessor_hash =
         hash(&fs::read(materialized.join("manifest.json")).expect("manifest bytes"));
-    let revision_two = workspace.write(
-        "group-skill-r2.json",
-        &format!(
-            r#"{{"contract_version":1,"run_id":"{run_id}","scope_id":"topic-agentic-systems","topic_id":"budget-topic","skill_id":"budget-skill","revision":"r2","summary":"compare budget approaches v2","group_ids":["group-budget"],"comparison_guidance":["compare static","compare adaptive"],"cited_claim_ids":["c1"],"concept_candidates":[],"retains_full_text":false}}"#
-        ),
+    let skill_hash =
+        hash(&fs::read(second_run_dir.join("group-skill.json")).expect("skill proposal"));
+    let unrelated_predecessor = workspace.write(
+        "unrelated-manifest.json",
+        r#"{"contract_version":1,"run_id":"improve-other-run","scope_id":"topic-agentic-systems","topic_id":"topic-agentic-systems","skill_id":"other-skill","revision":"r1","group_skill_sha256":"hash","predecessor_manifest_sha256":null,"materialized_by":"owner","materialized_at":"2026-09-21T00:00:00Z","approval_sha256":"approval","retains_full_text":false}"#,
     );
-    fs::remove_file(run_dir.join("group-skill.json"))
-        .expect("replace proposal for revision fixture");
-    fs::copy(&revision_two, run_dir.join("group-skill.json"))
-        .expect("revision two proposal fixture");
-    let skill_hash = hash(&fs::read(run_dir.join("group-skill.json")).expect("skill proposal"));
-    let approval_two = workspace.write(
-        "approval-r2.json",
+    let unrelated_hash = hash(&fs::read(&unrelated_predecessor).expect("unrelated predecessor"));
+    let unrelated_output = workspace.path("budget-skill-unrelated-predecessor");
+    let unrelated_output_str = unrelated_output.display().to_string();
+    let unrelated_approval = workspace.write(
+        "approval-unrelated-predecessor.json",
         &format!(
-            r#"{{"contract_version":1,"decision":true,"run_id":"{run_id}","scope_id":"topic-agentic-systems","topic_id":"budget-topic","skill_id":"budget-skill","revision":"r2","group_skill_sha256":"{skill_hash}","output_dir":"{second_str}","predecessor_manifest_sha256":"{predecessor_hash}","approved_by":"owner","approved_at":"2026-09-21T00:01:00Z","rationale":"publish second explanatory skill revision"}}"#
+            r#"{{"contract_version":1,"decision":true,"run_id":"{second_run_id}","scope_id":"topic-agentic-systems","topic_id":"topic-agentic-systems","skill_id":"budget-skill","revision":"r2","group_skill_sha256":"{skill_hash}","output_dir":"{unrelated_output_str}","predecessor_manifest_sha256":"{unrelated_hash}","approved_by":"owner","approved_at":"2026-09-21T00:01:00Z","rationale":"negative test"}}"#
         ),
     );
     let (ok, _, stderr) = workspace.run(&[
         "lab",
         "group",
         "materialize",
-        &run_dir_str,
+        &second_run_dir_str,
+        unrelated_approval.to_str().expect("path"),
+        &unrelated_output_str,
+        unrelated_predecessor.to_str().expect("path"),
+    ]);
+    assert!(!ok);
+    assert!(stderr.contains("must match scope_id, topic_id, and skill_id"));
+    assert!(
+        !unrelated_output.exists(),
+        "unrelated predecessor left partial output"
+    );
+    let approval_two = workspace.write(
+        "approval-r2.json",
+        &format!(
+            r#"{{"contract_version":1,"decision":true,"run_id":"{second_run_id}","scope_id":"topic-agentic-systems","topic_id":"topic-agentic-systems","skill_id":"budget-skill","revision":"r2","group_skill_sha256":"{skill_hash}","output_dir":"{second_str}","predecessor_manifest_sha256":"{predecessor_hash}","approved_by":"owner","approved_at":"2026-09-21T00:01:00Z","rationale":"publish second explanatory skill revision"}}"#
+        ),
+    );
+    let (ok, _, stderr) = workspace.run(&[
+        "lab",
+        "group",
+        "materialize",
+        &second_run_dir_str,
         approval_two.to_str().expect("path"),
         &second_str,
         materialized.join("manifest.json").to_str().expect("path"),

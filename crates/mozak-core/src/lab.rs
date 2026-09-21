@@ -1272,8 +1272,13 @@ pub fn validate_group_skill(
         "group skill run_id must match synthesis and readings",
     )?;
     require_filled(&skill.skill_id, "skill_id")?;
+    validate_safe_skill_id(&skill.skill_id)?;
     require_filled(&skill.scope_id, "scope_id")?;
     require_filled(&skill.topic_id, "topic_id")?;
+    require(
+        skill.topic_id == skill.scope_id,
+        "group skill topic_id must equal the Lab run scope_id; the target Scope is the topic",
+    )?;
     require_filled(&skill.revision, "skill revision")?;
     require_filled(&skill.summary, "skill summary")?;
     require(
@@ -1378,9 +1383,62 @@ pub fn validate_group_skill_approval(
         "approval predecessor_manifest_sha256 must match observed predecessor, or be null for first revision",
     )?;
     require_filled(&approval.approved_by, "approved_by")?;
-    require_filled(&approval.approved_at, "approved_at")?;
+    require_canonical_utc(&approval.approved_at, "approved_at")?;
     require_filled(&approval.rationale, "approval rationale")?;
     Ok(())
+}
+
+fn validate_safe_skill_id(value: &str) -> Result<(), LabError> {
+    require(
+        !value.is_empty()
+            && value.len() <= 80
+            && value
+                .bytes()
+                .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
+            && !value.starts_with('-')
+            && !value.ends_with('-')
+            && !value.contains("--"),
+        "skill_id must be a safe skill name using lowercase ASCII letters, digits, and single hyphens",
+    )
+}
+
+fn require_canonical_utc(value: &str, label: &str) -> Result<(), LabError> {
+    fn fail(label: &str) -> LabError {
+        LabError(format!(
+            "{label} must be a canonical valid UTC timestamp like 2026-09-21T00:00:00Z"
+        ))
+    }
+    let bytes = value.as_bytes();
+    if bytes.len() != 20
+        || bytes[4] != b'-'
+        || bytes[7] != b'-'
+        || bytes[10] != b'T'
+        || bytes[13] != b':'
+        || bytes[16] != b':'
+        || bytes[19] != b'Z'
+        || !bytes
+            .iter()
+            .enumerate()
+            .all(|(idx, byte)| matches!(idx, 4 | 7 | 10 | 13 | 16 | 19) || byte.is_ascii_digit())
+    {
+        return Err(fail(label));
+    }
+    let year: i32 = value[0..4].parse().map_err(|_| fail(label))?;
+    let month: u32 = value[5..7].parse().map_err(|_| fail(label))?;
+    let day: u32 = value[8..10].parse().map_err(|_| fail(label))?;
+    let hour: u32 = value[11..13].parse().map_err(|_| fail(label))?;
+    let minute: u32 = value[14..16].parse().map_err(|_| fail(label))?;
+    let second: u32 = value[17..19].parse().map_err(|_| fail(label))?;
+    let leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
+    let max_day = match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if leap => 29,
+        2 => 28,
+        _ => return Err(fail(label)),
+    };
+    require(day >= 1 && day <= max_day, &fail(label).0)?;
+    require(hour <= 23 && minute <= 59 && second <= 59, &fail(label).0)
 }
 
 /// Validates that every mechanism is anchored in a real source claim.

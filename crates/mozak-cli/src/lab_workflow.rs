@@ -226,25 +226,33 @@ fn group_materialize(
     if skill.scope_id != request.scope_id {
         return Err("group skill scope_id must match the Lab run scope_id".to_owned());
     }
-    if output_dir.exists() {
+    if skill.topic_id != request.scope_id {
+        return Err(
+            "group skill topic_id must equal the Lab run scope_id; the target Scope is the topic"
+                .to_owned(),
+        );
+    }
+    let final_output = canonical_new_output_path(output_dir)?;
+    if path_exists_or_symlink(output_dir) {
         return Err(format!(
             "refusing to overwrite existing skill directory: {}",
             output_dir.display()
         ));
     }
 
-    let predecessor_hash = if predecessor == "none" {
+    let predecessor_manifest = if predecessor == "none" {
         None
     } else {
-        let raw = fs::read(predecessor)
-            .map_err(|error| format!("cannot read predecessor manifest {predecessor}: {error}"))?;
-        Some(hash(&raw))
+        Some(read_and_validate_predecessor(predecessor, &skill)?)
     };
     let approval_raw = read(approval_path)?;
     let approval: GroupSkillApproval = serde_json::from_str(&approval_raw)
         .map_err(|error| format!("invalid {}: {error}", approval_path.display()))?;
     let skill_hash = hash(skill_raw.as_bytes());
-    let output_text = output_dir.display().to_string();
+    let predecessor_hash = predecessor_manifest
+        .as_ref()
+        .map(|record| record.sha256.clone());
+    let output_text = final_output.display().to_string();
     validate_group_skill_approval(
         &approval,
         &skill,
@@ -254,10 +262,12 @@ fn group_materialize(
     )
     .map_err(|error| error.to_string())?;
 
-    fs::create_dir(output_dir).map_err(|error| {
+    let staging = staging_path(&final_output);
+    remove_staging_if_present(&staging)?;
+    fs::create_dir(&staging).map_err(|error| {
         format!(
-            "cannot create skill directory {}: {error}",
-            output_dir.display()
+            "cannot create staging skill directory {}: {error}",
+            staging.display()
         )
     })?;
     let manifest = GroupSkillManifest {
@@ -275,15 +285,22 @@ fn group_materialize(
         retains_full_text: false,
     };
     let skill_md = render_group_skill_md(&skill, &groups, &synthesis, &readings, &inventory);
-    fs::write(output_dir.join(SKILL_MD_FILE), skill_md)
+    fs::write(staging.join(SKILL_MD_FILE), skill_md)
         .map_err(|error| format!("cannot write SKILL.md: {error}"))?;
-    write_json_new(&output_dir.join(GROUP_SKILL_MANIFEST_FILE), &manifest)?;
+    write_json_new(&staging.join(GROUP_SKILL_MANIFEST_FILE), &manifest)?;
+    fs::rename(&staging, &final_output).map_err(|error| {
+        let _ = fs::remove_dir_all(&staging);
+        format!(
+            "cannot publish skill directory atomically to {}: {error}",
+            final_output.display()
+        )
+    })?;
     print_json(&json!({
         "schema_version": 1,
         "command": "lab group materialize",
         "skill_dir": output_text,
-        "skill_md": output_dir.join(SKILL_MD_FILE).display().to_string(),
-        "manifest": output_dir.join(GROUP_SKILL_MANIFEST_FILE).display().to_string(),
+        "skill_md": final_output.join(SKILL_MD_FILE).display().to_string(),
+        "manifest": final_output.join(GROUP_SKILL_MANIFEST_FILE).display().to_string(),
         "scope_id": skill.scope_id,
         "topic_id": skill.topic_id,
         "skill_id": skill.skill_id,
@@ -291,6 +308,107 @@ fn group_materialize(
         "predecessor_manifest_sha256": predecessor_hash,
         "authority": "owner_approved_create_only",
     }))
+}
+
+struct PredecessorRecord {
+    sha256: String,
+}
+
+fn path_exists_or_symlink(path: &Path) -> bool {
+    fs::symlink_metadata(path).is_ok()
+}
+
+fn canonical_new_output_path(output_dir: &Path) -> Result<PathBuf, String> {
+    if output_dir
+        .components()
+        .any(|component| matches!(component, std::path::Component::ParentDir))
+    {
+        return Err("output skill directory must not contain '..' path components".to_owned());
+    }
+    let parent = output_dir
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .ok_or_else(|| "output skill directory must have a parent directory".to_owned())?;
+    let name = output_dir
+        .file_name()
+        .ok_or_else(|| "output skill directory must name a final directory".to_owned())?;
+    if fs::symlink_metadata(parent)
+        .map_err(|error| format!("cannot inspect output parent {}: {error}", parent.display()))?
+        .file_type()
+        .is_symlink()
+    {
+        return Err("output parent must not be a symlink".to_owned());
+    }
+    let parent = fs::canonicalize(parent).map_err(|error| {
+        format!(
+            "cannot canonicalize output parent {}: {error}",
+            parent.display()
+        )
+    })?;
+    Ok(parent.join(name))
+}
+
+fn staging_path(final_output: &Path) -> PathBuf {
+    let name = final_output
+        .file_name()
+        .expect("validated output name")
+        .to_string_lossy();
+    final_output.with_file_name(format!(".{name}.staging"))
+}
+
+fn remove_staging_if_present(staging: &Path) -> Result<(), String> {
+    match fs::symlink_metadata(staging) {
+        Ok(metadata) if metadata.file_type().is_symlink() => Err(format!(
+            "refusing staging symlink hazard: {}",
+            staging.display()
+        )),
+        Ok(metadata) if metadata.is_dir() => fs::remove_dir_all(staging).map_err(|error| {
+            format!(
+                "cannot remove stale staging directory {}: {error}",
+                staging.display()
+            )
+        }),
+        Ok(_) => fs::remove_file(staging).map_err(|error| {
+            format!(
+                "cannot remove stale staging file {}: {error}",
+                staging.display()
+            )
+        }),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(format!(
+            "cannot inspect staging path {}: {error}",
+            staging.display()
+        )),
+    }
+}
+
+fn read_and_validate_predecessor(
+    predecessor: &str,
+    skill: &GroupSkill,
+) -> Result<PredecessorRecord, String> {
+    let path = Path::new(predecessor);
+    let metadata = fs::symlink_metadata(path)
+        .map_err(|error| format!("cannot inspect predecessor manifest {predecessor}: {error}"))?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() {
+        return Err("predecessor must be a regular non-symlink manifest".to_owned());
+    }
+    let raw = fs::read(path)
+        .map_err(|error| format!("cannot read predecessor manifest {predecessor}: {error}"))?;
+    let manifest: GroupSkillManifest = serde_json::from_slice(&raw)
+        .map_err(|error| format!("invalid predecessor manifest {predecessor}: {error}"))?;
+    if manifest.scope_id != skill.scope_id
+        || manifest.topic_id != skill.topic_id
+        || manifest.skill_id != skill.skill_id
+    {
+        return Err("predecessor manifest must match scope_id, topic_id, and skill_id".to_owned());
+    }
+    if manifest.run_id == skill.run_id {
+        return Err("predecessor manifest must come from a different Lab run_id".to_owned());
+    }
+    if manifest.retains_full_text {
+        return Err("predecessor manifest must not retain full text".to_owned());
+    }
+    Ok(PredecessorRecord { sha256: hash(&raw) })
 }
 
 fn render_group_skill_md(
@@ -301,6 +419,12 @@ fn render_group_skill_md(
     inventory: &SourceInventory,
 ) -> String {
     let mut out = String::new();
+    out.push_str("---\n");
+    out.push_str(&format!("name: {}\n", skill.skill_id));
+    let description = serde_json::to_string(&skill.summary)
+        .unwrap_or_else(|_| "\"generated MOZAK Lab skill\"".to_owned());
+    out.push_str(&format!("description: {description}\n"));
+    out.push_str("---\n\n");
     out.push_str(&format!("# {}\n\n", skill.skill_id));
     out.push_str(&format!("{}\n\n", skill.summary));
     out.push_str("## Boundary\n\n");
