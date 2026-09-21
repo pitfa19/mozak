@@ -1105,6 +1105,9 @@ pub fn validate_readings(readings: &Readings, selection: &Selection) -> Result<(
 }
 
 /// Validates source inventory used by group synthesis.
+///
+/// # Errors
+/// Returns the first contract violation.
 pub fn validate_source_inventory(
     inventory: &SourceInventory,
     readings: &Readings,
@@ -1152,6 +1155,9 @@ pub fn validate_source_inventory(
 }
 
 /// Validates group definitions against the durable source inventory.
+///
+/// # Errors
+/// Returns the first contract violation.
 pub fn validate_group_definition(
     groups: &GroupDefinition,
     inventory: &SourceInventory,
@@ -1205,6 +1211,9 @@ fn verified_source_claims(readings: &Readings) -> BTreeSet<String> {
 }
 
 /// Validates group synthesis against groups and verified readings.
+///
+/// # Errors
+/// Returns the first contract violation.
 pub fn validate_group_synthesis(
     synthesis: &GroupSynthesis,
     groups: &GroupDefinition,
@@ -1260,6 +1269,9 @@ pub fn validate_group_synthesis(
 }
 
 /// Validates generated group skill and proposal-only candidates.
+///
+/// # Errors
+/// Returns the first contract violation.
 pub fn validate_group_skill(
     skill: &GroupSkill,
     synthesis: &GroupSynthesis,
@@ -1338,6 +1350,9 @@ pub fn validate_group_skill(
 }
 
 /// Validates a strict materialization approval against the exact proposal and output path.
+///
+/// # Errors
+/// Returns the first contract violation.
 pub fn validate_group_skill_approval(
     approval: &GroupSkillApproval,
     skill: &GroupSkill,

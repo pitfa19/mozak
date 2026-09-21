@@ -96,7 +96,7 @@ fn selection_for_dir(
         }
     }
     workspace.write(
-        &format!("selection-{}.json", run_id),
+        &format!("selection-{run_id}.json"),
         &format!(
             r#"{{"contract_version":1,"run_id":"{run_id}","included":[{}],"excluded":[{}]}}"#,
             include.join(","),
@@ -291,6 +291,7 @@ fn refuses_to_overwrite_an_existing_run() {
 }
 
 #[test]
+#[allow(clippy::too_many_lines)]
 fn runs_the_planning_pipeline_and_stops_at_review() {
     let workspace = Workspace::new("pipeline");
     registry(&workspace);

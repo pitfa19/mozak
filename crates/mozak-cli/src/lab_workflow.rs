@@ -196,6 +196,7 @@ fn group_skill(run_dir: &Path, skill_path: &Path) -> Result<ExitCode, String> {
 }
 
 /// Materializes a proposal-only group skill after exact owner approval.
+#[allow(clippy::too_many_lines)]
 fn group_materialize(
     run_dir: &Path,
     approval_path: &Path,
@@ -411,6 +412,7 @@ fn read_and_validate_predecessor(
     Ok(PredecessorRecord { sha256: hash(&raw) })
 }
 
+#[allow(clippy::format_push_string)]
 fn render_group_skill_md(
     skill: &GroupSkill,
     groups: &GroupDefinition,
