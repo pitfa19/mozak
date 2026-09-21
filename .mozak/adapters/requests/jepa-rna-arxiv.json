@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "topic_id": "jepa-rna",
+  "mode": "query",
+  "categories": [
+    "q-bio.BM",
+    "q-bio.GN",
+    "cs.LG",
+    "cs.AI",
+    "cs.CV"
+  ],
+  "clusters": [
+    {
+      "name": "rinalmo-rna-foundation-models",
+      "terms": [
+        "RiNALMo",
+        "RNA language model",
+        "RNA foundation model",
+        "RNA transformer",
+        "nucleotide language model"
+      ]
+    },
+    {
+      "name": "rna-secondary-structure",
+      "terms": [
+        "RNA secondary structure prediction",
+        "RNA base pair prediction",
+        "RNA contact prediction",
+        "RNA structure generalization",
+        "RNA structure benchmark"
+      ]
+    },
+    {
+      "name": "predictive-joint-embedding",
+      "terms": [
+        "joint-embedding predictive architecture",
+        "I-JEPA",
+        "V-JEPA",
+        "masked latent prediction",
+        "latent target prediction"
+      ]
+    },
+    {
+      "name": "biological-contrastive-learning",
+      "terms": [
+        "contrastive learning biological sequence",
+        "contrastive learning genomics",
+        "contrastive learning RNA",
+        "homology-aware contrastive learning",
+        "biological sequence representation learning"
+      ]
+    }
+  ],
+  "days": 90,
+  "max_records": 80,
+  "max_records_per_cluster": 25,
+  "question": "Which recent RNA foundation-model, secondary-structure, predictive joint-embedding, and biological contrastive-learning papers should update the JEPA-RNA research plan built on released canonical RiNALMo?"
+}
