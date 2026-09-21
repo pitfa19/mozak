@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "topic_id": "topic-agentic-systems",
+  "mode": "query",
+  "categories": [
+    "cs.AI",
+    "cs.CL",
+    "cs.LG",
+    "cs.SE"
+  ],
+  "clusters": [
+    {
+      "name": "harness-design",
+      "terms": [
+        "agent harness",
+        "coding harness",
+        "harness design",
+        "agentic workflow",
+        "coding agent"
+      ]
+    },
+    {
+      "name": "topologies",
+      "terms": [
+        "multi-agent",
+        "agent topology",
+        "agent orchestration",
+        "execution graph",
+        "agent architecture"
+      ]
+    },
+    {
+      "name": "context-memory",
+      "terms": [
+        "context management",
+        "context window",
+        "agent memory",
+        "persistent agent",
+        "long-horizon agent"
+      ]
+    },
+    {
+      "name": "skills-self-improvement",
+      "terms": [
+        "agent skill",
+        "skill acquisition",
+        "self-improving agent",
+        "self-evolving agent",
+        "recursive self-improvement"
+      ]
+    },
+    {
+      "name": "evaluation-safety",
+      "terms": [
+        "agent evaluation",
+        "agent benchmark",
+        "software engineering agent",
+        "agent safety",
+        "human oversight"
+      ]
+    }
+  ],
+  "days": 14,
+  "max_records": 150,
+  "max_records_per_cluster": 40,
+  "question": "Which agentic-systems papers submitted through the current run time should complement the lagging DAIR.AI weekly issues for Self Improvement Lab skill design?"
+}
