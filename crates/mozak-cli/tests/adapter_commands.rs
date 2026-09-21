@@ -141,6 +141,133 @@ fn catalog_exposes_optional_adapters_without_requiring_a_registry() {
         value["adapters"][0]["kind"],
         "optional_external_integration"
     );
+    let arxiv = value["adapters"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|adapter| adapter["id"] == "arxiv")
+        .unwrap();
+    assert_eq!(arxiv["setup_supported"], true);
+}
+
+#[test]
+fn setup_registers_an_arxiv_binding_using_topic_id() {
+    let home = Temp::new();
+    kb(&home);
+    let request = home.0.join("arxiv-request.json");
+    fs::write(
+        &request,
+        br#"{"schema_version":1,"topic_id":"topic-test","mode":"query","categories":["cs.AI"],"terms":["test"],"days":1}"#,
+    )
+    .unwrap();
+    let runner = home.0.join("arxiv-runner.sh");
+    fs::write(&runner, b"#!/bin/sh\nexit 0\n").unwrap();
+    fs::set_permissions(&runner, fs::Permissions::from_mode(0o755)).unwrap();
+    let runs = home.0.join("arxiv-runs");
+
+    let output = run(
+        &home,
+        &[
+            "adapter",
+            "setup",
+            "arxiv",
+            "test-arxiv",
+            "topic-test",
+            request.to_str().unwrap(),
+            runner.to_str().unwrap(),
+            runs.to_str().unwrap(),
+        ],
+    );
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let value: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["adapter"], "arxiv");
+    assert_eq!(value["target_scope_id"], "topic-test");
+    assert_eq!(value["automatic_promotion"], false);
+
+    let shown = run(&home, &["adapter", "show", "test-arxiv"]);
+    assert!(shown.status.success());
+    let binding: Value = serde_json::from_slice(&shown.stdout).unwrap();
+    assert_eq!(binding["binding"]["adapter"], "arxiv");
+    assert_eq!(binding["binding"]["state"], "ready");
+    assert_eq!(binding["binding"]["callable"], true);
+}
+
+#[test]
+fn arxiv_setup_and_recheck_refuse_a_mismatched_topic_id() {
+    let home = Temp::new();
+    kb(&home);
+    let request = home.0.join("arxiv-request.json");
+    fs::write(
+        &request,
+        br#"{"schema_version":1,"topic_id":"topic-somewhere-else","mode":"query","categories":["cs.AI"],"terms":["test"],"days":1}"#,
+    )
+    .unwrap();
+    let runner = home.0.join("arxiv-runner.sh");
+    fs::write(&runner, b"#!/bin/sh\nexit 0\n").unwrap();
+    fs::set_permissions(&runner, fs::Permissions::from_mode(0o755)).unwrap();
+    let runs = home.0.join("arxiv-runs");
+
+    let refused = run(
+        &home,
+        &[
+            "adapter",
+            "setup",
+            "arxiv",
+            "test-arxiv",
+            "topic-test",
+            request.to_str().unwrap(),
+            runner.to_str().unwrap(),
+            runs.to_str().unwrap(),
+        ],
+    );
+    assert!(!refused.status.success());
+    assert!(
+        String::from_utf8_lossy(&refused.stderr)
+            .contains("request topic_id does not match the target Scope")
+    );
+
+    fs::write(
+        &request,
+        br#"{"schema_version":1,"topic_id":"topic-test","mode":"query","categories":["cs.AI"],"terms":["test"],"days":1}"#,
+    )
+    .unwrap();
+    assert!(
+        run(
+            &home,
+            &[
+                "adapter",
+                "setup",
+                "arxiv",
+                "test-arxiv",
+                "topic-test",
+                request.to_str().unwrap(),
+                runner.to_str().unwrap(),
+                runs.to_str().unwrap(),
+            ],
+        )
+        .status
+        .success()
+    );
+
+    fs::write(
+        &request,
+        br#"{"schema_version":1,"topic_id":"topic-somewhere-else","mode":"query","categories":["cs.AI"],"terms":["changed"],"days":1}"#,
+    )
+    .unwrap();
+    let recheck = run(&home, &["adapter", "recheck", "test-arxiv"]);
+    assert!(!recheck.status.success());
+    assert!(
+        String::from_utf8_lossy(&recheck.stderr)
+            .contains("edited request topic_id no longer matches the target Scope")
+    );
+    let shown: Value =
+        serde_json::from_slice(&run(&home, &["adapter", "show", "test-arxiv"]).stdout).unwrap();
+    assert_eq!(shown["binding"]["state"], "needs_recheck");
+    assert_eq!(shown["binding"]["callable"], false);
 }
 
 #[test]

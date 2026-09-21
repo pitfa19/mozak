@@ -91,7 +91,7 @@ fn catalog() -> Result<ExitCode, String> {
                 "id": "arxiv",
                 "kind": "optional_external_integration",
                 "capability": "broad_paper_metadata_search",
-                "setup_supported": false,
+                "setup_supported": true,
                 "normalizer": "research normalize arxiv"
             }
         ]
@@ -110,10 +110,10 @@ fn setup(
 ) -> Result<ExitCode, String> {
     if !matches!(
         adapter,
-        "dair-ai" | "mcp-registry" | "github-tooling" | "hyperresearch"
+        "arxiv" | "dair-ai" | "mcp-registry" | "github-tooling" | "hyperresearch"
     ) {
         return Err(
-            "adapter setup currently supports dair-ai, mcp-registry, github-tooling and hyperresearch only"
+            "adapter setup currently supports arxiv, dair-ai, mcp-registry, github-tooling and hyperresearch only"
                 .into(),
         );
     }
@@ -125,12 +125,19 @@ fn setup(
     let request_bytes = fs::read(&request).map_err(|error| error.to_string())?;
     let request_json: serde_json::Value = serde_json::from_slice(&request_bytes)
         .map_err(|error| format!("invalid adapter request: {error}"))?;
+    let target_field = if adapter == "arxiv" {
+        "topic_id"
+    } else {
+        "scope_id"
+    };
     if request_json
-        .get("scope_id")
+        .get(target_field)
         .and_then(|value| value.as_str())
         != Some(scope_id)
     {
-        return Err("adapter request scope_id does not match the target Scope".into());
+        return Err(format!(
+            "adapter request {target_field} does not match the target Scope"
+        ));
     }
     let runner_bytes = fs::read(&runner).map_err(|error| error.to_string())?;
     let runs_dir = absolute(runs_dir)?;
@@ -247,7 +254,7 @@ fn load(path: &Path) -> Result<AdapterRegistry, String> {
         validate_id(&binding.target_scope_id, "target scope id")?;
         if !matches!(
             binding.adapter.as_str(),
-            "dair-ai" | "mcp-registry" | "github-tooling" | "hyperresearch"
+            "arxiv" | "dair-ai" | "mcp-registry" | "github-tooling" | "hyperresearch"
         ) {
             return Err(format!(
                 "unsupported configured adapter: {}",
@@ -311,12 +318,19 @@ fn recheck(path: &Path, id: &str) -> Result<ExitCode, String> {
         let runner_bytes = read_pinned(&binding.runner_path, "runner")?;
         let request_json: serde_json::Value = serde_json::from_slice(&request_bytes)
             .map_err(|error| format!("invalid adapter request: {error}"))?;
+        let target_field = if binding.adapter == "arxiv" {
+            "topic_id"
+        } else {
+            "scope_id"
+        };
         if request_json
-            .get("scope_id")
+            .get(target_field)
             .and_then(serde_json::Value::as_str)
             != Some(binding.target_scope_id.as_str())
         {
-            return Err("edited request scope_id no longer matches the target Scope".into());
+            return Err(format!(
+                "edited request {target_field} no longer matches the target Scope"
+            ));
         }
         let changed = drifted_pins(binding)
             .iter()
@@ -360,7 +374,7 @@ fn declared_effects(adapter: &str) -> serde_json::Value {
     match adapter {
         // These adapters read a public HTTP source and write nothing outside
         // their own run directory.
-        "dair-ai" | "mcp-registry" | "github-tooling" => json!({
+        "arxiv" | "dair-ai" | "mcp-registry" | "github-tooling" => json!({
             "network_access": true,
             "external_writes": false,
             "mutations": false,
