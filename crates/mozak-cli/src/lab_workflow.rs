@@ -4,10 +4,12 @@
 //! run, and stops at owner review. It never edits MOZAK.
 
 use mozak_core::lab::{
-    CONTRACT_VERSION, Candidate, ImplementationPlans, ImproveRequest, LiteratureRun, MechanismMap,
-    Module, Readings, RunLedger, RunState, Selection, advance, classify_candidates, render_review,
-    validate_literature, validate_mechanisms, validate_plans, validate_readings, validate_request,
-    validate_selection,
+    CONTRACT_VERSION, Candidate, GroupDefinition, GroupSkill, GroupSynthesis, ImplementationPlans,
+    ImproveRequest, LiteratureRun, MechanismMap, Module, Readings, RunLedger, RunState, Selection,
+    SourceInventory, advance, classify_candidates, render_review, validate_group_definition,
+    validate_group_skill, validate_group_synthesis, validate_literature, validate_mechanisms,
+    validate_plans, validate_readings, validate_request, validate_selection,
+    validate_source_inventory,
 };
 use mozak_core::lab_evidence::{ClaimStanding, EvidenceEntry, ScopeEvidence};
 use serde::de::DeserializeOwned;
@@ -27,6 +29,10 @@ const READINGS_FILE: &str = "paper-readings.json";
 const MECHANISMS_FILE: &str = "mechanism-map.json";
 const PLANS_FILE: &str = "implementation-plans.json";
 const REVIEW_FILE: &str = "review.md";
+const SOURCE_INVENTORY_FILE: &str = "source-inventory.json";
+const GROUPS_FILE: &str = "groups.json";
+const GROUP_SYNTHESIS_FILE: &str = "group-synthesis.json";
+const GROUP_SKILL_FILE: &str = "group-skill.json";
 /// Evidence offered for this run's mechanisms: paired observations, or a
 /// recorded reason for lacking one.
 const MECHANISM_EVIDENCE_FILE: &str = "mechanism-evidence.json";
@@ -86,10 +92,90 @@ pub fn run(args: &[String]) -> Result<ExitCode, String> {
             mechanism_evidence(Path::new(run_dir), Path::new(evidence))
         }
         ["plans", run_dir, plans] => plans_command(Path::new(run_dir), Path::new(plans)),
+        ["group", "define", run_dir, inventory, groups] => {
+            group_define(Path::new(run_dir), Path::new(inventory), Path::new(groups))
+        }
+        ["group", "synthesize", run_dir, synthesis] => {
+            group_synthesize(Path::new(run_dir), Path::new(synthesis))
+        }
+        ["group", "skill", run_dir, skill] => group_skill(Path::new(run_dir), Path::new(skill)),
         ["review", run_dir] => review(Path::new(run_dir)),
         ["status", run_dir] => status(Path::new(run_dir)),
         _ => Err(crate::usage()),
     }
+}
+
+fn write_json_new<T: serde::Serialize>(path: &Path, value: &T) -> Result<(), String> {
+    if path.exists() {
+        return Err(format!(
+            "refusing to overwrite existing file: {}",
+            path.display()
+        ));
+    }
+    write_json(path, value)
+}
+
+/// Defines literature groups after verified readings are present.
+fn group_define(
+    run_dir: &Path,
+    inventory_path: &Path,
+    groups_path: &Path,
+) -> Result<ExitCode, String> {
+    let ledger: RunLedger = read_json(&run_dir.join(LEDGER_FILE))?;
+    require_current_state(&ledger, RunState::PapersRead)?;
+    let readings: Readings = read_json(&run_dir.join(READINGS_FILE))?;
+    let inventory: SourceInventory = read_json(inventory_path)?;
+    let groups: GroupDefinition = read_json(groups_path)?;
+    validate_source_inventory(&inventory, &readings).map_err(|error| error.to_string())?;
+    validate_group_definition(&groups, &inventory).map_err(|error| error.to_string())?;
+    write_json_new(&run_dir.join(SOURCE_INVENTORY_FILE), &inventory)?;
+    write_json_new(&run_dir.join(GROUPS_FILE), &groups)?;
+    print_json(&json!({
+        "schema_version": 1,
+        "command": "lab group define",
+        "run_id": groups.run_id,
+        "groups": groups.groups.len(),
+        "sources_tracked": inventory.sources.len(),
+        "authority": "planning_only_no_acceptance",
+    }))
+}
+
+/// Records comparative synthesis for already defined groups.
+fn group_synthesize(run_dir: &Path, synthesis_path: &Path) -> Result<ExitCode, String> {
+    let ledger: RunLedger = read_json(&run_dir.join(LEDGER_FILE))?;
+    require_current_state(&ledger, RunState::PapersRead)?;
+    let readings: Readings = read_json(&run_dir.join(READINGS_FILE))?;
+    let groups: GroupDefinition = read_json(&run_dir.join(GROUPS_FILE))?;
+    let synthesis: GroupSynthesis = read_json(synthesis_path)?;
+    validate_group_synthesis(&synthesis, &groups, &readings).map_err(|error| error.to_string())?;
+    write_json_new(&run_dir.join(GROUP_SYNTHESIS_FILE), &synthesis)?;
+    print_json(&json!({
+        "schema_version": 1,
+        "command": "lab group synthesize",
+        "run_id": synthesis.run_id,
+        "syntheses": synthesis.syntheses.len(),
+        "authority": "planning_only_no_acceptance",
+    }))
+}
+
+/// Records a group-derived skill proposal and proposal-only Concept candidates.
+fn group_skill(run_dir: &Path, skill_path: &Path) -> Result<ExitCode, String> {
+    let ledger: RunLedger = read_json(&run_dir.join(LEDGER_FILE))?;
+    require_current_state(&ledger, RunState::PapersRead)?;
+    let readings: Readings = read_json(&run_dir.join(READINGS_FILE))?;
+    let synthesis: GroupSynthesis = read_json(&run_dir.join(GROUP_SYNTHESIS_FILE))?;
+    let skill: GroupSkill = read_json(skill_path)?;
+    validate_group_skill(&skill, &synthesis, &readings).map_err(|error| error.to_string())?;
+    write_json_new(&run_dir.join(GROUP_SKILL_FILE), &skill)?;
+    print_json(&json!({
+        "schema_version": 1,
+        "command": "lab group skill",
+        "run_id": skill.run_id,
+        "skill_id": skill.skill_id,
+        "concept_candidates": skill.concept_candidates.len(),
+        "authority": "proposal_only_owner_review_required",
+        "next": "owner decision required; no Concept was accepted",
+    }))
 }
 
 /// Lists the addressable improvement modules.
@@ -376,6 +462,23 @@ fn require_state(ledger: &RunLedger, next: RunState) -> Result<(), String> {
         next.as_str(),
         ledger.state.as_str(),
         expected.as_str()
+    ))
+}
+
+fn require_current_state(ledger: &RunLedger, expected: RunState) -> Result<(), String> {
+    if ledger.state.is_terminal() {
+        return Err(
+            "run reached owner_reviewed; implementation requires a separately authorized phase"
+                .to_owned(),
+        );
+    }
+    if ledger.state == expected {
+        return Ok(());
+    }
+    Err(format!(
+        "group workflow requires {}; this run is at {}",
+        expected.as_str(),
+        ledger.state.as_str()
     ))
 }
 

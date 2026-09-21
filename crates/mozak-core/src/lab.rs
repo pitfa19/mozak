@@ -654,6 +654,104 @@ pub struct PaperReading {
     pub retained_full_text: bool,
 }
 
+/// Optional repository provenance referenced by a source inventory item.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct RepositoryRef {
+    pub url: String,
+    pub revision: String,
+    pub content_sha256: String,
+}
+
+/// Durable inventory entry for every paper or repository a group workflow cites.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct SourceInventoryEntry {
+    pub paper_id: String,
+    pub source_uri: String,
+    pub content_sha256: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub repository: Option<RepositoryRef>,
+}
+
+/// Source inventory for group synthesis. It retains identifiers and hashes, not full text.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct SourceInventory {
+    pub contract_version: u32,
+    pub run_id: String,
+    pub sources: Vec<SourceInventoryEntry>,
+}
+
+/// A named literature group and the exact papers it contains.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct LiteratureGroup {
+    pub id: String,
+    pub title: String,
+    pub purpose: String,
+    pub paper_ids: Vec<String>,
+}
+
+/// Closed-shape group definition artifact.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct GroupDefinition {
+    pub contract_version: u32,
+    pub run_id: String,
+    pub groups: Vec<LiteratureGroup>,
+}
+
+/// Comparative synthesis for one group. Citations must name verified readings.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct GroupSynthesisEntry {
+    pub group_id: String,
+    pub compared_approaches: Vec<String>,
+    pub synthesis: String,
+    pub cited_claim_ids: Vec<String>,
+    pub limitations: Vec<String>,
+}
+
+/// Group synthesis artifact.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct GroupSynthesis {
+    pub contract_version: u32,
+    pub run_id: String,
+    pub syntheses: Vec<GroupSynthesisEntry>,
+}
+
+/// Proposal-only Concept candidate derived from a group synthesis.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct LabConceptCandidate {
+    pub id: String,
+    pub group_id: String,
+    pub title: String,
+    pub invariant: String,
+    pub applicability_limits: Vec<String>,
+    pub cited_claim_ids: Vec<String>,
+    pub proposal_only: bool,
+    pub accepted: bool,
+}
+
+/// A generated skill shape. It compares approaches and cites verified readings only.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct GroupSkill {
+    pub contract_version: u32,
+    pub run_id: String,
+    pub skill_id: String,
+    pub summary: String,
+    pub group_ids: Vec<String>,
+    pub comparison_guidance: Vec<String>,
+    pub cited_claim_ids: Vec<String>,
+    #[serde(default)]
+    pub concept_candidates: Vec<LabConceptCandidate>,
+    pub retains_full_text: bool,
+}
+
 /// All readings for a run.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
@@ -963,6 +1061,231 @@ pub fn validate_readings(readings: &Readings, selection: &Selection) -> Result<(
             .flat_map(|reading| reading.claims.iter().map(|claim| claim.id.as_str())),
         "claim id",
     )?;
+    Ok(())
+}
+
+/// Validates source inventory used by group synthesis.
+pub fn validate_source_inventory(
+    inventory: &SourceInventory,
+    readings: &Readings,
+) -> Result<(), LabError> {
+    validate_version(inventory.contract_version)?;
+    validate_run_id(&inventory.run_id)?;
+    require(
+        inventory.run_id == readings.run_id,
+        "source inventory run_id must match readings",
+    )?;
+    let known = readings
+        .readings
+        .iter()
+        .map(|r| (r.paper_id.as_str(), r))
+        .collect::<BTreeMap<_, _>>();
+    unique_ids(
+        inventory.sources.iter().map(|s| s.paper_id.as_str()),
+        "inventory paper_id",
+    )?;
+    for source in &inventory.sources {
+        let reading = known.get(source.paper_id.as_str()).ok_or_else(|| {
+            LabError(format!(
+                "source inventory references unread paper: {}",
+                source.paper_id
+            ))
+        })?;
+        require(
+            source.source_uri == reading.source_uri,
+            "source inventory source_uri must match verified reading",
+        )?;
+        require(
+            source.content_sha256 == reading.content_sha256,
+            "source inventory content_sha256 must match verified reading",
+        )?;
+        if let Some(repo) = &source.repository {
+            require_filled(&repo.url, "repository url")?;
+            require_filled(&repo.revision, "repository revision")?;
+            require_filled(&repo.content_sha256, "repository content_sha256")?;
+        }
+    }
+    require(
+        inventory.sources.len() == readings.readings.len(),
+        "source inventory must track every verified reading",
+    )
+}
+
+/// Validates group definitions against the durable source inventory.
+pub fn validate_group_definition(
+    groups: &GroupDefinition,
+    inventory: &SourceInventory,
+) -> Result<(), LabError> {
+    validate_version(groups.contract_version)?;
+    validate_run_id(&groups.run_id)?;
+    require(
+        groups.run_id == inventory.run_id,
+        "group definition run_id must match source inventory",
+    )?;
+    require(
+        !groups.groups.is_empty(),
+        "group definition must contain at least one group",
+    )?;
+    let known = inventory
+        .sources
+        .iter()
+        .map(|s| s.paper_id.as_str())
+        .collect::<BTreeSet<_>>();
+    unique_ids(groups.groups.iter().map(|g| g.id.as_str()), "group id")?;
+    for group in &groups.groups {
+        require_filled(&group.title, "group title")?;
+        require_filled(&group.purpose, "group purpose")?;
+        require(
+            !group.paper_ids.is_empty(),
+            &format!("group {} must include at least one paper", group.id),
+        )?;
+        unique_ids(group.paper_ids.iter().map(String::as_str), "group paper_id")?;
+        for paper_id in &group.paper_ids {
+            require(
+                known.contains(paper_id.as_str()),
+                &format!("group {} references unknown paper {paper_id}", group.id),
+            )?;
+        }
+    }
+    Ok(())
+}
+
+fn verified_source_claims(readings: &Readings) -> BTreeSet<String> {
+    readings
+        .readings
+        .iter()
+        .flat_map(|reading| {
+            reading
+                .claims
+                .iter()
+                .filter(|claim| claim.origin == ClaimOrigin::SourceClaim)
+                .map(|claim| claim.id.clone())
+        })
+        .collect()
+}
+
+/// Validates group synthesis against groups and verified readings.
+pub fn validate_group_synthesis(
+    synthesis: &GroupSynthesis,
+    groups: &GroupDefinition,
+    readings: &Readings,
+) -> Result<(), LabError> {
+    validate_version(synthesis.contract_version)?;
+    validate_run_id(&synthesis.run_id)?;
+    require(
+        synthesis.run_id == groups.run_id && synthesis.run_id == readings.run_id,
+        "group synthesis run_id must match groups and readings",
+    )?;
+    let group_ids = groups
+        .groups
+        .iter()
+        .map(|g| g.id.as_str())
+        .collect::<BTreeSet<_>>();
+    let claim_ids = verified_source_claims(readings);
+    unique_ids(
+        synthesis.syntheses.iter().map(|s| s.group_id.as_str()),
+        "synthesis group_id",
+    )?;
+    for entry in &synthesis.syntheses {
+        require(
+            group_ids.contains(entry.group_id.as_str()),
+            &format!("synthesis references unknown group {}", entry.group_id),
+        )?;
+        require(
+            entry.compared_approaches.len() >= 2,
+            &format!(
+                "synthesis {} must compare at least two approaches",
+                entry.group_id
+            ),
+        )?;
+        require_filled(&entry.synthesis, "group synthesis")?;
+        require(
+            !entry.cited_claim_ids.is_empty(),
+            &format!("synthesis {} must cite verified readings", entry.group_id),
+        )?;
+        for claim_id in &entry.cited_claim_ids {
+            require(
+                claim_ids.contains(claim_id),
+                &format!(
+                    "synthesis {} cites unknown or unverified claim {claim_id}",
+                    entry.group_id
+                ),
+            )?;
+        }
+    }
+    require(
+        synthesis.syntheses.len() == group_ids.len(),
+        "every group needs a synthesis",
+    )
+}
+
+/// Validates generated group skill and proposal-only candidates.
+pub fn validate_group_skill(
+    skill: &GroupSkill,
+    synthesis: &GroupSynthesis,
+    readings: &Readings,
+) -> Result<(), LabError> {
+    validate_version(skill.contract_version)?;
+    validate_run_id(&skill.run_id)?;
+    require(
+        skill.run_id == synthesis.run_id && skill.run_id == readings.run_id,
+        "group skill run_id must match synthesis and readings",
+    )?;
+    require_filled(&skill.skill_id, "skill_id")?;
+    require_filled(&skill.summary, "skill summary")?;
+    require(
+        !skill.retains_full_text,
+        "group skills must not retain full text",
+    )?;
+    require(
+        skill.comparison_guidance.len() >= 2,
+        "group skill must compare approaches",
+    )?;
+    let groups = synthesis
+        .syntheses
+        .iter()
+        .map(|s| s.group_id.as_str())
+        .collect::<BTreeSet<_>>();
+    let claims = verified_source_claims(readings);
+    for group_id in &skill.group_ids {
+        require(
+            groups.contains(group_id.as_str()),
+            &format!("group skill references unknown group {group_id}"),
+        )?;
+    }
+    for claim_id in &skill.cited_claim_ids {
+        require(
+            claims.contains(claim_id),
+            &format!("group skill cites unknown or unverified claim {claim_id}"),
+        )?;
+    }
+    for candidate in &skill.concept_candidates {
+        require(
+            candidate.proposal_only && !candidate.accepted,
+            "Concept candidates from the Lab must be proposal_only and not accepted",
+        )?;
+        require(
+            groups.contains(candidate.group_id.as_str()),
+            &format!(
+                "Concept candidate {} references unknown group",
+                candidate.id
+            ),
+        )?;
+        require_filled(&candidate.invariant, "Concept candidate invariant")?;
+        require(
+            !candidate.applicability_limits.is_empty(),
+            "Concept candidate must state applicability limits",
+        )?;
+        for claim_id in &candidate.cited_claim_ids {
+            require(
+                claims.contains(claim_id),
+                &format!(
+                    "Concept candidate {} cites unknown or unverified claim {claim_id}",
+                    candidate.id
+                ),
+            )?;
+        }
+    }
     Ok(())
 }
 

@@ -1,10 +1,12 @@
 use mozak_core::lab::{
-    AdapterRunRef, CONTRACT_VERSION, Candidate, ClaimOrigin, ImplementationPlan,
-    ImplementationPlans, ImproveRequest, LiteratureRun, Mechanism, MechanismMap, Module,
-    PaperReading, ReadClaim, ReadDepth, Readings, ReviewInputs, RunLedger, RunState, Selection,
-    SelectionDecision, SourceClass, advance, classify_candidates, render_review,
-    validate_literature, validate_mechanisms, validate_plans, validate_readings, validate_request,
-    validate_selection,
+    AdapterRunRef, CONTRACT_VERSION, Candidate, ClaimOrigin, GroupDefinition, GroupSkill,
+    GroupSynthesis, GroupSynthesisEntry, ImplementationPlan, ImplementationPlans, ImproveRequest,
+    LabConceptCandidate, LiteratureGroup, LiteratureRun, Mechanism, MechanismMap, Module,
+    PaperReading, ReadClaim, ReadDepth, Readings, RepositoryRef, ReviewInputs, RunLedger, RunState,
+    Selection, SelectionDecision, SourceClass, SourceInventory, SourceInventoryEntry, advance,
+    classify_candidates, render_review, validate_group_definition, validate_group_skill,
+    validate_group_synthesis, validate_literature, validate_mechanisms, validate_plans,
+    validate_readings, validate_request, validate_selection, validate_source_inventory,
 };
 use serde_json::json;
 use std::collections::BTreeMap;
@@ -116,6 +118,77 @@ fn readings() -> Readings {
     }
 }
 
+fn source_inventory() -> SourceInventory {
+    SourceInventory {
+        contract_version: CONTRACT_VERSION,
+        run_id: "improve-abc123".to_owned(),
+        sources: vec![SourceInventoryEntry {
+            paper_id: "paper-0000".to_owned(),
+            source_uri: "https://arxiv.org/abs/2608.20614".to_owned(),
+            content_sha256: "aaa".to_owned(),
+            repository: Some(RepositoryRef {
+                url: "https://github.com/example/tool".to_owned(),
+                revision: "abc123".to_owned(),
+                content_sha256: "bbb".to_owned(),
+            }),
+        }],
+    }
+}
+
+fn group_definition() -> GroupDefinition {
+    GroupDefinition {
+        contract_version: CONTRACT_VERSION,
+        run_id: "improve-abc123".to_owned(),
+        groups: vec![LiteratureGroup {
+            id: "group-budgeting".to_owned(),
+            title: "Budgeting approaches".to_owned(),
+            purpose: "Compare bounded rollout approaches".to_owned(),
+            paper_ids: vec!["paper-0000".to_owned()],
+        }],
+    }
+}
+
+fn group_synthesis() -> GroupSynthesis {
+    GroupSynthesis {
+        contract_version: CONTRACT_VERSION,
+        run_id: "improve-abc123".to_owned(),
+        syntheses: vec![GroupSynthesisEntry {
+            group_id: "group-budgeting".to_owned(),
+            compared_approaches: vec!["static budget".to_owned(), "adaptive budget".to_owned()],
+            synthesis: "Static and adaptive budgets trade predictability for responsiveness."
+                .to_owned(),
+            cited_claim_ids: vec!["claim-1".to_owned()],
+            limitations: vec!["single source".to_owned()],
+        }],
+    }
+}
+
+fn group_skill() -> GroupSkill {
+    GroupSkill {
+        contract_version: CONTRACT_VERSION,
+        run_id: "improve-abc123".to_owned(),
+        skill_id: "planning-budgeting".to_owned(),
+        summary: "Compare budgeted planning approaches with verified citations.".to_owned(),
+        group_ids: vec!["group-budgeting".to_owned()],
+        comparison_guidance: vec![
+            "Compare static budgets".to_owned(),
+            "Compare adaptive budgets".to_owned(),
+        ],
+        cited_claim_ids: vec!["claim-1".to_owned()],
+        concept_candidates: vec![LabConceptCandidate {
+            id: "concept-budgeting".to_owned(),
+            group_id: "group-budgeting".to_owned(),
+            title: "Budgeted planning".to_owned(),
+            invariant: "A budget must bound work before execution.".to_owned(),
+            applicability_limits: vec!["Planning workflows only".to_owned()],
+            cited_claim_ids: vec!["claim-1".to_owned()],
+            proposal_only: true,
+            accepted: false,
+        }],
+        retains_full_text: false,
+    }
+}
+
 fn mechanisms() -> MechanismMap {
     MechanismMap {
         contract_version: CONTRACT_VERSION,
@@ -180,6 +253,42 @@ fn accepts_a_complete_planning_run() {
     assert!(review.contains("Planning only. No MOZAK code was changed."));
     assert!(review.contains("single benchmark family"));
     assert!(review.contains("PLAN-1"));
+}
+
+#[test]
+fn accepts_group_synthesis_workflow_contracts() {
+    let readings = readings();
+    let inventory = source_inventory();
+    let groups = group_definition();
+    let synthesis = group_synthesis();
+    let skill = group_skill();
+
+    validate_source_inventory(&inventory, &readings).expect("source inventory");
+    validate_group_definition(&groups, &inventory).expect("groups");
+    validate_group_synthesis(&synthesis, &groups, &readings).expect("synthesis");
+    validate_group_skill(&skill, &synthesis, &readings).expect("skill");
+}
+
+#[test]
+fn rejects_group_skill_that_accepts_concept_candidate() {
+    let readings = readings();
+    let synthesis = group_synthesis();
+    let mut skill = group_skill();
+    skill.concept_candidates[0].accepted = true;
+
+    let error = validate_group_skill(&skill, &synthesis, &readings).expect_err("must reject");
+    assert!(error.0.contains("proposal_only"));
+}
+
+#[test]
+fn rejects_group_synthesis_without_comparison() {
+    let readings = readings();
+    let groups = group_definition();
+    let mut synthesis = group_synthesis();
+    synthesis.syntheses[0].compared_approaches = vec!["static budget".to_owned()];
+
+    let error = validate_group_synthesis(&synthesis, &groups, &readings).expect_err("must reject");
+    assert!(error.0.contains("compare at least two approaches"));
 }
 
 #[test]

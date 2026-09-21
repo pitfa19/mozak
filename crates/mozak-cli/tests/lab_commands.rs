@@ -303,6 +303,86 @@ fn runs_the_planning_pipeline_and_stops_at_review() {
     ]);
     assert!(ok, "{stderr}");
 
+    let inventory = workspace.write(
+        "source-inventory.json",
+        &format!(
+            r#"{{"contract_version":1,"run_id":"{run_id}","sources":[{{"paper_id":"paper-0000","source_uri":"https://example.org/a","content_sha256":"hash-a","repository":{{"url":"https://github.com/example/repo","revision":"abc123","content_sha256":"repo-hash"}}}}]}}"#
+        ),
+    );
+    let groups = workspace.write(
+        "groups.json",
+        &format!(
+            r#"{{"contract_version":1,"run_id":"{run_id}","groups":[{{"id":"group-budget","title":"Budget approaches","purpose":"compare budget designs","paper_ids":["paper-0000"]}}]}}"#
+        ),
+    );
+    let (ok, stdout, stderr) = workspace.run(&[
+        "lab",
+        "group",
+        "define",
+        &run_dir_str,
+        inventory.to_str().expect("path"),
+        groups.to_str().expect("path"),
+    ]);
+    assert!(ok, "{stderr}");
+    assert!(stdout.contains("sources_tracked"));
+
+    let bad_synthesis = workspace.write(
+        "bad-synthesis.json",
+        &format!(
+            r#"{{"contract_version":1,"run_id":"{run_id}","syntheses":[{{"group_id":"group-budget","compared_approaches":["one"],"synthesis":"too narrow","cited_claim_ids":["c1"],"limitations":[]}}]}}"#
+        ),
+    );
+    let (ok, _, stderr) = workspace.run(&[
+        "lab",
+        "group",
+        "synthesize",
+        &run_dir_str,
+        bad_synthesis.to_str().expect("path"),
+    ]);
+    assert!(!ok);
+    assert!(stderr.contains("compare at least two approaches"));
+
+    let synthesis = workspace.write(
+        "group-synthesis-input.json",
+        &format!(
+            r#"{{"contract_version":1,"run_id":"{run_id}","syntheses":[{{"group_id":"group-budget","compared_approaches":["static","adaptive"],"synthesis":"compare both designs","cited_claim_ids":["c1"],"limitations":[]}}]}}"#
+        ),
+    );
+    let (ok, _, stderr) = workspace.run(&[
+        "lab",
+        "group",
+        "synthesize",
+        &run_dir_str,
+        synthesis.to_str().expect("path"),
+    ]);
+    assert!(ok, "{stderr}");
+
+    let skill = workspace.write(
+        "group-skill-input.json",
+        &format!(
+            r#"{{"contract_version":1,"run_id":"{run_id}","skill_id":"budget-skill","summary":"compare budget approaches","group_ids":["group-budget"],"comparison_guidance":["compare static","compare adaptive"],"cited_claim_ids":["c1"],"concept_candidates":[{{"id":"concept-budget","group_id":"group-budget","title":"Budget concept","invariant":"budgets bound work","applicability_limits":["planning only"],"cited_claim_ids":["c1"],"proposal_only":true,"accepted":false}}],"retains_full_text":false}}"#
+        ),
+    );
+    let (ok, stdout, stderr) = workspace.run(&[
+        "lab",
+        "group",
+        "skill",
+        &run_dir_str,
+        skill.to_str().expect("path"),
+    ]);
+    assert!(ok, "{stderr}");
+    assert!(stdout.contains("proposal_only_owner_review_required"));
+
+    let (ok, _, stderr) = workspace.run(&[
+        "lab",
+        "group",
+        "skill",
+        &run_dir_str,
+        skill.to_str().expect("path"),
+    ]);
+    assert!(!ok);
+    assert!(stderr.contains("refusing to overwrite"));
+
     let mechanisms = workspace.write(
         "mechanisms.json",
         &format!(
