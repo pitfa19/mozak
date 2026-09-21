@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "topic_id": "jepa-rna",
+  "mode": "query",
+  "categories": [
+    "q-bio.BM",
+    "q-bio.GN",
+    "cs.LG",
+    "cs.CL"
+  ],
+  "clusters": [
+    {
+      "name": "flashattention-2",
+      "terms": ["FlashAttention-2: Faster Attention with Better Parallelism and Work Partitioning"]
+    },
+    {
+      "name": "bigbird",
+      "terms": ["Big Bird: Transformers for Longer Sequences"]
+    },
+    {
+      "name": "longformer",
+      "terms": ["Longformer: The Long-Document Transformer"]
+    },
+    {
+      "name": "hyenadna",
+      "terms": ["HyenaDNA: Long-Range Genomic Sequence Modeling at Single Nucleotide Resolution"]
+    },
+    {
+      "name": "mamba",
+      "terms": ["Mamba: Linear-Time Sequence Modeling with Selective State Spaces"]
+    },
+    {
+      "name": "caduceus",
+      "terms": ["Caduceus: Bi-Directional Equivariant Long-Range DNA Sequence Modeling"]
+    },
+    {
+      "name": "linearpartition",
+      "terms": ["LinearPartition: Linear-Time Approximation of RNA Folding Partition Function and Base Pairing Probabilities"]
+    },
+    {
+      "name": "linearsankoff",
+      "terms": ["LinearSankoff: Linear-time Simultaneous Folding and Alignment of RNA Homologs"]
+    }
+  ],
+  "window": {
+    "start": "2019-01-01T00:00:00Z",
+    "end": "2026-09-21T17:20:00Z"
+  },
+  "max_records": 40,
+  "max_records_per_cluster": 5,
+  "question": "Which efficient-attention, state-space, long-genome, and linear-time RNA folding methods can address long-sequence bottlenecks in a RiNALMo-based JEPA-RNA experiment without conflating the primary objective comparison?"
+}
