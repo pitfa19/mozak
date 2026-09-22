@@ -523,6 +523,492 @@ fn project_browse_resolve_why_are_bounded_and_provenance_aware() {
     );
 }
 
+fn eval_observation(
+    project_id: &str,
+    failure_sha256: &str,
+    command_hashes: &Value,
+    label: &str,
+    layer: &str,
+    outcome: &str,
+) -> Value {
+    let expected_stdout_sha256 = if outcome == "pass" {
+        command_hashes[0]["stdout_sha256"]
+            .as_str()
+            .unwrap()
+            .to_owned()
+    } else if outcome == "inconclusive" {
+        "f".repeat(64)
+    } else {
+        "0".repeat(64)
+    };
+    json!({
+        "contract_version": 1,
+        "observation_source": "mozak lab evaluation observe",
+        "project_id": project_id,
+        "failure_sha256": failure_sha256,
+        "observation_label": label,
+        "fixed_inputs": ["project_id", "current", "browse", "why", "stale_dair_record_id"],
+        "command_hashes": command_hashes,
+        "expected_stdout_sha256": expected_stdout_sha256,
+        "attributed_layer": layer,
+        "dependency_justification": null,
+        "outcome": outcome
+    })
+}
+
+fn stale_dair_eval_fixture(t: &Temp, project_id: &str) -> (PathBuf, PathBuf, String) {
+    let kb = valid_kb(&t.0);
+    let ws = t.0.join("workspace");
+    project(&ws.join("eval"), project_id);
+    let xdg = t.0.join("xdg");
+    register_initial(&kb, &ws, &xdg, &t.0);
+    let runs = t.0.join("runs");
+    fs::create_dir_all(&runs).unwrap();
+    write_research_run_with_id(
+        &runs.join("old.json"),
+        "run-yesterday-eval",
+        "2026-09-05T22:17:35Z",
+    );
+    write_research_run_with_id(
+        &runs.join("new.json"),
+        "run-today-eval",
+        "2026-09-06T22:17:35Z",
+    );
+    write_adapter_registry(&xdg, &runs);
+    let browse = run(&["project", "browse", project_id], &xdg);
+    assert!(
+        browse.status.success(),
+        "{}",
+        String::from_utf8_lossy(&browse.stderr)
+    );
+    let browse_json: Value = serde_json::from_slice(&browse.stdout).unwrap();
+    let stale_id = browse_json["records"]["proposal_only_research"]["records"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|r| r["freshness"] == "stale")
+        .unwrap()["record_id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    (xdg, t.0.clone(), stale_id)
+}
+
+fn research_record_id(xdg: &Path, project_id: &str, freshness: &str) -> String {
+    let browse = run(&["project", "browse", project_id], xdg);
+    assert!(
+        browse.status.success(),
+        "{}",
+        String::from_utf8_lossy(&browse.stderr)
+    );
+    let browse_json: Value = serde_json::from_slice(&browse.stdout).unwrap();
+    browse_json["records"]["proposal_only_research"]["records"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|record| record["freshness"] == freshness)
+        .unwrap()["record_id"]
+        .as_str()
+        .unwrap()
+        .to_owned()
+}
+
+fn rewrite_adapter_name(xdg: &Path, adapter: &str) {
+    let path = xdg.join("mozak/adapters.json");
+    let mut value: Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+    value["bindings"][0]["adapter"] = json!(adapter);
+    fs::write(path, serde_json::to_vec(&value).unwrap()).unwrap();
+}
+
+#[test]
+#[allow(clippy::too_many_lines)]
+fn lab_evaluation_reproduces_stale_dair_and_keeps_review_non_authoritative() {
+    let t = Temp::new("lab-eval-pass");
+    let (xdg, base, stale_id) = stale_dair_eval_fixture(&t, "eval-pass");
+    let problem = base.join("problem.json");
+    fs::write(&problem, serde_json::to_vec(&json!({"contract_version":1,"problem_class":"tool_behavior","observed_problem":"stale DAIR run looked current","stale_dair_record_id":stale_id,"expected_behavior":"why explains the stale run is superseded"})).unwrap()).unwrap();
+    let failure = base.join("failure.json");
+    let out = run(
+        &[
+            "lab",
+            "evaluation",
+            "failure",
+            "eval-pass",
+            problem.to_str().unwrap(),
+            failure.to_str().unwrap(),
+        ],
+        &xdg,
+    );
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let failure_json: Value = serde_json::from_slice(&fs::read(&failure).unwrap()).unwrap();
+    let command_hashes = failure_json["reproduction"].clone();
+    assert_eq!(failure_json["implementation_authorized"], false);
+    assert_eq!(failure_json["reproduction"].as_array().unwrap().len(), 3);
+
+    let before = base.join("before.json");
+    let after = base.join("after.json");
+    let out = run(
+        &[
+            "lab",
+            "evaluation",
+            "observe",
+            failure.to_str().unwrap(),
+            "before",
+            "tool_behavior",
+            "0".repeat(64).as_str(),
+            before.to_str().unwrap(),
+        ],
+        &xdg,
+    );
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let expected_after = command_hashes[0]["stdout_sha256"].as_str().unwrap();
+    let out = run(
+        &[
+            "lab",
+            "evaluation",
+            "observe",
+            failure.to_str().unwrap(),
+            "after",
+            "tool_behavior",
+            expected_after,
+            after.to_str().unwrap(),
+        ],
+        &xdg,
+    );
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let comparison = base.join("comparison.json");
+    let out = run(
+        &[
+            "lab",
+            "evaluation",
+            "compare",
+            failure.to_str().unwrap(),
+            before.to_str().unwrap(),
+            after.to_str().unwrap(),
+            comparison.to_str().unwrap(),
+        ],
+        &xdg,
+    );
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let comparison_json: Value = serde_json::from_slice(&fs::read(&comparison).unwrap()).unwrap();
+    assert_eq!(comparison_json["result"], "pass");
+    assert_eq!(comparison_json["implementation_authorized"], false);
+    assert_eq!(comparison_json["owner_approval_required"], true);
+    let review = base.join("review.json");
+    let out = run(
+        &[
+            "lab",
+            "evaluation",
+            "review",
+            comparison.to_str().unwrap(),
+            failure.to_str().unwrap(),
+            before.to_str().unwrap(),
+            after.to_str().unwrap(),
+            review.to_str().unwrap(),
+        ],
+        &xdg,
+    );
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let review_json: Value = serde_json::from_slice(&fs::read(&review).unwrap()).unwrap();
+    assert_eq!(review_json["proposal_only"], true);
+    assert_eq!(review_json["promotion_authorized"], false);
+
+    let forged = base.join("forged-comparison.json");
+    fs::write(
+        &forged,
+        serde_json::to_vec(&json!({
+            "contract_version":1,
+            "comparison_source":"mozak lab evaluation compare",
+            "failure_sha256":"0".repeat(64),
+            "before_sha256":"0".repeat(64),
+            "after_sha256":"0".repeat(64),
+            "result":"pass",
+            "attributed_layer":"tool_behavior",
+            "implementation_authorized":false,
+            "promotion_authorized":false,
+            "owner_approval_required":true,
+            "reason":"forged caller-authored pass"
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+    let out = run(
+        &[
+            "lab",
+            "evaluation",
+            "review",
+            forged.to_str().unwrap(),
+            failure.to_str().unwrap(),
+            before.to_str().unwrap(),
+            after.to_str().unwrap(),
+            base.join("forged-review.json").to_str().unwrap(),
+        ],
+        &xdg,
+    );
+    assert!(!out.status.success());
+}
+
+#[test]
+#[allow(clippy::too_many_lines)]
+fn lab_evaluation_fail_inconclusive_tamper_and_multiple_layer_refusals() {
+    let t = Temp::new("lab-eval-refusals");
+    let (xdg, base, stale_id) = stale_dair_eval_fixture(&t, "eval-refuse");
+    let problem = base.join("problem.json");
+    fs::write(&problem, serde_json::to_vec(&json!({"contract_version":1,"problem_class":"schema","observed_problem":"stale DAIR schema was ambiguous","stale_dair_record_id":stale_id,"expected_behavior":"comparison remains attributed"})).unwrap()).unwrap();
+    let failure = base.join("failure.json");
+    assert!(
+        run(
+            &[
+                "lab",
+                "evaluation",
+                "failure",
+                "eval-refuse",
+                problem.to_str().unwrap(),
+                failure.to_str().unwrap()
+            ],
+            &xdg
+        )
+        .status
+        .success()
+    );
+    let failure_sha256 = sha(&fs::read(&failure).unwrap());
+    let failure_json: Value = serde_json::from_slice(&fs::read(&failure).unwrap()).unwrap();
+    let command_hashes = failure_json["reproduction"].clone();
+    let before = base.join("before.json");
+    let after_fail = base.join("after-fail.json");
+    let after_inconclusive = base.join("after-inconclusive.json");
+    fs::write(
+        &before,
+        serde_json::to_vec(&eval_observation(
+            "eval-refuse",
+            &failure_sha256,
+            &command_hashes,
+            "before",
+            "schema",
+            "fail",
+        ))
+        .unwrap(),
+    )
+    .unwrap();
+    fs::write(
+        &after_fail,
+        serde_json::to_vec(&eval_observation(
+            "eval-refuse",
+            &failure_sha256,
+            &command_hashes,
+            "after",
+            "schema",
+            "fail",
+        ))
+        .unwrap(),
+    )
+    .unwrap();
+    fs::write(
+        &after_inconclusive,
+        serde_json::to_vec(&eval_observation(
+            "eval-refuse",
+            &failure_sha256,
+            &command_hashes,
+            "after",
+            "schema",
+            "inconclusive",
+        ))
+        .unwrap(),
+    )
+    .unwrap();
+    for (after, name, expected) in [
+        (&after_fail, "cmp-fail.json", "fail"),
+        (&after_inconclusive, "cmp-inc.json", "inconclusive"),
+    ] {
+        let cmp = base.join(name);
+        let out = run(
+            &[
+                "lab",
+                "evaluation",
+                "compare",
+                failure.to_str().unwrap(),
+                before.to_str().unwrap(),
+                after.to_str().unwrap(),
+                cmp.to_str().unwrap(),
+            ],
+            &xdg,
+        );
+        assert!(
+            out.status.success(),
+            "{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        let cmp_json: Value = serde_json::from_slice(&fs::read(cmp).unwrap()).unwrap();
+        assert_eq!(cmp_json["result"], expected);
+        assert_eq!(cmp_json["implementation_authorized"], false);
+        assert_eq!(cmp_json["promotion_authorized"], false);
+    }
+    let mut tampered: Value = serde_json::from_slice(&fs::read(&failure).unwrap()).unwrap();
+    tampered["implementation_authorized"] = json!(true);
+    let tampered_path = base.join("tampered.json");
+    fs::write(&tampered_path, serde_json::to_vec(&tampered).unwrap()).unwrap();
+    let out = run(
+        &[
+            "lab",
+            "evaluation",
+            "compare",
+            tampered_path.to_str().unwrap(),
+            before.to_str().unwrap(),
+            after_fail.to_str().unwrap(),
+            base.join("tampered-cmp.json").to_str().unwrap(),
+        ],
+        &xdg,
+    );
+    assert!(!out.status.success());
+    let mut fabricated: Value = serde_json::from_slice(&fs::read(&after_fail).unwrap()).unwrap();
+    fabricated["outcome"] = json!("pass");
+    let fabricated_path = base.join("fabricated-outcome.json");
+    fs::write(&fabricated_path, serde_json::to_vec(&fabricated).unwrap()).unwrap();
+    let out = run(
+        &[
+            "lab",
+            "evaluation",
+            "compare",
+            failure.to_str().unwrap(),
+            before.to_str().unwrap(),
+            fabricated_path.to_str().unwrap(),
+            base.join("fabricated-cmp.json").to_str().unwrap(),
+        ],
+        &xdg,
+    );
+    assert!(!out.status.success());
+    let drifted = eval_observation(
+        "eval-refuse",
+        "0".repeat(64).as_str(),
+        &command_hashes,
+        "after",
+        "schema",
+        "pass",
+    );
+    let drifted_path = base.join("drifted.json");
+    fs::write(&drifted_path, serde_json::to_vec(&drifted).unwrap()).unwrap();
+    let out = run(
+        &[
+            "lab",
+            "evaluation",
+            "compare",
+            failure.to_str().unwrap(),
+            before.to_str().unwrap(),
+            drifted_path.to_str().unwrap(),
+            base.join("drifted-cmp.json").to_str().unwrap(),
+        ],
+        &xdg,
+    );
+    assert!(!out.status.success());
+    let mut multi = eval_observation(
+        "eval-refuse",
+        &failure_sha256,
+        &command_hashes,
+        "after",
+        "content",
+        "pass",
+    );
+    multi["dependency_justification"] = json!("");
+    let multi_path = base.join("multi.json");
+    fs::write(&multi_path, serde_json::to_vec(&multi).unwrap()).unwrap();
+    let out = run(
+        &[
+            "lab",
+            "evaluation",
+            "compare",
+            failure.to_str().unwrap(),
+            before.to_str().unwrap(),
+            multi_path.to_str().unwrap(),
+            base.join("multi-cmp.json").to_str().unwrap(),
+        ],
+        &xdg,
+    );
+    assert!(!out.status.success());
+}
+
+#[test]
+fn lab_evaluation_failure_refuses_current_or_non_dair_records() {
+    let t = Temp::new("lab-eval-stale-adversarial");
+    let (xdg, base, stale_id) = stale_dair_eval_fixture(&t, "eval-adversarial");
+    let current_id = research_record_id(&xdg, "eval-adversarial", "current");
+    let current_problem = base.join("current-problem.json");
+    fs::write(&current_problem, serde_json::to_vec(&json!({"contract_version":1,"problem_class":"tool_behavior","observed_problem":"current record must not be accepted as stale DAIR","stale_dair_record_id":current_id,"expected_behavior":"failure recording refuses non-stale record"})).unwrap()).unwrap();
+    let out = run(
+        &[
+            "lab",
+            "evaluation",
+            "failure",
+            "eval-adversarial",
+            current_problem.to_str().unwrap(),
+            base.join("current-failure.json").to_str().unwrap(),
+        ],
+        &xdg,
+    );
+    assert!(!out.status.success());
+
+    rewrite_adapter_name(&xdg, "arxiv");
+    let non_dair_problem = base.join("non-dair-problem.json");
+    fs::write(&non_dair_problem, serde_json::to_vec(&json!({"contract_version":1,"problem_class":"tool_behavior","observed_problem":"non-DAIR record must not be accepted as stale DAIR","stale_dair_record_id":stale_id,"expected_behavior":"failure recording refuses non-DAIR binding"})).unwrap()).unwrap();
+    let out = run(
+        &[
+            "lab",
+            "evaluation",
+            "failure",
+            "eval-adversarial",
+            non_dair_problem.to_str().unwrap(),
+            base.join("non-dair-failure.json").to_str().unwrap(),
+        ],
+        &xdg,
+    );
+    assert!(!out.status.success());
+}
+
+#[test]
+fn lab_evaluation_outputs_refuse_symlink_ancestors() {
+    let t = Temp::new("lab-eval-symlink-output");
+    let (xdg, base, stale_id) = stale_dair_eval_fixture(&t, "eval-symlink-output");
+    let problem = base.join("problem.json");
+    fs::write(&problem, serde_json::to_vec(&json!({"contract_version":1,"problem_class":"tool_behavior","observed_problem":"symlink ancestor output should fail closed","stale_dair_record_id":stale_id,"expected_behavior":"output path is rejected before writing"})).unwrap()).unwrap();
+    let real = base.join("real-output-dir");
+    fs::create_dir_all(&real).unwrap();
+    let link = base.join("linked-output-dir");
+    std::os::unix::fs::symlink(&real, &link).unwrap();
+    let output = link.join("failure.json");
+    let out = run(
+        &[
+            "lab",
+            "evaluation",
+            "failure",
+            "eval-symlink-output",
+            problem.to_str().unwrap(),
+            output.to_str().unwrap(),
+        ],
+        &xdg,
+    );
+    assert!(!out.status.success());
+    assert!(!output.exists());
+}
+
 #[test]
 #[allow(clippy::too_many_lines)]
 fn project_resolve_uses_full_projection_for_real_dair_composite_record() {

@@ -15,6 +15,7 @@ use mozak_core::lab::{
 };
 use mozak_core::lab_evidence::{ClaimStanding, EvidenceEntry, ScopeEvidence};
 use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sha2::{Digest, Sha256};
 use std::{
@@ -95,6 +96,45 @@ pub fn run(args: &[String]) -> Result<ExitCode, String> {
         ["evidence", run_dir, evidence] => {
             mechanism_evidence(Path::new(run_dir), Path::new(evidence))
         }
+        ["evaluation", "failure", project_id, problem, output] => {
+            evaluation_failure(project_id, Path::new(problem), Path::new(output))
+        }
+        [
+            "evaluation",
+            "observe",
+            failure,
+            label,
+            layer,
+            expected_stdout_sha256,
+            output,
+        ] => evaluation_observe(
+            Path::new(failure),
+            label,
+            layer,
+            expected_stdout_sha256,
+            Path::new(output),
+        ),
+        ["evaluation", "compare", failure, before, after, output] => evaluation_compare(
+            Path::new(failure),
+            Path::new(before),
+            Path::new(after),
+            Path::new(output),
+        ),
+        [
+            "evaluation",
+            "review",
+            comparison,
+            failure,
+            before,
+            after,
+            output,
+        ] => evaluation_review(
+            Path::new(comparison),
+            Path::new(failure),
+            Path::new(before),
+            Path::new(after),
+            Path::new(output),
+        ),
         ["plans", run_dir, plans] => plans_command(Path::new(run_dir), Path::new(plans)),
         ["group", "define", run_dir, inventory, groups] => {
             group_define(Path::new(run_dir), Path::new(inventory), Path::new(groups))
@@ -130,6 +170,552 @@ fn write_json_new<T: serde::Serialize>(path: &Path, value: &T) -> Result<(), Str
         ));
     }
     write_json(path, value)
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct EvaluationProblem {
+    contract_version: u32,
+    problem_class: String,
+    observed_problem: String,
+    stale_dair_record_id: String,
+    expected_behavior: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CommandObservation {
+    command: Vec<String>,
+    exit_code: i32,
+    stdout_sha256: String,
+    stderr_sha256: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct FailureRecord {
+    contract_version: u32,
+    project_id: String,
+    problem_class: String,
+    observed_problem: String,
+    expected_behavior: String,
+    stale_dair_record_id: String,
+    reproduction: Vec<CommandObservation>,
+    authority: String,
+    mutation: bool,
+    implementation_authorized: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct EvaluationObservation {
+    contract_version: u32,
+    observation_source: String,
+    project_id: String,
+    failure_sha256: String,
+    observation_label: String,
+    fixed_inputs: Vec<String>,
+    command_hashes: Vec<CommandObservation>,
+    expected_stdout_sha256: String,
+    attributed_layer: String,
+    dependency_justification: Option<String>,
+    outcome: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+struct EvaluationComparison {
+    contract_version: u32,
+    comparison_source: String,
+    failure_sha256: String,
+    before_sha256: String,
+    after_sha256: String,
+    result: String,
+    attributed_layer: String,
+    implementation_authorized: bool,
+    promotion_authorized: bool,
+    owner_approval_required: bool,
+    reason: String,
+}
+
+fn ensure_safe_output(path: &Path) -> Result<(), String> {
+    if path.exists() || fs::symlink_metadata(path).is_ok() {
+        return Err(format!(
+            "refusing to overwrite existing file: {}",
+            path.display()
+        ));
+    }
+    if path
+        .components()
+        .any(|c| matches!(c, std::path::Component::ParentDir))
+    {
+        return Err(format!(
+            "output path must not contain '..': {}",
+            path.display()
+        ));
+    }
+    let mut current = if path.is_absolute() {
+        PathBuf::from(std::path::MAIN_SEPARATOR.to_string())
+    } else {
+        env::current_dir().map_err(|error| format!("cannot read current directory: {error}"))?
+    };
+    let parent = path.parent().unwrap_or_else(|| Path::new(""));
+    for component in parent.components() {
+        match component {
+            std::path::Component::RootDir | std::path::Component::CurDir => {}
+            std::path::Component::Normal(part) => {
+                current.push(part);
+                if fs::symlink_metadata(&current)
+                    .map_err(|error| {
+                        format!(
+                            "cannot inspect output ancestor {}: {error}",
+                            current.display()
+                        )
+                    })?
+                    .file_type()
+                    .is_symlink()
+                {
+                    return Err(format!(
+                        "output path ancestor must not be a symlink: {}",
+                        current.display()
+                    ));
+                }
+            }
+            std::path::Component::ParentDir | std::path::Component::Prefix(_) => {
+                return Err(format!(
+                    "unsupported output path component: {}",
+                    path.display()
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn sha256_text(bytes: &[u8]) -> String {
+    format!("{:x}", Sha256::digest(bytes))
+}
+
+fn read_hash(path: &Path) -> Result<(String, String), String> {
+    let raw = read(path)?;
+    Ok((sha256_text(raw.as_bytes()), raw))
+}
+
+fn run_observed(args: &[&str]) -> Result<CommandObservation, String> {
+    Ok(run_observed_capture(args)?.0)
+}
+
+fn run_observed_capture(args: &[&str]) -> Result<(CommandObservation, String), String> {
+    let output = std::process::Command::new(env::current_exe().map_err(|e| e.to_string())?)
+        .args(args)
+        .output()
+        .map_err(|e| format!("cannot run observed CLI command: {e}"))?;
+    let stdout = String::from_utf8(output.stdout.clone())
+        .map_err(|error| format!("observed CLI stdout was not UTF-8: {error}"))?;
+    Ok((
+        CommandObservation {
+            command: args.iter().map(|s| (*s).to_owned()).collect(),
+            exit_code: output.status.code().unwrap_or(-1),
+            stdout_sha256: sha256_text(&output.stdout),
+            stderr_sha256: sha256_text(&output.stderr),
+        },
+        stdout,
+    ))
+}
+
+fn validate_problem(problem: &EvaluationProblem) -> Result<(), String> {
+    if problem.contract_version != 1 {
+        return Err("unsupported evaluation problem contract_version".to_owned());
+    }
+    match problem.problem_class.as_str() {
+        "content" | "schema" | "tool_behavior" => {}
+        _ => return Err("problem_class must be content, schema, or tool_behavior".to_owned()),
+    }
+    for (label, value) in [
+        ("observed_problem", &problem.observed_problem),
+        ("expected_behavior", &problem.expected_behavior),
+        ("stale_dair_record_id", &problem.stale_dair_record_id),
+    ] {
+        if value.trim().is_empty() {
+            return Err(format!("{label} must not be empty"));
+        }
+    }
+    Ok(())
+}
+
+fn evaluation_failure(
+    project_id: &str,
+    problem_path: &Path,
+    output: &Path,
+) -> Result<ExitCode, String> {
+    ensure_safe_output(output)?;
+    let problem: EvaluationProblem = read_json(problem_path)?;
+    validate_problem(&problem)?;
+    let (browse_observation, browse_stdout) =
+        run_observed_capture(&["project", "browse", project_id])?;
+    let current_observation = run_observed(&["project", "current", project_id])?;
+    let (why_observation, why_stdout) =
+        run_observed_capture(&["project", "why", project_id, &problem.stale_dair_record_id])?;
+    let reproduction = vec![browse_observation, current_observation, why_observation];
+    if reproduction.iter().any(|o| o.exit_code != 0) {
+        return Err(
+            "stale-DAIR reproduction must pass through browse/current/why before evaluation"
+                .to_owned(),
+        );
+    }
+    validate_stale_dair_reproduction(&browse_stdout, &why_stdout, &problem.stale_dair_record_id)?;
+    let record = FailureRecord {
+        contract_version: 1,
+        project_id: project_id.to_owned(),
+        problem_class: problem.problem_class,
+        observed_problem: problem.observed_problem,
+        expected_behavior: problem.expected_behavior,
+        stale_dair_record_id: problem.stale_dair_record_id,
+        reproduction,
+        authority: "failure_record_only_no_implementation_no_promotion".to_owned(),
+        mutation: false,
+        implementation_authorized: false,
+    };
+    write_json_new(output, &record)?;
+    print_json(
+        &json!({"schema_version":1,"command":"lab evaluation failure","output":output,"authority":record.authority,"implementation_authorized":false}),
+    )
+}
+
+fn validate_stale_dair_reproduction(
+    browse_stdout: &str,
+    why_stdout: &str,
+    record_id: &str,
+) -> Result<(), String> {
+    let browse: serde_json::Value = serde_json::from_str(browse_stdout)
+        .map_err(|error| format!("invalid project browse JSON during reproduction: {error}"))?;
+    let why: serde_json::Value = serde_json::from_str(why_stdout)
+        .map_err(|error| format!("invalid project why JSON during reproduction: {error}"))?;
+    if why["record_id"] != record_id {
+        return Err(
+            "project why record_id did not match requested stale_dair_record_id".to_owned(),
+        );
+    }
+    if why["freshness"] != "stale" {
+        return Err("stale-DAIR reproduction requires project why freshness=stale".to_owned());
+    }
+    if why["authority"] != "proposal_only" {
+        return Err(
+            "stale-DAIR reproduction requires project why authority=proposal_only".to_owned(),
+        );
+    }
+    let explanation = why["supersession_explanation"].as_str().unwrap_or("");
+    if !explanation.contains("newer DAIR run supersedes")
+        || !explanation.contains("does not accept")
+    {
+        return Err(
+            "stale-DAIR reproduction requires a DAIR supersession explanation with no acceptance"
+                .to_owned(),
+        );
+    }
+    if why["automatic_promotion"] != false
+        || why["mutation"] != false
+        || why["trust_transfer"] != false
+    {
+        return Err(
+            "stale-DAIR reproduction must not transfer mutation, promotion, or trust".to_owned(),
+        );
+    }
+    let research_records = browse["records"]["proposal_only_research"]["records"]
+        .as_array()
+        .ok_or_else(|| "project browse did not expose proposal_only_research records".to_owned())?;
+    let record = research_records
+        .iter()
+        .find(|record| record["record_id"] == record_id)
+        .ok_or_else(|| {
+            "stale_dair_record_id was not present in project browse research records".to_owned()
+        })?;
+    if record["freshness"] != "stale"
+        || record["authority"] != "proposal_only"
+        || record["accepted"] != false
+    {
+        return Err(
+            "stale_dair_record_id must be a stale unaccepted proposal-only research record"
+                .to_owned(),
+        );
+    }
+    let binding_id = record["binding_id"]
+        .as_str()
+        .ok_or_else(|| "stale_dair_record_id record did not name a binding_id".to_owned())?;
+    let adapter_records = browse["records"]["adapter_freshness"]["records"]
+        .as_array()
+        .ok_or_else(|| "project browse did not expose adapter_freshness records".to_owned())?;
+    let binding = adapter_records
+        .iter()
+        .find(|binding| binding["binding_id"] == binding_id)
+        .ok_or_else(|| {
+            "stale_dair_record_id binding was not configured in adapter_freshness".to_owned()
+        })?;
+    if binding["adapter"] != "dair-ai" {
+        return Err("stale_dair_record_id must belong to a configured dair-ai binding".to_owned());
+    }
+    Ok(())
+}
+
+fn derived_outcome(
+    command_hashes: &[CommandObservation],
+    expected_stdout_sha256: &str,
+) -> &'static str {
+    if expected_stdout_sha256 == "f".repeat(64) {
+        return "inconclusive";
+    }
+    if command_hashes.iter().any(|observation| {
+        observation.exit_code == 0 && observation.stdout_sha256 == expected_stdout_sha256
+    }) {
+        "pass"
+    } else {
+        "fail"
+    }
+}
+
+fn evaluation_observe(
+    failure_path: &Path,
+    label: &str,
+    layer: &str,
+    expected_stdout_sha256: &str,
+    output: &Path,
+) -> Result<ExitCode, String> {
+    ensure_safe_output(output)?;
+    let (failure_sha256, failure_raw) = read_hash(failure_path)?;
+    let failure: FailureRecord =
+        serde_json::from_str(&failure_raw).map_err(|e| format!("invalid failure record: {e}"))?;
+    if failure.contract_version != 1 || failure.reproduction.iter().any(|o| o.exit_code != 0) {
+        return Err("failure record is not a closed reproduced record".to_owned());
+    }
+    if label.trim().is_empty() || layer.trim().is_empty() {
+        return Err("observation label and attributed layer must not be empty".to_owned());
+    }
+    if expected_stdout_sha256.len() != 64
+        || !expected_stdout_sha256
+            .bytes()
+            .all(|b| b.is_ascii_hexdigit())
+    {
+        return Err("expected_stdout_sha256 must be a SHA-256 hex digest".to_owned());
+    }
+    let command_hashes = vec![
+        run_observed(&["project", "browse", &failure.project_id])?,
+        run_observed(&["project", "current", &failure.project_id])?,
+        run_observed(&[
+            "project",
+            "why",
+            &failure.project_id,
+            &failure.stale_dair_record_id,
+        ])?,
+    ];
+    let observation = EvaluationObservation {
+        contract_version: 1,
+        observation_source: "mozak lab evaluation observe".to_owned(),
+        project_id: failure.project_id.clone(),
+        failure_sha256,
+        observation_label: label.to_owned(),
+        fixed_inputs: vec![
+            format!("project_id={}", failure.project_id),
+            format!("stale_dair_record_id={}", failure.stale_dair_record_id),
+            "commands=project browse|project current|project why".to_owned(),
+        ],
+        outcome: derived_outcome(&command_hashes, expected_stdout_sha256).to_owned(),
+        command_hashes,
+        expected_stdout_sha256: expected_stdout_sha256.to_owned(),
+        attributed_layer: layer.to_owned(),
+        dependency_justification: None,
+    };
+    write_json_new(output, &observation)?;
+    print_json(
+        &json!({"schema_version":1,"command":"lab evaluation observe","output":output,"outcome":observation.outcome,"observation_source":observation.observation_source}),
+    )
+}
+
+fn validate_observation(
+    obs: &EvaluationObservation,
+    project_id: &str,
+    failure_sha256: &str,
+) -> Result<(), String> {
+    if obs.contract_version != 1 || obs.project_id != project_id {
+        return Err("evaluation observation contract/project mismatch".to_owned());
+    }
+    if obs.observation_source != "mozak lab evaluation observe" {
+        return Err(
+            "evaluation observation must be captured by mozak lab evaluation observe".to_owned(),
+        );
+    }
+    if obs.failure_sha256 != failure_sha256 {
+        return Err("evaluation observation failure hash drifted".to_owned());
+    }
+    if obs.fixed_inputs.is_empty() || obs.command_hashes.is_empty() {
+        return Err(
+            "evaluation observation must declare fixed inputs and command hashes".to_owned(),
+        );
+    }
+    if obs.outcome != derived_outcome(&obs.command_hashes, &obs.expected_stdout_sha256) {
+        return Err(
+            "evaluation observation outcome does not match captured command hashes".to_owned(),
+        );
+    }
+    if obs.attributed_layer.trim().is_empty() || obs.outcome.trim().is_empty() {
+        return Err("evaluation observation must declare attributed_layer and outcome".to_owned());
+    }
+    Ok(())
+}
+
+fn same_observation(a: &CommandObservation, b: &CommandObservation) -> bool {
+    a.command == b.command
+        && a.exit_code == b.exit_code
+        && a.stdout_sha256 == b.stdout_sha256
+        && a.stderr_sha256 == b.stderr_sha256
+}
+
+fn evaluation_compare(
+    failure_path: &Path,
+    before_path: &Path,
+    after_path: &Path,
+    output: &Path,
+) -> Result<ExitCode, String> {
+    ensure_safe_output(output)?;
+    let comparison = build_evaluation_comparison(failure_path, before_path, after_path)?;
+    write_json_new(output, &comparison)?;
+    print_json(
+        &json!({"schema_version":1,"command":"lab evaluation compare","output":output,"result":comparison.result,"implementation_authorized":false,"promotion_authorized":false,"owner_approval_required":comparison.owner_approval_required}),
+    )
+}
+
+fn build_evaluation_comparison(
+    failure_path: &Path,
+    before_path: &Path,
+    after_path: &Path,
+) -> Result<EvaluationComparison, String> {
+    let (failure_sha256, failure_raw) = read_hash(failure_path)?;
+    let (before_sha256, before_raw) = read_hash(before_path)?;
+    let (after_sha256, after_raw) = read_hash(after_path)?;
+    let failure: FailureRecord =
+        serde_json::from_str(&failure_raw).map_err(|e| format!("invalid failure record: {e}"))?;
+    if failure.contract_version != 1
+        || failure.implementation_authorized
+        || failure.reproduction.iter().any(|o| o.exit_code != 0)
+    {
+        return Err(
+            "failure record is not a closed reproduced non-authoritative record".to_owned(),
+        );
+    }
+    let before: EvaluationObservation = serde_json::from_str(&before_raw)
+        .map_err(|e| format!("invalid before observation: {e}"))?;
+    let after: EvaluationObservation =
+        serde_json::from_str(&after_raw).map_err(|e| format!("invalid after observation: {e}"))?;
+    validate_observation(&before, &failure.project_id, &failure_sha256)?;
+    validate_observation(&after, &failure.project_id, &failure_sha256)?;
+    if before.command_hashes.len() != failure.reproduction.len()
+        || !before
+            .command_hashes
+            .iter()
+            .zip(&failure.reproduction)
+            .all(|(left, right)| same_observation(left, right))
+    {
+        return Err("before observation must match the captured failure reproduction".to_owned());
+    }
+    let current_after = vec![
+        run_observed(&["project", "browse", &failure.project_id])?,
+        run_observed(&["project", "current", &failure.project_id])?,
+        run_observed(&[
+            "project",
+            "why",
+            &failure.project_id,
+            &failure.stale_dair_record_id,
+        ])?,
+    ];
+    if after.command_hashes.len() != current_after.len()
+        || !after
+            .command_hashes
+            .iter()
+            .zip(&current_after)
+            .all(|(left, right)| same_observation(left, right))
+    {
+        return Err("after observation must match the current real CLI observation".to_owned());
+    }
+    if before.fixed_inputs != after.fixed_inputs {
+        return Err("fixed project inputs drifted between before and after".to_owned());
+    }
+    let layers = [
+        before.attributed_layer.clone(),
+        after.attributed_layer.clone(),
+    ]
+    .into_iter()
+    .collect::<std::collections::BTreeSet<_>>();
+    if layers.len() != 1
+        && after
+            .dependency_justification
+            .as_deref()
+            .unwrap_or("")
+            .trim()
+            .is_empty()
+    {
+        return Err(
+            "only one attributed layer may change unless dependency_justification is supplied"
+                .to_owned(),
+        );
+    }
+    let result = if after.outcome == "pass" && before.outcome != "pass" {
+        "pass"
+    } else if after.outcome == "fail" {
+        "fail"
+    } else {
+        "inconclusive"
+    };
+    Ok(EvaluationComparison {
+        contract_version: 1,
+        comparison_source: "mozak lab evaluation compare".to_owned(),
+        failure_sha256,
+        before_sha256,
+        after_sha256,
+        result: result.to_owned(),
+        attributed_layer: after.attributed_layer,
+        implementation_authorized: false,
+        promotion_authorized: false,
+        owner_approval_required: result == "pass",
+        reason: if result == "pass" { "comparison passed but remains proposal-only; exact owner approval is still required before implementation" } else { "failed or inconclusive comparison authorizes no implementation or promotion" }.to_owned(),
+    })
+}
+
+fn evaluation_review(
+    comparison_path: &Path,
+    failure_path: &Path,
+    before_path: &Path,
+    after_path: &Path,
+    output: &Path,
+) -> Result<ExitCode, String> {
+    ensure_safe_output(output)?;
+    let (comparison_sha256, raw) = read_hash(comparison_path)?;
+    let comparison: EvaluationComparison =
+        serde_json::from_str(&raw).map_err(|e| format!("invalid comparison: {e}"))?;
+    let validated = build_evaluation_comparison(failure_path, before_path, after_path)?;
+    if comparison != validated {
+        return Err("comparison does not match validator-produced evidence".to_owned());
+    }
+    if comparison.contract_version != 1
+        || comparison.comparison_source != "mozak lab evaluation compare"
+        || comparison.implementation_authorized
+        || comparison.promotion_authorized
+    {
+        return Err("comparison must be non-authoritative".to_owned());
+    }
+    let packet = json!({
+        "contract_version": 1,
+        "comparison_sha256": comparison_sha256,
+        "result": comparison.result,
+        "proposal_only": true,
+        "implementation_authorized": false,
+        "promotion_authorized": false,
+        "owner_approval_required_before_implementation": true,
+        "authority": "owner_review_packet_only_no_approval_transfer",
+        "next": "separate exact owner approval artifact required before implementation"
+    });
+    write_json_new(output, &packet)?;
+    print_json(
+        &json!({"schema_version":1,"command":"lab evaluation review","output":output,"authority":"owner_review_packet_only_no_approval_transfer"}),
+    )
 }
 
 /// Defines literature groups after verified readings are present.

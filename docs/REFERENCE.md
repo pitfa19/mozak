@@ -224,6 +224,10 @@ mozak lab modules
 mozak lab start <run-dir> <scope-id> <module> <question> <binding-id> [binding-id ...]
 mozak lab refresh <run-dir> <adapter-run.json>
 mozak lab select|read|mechanisms|plans <run-dir> <input.json>
+mozak lab evaluation failure <project-id> <problem.json> <failure.json>
+mozak lab evaluation observe <failure.json> <label> <attributed-layer> <expected-stdout-sha256> <observation.json>
+mozak lab evaluation compare <failure.json> <before.json> <after.json> <comparison.json>
+mozak lab evaluation review <comparison.json> <failure.json> <before.json> <after.json> <review-packet.json>
 mozak lab review|status <run-dir>
 ```
 
@@ -245,6 +249,25 @@ least two acceptance checks.
 The Lab is planning-only. A run stops at `owner_reviewed` and authorizes
 nothing. Implementation, evaluation, and promotion are separate owner-authorized
 phases.
+
+The public improvement-evaluation loop is create-only and non-authoritative:
+`mozak lab evaluation failure <project-id> <problem.json> <failure.json>` records
+an observed problem classified as `content`, `schema`, or `tool_behavior` and
+reproduces the stale-DAIR path through real `project browse`, `project current`,
+and `project why` CLI observations. `mozak lab evaluation observe` captures the
+same fixed command set into before/after observation artifacts and derives the
+outcome from the captured stdout/stderr hashes rather than caller-authored prose.
+`mozak lab evaluation compare` consumes a
+failure record plus paired before/after observations with fixed project inputs
+and exact stdout/stderr hashes. It refuses fixed-input drift, tampered
+failure records, and multiple attributed layers unless an explicit dependency
+justification is supplied. Failed and inconclusive comparisons authorize no
+implementation or promotion; passing comparisons remain proposal-only. `mozak
+lab evaluation review` replays comparison validation against the supplied
+failure, before, and after artifacts, so forged comparison JSON cannot produce
+an owner packet. The packet still transfers no authority and requires a separate
+exact owner approval before implementation. Evaluation output paths are
+create-only and reject symlinked ancestors before writing.
 
 ### Skill
 

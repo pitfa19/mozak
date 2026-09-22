@@ -48,7 +48,17 @@ fn validate_and_replay_commands_work_end_to_end() {
 #[test]
 fn invalid_usage_and_invalid_json_fail() {
     let binary = env!("CARGO_BIN_EXE_mozak");
-    assert!(!Command::new(binary).output().unwrap().status.success());
+    let usage = Command::new(binary).output().unwrap();
+    assert!(!usage.status.success());
+    let stderr = String::from_utf8_lossy(&usage.stderr);
+    assert!(
+        stderr.contains("mozak lab evaluation failure <project-id> <problem.json> <failure.json>")
+    );
+    assert!(stderr.contains("mozak lab evaluation observe <failure.json> <label> <attributed-layer> <expected-stdout-sha256> <observation.json>"));
+    assert!(stderr.contains(
+        "mozak lab evaluation compare <failure.json> <before.json> <after.json> <comparison.json>"
+    ));
+    assert!(stderr.contains("mozak lab evaluation review <comparison.json> <failure.json> <before.json> <after.json> <review-packet.json>"));
     assert!(
         !Command::new(binary)
             .args(["validate", "does-not-exist.json"])
