@@ -47,6 +47,7 @@ mozak project review <discovery.json>
 mozak project register <discovery.json> <approval.json>          # mutation
 mozak project refresh <discovery.json> <approval.json>           # mutation
 mozak project context <project-id>
+mozak project current <project-id>
 mozak project registrations
 mozak project refresh history
 mozak project refresh rollback <config-sha256>
@@ -57,6 +58,8 @@ mozak scope validate|list|graph-source|graph|export <scope-root>
 mozak scope source-check <scope-root> <source-id> <source-root> <observed-revision>
 mozak scope ingest-links <scope-root> <source-root> <observed-revision> <plan.json> <output-root>  # mutation
 ```
+
+`project current PROJECT_ID` emits the sealed read-only current-state projection plus bounded sections for goal state, adapter freshness, newest proposal-only research, superseded artifacts, and next owner decision. It reads only the registered project/config boundaries, configured KB, adapter registry, and adapter runs dirs. It labels latest recorded, latest observed, and accepted, and claims no trust transfer or automatic promotion.
 
 Since 0.3.1, `project context` self-reconciles only valid, identity-preserving
 pin drift for the exact requested registration. It takes the existing exclusive

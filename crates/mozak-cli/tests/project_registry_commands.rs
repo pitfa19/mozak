@@ -98,6 +98,221 @@ fn register_initial(kb: &Path, ws: &Path, xdg: &Path, base: &Path) -> Value {
     proposal
 }
 
+fn write_adapter_registry(xdg: &Path, runs_dir: &Path) {
+    let dir = xdg.join("mozak");
+    fs::create_dir_all(&dir).unwrap();
+    let request = dir.join("request.json");
+    let runner = dir.join("runner.sh");
+    fs::write(&request, b"{\"scope_id\":\"topic\"}").unwrap();
+    fs::write(&runner, b"#!/bin/sh\nexit 0\n").unwrap();
+    fs::write(
+        dir.join("adapters.json"),
+        serde_json::to_vec(&json!({
+            "schema_version": 1,
+            "bindings": [{
+                "id": "agentic-systems-dair",
+                "adapter": "dair-ai",
+                "target_scope_id": "topic",
+                "request_path": request,
+                "request_sha256": sha(b"{\"scope_id\":\"topic\"}"),
+                "runner_path": runner,
+                "runner_sha256": sha(b"#!/bin/sh\nexit 0\n"),
+                "runs_dir": runs_dir
+            }]
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+}
+
+fn drift_adapter_request(xdg: &Path) {
+    fs::write(
+        xdg.join("mozak/request.json"),
+        b"{\"scope_id\":\"topic\",\"changed\":true}",
+    )
+    .unwrap();
+}
+
+fn write_research_run(path: &Path) {
+    fs::write(path, include_bytes!("fixtures/lab_adapter_run.json")).unwrap();
+}
+
+#[test]
+#[allow(clippy::too_many_lines)]
+fn project_current_reports_bounded_state_and_marks_older_adapter_runs_stale() {
+    let t = Temp::new("current-stale-runs");
+    let kb = valid_kb(&t.0);
+    let ws = t.0.join("workspace");
+    project(&ws.join("current"), "current-project");
+    let xdg = t.0.join("xdg");
+    register_initial(&kb, &ws, &xdg, &t.0);
+    let runs = t.0.join("runs");
+    fs::create_dir_all(&runs).unwrap();
+    write_research_run(&runs.join("old.json"));
+    write_research_run(&runs.join("new.json"));
+    write_adapter_registry(&xdg, &runs);
+
+    let out = run(&["project", "current", "current-project"], &xdg);
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let report: Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(report["command"], "project current");
+    assert_eq!(report["mutation"], false);
+    assert_eq!(report["trust_transfer"], false);
+    assert_eq!(report["automatic_promotion"], false);
+    assert_eq!(
+        report["labels"]["accepted"],
+        "owner-accepted planning state only"
+    );
+    assert_eq!(
+        report["adapter_freshness"]["records"][0]["stale_run_count"],
+        1
+    );
+    assert_eq!(report["adapter_freshness"]["truncated"], false);
+    assert!(
+        report["newest_proposal_only_research"]["run_id"]
+            .as_str()
+            .is_some()
+    );
+    assert_eq!(
+        report["newest_proposal_only_research"]["authority"],
+        "proposal_only"
+    );
+    assert_eq!(report["newest_proposal_only_research"]["accepted"], false);
+    assert_eq!(
+        report["newest_proposal_only_research"]["freshness"],
+        "current"
+    );
+    assert_eq!(report["current_state_projection"]["bounded_summary"], true);
+    assert!(
+        report["current_state_projection"]
+            .get("canonical_hash")
+            .is_some()
+    );
+    assert!(report["current_state_projection"].get("sources").is_some());
+    assert!(
+        report["current_state_projection"]
+            .get("project_id")
+            .is_some()
+    );
+    assert!(
+        report["current_state_projection"]
+            .get("relationships")
+            .is_some()
+    );
+    assert!(report["current_state_projection"].get("nodes").is_some());
+    assert!(report["current_state_projection"].get("mutation").is_some());
+    assert!(
+        report["current_state_projection"]
+            .get("automatic_promotion")
+            .is_some()
+    );
+    assert!(
+        report["current_state_projection"]
+            .get("schema_version")
+            .is_some()
+    );
+    assert!(report["current_state_projection"].get("counts").is_some());
+    assert!(
+        report["current_state_projection"]
+            .get("observes_relationships")
+            .is_some()
+    );
+    assert!(
+        report["current_state_projection"]
+            .get("full_projection")
+            .is_none()
+    );
+    assert!(
+        report["current_state_projection"]["nodes"]["returned_count"]
+            .as_u64()
+            .unwrap()
+            <= 12
+    );
+    let observes = report["current_state_projection"]["observes_relationships"]["records"]
+        .as_array()
+        .unwrap();
+    assert!(
+        observes
+            .iter()
+            .all(|edge| edge["to"] != "project:current-project")
+    );
+    assert!(observes.iter().any(|edge| edge["to"] == "scope:topic"));
+    let text = String::from_utf8(out.stdout).unwrap();
+    assert!(!text.contains("automatic promotion"));
+    assert!(!text.contains("trust transfer"));
+}
+
+#[test]
+fn project_current_without_adapters_or_research_is_valid_and_bounded() {
+    let t = Temp::new("current-empty");
+    let kb = valid_kb(&t.0);
+    let ws = t.0.join("workspace");
+    project(&ws.join("empty"), "empty-current");
+    let xdg = t.0.join("xdg");
+    register_initial(&kb, &ws, &xdg, &t.0);
+
+    let out = run(&["project", "current", "empty-current"], &xdg);
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let report: Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(report["adapter_freshness"]["records"], json!([]));
+    assert_eq!(report["newest_proposal_only_research"], Value::Null);
+    assert_eq!(report["goal_state"]["ready_goals"], json!([]));
+    assert_eq!(
+        report["bounded_directories"]["project_root"],
+        ws.join("empty").to_string_lossy().as_ref()
+    );
+    assert_eq!(report["current_state_projection"]["bounded_summary"], true);
+    assert!(
+        report["current_state_projection"]["nodes"]["returned_count"]
+            .as_u64()
+            .unwrap()
+            >= 2
+    );
+}
+
+#[test]
+fn project_current_marks_drifted_adapter_pins_needs_recheck_without_current_runs() {
+    let t = Temp::new("current-drifted-adapter");
+    let kb = valid_kb(&t.0);
+    let ws = t.0.join("workspace");
+    project(&ws.join("drifted"), "drifted-current");
+    let xdg = t.0.join("xdg");
+    register_initial(&kb, &ws, &xdg, &t.0);
+    let runs = t.0.join("runs");
+    fs::create_dir_all(&runs).unwrap();
+    write_research_run(&runs.join("run.json"));
+    write_adapter_registry(&xdg, &runs);
+    drift_adapter_request(&xdg);
+
+    let out = run(&["project", "current", "drifted-current"], &xdg);
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let report: Value = serde_json::from_slice(&out.stdout).unwrap();
+    let binding = &report["adapter_freshness"]["records"][0];
+    assert_eq!(binding["freshness"], "needs_recheck");
+    assert_eq!(binding["state"], "needs_recheck");
+    assert_eq!(binding["callable"], false);
+    assert_eq!(binding["authority"], "owner_configured_needs_recheck");
+    assert_eq!(binding["latest_recorded"], Value::Null);
+    assert_eq!(binding["drifted"][0]["pin"], "request");
+    assert_eq!(report["newest_proposal_only_research"], Value::Null);
+    assert_eq!(
+        report["current_state_projection"]["observes_relationships"]["total_count"],
+        0
+    );
+}
+
 #[test]
 fn registrations_lists_exact_configured_ids_even_when_the_live_kb_drifted() {
     let t = Temp::new("registrations-during-kb-drift");

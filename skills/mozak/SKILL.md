@@ -50,7 +50,8 @@ package-selection claims.
 
 ## Read-only routes
 
-- Fresh-agent context by exact registered ID: `mozak project context PROJECT_ID`. Use its `configured_owner` field as the stable actor for authored plan and approval actor fields. Do not infer the actor from latest approval owner because refresh approvals can be authored by a different person.
+- Fresh-agent context by exact registered ID: `mozak project context PROJECT_ID`.
+- Bounded current-state view by exact registered ID: `mozak project current PROJECT_ID`. It uses the sealed Stage 1 current-state projection and reports goal state, adapter freshness, newest proposal-only research, superseded artifacts, and next owner decision while distinguishing latest recorded, latest observed, and accepted. Use its `configured_owner` field as the stable actor for authored plan and approval actor fields. Do not infer the actor from latest approval owner because refresh approvals can be authored by a different person.
 - Bounded registration preview: `mozak project discover KB_ROOT WORKSPACE_ROOT [WORKSPACE_ROOT ...]`
 - Strict read-only registration delta: `mozak project review DISCOVERY_JSON`
 - Onboarding inspection, project status: `mozak project status [PROJECT]`

@@ -347,7 +347,7 @@ mozak project context <project-id>
 mozak project refresh history
 ```
 
-`project context` is the command to give a fresh agent. It reports the current
+`project context` is the command to give a fresh agent. `project current` is the bounded read-only current-state view: goal state, adapter freshness, newest proposal-only research, superseded artifacts, and the next owner decision. It labels latest recorded, latest observed, and accepted separately, and it does not transfer trust or promote research. `project context` reports the current
 idea, latest plan, ready goals, and next actions in one JSON payload.
 It may also repair valid pin-only drift for that exact registration. This uses
 an exclusive lock and config digest check, records tamper-evident history, and

@@ -1,8 +1,14 @@
 use mozak_core::{
+    canonical_hash,
+    current_state::{
+        CurrentStateInput, Freshness, ProjectionSource, StateNode, StateRelationship,
+        project_current_state,
+    },
     kb::load_registry,
     project_contract::{
         IdeaDocument, ProjectManifest, validate_idea_markdown, validate_project_yaml,
     },
+    research::{ResearchRun, validate_run_json},
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -18,6 +24,7 @@ use std::{
 };
 
 const SCHEMA_VERSION: u64 = 1;
+const CURRENT_SECTION_LIMIT: usize = 12;
 const MAX_SCAN_ENTRIES: usize = 100_000;
 const PRUNED: [&str; 8] = [
     ".git",
@@ -442,6 +449,181 @@ pub fn registrations() -> Result<ExitCode, String> {
     Ok(ExitCode::SUCCESS)
 }
 
+#[allow(clippy::too_many_lines)]
+pub fn current(id: &str) -> Result<ExitCode, String> {
+    if id.is_empty() || id.chars().any(char::is_control) {
+        return Err("project id is empty or contains control characters".into());
+    }
+    let config_path = default_config_path()?;
+    validate_target_path(&config_path)?;
+    let config_bytes = read_optional_regular(&config_path)?
+        .ok_or_else(|| format!("local config does not exist: {}", config_path.display()))?;
+    let config: LocalConfig = serde_json::from_slice(&config_bytes)
+        .map_err(|e| format!("invalid local config {}: {e}", config_path.display()))?;
+    validate_local_config(&config)?;
+    let project = config
+        .projects
+        .get(id)
+        .ok_or_else(|| format!("project id is not registered: {id}"))?;
+    let root = Path::new(&project.root);
+    let manifest_bytes = fs::read(&project.manifest_path).map_err(|e| {
+        format!(
+            "cannot read project manifest {}: {e}",
+            project.manifest_path
+        )
+    })?;
+    if hash(&manifest_bytes) != project.manifest_sha256 {
+        return Err(
+            "project manifest hash drift; run project context or reviewed refresh first".into(),
+        );
+    }
+    let (project_source, manifest) = ProjectionSource::project_manifest(
+        &project.manifest_path,
+        &manifest_bytes,
+        Freshness::Current,
+    )
+    .map_err(|e| e.to_string())?;
+    let project_node = StateNode::project(&project_source, &manifest).map_err(|e| e.to_string())?;
+
+    let kb = load_registry(Path::new(&config.kb_root)).map_err(|e| e.to_string())?;
+    if kb.registry_sha256 != config.kb_sha256 {
+        return Err("configured KB hash drift; reviewed project refresh is required".into());
+    }
+    let (kb_source, loaded_kb) =
+        ProjectionSource::knowledge_base(Path::new(&config.kb_root), Freshness::Current)
+            .map_err(|e| e.to_string())?;
+    let kb_node = StateNode::knowledge_base(&kb_source, "configured knowledge base")
+        .map_err(|e| e.to_string())?;
+    let mut sources = vec![project_source.clone(), kb_source.clone()];
+    let mut nodes = vec![project_node.clone(), kb_node.clone()];
+    let mut relationships = Vec::new();
+    let mut scope_nodes = BTreeMap::new();
+    for entry in &loaded_kb.entries {
+        for scope in &entry.scopes.manifest.scopes {
+            let scope_node =
+                StateNode::scope(&kb_source, &scope.id, &scope.title).map_err(|e| e.to_string())?;
+            relationships.push(
+                StateRelationship::registered_in(&scope_node, &kb_node, &kb_source)
+                    .map_err(|e| e.to_string())?,
+            );
+            scope_nodes.insert(scope.id.clone(), scope_node.clone());
+            nodes.push(scope_node);
+        }
+    }
+
+    let adapter_path = adapter_registry_path()?;
+    let adapter_registry = if adapter_path.exists() {
+        let adapter_bytes = fs::read(&adapter_path).map_err(|e| {
+            format!(
+                "cannot read adapter registry {}: {e}",
+                adapter_path.display()
+            )
+        })?;
+        let (adapter_source, registry) = ProjectionSource::adapter_registry(
+            path_text(&adapter_path)?,
+            &adapter_bytes,
+            Freshness::Current,
+        )
+        .map_err(|e| e.to_string())?;
+        let mut bindings_json = Vec::new();
+        for binding in &registry.bindings {
+            let binding_node =
+                StateNode::adapter_binding(&adapter_source, binding).map_err(|e| e.to_string())?;
+            if let Some(scope_node) = scope_nodes.get(&binding.target_scope_id) {
+                relationships.push(
+                    StateRelationship::targets(&binding_node, binding, scope_node, &adapter_source)
+                        .map_err(|e| e.to_string())?,
+                );
+            }
+            bindings_json.push(binding_current_view(binding)?);
+            nodes.push(binding_node);
+        }
+        sources.push(adapter_source);
+        Some((registry, bindings_json))
+    } else {
+        None
+    };
+
+    let mut research_views = Vec::new();
+    if let Some((registry, _)) = &adapter_registry {
+        for binding in &registry.bindings {
+            if !adapter_binding_callable(binding) {
+                continue;
+            }
+            for (path, run, stale) in validated_runs_in(Path::new(&binding.runs_dir))? {
+                let bytes = fs::read(&path).map_err(|e| format!("cannot read run: {e}"))?;
+                let freshness = if stale {
+                    Freshness::Stale
+                } else {
+                    Freshness::Current
+                };
+                let (source, validated) =
+                    ProjectionSource::research_run(path_text(&path)?, &bytes, freshness)
+                        .map_err(|e| e.to_string())?;
+                let research_node =
+                    StateNode::research_run(&source, &validated).map_err(|e| e.to_string())?;
+                research_views.push(serde_json::json!({
+                    "binding_id": binding.id,
+                    "path": path_text(&path)?,
+                    "run_id": run.run_id,
+                    "latest_recorded": run.created_at,
+                    "latest_observed": path.metadata().ok().and_then(|m| m.modified().ok()).and_then(system_time_text),
+                    "freshness": if stale {"stale"} else {"current"},
+                    "authority": "proposal_only",
+                    "accepted": false
+                }));
+                if !stale {
+                    let target = scope_nodes.get(&binding.target_scope_id).ok_or_else(|| {
+                        format!(
+                            "adapter binding {} targets unknown Scope {}",
+                            binding.id, binding.target_scope_id
+                        )
+                    })?;
+                    relationships.push(
+                        StateRelationship::observes(&research_node, target, &source)
+                            .map_err(|e| e.to_string())?,
+                    );
+                    sources.push(source);
+                    nodes.push(research_node);
+                }
+            }
+        }
+    }
+    research_views.sort_by(|a, b| {
+        b["latest_recorded"]
+            .as_str()
+            .cmp(&a["latest_recorded"].as_str())
+    });
+    let newest = research_views.first().cloned();
+    let snapshot = crate::project_workflow::snapshot(root)?;
+    let projection = project_current_state(
+        CurrentStateInput::new(id, sources, nodes, relationships).map_err(|e| e.to_string())?,
+    )
+    .map_err(|e| e.to_string())?;
+    let projection_summary = bounded_projection_summary(&projection)?;
+    println!(
+        "{}",
+        serde_json::to_string(&serde_json::json!({
+            "schema_version": 1,
+            "command": "project current",
+            "project": {"id": project.id, "name": project.name, "root": project.root},
+            "labels": {"latest_recorded": "artifact-declared time", "latest_observed": "local filesystem observation time", "accepted": "owner-accepted planning state only"},
+            "goal_state": {"workflow_state": snapshot.state, "latest_recorded": snapshot.latest_valid_plan, "accepted": snapshot.ready_goals, "ready_goals": snapshot.ready_goals},
+            "adapter_freshness": bounded_values(adapter_registry.as_ref().map(|(_, views)| views.clone()).unwrap_or_default()),
+            "newest_proposal_only_research": newest,
+            "superseded_artifacts": {"compaction": snapshot.compaction, "findings": bounded_values(snapshot.findings.iter().filter(|f| f.status.contains("superseded") || f.message.contains("superseded")).map(|f| serde_json::to_value(f).unwrap_or(Value::Null)).collect::<Vec<_>>())},
+            "next_owner_decision": snapshot.next_actions.first().cloned().unwrap_or_else(|| "No ready goals; owner may choose whether to refresh research, compact superseded artifacts, or define a new accepted goal.".into()),
+            "current_state_projection": projection_summary,
+            "bounded_directories": {"project_root": project.root, "kb_root": config.kb_root, "adapter_registry": path_text(&adapter_path)?},
+            "mutation": false,
+            "trust_transfer": false,
+            "automatic_promotion": false
+        }))
+        .map_err(|e| e.to_string())?
+    );
+    Ok(ExitCode::SUCCESS)
+}
+
 pub fn refresh_rollback(target_digest: &str) -> Result<ExitCode, String> {
     validate_lower_hex("rollback target config SHA-256", target_digest, 64)?;
     let config_path = default_config_path()?;
@@ -663,6 +845,190 @@ fn configured_owner(config: &LocalConfig) -> &str {
         .configured_owner
         .as_deref()
         .unwrap_or(&config.approval.owner)
+}
+
+fn adapter_registry_path() -> Result<PathBuf, String> {
+    let base = env::var_os("XDG_CONFIG_HOME")
+        .map(PathBuf::from)
+        .or_else(|| env::var_os("HOME").map(|home| PathBuf::from(home).join(".config")))
+        .ok_or("HOME or XDG_CONFIG_HOME is required")?;
+    Ok(base.join("mozak/adapters.json"))
+}
+
+fn binding_current_view(binding: &mozak_core::adapter::AdapterBinding) -> Result<Value, String> {
+    let drifted = drifted_adapter_pins(binding);
+    let callable = drifted.is_empty();
+    if !callable {
+        return Ok(serde_json::json!({
+            "binding_id": binding.id,
+            "adapter": binding.adapter,
+            "target_scope_id": binding.target_scope_id,
+            "runs_dir": binding.runs_dir,
+            "latest_recorded": Value::Null,
+            "latest_observed": Value::Null,
+            "accepted": false,
+            "freshness": "needs_recheck",
+            "state": "needs_recheck",
+            "callable": false,
+            "drifted": drifted,
+            "stale_run_count": 0,
+            "authority": "owner_configured_needs_recheck"
+        }));
+    }
+    let runs = validated_runs_in(Path::new(&binding.runs_dir))?;
+    let newest = runs.iter().find(|(_, _, stale)| !*stale);
+    Ok(serde_json::json!({
+        "binding_id": binding.id,
+        "adapter": binding.adapter,
+        "target_scope_id": binding.target_scope_id,
+        "runs_dir": binding.runs_dir,
+        "latest_recorded": newest.map(|(_, run, _)| run.created_at.clone()),
+        "latest_observed": newest.and_then(|(path, _, _)| path.metadata().ok()).and_then(|m| m.modified().ok()).and_then(system_time_text),
+        "accepted": false,
+        "freshness": if newest.is_some() {"current"} else {"not_observed"},
+        "state": "ready",
+        "callable": true,
+        "drifted": [],
+        "stale_run_count": runs.iter().filter(|(_, _, stale)| *stale).count(),
+        "authority": "owner_configured_callable"
+    }))
+}
+
+fn adapter_binding_callable(binding: &mozak_core::adapter::AdapterBinding) -> bool {
+    drifted_adapter_pins(binding).is_empty()
+}
+
+fn drifted_adapter_pins(binding: &mozak_core::adapter::AdapterBinding) -> Vec<Value> {
+    [
+        ("request", &binding.request_path, &binding.request_sha256),
+        ("runner", &binding.runner_path, &binding.runner_sha256),
+    ]
+    .into_iter()
+    .filter(|(_, path, expected)| adapter_pin_status(path, expected) != "ready")
+    .map(|(label, path, expected)| {
+        serde_json::json!({
+            "pin": label,
+            "path": path,
+            "pinned_sha256": expected,
+            "observed_sha256": fs::read(path).ok().map(|bytes| hash(&bytes)),
+        })
+    })
+    .collect()
+}
+
+fn adapter_pin_status(path: &str, expected: &str) -> &'static str {
+    fs::read(path)
+        .ok()
+        .filter(|bytes| hash(bytes) == expected)
+        .map_or("drifted", |_| "ready")
+}
+
+fn bounded_values(values: Vec<Value>) -> Value {
+    let total = values.len();
+    let records = values
+        .into_iter()
+        .take(CURRENT_SECTION_LIMIT)
+        .collect::<Vec<_>>();
+    serde_json::json!({
+        "records": records,
+        "total_count": total,
+        "returned_count": records.len(),
+        "truncated": total > records.len(),
+        "limit": CURRENT_SECTION_LIMIT
+    })
+}
+
+fn bounded_projection_summary(
+    projection: &mozak_core::current_state::CurrentStateProjection,
+) -> Result<Value, String> {
+    let value = serde_json::to_value(projection).map_err(|e| e.to_string())?;
+    let sources = value["sources"].as_array().cloned().unwrap_or_default();
+    let nodes = value["nodes"].as_array().cloned().unwrap_or_default();
+    let relationships = value["relationships"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    let observes = relationships
+        .iter()
+        .filter(|relationship| relationship["relation"] == "observes")
+        .cloned()
+        .collect::<Vec<_>>();
+    Ok(serde_json::json!({
+        "schema_version": projection.schema_version,
+        "project_id": projection.project_id,
+        "canonical_hash": canonical_hash(projection).map_err(|e| e.to_string())?,
+        "mutation": projection.mutation,
+        "automatic_promotion": projection.automatic_promotion,
+        "counts": {"sources": sources.len(), "nodes": nodes.len(), "relationships": relationships.len()},
+        "sources": bounded_values(sources),
+        "nodes": bounded_values(nodes),
+        "relationships": bounded_values(relationships),
+        "observes_relationships": bounded_values(observes),
+        "bounded_summary": true
+    }))
+}
+
+fn validated_runs_in(dir: &Path) -> Result<Vec<(PathBuf, ResearchRun, bool)>, String> {
+    if !dir.exists() {
+        return Ok(Vec::new());
+    }
+    if !dir.is_dir() {
+        return Err(format!(
+            "adapter runs_dir is not a directory: {}",
+            dir.display()
+        ));
+    }
+    let mut candidates = Vec::new();
+    collect_run_json_candidates(dir, dir, &mut candidates)?;
+    let mut runs = Vec::new();
+    for path in candidates {
+        let input = fs::read_to_string(&path)
+            .map_err(|e| format!("cannot read research run {}: {e}", path.display()))?;
+        let run = validate_run_json(&input)
+            .map_err(|e| format!("invalid research run {}: {e}", path.display()))?;
+        runs.push((path, run, false));
+    }
+    runs.sort_by(|a, b| {
+        b.1.created_at
+            .cmp(&a.1.created_at)
+            .then_with(|| b.1.run_id.cmp(&a.1.run_id))
+    });
+    for (_, _, stale) in runs.iter_mut().skip(1) {
+        *stale = true;
+    }
+    Ok(runs)
+}
+
+fn collect_run_json_candidates(
+    root: &Path,
+    dir: &Path,
+    output: &mut Vec<PathBuf>,
+) -> Result<(), String> {
+    if output.len() > 512 {
+        return Err(format!(
+            "too many research run candidates under {}",
+            root.display()
+        ));
+    }
+    for entry in
+        fs::read_dir(dir).map_err(|e| format!("cannot read runs_dir {}: {e}", dir.display()))?
+    {
+        let path = entry.map_err(|e| e.to_string())?.path();
+        if path.is_dir() {
+            collect_run_json_candidates(root, &path, output)?;
+        } else if path.is_file()
+            && (path.file_name().and_then(|v| v.to_str()) == Some("run.json")
+                || (dir == root && path.extension().and_then(|v| v.to_str()) == Some("json")))
+        {
+            output.push(path);
+        }
+    }
+    Ok(())
+}
+
+fn system_time_text(value: SystemTime) -> Option<String> {
+    let seconds = value.duration_since(UNIX_EPOCH).ok()?.as_secs();
+    Some(format!("unix:{seconds}"))
 }
 
 fn history_root(config_path: &Path) -> Result<PathBuf, String> {

@@ -324,6 +324,9 @@ fn run_project_registry_command(args: &[String]) -> Option<Result<ExitCode, Stri
         [project, command, id] if project == "project" && command == "context" => Some(
             project_registry::context(id, project_registry::ContextOutputMode::Auto),
         ),
+        [project, command, id] if project == "project" && command == "current" => {
+            Some(project_registry::current(id))
+        }
         [project, command, id, flag]
             if project == "project" && command == "context" && flag == "--json" =>
         {
