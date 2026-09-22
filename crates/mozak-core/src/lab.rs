@@ -216,7 +216,12 @@ impl Module {
     #[must_use]
     pub const fn source_areas(self) -> &'static [&'static str] {
         match self {
-            Self::Scope => &["scope.rs", "project_contract.rs", "project_context.rs"],
+            Self::Scope => &[
+                "scope.rs",
+                "project_contract.rs",
+                "project_context.rs",
+                "current_state.rs",
+            ],
             Self::Research => &[
                 "research.rs",
                 "adapter_workflow.rs",
