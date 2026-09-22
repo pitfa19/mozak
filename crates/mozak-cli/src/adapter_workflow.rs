@@ -1,5 +1,7 @@
-use mozak_core::kb::load_registry;
-use serde::{Deserialize, Serialize};
+use mozak_core::{
+    adapter::{AdapterBinding, AdapterRegistry, validate_adapter_registry_json},
+    kb::load_registry,
+};
 use serde_json::json;
 use sha2::{Digest, Sha256};
 use std::{
@@ -7,26 +9,6 @@ use std::{
     path::{Path, PathBuf},
     process::{Command, ExitCode},
 };
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct AdapterRegistry {
-    schema_version: u32,
-    bindings: Vec<AdapterBinding>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct AdapterBinding {
-    id: String,
-    adapter: String,
-    target_scope_id: String,
-    request_path: String,
-    request_sha256: String,
-    runner_path: String,
-    runner_sha256: String,
-    runs_dir: String,
-}
 
 pub fn run(args: &[String]) -> Result<ExitCode, String> {
     match args
@@ -243,49 +225,7 @@ fn registry_path() -> Result<PathBuf, String> {
 fn load(path: &Path) -> Result<AdapterRegistry, String> {
     let input = fs::read_to_string(path)
         .map_err(|error| format!("cannot read adapter registry {}: {error}", path.display()))?;
-    let registry: AdapterRegistry = serde_json::from_str(&input)
-        .map_err(|error| format!("invalid adapter registry: {error}"))?;
-    if registry.schema_version != 1 {
-        return Err("adapter registry schema_version must be 1".into());
-    }
-    let mut ids = std::collections::BTreeSet::new();
-    for binding in &registry.bindings {
-        validate_id(&binding.id, "binding id")?;
-        validate_id(&binding.target_scope_id, "target scope id")?;
-        if !matches!(
-            binding.adapter.as_str(),
-            "arxiv" | "dair-ai" | "mcp-registry" | "github-tooling" | "hyperresearch"
-        ) {
-            return Err(format!(
-                "unsupported configured adapter: {}",
-                binding.adapter
-            ));
-        }
-        for (value, label) in [
-            (&binding.request_sha256, "request hash"),
-            (&binding.runner_sha256, "runner hash"),
-        ] {
-            if value.len() != 64
-                || !value
-                    .bytes()
-                    .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
-            {
-                return Err(format!(
-                    "{label} must be 64 lowercase hexadecimal characters"
-                ));
-            }
-        }
-        if !Path::new(&binding.request_path).is_absolute()
-            || !Path::new(&binding.runner_path).is_absolute()
-            || !Path::new(&binding.runs_dir).is_absolute()
-        {
-            return Err("adapter binding paths must be absolute".into());
-        }
-        if !ids.insert(binding.id.as_str()) {
-            return Err(format!("duplicate adapter binding: {}", binding.id));
-        }
-    }
-    Ok(registry)
+    validate_adapter_registry_json(&input).map_err(|error| error.to_string())
 }
 
 fn find<'a>(registry: &'a AdapterRegistry, id: &str) -> Result<&'a AdapterBinding, String> {

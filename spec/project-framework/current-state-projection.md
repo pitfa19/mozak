@@ -11,16 +11,30 @@ of truth.
 
 ## Boundary
 
-- The projection performs no discovery, filesystem reads, networking, writes,
-  acceptance, recommendation, execution, or promotion.
-- Every source is constructed from its actual observed bytes. The projection
-  computes the observed SHA-256 internally and compares it with the caller's
-  pin. Callers cannot self-report an observed digest; any difference fails
-  closed before the source can enter a projection. Projection sources and inputs
-  are construction-only Rust types rather than deserializable bypasses.
-- Every node and relationship names its provenance source and must carry exactly
-  that source's authority. A proposal-only source cannot become accepted or
-  authoritative in the projection.
+- The projection emits no discovery, networking, writes, acceptance,
+  recommendation, execution, or promotion. Source constructors may invoke their
+  corresponding validators, including `kb::load_registry` for the KB registry
+  root, but projection emission is deterministic and read-only over those sealed
+  results.
+- Projection sources cannot be constructed generically. Project, adapter, and
+  research bytes pass through their real MOZAK validators; the KB source accepts
+  only a registry root path and constructs its source by invoking
+  `kb::load_registry` itself. Source identity, digest, and authority are derived
+  by those constructors rather than supplied by the caller. Projection sources
+  and inputs are construction-only Rust types rather than deserializable
+  bypasses.
+- Nodes inherit authority from their sealed source and retain private domain ids
+  derived from validated artifacts. Each source also retains private validator
+  facts: project id/name, adapter binding ids and target Scope ids, loaded KB
+  Scope ids/titles, or research run id. Node constructors reject caller-passed
+  public domain structs that were forged or mutated after validation and no
+  longer match those private facts. Relationships can only be created through
+  the closed `observes`, `registered_in`, and `targets` constructors, each of
+  which enforces endpoint kinds and provenance. Adapter target edges additionally
+  require a binding contained in the validated adapter source and reject any
+  Scope whose private domain id does not equal `target_scope_id`. A
+  proposal-only research source therefore cannot manufacture an authoritative
+  edge.
 - Freshness is observation metadata only. `current`, `stale`, and `not_checked`
   do not change authority.
 - Input order is irrelevant. Sources, nodes, and relationships are sorted before

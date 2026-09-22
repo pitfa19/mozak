@@ -224,6 +224,7 @@ impl Module {
             ],
             Self::Research => &[
                 "research.rs",
+                "adapter.rs",
                 "adapter_workflow.rs",
                 "landmark.rs",
                 "case_study.rs",

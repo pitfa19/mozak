@@ -1,5 +1,6 @@
 //! Deterministic M0 event projection and canonical hashing.
 
+pub mod adapter;
 pub mod attestation;
 pub mod case_study;
 pub mod concept;
