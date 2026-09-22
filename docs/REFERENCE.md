@@ -48,6 +48,9 @@ mozak project register <discovery.json> <approval.json>          # mutation
 mozak project refresh <discovery.json> <approval.json>           # mutation
 mozak project context <project-id>
 mozak project current <project-id>
+mozak project browse <project-id>
+mozak project resolve <project-id> <record-id>
+mozak project why <project-id> <record-id>
 mozak project registrations
 mozak project refresh history
 mozak project refresh rollback <config-sha256>
@@ -59,7 +62,7 @@ mozak scope source-check <scope-root> <source-id> <source-root> <observed-revisi
 mozak scope ingest-links <scope-root> <source-root> <observed-revision> <plan.json> <output-root>  # mutation
 ```
 
-`project current PROJECT_ID` emits the sealed read-only current-state projection plus bounded sections for goal state, adapter freshness, newest proposal-only research, superseded artifacts, and next owner decision. It reads only the registered project/config boundaries, configured KB, adapter registry, and adapter runs dirs. It labels latest recorded, latest observed, and accepted, and claims no trust transfer or automatic promotion.
+`project current PROJECT_ID` emits the sealed read-only current-state projection plus bounded sections for goal state, adapter freshness, newest proposal-only research, superseded artifacts, and next owner decision. `project browse PROJECT_ID` lists only explicitly configured records from the same bounded view and states that order is not recommendation, acceptance, or truth. `project resolve PROJECT_ID RECORD_ID` follows only declared Stage 1 projection relationships and refuses stale hashes/freshness or undeclared records. `project why PROJECT_ID RECORD_ID` explains inclusion, freshness, authority, and blocking conditions, including why a newer DAIR run supersedes an older recorded run without accepting either. These commands read only the registered project/config boundaries, configured KB, adapter registry, and adapter runs dirs. They label latest recorded, latest observed, and accepted, dump no note bodies/full KB, and claim no trust transfer or automatic promotion.
 
 Since 0.3.1, `project context` self-reconciles only valid, identity-preserving
 pin drift for the exact requested registration. It takes the existing exclusive

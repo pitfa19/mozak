@@ -450,7 +450,18 @@ pub fn registrations() -> Result<ExitCode, String> {
 }
 
 #[allow(clippy::too_many_lines)]
-pub fn current(id: &str) -> Result<ExitCode, String> {
+struct CurrentDocument {
+    presentation: Value,
+    full_projection: Value,
+    research_views: Vec<Value>,
+}
+
+fn current_document(id: &str) -> Result<Value, String> {
+    Ok(current_document_with_full_state(id)?.presentation)
+}
+
+#[allow(clippy::too_many_lines)]
+fn current_document_with_full_state(id: &str) -> Result<CurrentDocument, String> {
     if id.is_empty() || id.chars().any(char::is_control) {
         return Err("project id is empty or contains control characters".into());
     }
@@ -560,9 +571,17 @@ pub fn current(id: &str) -> Result<ExitCode, String> {
                 let (source, validated) =
                     ProjectionSource::research_run(path_text(&path)?, &bytes, freshness)
                         .map_err(|e| e.to_string())?;
+                let research_record_id = format!(
+                    "research-run:{}:{}:{}",
+                    run.run_id,
+                    hash(path_text(&path)?.as_bytes()),
+                    hash(&bytes)
+                );
                 let research_node =
                     StateNode::research_run(&source, &validated).map_err(|e| e.to_string())?;
                 research_views.push(serde_json::json!({
+                    "record_id": research_record_id,
+                    "projection_source_id": source.id(),
                     "binding_id": binding.id,
                     "path": path_text(&path)?,
                     "run_id": run.run_id,
@@ -600,21 +619,220 @@ pub fn current(id: &str) -> Result<ExitCode, String> {
         CurrentStateInput::new(id, sources, nodes, relationships).map_err(|e| e.to_string())?,
     )
     .map_err(|e| e.to_string())?;
+    let full_projection = serde_json::to_value(&projection).map_err(|e| e.to_string())?;
     let projection_summary = bounded_projection_summary(&projection)?;
+    let presentation = serde_json::json!({
+        "schema_version": 1,
+        "command": "project current",
+        "project": {"id": project.id, "name": project.name, "root": project.root},
+        "labels": {"latest_recorded": "artifact-declared time", "latest_observed": "local filesystem observation time", "accepted": "owner-accepted planning state only"},
+        "goal_state": {"workflow_state": snapshot.state, "latest_recorded": snapshot.latest_valid_plan, "accepted": snapshot.ready_goals, "ready_goals": snapshot.ready_goals},
+        "adapter_freshness": bounded_values(adapter_registry.as_ref().map(|(_, views)| views.clone()).unwrap_or_default()),
+        "proposal_only_research": bounded_values(research_views.clone()),
+        "newest_proposal_only_research": newest,
+        "superseded_artifacts": {"compaction": snapshot.compaction, "findings": bounded_values(snapshot.findings.iter().filter(|f| f.status.contains("superseded") || f.message.contains("superseded")).map(|f| serde_json::to_value(f).unwrap_or(Value::Null)).collect::<Vec<_>>())},
+        "next_owner_decision": snapshot.next_actions.first().cloned().unwrap_or_else(|| "No ready goals; owner may choose whether to refresh research, compact superseded artifacts, or define a new accepted goal.".into()),
+        "current_state_projection": projection_summary,
+        "bounded_directories": {"project_root": project.root, "kb_root": config.kb_root, "adapter_registry": path_text(&adapter_path)?},
+        "mutation": false,
+        "trust_transfer": false,
+        "automatic_promotion": false
+    });
+    Ok(CurrentDocument {
+        presentation,
+        full_projection,
+        research_views,
+    })
+}
+
+struct ResolvedCurrentRecord {
+    source: Option<Value>,
+    node: Option<Value>,
+    research: Option<Value>,
+    relationships: Vec<Value>,
+}
+
+fn resolve_current_record(
+    current: &CurrentDocument,
+    record_id: &str,
+) -> Result<ResolvedCurrentRecord, String> {
+    let sources = current.full_projection["sources"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    let nodes = current.full_projection["nodes"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    let relationships = current.full_projection["relationships"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    let source = sources.iter().find(|v| v["id"] == record_id).cloned();
+    let node = nodes.iter().find(|v| v["id"] == record_id).cloned();
+    let research = current
+        .research_views
+        .iter()
+        .find(|v| v["record_id"] == record_id)
+        .cloned();
+    let projection_source_id = research
+        .as_ref()
+        .and_then(|v| v["projection_source_id"].as_str());
+    let projection_node_id = research
+        .as_ref()
+        .and_then(|v| v["run_id"].as_str())
+        .map(|run_id| format!("research:{run_id}"));
+    let resolved_source = source.clone().or_else(|| {
+        projection_source_id
+            .and_then(|source_id| sources.iter().find(|v| v["id"] == source_id).cloned())
+    });
+    let resolved_node = node.clone().or_else(|| {
+        projection_node_id
+            .as_deref()
+            .and_then(|node_id| nodes.iter().find(|v| v["id"] == node_id).cloned())
+    });
+    let related = relationships
+        .into_iter()
+        .filter(|r| {
+            r["from"] == record_id
+                || r["to"] == record_id
+                || r["source_id"] == record_id
+                || projection_source_id.is_some_and(|source_id| r["source_id"] == source_id)
+                || projection_node_id
+                    .as_deref()
+                    .is_some_and(|node_id| r["from"] == node_id || r["to"] == node_id)
+        })
+        .collect::<Vec<_>>();
+    if source.is_none() && node.is_none() && research.is_none() && related.is_empty() {
+        return Err(format!(
+            "record id is not declared in current-state projection: {record_id}"
+        ));
+    }
+    Ok(ResolvedCurrentRecord {
+        source: resolved_source,
+        node: resolved_node,
+        research,
+        relationships: related,
+    })
+}
+
+pub fn current(id: &str) -> Result<ExitCode, String> {
+    let value = current_document(id)?;
+    println!(
+        "{}",
+        serde_json::to_string(&value).map_err(|e| e.to_string())?
+    );
+    Ok(ExitCode::SUCCESS)
+}
+
+pub fn browse(id: &str) -> Result<ExitCode, String> {
+    let current = current_document(id)?;
+    let projection = &current["current_state_projection"];
     println!(
         "{}",
         serde_json::to_string(&serde_json::json!({
             "schema_version": 1,
-            "command": "project current",
-            "project": {"id": project.id, "name": project.name, "root": project.root},
-            "labels": {"latest_recorded": "artifact-declared time", "latest_observed": "local filesystem observation time", "accepted": "owner-accepted planning state only"},
-            "goal_state": {"workflow_state": snapshot.state, "latest_recorded": snapshot.latest_valid_plan, "accepted": snapshot.ready_goals, "ready_goals": snapshot.ready_goals},
-            "adapter_freshness": bounded_values(adapter_registry.as_ref().map(|(_, views)| views.clone()).unwrap_or_default()),
-            "newest_proposal_only_research": newest,
-            "superseded_artifacts": {"compaction": snapshot.compaction, "findings": bounded_values(snapshot.findings.iter().filter(|f| f.status.contains("superseded") || f.message.contains("superseded")).map(|f| serde_json::to_value(f).unwrap_or(Value::Null)).collect::<Vec<_>>())},
-            "next_owner_decision": snapshot.next_actions.first().cloned().unwrap_or_else(|| "No ready goals; owner may choose whether to refresh research, compact superseded artifacts, or define a new accepted goal.".into()),
-            "current_state_projection": projection_summary,
-            "bounded_directories": {"project_root": project.root, "kb_root": config.kb_root, "adapter_registry": path_text(&adapter_path)?},
+            "command": "project browse",
+            "project": current["project"].clone(),
+            "records": {
+                "sources": projection["sources"].clone(),
+                "nodes": projection["nodes"].clone(),
+                "relationships": projection["relationships"].clone(),
+                "proposal_only_research": current["proposal_only_research"].clone(),
+                "newest_proposal_only_research": current["newest_proposal_only_research"].clone(),
+                "adapter_freshness": current["adapter_freshness"].clone()
+            },
+            "boundary": {
+                "configured_records_only": true,
+                "arbitrary_filesystem_scanning": false,
+                "ranking": false,
+                "recommendation": false,
+                "acceptance": false,
+                "truth_claim": false,
+                "note_bodies": false,
+                "full_kb_dump": false
+            },
+            "mutation": false,
+            "trust_transfer": false,
+            "automatic_promotion": false
+        }))
+        .map_err(|e| e.to_string())?
+    );
+    Ok(ExitCode::SUCCESS)
+}
+
+pub fn resolve(id: &str, record_id: &str) -> Result<ExitCode, String> {
+    let current = current_document_with_full_state(id)?;
+    let resolved = resolve_current_record(&current, record_id)?;
+    if resolved
+        .source
+        .as_ref()
+        .is_some_and(|s| s["freshness"] == "stale")
+        || resolved
+            .research
+            .as_ref()
+            .is_some_and(|s| s["freshness"] == "stale")
+    {
+        return Err(format!(
+            "record id has stale hash/freshness and cannot be resolved: {record_id}"
+        ));
+    }
+    println!(
+        "{}",
+        serde_json::to_string(&serde_json::json!({
+            "schema_version": 1,
+            "command": "project resolve",
+            "project": current.presentation["project"].clone(),
+            "record_id": record_id,
+            "record": {"source": resolved.source, "node": resolved.node, "research": resolved.research},
+            "declared_relationships": bounded_values(resolved.relationships),
+            "relationship_policy": "only declared Stage 1 projection relationships are followed",
+            "undeclared_relationships_followed": false,
+            "mutation": false,
+            "trust_transfer": false,
+            "automatic_promotion": false
+        }))
+        .map_err(|e| e.to_string())?
+    );
+    Ok(ExitCode::SUCCESS)
+}
+
+pub fn why(id: &str, record_id: &str) -> Result<ExitCode, String> {
+    let current = current_document_with_full_state(id)?;
+    let resolved = resolve_current_record(&current, record_id)?;
+    let freshness = resolved
+        .source
+        .as_ref()
+        .or(resolved.research.as_ref())
+        .and_then(|s| s["freshness"].as_str())
+        .unwrap_or("derived_from_source");
+    let authority = resolved
+        .source
+        .as_ref()
+        .or(resolved.node.as_ref())
+        .or(resolved.research.as_ref())
+        .and_then(|v| v["authority"].as_str())
+        .unwrap_or("declared_relationship");
+    let block = if freshness == "stale" {
+        "stale records are shown for explanation only and cannot be resolved or accepted"
+    } else if authority == "proposal_only" {
+        "proposal-only records are not accepted project knowledge"
+    } else {
+        "no blocking condition for read-only display"
+    };
+    println!(
+        "{}",
+        serde_json::to_string(&serde_json::json!({
+            "schema_version": 1,
+            "command": "project why",
+            "project": current.presentation["project"].clone(),
+            "record_id": record_id,
+            "inclusion": "included only because it is present in validated configured project, KB, adapter, or adapter-declared research records",
+            "freshness": freshness,
+            "authority": authority,
+            "blocking_conditions": [block],
+            "declared_relationships": bounded_values(resolved.relationships),
+            "supersession_explanation": "A newer DAIR run supersedes an older recorded DAIR run only as latest recorded proposal-only research from the same configured adapter runs_dir. This does not accept either run, does not rank either run as truth, and transfers no trust.",
             "mutation": false,
             "trust_transfer": false,
             "automatic_promotion": false
@@ -972,14 +1190,29 @@ fn validated_runs_in(dir: &Path) -> Result<Vec<(PathBuf, ResearchRun, bool)>, St
     if !dir.exists() {
         return Ok(Vec::new());
     }
-    if !dir.is_dir() {
+    let root_metadata = fs::symlink_metadata(dir)
+        .map_err(|e| format!("cannot inspect adapter runs_dir {}: {e}", dir.display()))?;
+    if root_metadata.file_type().is_symlink() {
+        return Err(format!(
+            "adapter runs_dir must not be a symlink: {}",
+            dir.display()
+        ));
+    }
+    if !root_metadata.is_dir() {
         return Err(format!(
             "adapter runs_dir is not a directory: {}",
             dir.display()
         ));
     }
+    let canonical_root = dir.canonicalize().map_err(|e| {
+        format!(
+            "cannot canonicalize adapter runs_dir {}: {e}",
+            dir.display()
+        )
+    })?;
     let mut candidates = Vec::new();
-    collect_run_json_candidates(dir, dir, &mut candidates)?;
+    let mut inspected = 0usize;
+    collect_run_json_candidates(dir, &canonical_root, dir, &mut candidates, &mut inspected)?;
     let mut runs = Vec::new();
     for path in candidates {
         let input = fs::read_to_string(&path)
@@ -992,6 +1225,7 @@ fn validated_runs_in(dir: &Path) -> Result<Vec<(PathBuf, ResearchRun, bool)>, St
         b.1.created_at
             .cmp(&a.1.created_at)
             .then_with(|| b.1.run_id.cmp(&a.1.run_id))
+            .then_with(|| a.0.cmp(&b.0))
     });
     for (_, _, stale) in runs.iter_mut().skip(1) {
         *stale = true;
@@ -1001,10 +1235,12 @@ fn validated_runs_in(dir: &Path) -> Result<Vec<(PathBuf, ResearchRun, bool)>, St
 
 fn collect_run_json_candidates(
     root: &Path,
+    canonical_root: &Path,
     dir: &Path,
     output: &mut Vec<PathBuf>,
+    inspected: &mut usize,
 ) -> Result<(), String> {
-    if output.len() > 512 {
+    if output.len() > 512 || *inspected > 512 {
         return Err(format!(
             "too many research run candidates under {}",
             root.display()
@@ -1013,10 +1249,34 @@ fn collect_run_json_candidates(
     for entry in
         fs::read_dir(dir).map_err(|e| format!("cannot read runs_dir {}: {e}", dir.display()))?
     {
+        *inspected += 1;
+        if *inspected > 512 {
+            return Err(format!(
+                "too many research run candidates under {}",
+                root.display()
+            ));
+        }
         let path = entry.map_err(|e| e.to_string())?.path();
-        if path.is_dir() {
-            collect_run_json_candidates(root, &path, output)?;
-        } else if path.is_file()
+        let metadata = fs::symlink_metadata(&path)
+            .map_err(|e| format!("cannot inspect run candidate {}: {e}", path.display()))?;
+        if metadata.file_type().is_symlink() {
+            return Err(format!(
+                "adapter runs_dir contains symlinked entry: {}",
+                path.display()
+            ));
+        }
+        let canonical_path = path
+            .canonicalize()
+            .map_err(|e| format!("cannot canonicalize run candidate {}: {e}", path.display()))?;
+        if !canonical_path.starts_with(canonical_root) {
+            return Err(format!(
+                "adapter runs_dir candidate escapes configured root: {}",
+                path.display()
+            ));
+        }
+        if metadata.is_dir() {
+            collect_run_json_candidates(root, canonical_root, &path, output, inspected)?;
+        } else if metadata.is_file()
             && (path.file_name().and_then(|v| v.to_str()) == Some("run.json")
                 || (dir == root && path.extension().and_then(|v| v.to_str()) == Some("json")))
         {

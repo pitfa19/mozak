@@ -327,6 +327,18 @@ fn run_project_registry_command(args: &[String]) -> Option<Result<ExitCode, Stri
         [project, command, id] if project == "project" && command == "current" => {
             Some(project_registry::current(id))
         }
+        [project, command, id] if project == "project" && command == "browse" => {
+            Some(project_registry::browse(id))
+        }
+        [project, command, id, record_id]
+            if project == "project" && (command == "resolve" || command == "why") =>
+        {
+            Some(if command == "resolve" {
+                project_registry::resolve(id, record_id)
+            } else {
+                project_registry::why(id, record_id)
+            })
+        }
         [project, command, id, flag]
             if project == "project" && command == "context" && flag == "--json" =>
         {

@@ -1,3 +1,4 @@
+use mozak_core::research::{ResearchRun, run_artifact_hash};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{
@@ -135,6 +136,46 @@ fn drift_adapter_request(xdg: &Path) {
 
 fn write_research_run(path: &Path) {
     fs::write(path, include_bytes!("fixtures/lab_adapter_run.json")).unwrap();
+}
+
+fn write_research_run_with_id(path: &Path, run_id: &str, created_at: &str) {
+    let mut run: Value =
+        serde_json::from_slice(include_bytes!("fixtures/lab_adapter_run.json")).unwrap();
+    run["run_id"] = json!(run_id);
+    run["receipt"]["run_id"] = json!(run_id);
+    run["created_at"] = json!(created_at);
+    let mut typed: ResearchRun = serde_json::from_value(run.clone()).unwrap();
+    typed.receipt.artifact_hash = run_artifact_hash(&typed).unwrap();
+    run["receipt"]["artifact_hash"] = json!(typed.receipt.artifact_hash);
+    fs::write(path, serde_json::to_vec_pretty(&run).unwrap()).unwrap();
+}
+
+fn write_adapter_registry_for_scope(xdg: &Path, runs_dir: &Path, scope_id: &str) {
+    let dir = xdg.join("mozak");
+    fs::create_dir_all(&dir).unwrap();
+    let request = dir.join("request.json");
+    let runner = dir.join("runner.sh");
+    let request_bytes = serde_json::to_vec(&json!({"scope_id": scope_id})).unwrap();
+    fs::write(&request, &request_bytes).unwrap();
+    fs::write(&runner, b"#!/bin/sh\nexit 0\n").unwrap();
+    fs::write(
+        dir.join("adapters.json"),
+        serde_json::to_vec(&json!({
+            "schema_version": 1,
+            "bindings": [{
+                "id": "agentic-systems-dair",
+                "adapter": "dair-ai",
+                "target_scope_id": scope_id,
+                "request_path": request,
+                "request_sha256": sha(&request_bytes),
+                "runner_path": runner,
+                "runner_sha256": sha(b"#!/bin/sh\nexit 0\n"),
+                "runs_dir": runs_dir
+            }]
+        }))
+        .unwrap(),
+    )
+    .unwrap();
 }
 
 #[test]
@@ -276,6 +317,21 @@ fn project_current_without_adapters_or_research_is_valid_and_bounded() {
             .unwrap()
             >= 2
     );
+    let browse = run(&["project", "browse", "empty-current"], &xdg);
+    assert!(
+        browse.status.success(),
+        "{}",
+        String::from_utf8_lossy(&browse.stderr)
+    );
+    let browse_report: Value = serde_json::from_slice(&browse.stdout).unwrap();
+    assert_eq!(
+        browse_report["records"]["adapter_freshness"]["records"],
+        json!([])
+    );
+    assert_eq!(
+        browse_report["records"]["proposal_only_research"]["records"],
+        json!([])
+    );
 }
 
 #[test]
@@ -311,6 +367,275 @@ fn project_current_marks_drifted_adapter_pins_needs_recheck_without_current_runs
         report["current_state_projection"]["observes_relationships"]["total_count"],
         0
     );
+}
+
+#[test]
+fn project_browse_rejects_symlinked_adapter_runs_dir_children_without_records() {
+    use std::os::unix::fs::symlink;
+
+    let t = Temp::new("runs-symlink-escape");
+    let kb = valid_kb(&t.0);
+    let ws = t.0.join("workspace");
+    project(&ws.join("nav"), "nav-current");
+    let xdg = t.0.join("xdg");
+    register_initial(&kb, &ws, &xdg, &t.0);
+
+    let runs = t.0.join("runs");
+    let outside = t.0.join("outside-runs");
+    fs::create_dir_all(&runs).unwrap();
+    fs::create_dir_all(&outside).unwrap();
+    write_research_run(&outside.join("run.json"));
+    symlink(&outside, runs.join("linked-outside")).unwrap();
+    write_adapter_registry(&xdg, &runs);
+
+    let browse = run(&["project", "browse", "nav-current"], &xdg);
+    assert!(!browse.status.success());
+    assert_eq!(browse.stdout, b"");
+    let stderr = String::from_utf8_lossy(&browse.stderr);
+    assert!(stderr.contains("symlinked entry"));
+    assert!(!stderr.contains("run-10b5a0e19c4191556e69eb21"));
+}
+
+#[test]
+#[allow(clippy::too_many_lines)]
+fn project_browse_resolve_why_are_bounded_and_provenance_aware() {
+    let t = Temp::new("browse-resolve-why");
+    let kb = valid_kb(&t.0);
+    let ws = t.0.join("workspace");
+    project(&ws.join("nav"), "nav-current");
+    let xdg = t.0.join("xdg");
+    register_initial(&kb, &ws, &xdg, &t.0);
+    let runs = t.0.join("runs");
+    fs::create_dir_all(&runs).unwrap();
+    write_research_run_with_id(
+        &runs.join("yesterday.json"),
+        "run-yesterday-10b5a0e19c4191556e69",
+        "2026-09-05T22:17:35Z",
+    );
+    write_research_run_with_id(
+        &runs.join("today.json"),
+        "run-today-10b5a0e19c4191556e69eb",
+        "2026-09-06T22:17:35Z",
+    );
+    write_adapter_registry(&xdg, &runs);
+
+    let browse = run(&["project", "browse", "nav-current"], &xdg);
+    assert!(
+        browse.status.success(),
+        "{}",
+        String::from_utf8_lossy(&browse.stderr)
+    );
+    let browse_json: Value = serde_json::from_slice(&browse.stdout).unwrap();
+    assert_eq!(browse_json["command"], "project browse");
+    assert_eq!(browse_json["boundary"]["configured_records_only"], true);
+    assert_eq!(
+        browse_json["boundary"]["arbitrary_filesystem_scanning"],
+        false
+    );
+    assert_eq!(browse_json["boundary"]["recommendation"], false);
+    assert_eq!(browse_json["boundary"]["acceptance"], false);
+    assert_eq!(browse_json["boundary"]["truth_claim"], false);
+    assert_eq!(
+        browse_json["records"]["proposal_only_research"]["total_count"],
+        2
+    );
+    assert_eq!(
+        browse_json["records"]["proposal_only_research"]["limit"],
+        12
+    );
+    assert!(
+        !String::from_utf8(browse.stdout)
+            .unwrap()
+            .contains("full_text")
+    );
+
+    let records = browse_json["records"]["proposal_only_research"]["records"]
+        .as_array()
+        .unwrap();
+    let today = records
+        .iter()
+        .find(|r| r["freshness"] == "current")
+        .unwrap();
+    let yesterday = records.iter().find(|r| r["freshness"] == "stale").unwrap();
+    assert_eq!(today["freshness"], "current");
+    assert_eq!(yesterday["freshness"], "stale");
+    let today_id = today["record_id"].as_str().unwrap();
+    let yesterday_id = yesterday["record_id"].as_str().unwrap();
+
+    let resolved = run(&["project", "resolve", "nav-current", today_id], &xdg);
+    assert!(
+        resolved.status.success(),
+        "{}",
+        String::from_utf8_lossy(&resolved.stderr)
+    );
+    let resolved_json: Value = serde_json::from_slice(&resolved.stdout).unwrap();
+    assert_eq!(
+        resolved_json["relationship_policy"],
+        "only declared Stage 1 projection relationships are followed"
+    );
+    assert_eq!(resolved_json["undeclared_relationships_followed"], false);
+    assert_eq!(resolved_json["record"]["research"]["accepted"], false);
+    assert_eq!(
+        resolved_json["record"]["source"]["id"],
+        today["projection_source_id"]
+    );
+    assert_eq!(
+        resolved_json["record"]["node"]["id"],
+        format!("research:{}", today["run_id"].as_str().unwrap())
+    );
+    let edges = resolved_json["declared_relationships"]["records"]
+        .as_array()
+        .unwrap();
+    assert!(edges.iter().any(|edge| edge["relation"] == "observes"
+        && edge["from"] == resolved_json["record"]["node"]["id"]
+        && edge["to"] == "scope:topic"));
+
+    let stale = run(&["project", "resolve", "nav-current", yesterday_id], &xdg);
+    assert!(!stale.status.success());
+    assert!(String::from_utf8_lossy(&stale.stderr).contains("stale hash/freshness"));
+
+    let undeclared = run(
+        &[
+            "project",
+            "resolve",
+            "nav-current",
+            "research-run:not-declared",
+        ],
+        &xdg,
+    );
+    assert!(!undeclared.status.success());
+    assert!(String::from_utf8_lossy(&undeclared.stderr).contains("not declared"));
+
+    let why = run(&["project", "why", "nav-current", yesterday_id], &xdg);
+    assert!(
+        why.status.success(),
+        "{}",
+        String::from_utf8_lossy(&why.stderr)
+    );
+    let why_json: Value = serde_json::from_slice(&why.stdout).unwrap();
+    assert_eq!(why_json["freshness"], "stale");
+    assert_eq!(why_json["authority"], "proposal_only");
+    assert!(
+        why_json["supersession_explanation"]
+            .as_str()
+            .unwrap()
+            .contains("does not accept either run")
+    );
+}
+
+#[test]
+#[allow(clippy::too_many_lines)]
+fn project_resolve_uses_full_projection_for_real_dair_composite_record() {
+    let t = Temp::new("resolve-full-dair");
+    let kb = valid_kb(&t.0);
+    let ws = t.0.join("workspace");
+    project(&ws.join("nav"), "nav-current");
+    let xdg = t.0.join("xdg");
+    register_initial(&kb, &ws, &xdg, &t.0);
+    let runs = t.0.join("runs");
+    fs::create_dir_all(&runs).unwrap();
+    write_research_run_with_id(
+        &runs.join("stale.json"),
+        "run-stale-0588c54f53c95447f66923ff",
+        "2026-09-05T22:17:35Z",
+    );
+    write_research_run_with_id(
+        &runs.join("current.json"),
+        "run-0588c54f53c95447f66923ff",
+        "2026-09-06T22:17:35Z",
+    );
+    write_adapter_registry_for_scope(&xdg, &runs, "topic");
+
+    let browse = run(&["project", "browse", "nav-current"], &xdg);
+    assert!(
+        browse.status.success(),
+        "{}",
+        String::from_utf8_lossy(&browse.stderr)
+    );
+    let browse_json: Value = serde_json::from_slice(&browse.stdout).unwrap();
+    let records = browse_json["records"]["proposal_only_research"]["records"]
+        .as_array()
+        .unwrap();
+    let current = records
+        .iter()
+        .find(|r| r["run_id"] == "run-0588c54f53c95447f66923ff")
+        .unwrap();
+    let stale = records.iter().find(|r| r["freshness"] == "stale").unwrap();
+
+    let resolved = run(
+        &[
+            "project",
+            "resolve",
+            "nav-current",
+            current["record_id"].as_str().unwrap(),
+        ],
+        &xdg,
+    );
+    assert!(
+        resolved.status.success(),
+        "{}",
+        String::from_utf8_lossy(&resolved.stderr)
+    );
+    let resolved_json: Value = serde_json::from_slice(&resolved.stdout).unwrap();
+    assert_eq!(
+        resolved_json["record"]["research"]["authority"],
+        "proposal_only"
+    );
+    assert_eq!(
+        resolved_json["record"]["source"]["id"],
+        current["projection_source_id"]
+    );
+    assert_eq!(
+        resolved_json["record"]["node"]["id"],
+        "research:run-0588c54f53c95447f66923ff"
+    );
+    assert!(
+        resolved_json["declared_relationships"]["records"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|edge| edge["relation"] == "observes"
+                && edge["from"] == "research:run-0588c54f53c95447f66923ff"
+                && edge["to"] == "scope:topic")
+    );
+
+    let stale_resolve = run(
+        &[
+            "project",
+            "resolve",
+            "nav-current",
+            stale["record_id"].as_str().unwrap(),
+        ],
+        &xdg,
+    );
+    assert!(!stale_resolve.status.success());
+    assert!(String::from_utf8_lossy(&stale_resolve.stderr).contains("stale hash/freshness"));
+
+    let why_stale = run(
+        &[
+            "project",
+            "why",
+            "nav-current",
+            stale["record_id"].as_str().unwrap(),
+        ],
+        &xdg,
+    );
+    assert!(why_stale.status.success());
+    let why_json: Value = serde_json::from_slice(&why_stale.stdout).unwrap();
+    assert_eq!(why_json["freshness"], "stale");
+    assert!(
+        why_json["supersession_explanation"]
+            .as_str()
+            .unwrap()
+            .contains("supersedes")
+    );
+
+    let forged = run(
+        &["project", "resolve", "nav-current", "research-run:forged"],
+        &xdg,
+    );
+    assert!(!forged.status.success());
+    assert!(String::from_utf8_lossy(&forged.stderr).contains("not declared"));
 }
 
 #[test]
