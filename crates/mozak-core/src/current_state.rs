@@ -430,6 +430,11 @@ impl StateNode {
     pub fn id(&self) -> &str {
         &self.id
     }
+
+    #[must_use]
+    pub fn domain_id(&self) -> &str {
+        &self.domain_id
+    }
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq, PartialOrd, Ord)]
