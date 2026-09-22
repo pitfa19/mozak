@@ -1,0 +1,60 @@
+{
+  "contract_version": 1,
+  "scope_id": "mozak",
+  "entries": [
+    {
+      "claim_id": "paper-0060::claim-evo-three-layers",
+      "text": "EvoOntology separates its versioned ontology into content, schema, and tool layers so semantic records, their object model, and runtime exposure can evolve independently.",
+      "standing": "held",
+      "locator": "Method > Agent-First Ontology-Layer Architecture",
+      "recorded_by_run": "improve-0dcf6d817acd034bb8bafc69",
+      "recorded_at": "2026-09-22T06:16:42Z",
+      "source_sha256": "64012dfebd0f351cdb5c80176100c8dc8cc0ece04b938f75290026fe9493a338"
+    },
+    {
+      "claim_id": "paper-0060::claim-evo-selective-tools",
+      "text": "The ontology is exposed through MCP browse and resolve tools while only a compact manifest is placed in the prompt, allowing selective runtime retrieval instead of full-context injection.",
+      "standing": "held",
+      "locator": "Method > Agent-First Ontology-Layer Architecture > Tool Layer",
+      "recorded_by_run": "improve-0dcf6d817acd034bb8bafc69",
+      "recorded_at": "2026-09-22T06:16:42Z",
+      "source_sha256": "64012dfebd0f351cdb5c80176100c8dc8cc0ece04b938f75290026fe9493a338"
+    },
+    {
+      "claim_id": "paper-0060::claim-evo-attributed-edits",
+      "text": "The evolution loop analyzes historical trajectories, attributes a failure signature to content, tool, or schema, and proposes a localized single-level patch with an expected behavioral effect.",
+      "standing": "held",
+      "locator": "Method > Trajectory-Grounded Ontology Evolution > Trajectory Attribution and Localized Intervention",
+      "recorded_by_run": "improve-0dcf6d817acd034bb8bafc69",
+      "recorded_at": "2026-09-22T06:16:42Z",
+      "source_sha256": "64012dfebd0f351cdb5c80176100c8dc8cc0ece04b938f75290026fe9493a338"
+    },
+    {
+      "claim_id": "paper-0060::claim-evo-paired-gate",
+      "text": "A candidate ontology patch is retained only when paired evaluation against its parent on the same validation set, decoding settings, and interaction budget reaches a required improvement margin.",
+      "standing": "held",
+      "locator": "Method > Trajectory-Grounded Ontology Evolution > Backbone-Conditional Paired Validation, Equation 2",
+      "recorded_by_run": "improve-0dcf6d817acd034bb8bafc69",
+      "recorded_at": "2026-09-22T06:16:42Z",
+      "source_sha256": "64012dfebd0f351cdb5c80176100c8dc8cc0ece04b938f75290026fe9493a338"
+    },
+    {
+      "claim_id": "paper-0060::claim-evo-gate-load-bearing",
+      "text": "The reported ablation found that removing the acceptance gate caused the largest performance drop, followed by removing failure attribution.",
+      "standing": "held",
+      "locator": "Analyses > Ablation Study on Evolution Loop > Table 5",
+      "recorded_by_run": "improve-0dcf6d817acd034bb8bafc69",
+      "recorded_at": "2026-09-22T06:16:42Z",
+      "source_sha256": "64012dfebd0f351cdb5c80176100c8dc8cc0ece04b938f75290026fe9493a338"
+    },
+    {
+      "claim_id": "paper-0060::claim-evo-static-layer-risk",
+      "text": "Static prompt injection of the semantic layer was inconsistent and sometimes reduced performance, while selective tool access produced stable gains in the reported benchmarks.",
+      "standing": "held",
+      "locator": "Experiments > Main Results > Tables 1, 3, and 4",
+      "recorded_by_run": "improve-0dcf6d817acd034bb8bafc69",
+      "recorded_at": "2026-09-22T06:16:42Z",
+      "source_sha256": "64012dfebd0f351cdb5c80176100c8dc8cc0ece04b938f75290026fe9493a338"
+    }
+  ]
+}

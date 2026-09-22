@@ -1,0 +1,1541 @@
+{
+  "contract_version": 1,
+  "run_id": "improve-0dcf6d817acd034bb8bafc69",
+  "adapter_runs": [
+    {
+      "binding_id": "agentic-systems-arxiv",
+      "adapter_id": "adapter-arxiv-v1",
+      "adapter_run_id": "run-5cfb209fcd42e1720c074a66",
+      "artifact_hash": "589010b3b3fe2c4348e4f13482c875468fa3d783e8937fc33f24f2acdfad292d",
+      "source_revision": "unrecorded"
+    }
+  ],
+  "candidates": [
+    {
+      "paper_id": "paper-0000",
+      "title": "Human-guided physics-constrained AI agents construct an auditable model of soil-plug evolution",
+      "source_uri": "recorded:arxiv:2609.23360v1",
+      "content_sha256": "deca40e7c509beef0741a7fa96baaacd39d6818be4faf4ea4102a93753da47fc",
+      "clusters": [
+        "harness-design",
+        "topologies",
+        "evaluation-safety"
+      ]
+    },
+    {
+      "paper_id": "paper-0001",
+      "title": "RRSI: Regularized Recursive Self-Improvement of Agent Harnesses",
+      "source_uri": "recorded:arxiv:2609.24972v1",
+      "content_sha256": "a5c55fcc50612cfe8581702dfd3764adab1d2e4d57053822d0fff15b1c58cdce",
+      "clusters": [
+        "harness-design",
+        "context-memory",
+        "skills-self-improvement"
+      ]
+    },
+    {
+      "paper_id": "paper-0002",
+      "title": "Generalized Agent Iteration: One Formal Framework for Iterative Policy Improvement and Recursive Self-Improvement",
+      "source_uri": "recorded:arxiv:2609.13406v1",
+      "content_sha256": "f7e2b0238453de261b374991ad3a8ac1c3f7e4f2430aaaa477e2733386763273",
+      "clusters": [
+        "skills-self-improvement",
+        "evaluation-safety"
+      ]
+    },
+    {
+      "paper_id": "paper-0003",
+      "title": "ModularRSI: Modular and Generalizable Recursive Harness Self-Improvement",
+      "source_uri": "recorded:arxiv:2609.14857v1",
+      "content_sha256": "b28c805ac81b331d85acc25ad2e547f7ff18e1b9ffdd79e1473344ca8d72bd00",
+      "clusters": [
+        "context-memory",
+        "skills-self-improvement"
+      ]
+    },
+    {
+      "paper_id": "paper-0004",
+      "title": "ReFigBench: Benchmarking Scientific Figure Reconstruction as Editable PowerPoint Artifacts",
+      "source_uri": "recorded:arxiv:2609.18844v1",
+      "content_sha256": "8d673e0fa9ac1601b8887a7eb38133a1eb7774bef6752fab9e4c169762afab04",
+      "clusters": [
+        "harness-design",
+        "context-memory"
+      ]
+    },
+    {
+      "paper_id": "paper-0005",
+      "title": "MAGS: Multi-agent Auto-formalization Guarantees Safety for Agentic Outputs",
+      "source_uri": "recorded:arxiv:2609.19391v1",
+      "content_sha256": "66e37fd69b2266c796b639b1af03dbf23f304b0ae03af1931dbae500b7125a6c",
+      "clusters": [
+        "harness-design",
+        "topologies"
+      ]
+    },
+    {
+      "paper_id": "paper-0006",
+      "title": "Self Improvement via Fast Tree-search",
+      "source_uri": "recorded:arxiv:2609.19526v1",
+      "content_sha256": "55e2ee4902a6440138139ef9f46cae6a3c7ebb94af067bc19d5375b721c37388",
+      "clusters": [
+        "harness-design",
+        "skills-self-improvement"
+      ]
+    },
+    {
+      "paper_id": "paper-0007",
+      "title": "Red-Teaming Auto Mode: Improving Blocking Classifiers Against Malign Coding Agents",
+      "source_uri": "recorded:arxiv:2609.19587v1",
+      "content_sha256": "5505d3db48b707102b00ae26e25686f410130ee1f96e23c08ad8d344b273b9a2",
+      "clusters": [
+        "harness-design",
+        "topologies"
+      ]
+    },
+    {
+      "paper_id": "paper-0008",
+      "title": "DeltaSelect: Affordable A/B Testing for Coding Agents",
+      "source_uri": "recorded:arxiv:2609.19607v1",
+      "content_sha256": "577ce339f0627d078d7043e939ab30a9066b28b69570184561ed2c68b3a54d5a",
+      "clusters": [
+        "harness-design",
+        "evaluation-safety"
+      ]
+    },
+    {
+      "paper_id": "paper-0009",
+      "title": "Rethinking Multi-Agent Collaboration: When More Is Less",
+      "source_uri": "recorded:arxiv:2609.19759v2",
+      "content_sha256": "c393b33084a820f3b140e630c6da8fc2a843cdf7b5dfc82a0777cf15f9b1a7a9",
+      "clusters": [
+        "harness-design",
+        "topologies"
+      ]
+    },
+    {
+      "paper_id": "paper-0010",
+      "title": "SoL-Pi: Recursively Scaling Auto-Research Loops for Efficient Agent Harness",
+      "source_uri": "recorded:arxiv:2609.20519v1",
+      "content_sha256": "6cc13042ad9cff0f49525055f5f774625f4b91b29681c44f97eccec31ed0c7b2",
+      "clusters": [
+        "harness-design",
+        "skills-self-improvement"
+      ]
+    },
+    {
+      "paper_id": "paper-0011",
+      "title": "An Empirical Study of Harness Design for Coding Agents",
+      "source_uri": "recorded:arxiv:2609.20804v1",
+      "content_sha256": "c9d5e3a94eb4ed615ac174c12725298aba55e4f76ae328dd89b0d2ddcef95351",
+      "clusters": [
+        "harness-design",
+        "context-memory"
+      ]
+    },
+    {
+      "paper_id": "paper-0012",
+      "title": "MACE: Memory-Agent Co-Evolution with Adaptive Memory Graphs for Multi-Agent Systems",
+      "source_uri": "recorded:arxiv:2609.21533v1",
+      "content_sha256": "ac06bb2ce2f70f88b93d622ed9535f2f7ca59ca1bd1aabbbb7fa7c8044a8a6f1",
+      "clusters": [
+        "topologies",
+        "context-memory"
+      ]
+    },
+    {
+      "paper_id": "paper-0013",
+      "title": "GraphSkillEvo: Evolutionary Optimization of Graph-Structured Agent Skills",
+      "source_uri": "recorded:arxiv:2609.21749v1",
+      "content_sha256": "319f6e38405f3bfc027c0f26728a5ec6e5e006818a45912ead1824f0ed5d7183",
+      "clusters": [
+        "skills-self-improvement",
+        "evaluation-safety"
+      ]
+    },
+    {
+      "paper_id": "paper-0014",
+      "title": "One to More, More to One: Category-Aware Iterative Expert Training for Software Engineering Agents",
+      "source_uri": "recorded:arxiv:2609.23377v1",
+      "content_sha256": "6e78df258330b775f86e787c219f61a31a61cf573ad31875dc9755f7c6ca13a7",
+      "clusters": [
+        "context-memory",
+        "evaluation-safety"
+      ]
+    },
+    {
+      "paper_id": "paper-0015",
+      "title": "BabelArena: A Large-Scale Multilingual Benchmark for LLM Agents",
+      "source_uri": "recorded:arxiv:2609.23490v1",
+      "content_sha256": "fa85eee5eced8eb6a945472fb0a781be98229e9232ec17756ae5e059cfb2f164",
+      "clusters": [
+        "harness-design",
+        "evaluation-safety"
+      ]
+    },
+    {
+      "paper_id": "paper-0016",
+      "title": "Total Cost of Agency: Exact Attribution of Memory Injection Cost in Multi-Agent LLM Workflows",
+      "source_uri": "recorded:arxiv:2609.23790v1",
+      "content_sha256": "684d99687b7bb758359cf0552b86bafb49a0809a71b928dee8609220354ba716",
+      "clusters": [
+        "harness-design",
+        "topologies"
+      ]
+    },
+    {
+      "paper_id": "paper-0017",
+      "title": "Synthesizing Reactive Character Behaviors for Continuous Games via Programmatic Policy Search",
+      "source_uri": "recorded:arxiv:2609.24025v1",
+      "content_sha256": "f2e5cc8cdfc8bfc670e657792575999f7537559adaa5677940823f1556185244",
+      "clusters": [
+        "harness-design",
+        "topologies"
+      ]
+    },
+    {
+      "paper_id": "paper-0018",
+      "title": "A Lean and Spec-Driven AI-Assisted Software Development Lifecycle for Applied AI Education: The AI-SDLC Approach",
+      "source_uri": "recorded:arxiv:2609.24348v1",
+      "content_sha256": "58e143fd9d4ead8a947fca1f50a2670ef96d7768bacf137535bfe3610bbdb5b7",
+      "clusters": [
+        "harness-design",
+        "skills-self-improvement"
+      ]
+    },
+    {
+      "paper_id": "paper-0019",
+      "title": "DUMA-Bench: A Dual-Control Multi-Agent Benchmark for Evaluating LLM Agent Security",
+      "source_uri": "recorded:arxiv:2609.24662v1",
+      "content_sha256": "c9ff2b5cae320dd81575e68d89a832cfda139057f5418f47cefa0a7a6bab74f8",
+      "clusters": [
+        "topologies",
+        "evaluation-safety"
+      ]
+    },
+    {
+      "paper_id": "paper-0020",
+      "title": "MedRSI: Recursive Self-Improvement for Medical Agents via Clinically Aligned Self-Evolution",
+      "source_uri": "recorded:arxiv:2609.24838v1",
+      "content_sha256": "60324076f1931ab64606aaefa52dfb492ed89a9cbd9645d14f96d827efdaf88d",
+      "clusters": [
+        "context-memory",
+        "skills-self-improvement"
+      ]
+    },
+    {
+      "paper_id": "paper-0021",
+      "title": "Environments as Scaffold: Enriching Feedback to Bootstrap Self-Evolving Agents in Long-Horizon Tasks",
+      "source_uri": "recorded:arxiv:2609.08404v1",
+      "content_sha256": "5e1f5e4afa9bf6236e932a97de61d2196c11c636cc0fab31d10664e81e2267fa",
+      "clusters": [
+        "skills-self-improvement"
+      ]
+    },
+    {
+      "paper_id": "paper-0022",
+      "title": "Closing the Consistency Gap: Self-Evolving Agents That Learn to Stay on Course",
+      "source_uri": "recorded:arxiv:2609.08832v1",
+      "content_sha256": "c9252ba0e0371340822d55cb5f9e47791ee83d5a6f10a2ab233f7f4965f7bb89",
+      "clusters": [
+        "skills-self-improvement"
+      ]
+    },
+    {
+      "paper_id": "paper-0023",
+      "title": "Experience Funnel: A State-Policy Alternating Loop for Self-Evolving Agents",
+      "source_uri": "recorded:arxiv:2609.08919v1",
+      "content_sha256": "fdb922798b9e8bf3d503b00bec9d7628088cc7a4f2420295ff153a85df82e438",
+      "clusters": [
+        "skills-self-improvement"
+      ]
+    },
+    {
+      "paper_id": "paper-0024",
+      "title": "SkillAdam: Stable and Efficient Skill Evolution for Agents",
+      "source_uri": "recorded:arxiv:2609.08944v1",
+      "content_sha256": "09a6ebfb844fbfb7a11c151868ab42f3799d28337f38cfca0f0a5ca7d738f470",
+      "clusters": [
+        "skills-self-improvement"
+      ]
+    },
+    {
+      "paper_id": "paper-0025",
+      "title": "SAEScientist-Bench: Can AI Agents Conduct Autonomous SAE Interpretability Research?",
+      "source_uri": "recorded:arxiv:2609.09113v2",
+      "content_sha256": "42065df506923f493d9d1a6daea5948cfe9d0162dda2b62d4cd941e392f735ee",
+      "clusters": [
+        "skills-self-improvement"
+      ]
+    },
+    {
+      "paper_id": "paper-0026",
+      "title": "Data-Efficient Language Modeling: From Frontier Advancement to Principle-Guided Model Improvement",
+      "source_uri": "recorded:arxiv:2609.10702v1",
+      "content_sha256": "9d225dc292cc6090f3b5dbe02693db78df4053ed55cd3a176aba5cf4963ece4b",
+      "clusters": [
+        "skills-self-improvement"
+      ]
+    },
+    {
+      "paper_id": "paper-0027",
+      "title": "Is Bash All You Need? An Empirical Study of Tool Interfaces for Enterprise Digital Worker Agents",
+      "source_uri": "recorded:arxiv:2609.11999v1",
+      "content_sha256": "74e4b55259522a32b37adcd988177ad479737f8720228348bff528befc0fa193",
+      "clusters": [
+        "context-memory"
+      ]
+    },
+    {
+      "paper_id": "paper-0028",
+      "title": "Scan the Skill, Govern the Action: Composing Registry Verdicts with Runtime Consequence Control",
+      "source_uri": "recorded:arxiv:2609.12001v1",
+      "content_sha256": "b3f83235a07e1e63208c7150964fd46398555e2e8edb9b8fd99f13c4bd12c20f",
+      "clusters": [
+        "skills-self-improvement"
+      ]
+    },
+    {
+      "paper_id": "paper-0029",
+      "title": "Grounding Agent Memory: Environment-Probing Curation for Enterprise Agents",
+      "source_uri": "recorded:arxiv:2609.11060v1",
+      "content_sha256": "9e6748a711d1ec993939bcf3d6de81727eb11e0b4f870385c93f2bdc787c33ef",
+      "clusters": [
+        "context-memory"
+      ]
+    },
+    {
+      "paper_id": "paper-0030",
+      "title": "Test-Driven Approaches to Software Engineering with Large Language Models: A Survey of Phases, Tasks, and Agent Skills",
+      "source_uri": "recorded:arxiv:2609.12012v1",
+      "content_sha256": "8a117de4debdb0a4de9a9b9db4f8bd88a18a6a0eb033635a12417b8585dbfcf6",
+      "clusters": [
+        "skills-self-improvement"
+      ]
+    },
+    {
+      "paper_id": "paper-0031",
+      "title": "A Voice-Interactive Multi-Agent System for Smart Operating Rooms: Architecture Design and Key Technologies",
+      "source_uri": "recorded:arxiv:2609.11231v2",
+      "content_sha256": "5ac3262ba184f0c765512fe28757a88f8f26cad9d4b66d130702158eb351643e",
+      "clusters": [
+        "context-memory"
+      ]
+    },
+    {
+      "paper_id": "paper-0032",
+      "title": "A Training-Free, Alignment-Free Approach to Corporate Intelligence: Application to SEC Filings",
+      "source_uri": "recorded:arxiv:2609.11620v2",
+      "content_sha256": "9757663afb86e6ec772d9e22620e016d757ebfb3e724b1afb29d77a60110579f",
+      "clusters": [
+        "context-memory"
+      ]
+    },
+    {
+      "paper_id": "paper-0033",
+      "title": "COBRA-Skills: Contextual Bandit-Guided Evolution for Agent Skill Optimization",
+      "source_uri": "recorded:arxiv:2609.11682v1",
+      "content_sha256": "de80517ce5b2df24c5599ed9d3405fb25057e2318eeca1e85c02eb496019848a",
+      "clusters": [
+        "skills-self-improvement"
+      ]
+    },
+    {
+      "paper_id": "paper-0034",
+      "title": "The Last AI Built by Humans: Toward Genuine Recursive Self-Improvement",
+      "source_uri": "recorded:arxiv:2609.11873v2",
+      "content_sha256": "55c4f2a5d5bfec149fb95edbf5fcc9974d72dec734b673ba4b982942d8ed4fa2",
+      "clusters": [
+        "skills-self-improvement"
+      ]
+    },
+    {
+      "paper_id": "paper-0035",
+      "title": "SkillSeam: Six Principles for Auditing Agent Skill Collections",
+      "source_uri": "recorded:arxiv:2609.13321v1",
+      "content_sha256": "50f80eb2f1561fbcd51d0d9c97f16c2bf3bd093a633260040c0686f224fdd03c",
+      "clusters": [
+        "skills-self-improvement"
+      ]
+    },
+    {
+      "paper_id": "paper-0036",
+      "title": "AIM: A Privacy-Aware Interoperable Memory Framework for Multi-Agent Multi-User LLM Systems",
+      "source_uri": "recorded:arxiv:2609.12320v1",
+      "content_sha256": "49098f1ab55cd364f215a19b3c6afcd34b8a11d2c36ca02c943377a886278b6a",
+      "clusters": [
+        "context-memory"
+      ]
+    },
+    {
+      "paper_id": "paper-0037",
+      "title": "LifeFuse-Mem: Lifecycle-Aware State Fusion Against Temporary Overwriting for Long-Term Memory",
+      "source_uri": "recorded:arxiv:2609.12436v1",
+      "content_sha256": "947569eebbb07bb6c3e343c40b7160ee1c57fdada2d8a9ff9f12f9b31d5cb7a5",
+      "clusters": [
+        "context-memory"
+      ]
+    },
+    {
+      "paper_id": "paper-0038",
+      "title": "Doc2FRC: Length-Consistent Document-Level Machine Translation via Fixed-Range Chunking",
+      "source_uri": "recorded:arxiv:2609.12674v1",
+      "content_sha256": "f7cd8456d986663e7fd5ab9559bff7127b500126010ae9a5dc93535108957af6",
+      "clusters": [
+        "context-memory"
+      ]
+    },
+    {
+      "paper_id": "paper-0039",
+      "title": "Residual Vector-based Reconstruction as Long-Context Recall Regardless of Context Window Size",
+      "source_uri": "recorded:arxiv:2609.12686v1",
+      "content_sha256": "08737ae095ad0a3f6c48afa119fe3dbe09fea555151c5190e96f69fa4d3a5648",
+      "clusters": [
+        "context-memory"
+      ]
+    },
+    {
+      "paper_id": "paper-0040",
+      "title": "SkillAtlas: An Attack Trace Library for Agent Skills",
+      "source_uri": "recorded:arxiv:2609.13353v1",
+      "content_sha256": "fc72729cbb36c71fb7102426bbbcfb85b493e66162bc66ce9a5f706f46e5b3c3",
+      "clusters": [
+        "skills-self-improvement"
+      ]
+    },
+    {
+      "paper_id": "paper-0041",
+      "title": "Vibe Patenting: Evaluating LLM Judges for Professional Patent-Drafting Agents",
+      "source_uri": "recorded:arxiv:2609.13422v1",
+      "content_sha256": "296947cf21df40b3156b2c313e792f0394bd18558ee959456aa46669a8ac5c89",
+      "clusters": [
+        "evaluation-safety"
+      ]
+    },
+    {
+      "paper_id": "paper-0042",
+      "title": "Root-Cause Attribution Is a Search Problem: Continual Search for Long-Horizon Agent Failures",
+      "source_uri": "recorded:arxiv:2609.13463v1",
+      "content_sha256": "d0d249b60d5ae502dc2bb8fe56f1a504e8b7945b25ccc7446c101b6a5f166dfa",
+      "clusters": [
+        "context-memory"
+      ]
+    },
+    {
+      "paper_id": "paper-0043",
+      "title": "OrchSLM: Probing the Dynamics of Small Language Model Orchestration",
+      "source_uri": "recorded:arxiv:2609.13470v1",
+      "content_sha256": "7e60e55d98f42f5c75d5ffa36dbcfa71b45ce440c31f21ee0cae5fcfe8b36f8d",
+      "clusters": [
+        "context-memory"
+      ]
+    },
+    {
+      "paper_id": "paper-0044",
+      "title": "Toward a Decision-Assurance Layer for AI-Assisted Flight Planning in Air Traffic Management",
+      "source_uri": "recorded:arxiv:2609.13552v1",
+      "content_sha256": "b13d6617b801cfc92f1595becfc659b0a066cad910b78b4f181dd5adab302f01",
+      "clusters": [
+        "evaluation-safety"
+      ]
+    },
+    {
+      "paper_id": "paper-0045",
+      "title": "Same Patient, Different Order: Action-Level Reliability of Clinical LLM Agents Under Repeated Runs",
+      "source_uri": "recorded:arxiv:2609.13582v1",
+      "content_sha256": "5c738331a9d05a2f7324090fa6353e639c59c59c3e7350551aa01d5b4fb2d791",
+      "clusters": [
+        "evaluation-safety"
+      ]
+    },
+    {
+      "paper_id": "paper-0046",
+      "title": "Identity Is More Than Recall: A Benchmark for Persistent Identity in Deployed AI Agents",
+      "source_uri": "recorded:arxiv:2609.13637v1",
+      "content_sha256": "65f06dd10e14a9505f91d491aab9f620793c8ef7eaab3ac6cb4b76a83b23a6b5",
+      "clusters": [
+        "context-memory"
+      ]
+    },
+    {
+      "paper_id": "paper-0047",
+      "title": "AGENTQ: Quantization-Conditioned Backdoor Attacks on LLM Agents",
+      "source_uri": "recorded:arxiv:2609.14060v1",
+      "content_sha256": "ce40caf58596a4e1b1b40dfbfeb9728a13077670b5e494016da2fe47d88d02d0",
+      "clusters": [
+        "evaluation-safety"
+      ]
+    },
+    {
+      "paper_id": "paper-0048",
+      "title": "SpectralShift: Effective Context Window Extension of Gated DeltaNet via Spectral Reparameterization",
+      "source_uri": "recorded:arxiv:2609.14320v1",
+      "content_sha256": "0cc6f2a95738a781022260f40401d5302445f6cda1353c9081498b233da633e1",
+      "clusters": [
+        "context-memory"
+      ]
+    },
+    {
+      "paper_id": "paper-0049",
+      "title": "Policy Loopholes in Agent Evaluation: When Policy Ambiguity Masquerades as Agent Error",
+      "source_uri": "recorded:arxiv:2609.14400v1",
+      "content_sha256": "2513f1989d97bb7c9a4f88306b875520a096e1430908b8a0c07eeca0b8de9b14",
+      "clusters": [
+        "evaluation-safety"
+      ]
+    },
+    {
+      "paper_id": "paper-0050",
+      "title": "Safety Signals to Verify NetOps Agents with Action-Level Granularity",
+      "source_uri": "recorded:arxiv:2609.14422v2",
+      "content_sha256": "b9675b30f0e19cf03e5f9916fe7986b082490437f91043d0ec958a4fdf9af220",
+      "clusters": [
+        "evaluation-safety"
+      ]
+    },
+    {
+      "paper_id": "paper-0051",
+      "title": "When does a scaling result justify a different allocation? A critical review of resource-allocation evidence for AI systems",
+      "source_uri": "recorded:arxiv:2609.14500v1",
+      "content_sha256": "15d1dcfd7ed91bda4f6eae31eccd4f49338e28823866b8b0ea914596eeaac35b",
+      "clusters": [
+        "evaluation-safety"
+      ]
+    },
+    {
+      "paper_id": "paper-0052",
+      "title": "Schema-Adaptive Action-Conditioned JEPA for Cross-Machine CNC Transfer under Partial Sensor Overlap",
+      "source_uri": "recorded:arxiv:2609.16071v1",
+      "content_sha256": "06c029da1e880dbc38e03f267e13fbf04fbb0bbf7e902fbc6379d2224c4fd11d",
+      "clusters": [
+        "context-memory"
+      ]
+    },
+    {
+      "paper_id": "paper-0053",
+      "title": "The Immutable Past: Formalizing State Mutability and Conflict Resolution in Mutable RAG",
+      "source_uri": "recorded:arxiv:2609.16073v1",
+      "content_sha256": "2e0820ebe25dff9be02460b170e34917feab2ceca0ba6092fdde922c8facbd11",
+      "clusters": [
+        "context-memory"
+      ]
+    },
+    {
+      "paper_id": "paper-0054",
+      "title": "Natural Language Knowledge Graph Query Execution: Leveraging Controlled Semantics in the LLM Context Window",
+      "source_uri": "recorded:arxiv:2609.14652v1",
+      "content_sha256": "b2fb49551959d2f0d9133b4d556f5cf83263a7f8bce8d8e1d2b72e0800c2f82f",
+      "clusters": [
+        "context-memory"
+      ]
+    },
+    {
+      "paper_id": "paper-0055",
+      "title": "Dream-RSI: Recursive Self-Improvement through Evolving Worlds",
+      "source_uri": "recorded:arxiv:2609.14858v1",
+      "content_sha256": "d43aa78e375030017907e5aae4ca4e1998355757735a38c236b1ff861473a35a",
+      "clusters": [
+        "skills-self-improvement"
+      ]
+    },
+    {
+      "paper_id": "paper-0056",
+      "title": "Overflip: Repetition-Induced Label Flips in Guardrail Models",
+      "source_uri": "recorded:arxiv:2609.15013v1",
+      "content_sha256": "ff9c65ba39cc773099378f02bea3c1f0b2c46e10044becb76523f2c7893e3eb3",
+      "clusters": [
+        "context-memory"
+      ]
+    },
+    {
+      "paper_id": "paper-0057",
+      "title": "Clean Scores, Buried Evidence, and Confident Wrong: A Receipt-Based Audit of Frontier Agentic QA",
+      "source_uri": "recorded:arxiv:2609.15319v1",
+      "content_sha256": "1fa09de0eec5790ff10e0dc122709e23df9f5a11c2925899252bf29f5f99d347",
+      "clusters": [
+        "evaluation-safety"
+      ]
+    },
+    {
+      "paper_id": "paper-0058",
+      "title": "RSIAgent: Autonomous Exploration for Recursive Self-improvement in New Environments",
+      "source_uri": "recorded:arxiv:2609.15364v2",
+      "content_sha256": "ff0fab80a9d0c2f206b831caa3a09fee1d45f384b191047dc3888af07d000e9b",
+      "clusters": [
+        "skills-self-improvement"
+      ]
+    },
+    {
+      "paper_id": "paper-0059",
+      "title": "VideoScout: Learning Agentic Active Exploration with Adaptive Reasoning Pacing for Long Video Understanding",
+      "source_uri": "recorded:arxiv:2609.15606v1",
+      "content_sha256": "b8d93d79b43aedc6d1a87353546fee0c7f0c2c89e85b90c31daea42dcc6e0a0b",
+      "clusters": [
+        "context-memory"
+      ]
+    },
+    {
+      "paper_id": "paper-0060",
+      "title": "EvoOntology: A Self-Evolving Ontology Layer for Data Agents",
+      "source_uri": "recorded:arxiv:2609.15779v1",
+      "content_sha256": "64012dfebd0f351cdb5c80176100c8dc8cc0ece04b938f75290026fe9493a338",
+      "clusters": [
+        "evaluation-safety"
+      ]
+    },
+    {
+      "paper_id": "paper-0061",
+      "title": "Delegating Authorization to Misaligned Agents: Coalitional Alignment and Safe Control",
+      "source_uri": "recorded:arxiv:2609.15803v1",
+      "content_sha256": "df01b9901a3b148431c9f3e4c37f91beddd14f90ec91b1ee5d632979aa9871be",
+      "clusters": [
+        "evaluation-safety"
+      ]
+    },
+    {
+      "paper_id": "paper-0062",
+      "title": "Atria Dawn: The Dawn of Agentic Superintelligence",
+      "source_uri": "recorded:arxiv:2609.15818v2",
+      "content_sha256": "fe55ff9329c62ff58497faa2375e4c800a62e0f0abf51f33a68fa219d8e62374",
+      "clusters": [
+        "evaluation-safety"
+      ]
+    },
+    {
+      "paper_id": "paper-0063",
+      "title": "AlgoEvo: Self-Evolving Agentic Search for Automated Algorithm Discovery",
+      "source_uri": "recorded:arxiv:2609.15820v1",
+      "content_sha256": "61e5f66f066b9ff63082488a9cc6f3e032482e16979e81c522cc0cf09960407d",
+      "clusters": [
+        "skills-self-improvement"
+      ]
+    },
+    {
+      "paper_id": "paper-0064",
+      "title": "Using Agentic AI for contextualized and multifaceted code review at Ericsson",
+      "source_uri": "recorded:arxiv:2609.15877v1",
+      "content_sha256": "0ca4d2f98489de1ca3982459e4a2ecc82a7c97ca390e3b60b2052cc5995f17b1",
+      "clusters": [
+        "skills-self-improvement"
+      ]
+    },
+    {
+      "paper_id": "paper-0065",
+      "title": "BLINDSPOT: A Benchmark for Safety and Refusal Calibration in Long-Horizon Tool-Using Agents",
+      "source_uri": "recorded:arxiv:2609.16305v1",
+      "content_sha256": "d37d71dbbf546f9f007055f1ddfdc16e39ba1d661a43084f4050acea61f55136",
+      "clusters": [
+        "evaluation-safety"
+      ]
+    },
+    {
+      "paper_id": "paper-0066",
+      "title": "Protocol-Preserving Context Trimming for Agentic Workflows: Benefits, Failure Regimes, and Budget Guardrails",
+      "source_uri": "recorded:arxiv:2609.16461v1",
+      "content_sha256": "d0692b8d910693997590ee396939e3b487f381ba377216beea0419adcb659350",
+      "clusters": [
+        "context-memory"
+      ]
+    },
+    {
+      "paper_id": "paper-0067",
+      "title": "Skill-based Agentic Evaluation for Real-time Data Science Tasks",
+      "source_uri": "recorded:arxiv:2609.16487v1",
+      "content_sha256": "9e031632c0bf314158ff307e9873a8b75c5de347ff1d31673ab38091e401fc3d",
+      "clusters": [
+        "evaluation-safety"
+      ]
+    },
+    {
+      "paper_id": "paper-0068",
+      "title": "GameReplica: A Benchmark for Black-Box Visual Game Replication by Vision-Language Agents",
+      "source_uri": "recorded:arxiv:2609.22308v1",
+      "content_sha256": "5bb09c12085009a1cb95140752aa193efeffcab7318dc17d91ade8ac2d46b535",
+      "clusters": [
+        "evaluation-safety"
+      ]
+    },
+    {
+      "paper_id": "paper-0069",
+      "title": "VideoMM: Adaptive Macro-Micro Inference for Efficient Video MLLMs",
+      "source_uri": "recorded:arxiv:2609.16722v1",
+      "content_sha256": "1df9ee4947083c1e9947ac751dcada17377097a04b67ec0e12b0871e5d8a67ea",
+      "clusters": [
+        "context-memory"
+      ]
+    },
+    {
+      "paper_id": "paper-0070",
+      "title": "Turn-level Multiscale Density Ratio Estimation for LLM Agents",
+      "source_uri": "recorded:arxiv:2609.16760v1",
+      "content_sha256": "b1674adf8c99f2b01509685771f727a4ad89e9d1670b8087591eff2b79568045",
+      "clusters": [
+        "evaluation-safety"
+      ]
+    },
+    {
+      "paper_id": "paper-0071",
+      "title": "Grounding SWE-Agent Decisions in Architecture-0 Design: Navigating Unknown Unknowns through Physical Mapping",
+      "source_uri": "recorded:arxiv:2609.17221v1",
+      "content_sha256": "3d2c73175c1704dc5bdb995c373aea05ec8e66ec998ba0c5bf2eab9aed5036f3",
+      "clusters": [
+        "evaluation-safety"
+      ]
+    },
+    {
+      "paper_id": "paper-0072",
+      "title": "After the Party: Growth, Governance, and Security Scanning in the OpenClaw Agent Skill Ecosystem",
+      "source_uri": "recorded:arxiv:2609.17274v2",
+      "content_sha256": "9cbfd67c9567b9a785dceaaaf8ae97e16ddcecf40cb7baca41c22cbd1e8207d9",
+      "clusters": [
+        "skills-self-improvement"
+      ]
+    },
+    {
+      "paper_id": "paper-0073",
+      "title": "Where Should a Document Live: Context, Representations, or Parameters?",
+      "source_uri": "recorded:arxiv:2609.17346v1",
+      "content_sha256": "0fbbe73fa4c057db2cb46afc457ec372ac5cba6567fb92a7702493b8545e67f3",
+      "clusters": [
+        "context-memory"
+      ]
+    },
+    {
+      "paper_id": "paper-0074",
+      "title": "Reflect, Revise, Reuse: Training-Free Skill Evolution for GUI Agents",
+      "source_uri": "recorded:arxiv:2609.17653v1",
+      "content_sha256": "9ea2d49606e4fa56526a18903416f3ef6318ebf51b6549e0624f9e6d69c00266",
+      "clusters": [
+        "skills-self-improvement"
+      ]
+    },
+    {
+      "paper_id": "paper-0075",
+      "title": "ScienceBuddy: Recursive-in-Recursive Self-Improvement for Interactive Scientific Agents",
+      "source_uri": "recorded:arxiv:2609.17523v1",
+      "content_sha256": "3dd7af028c008fdc0b8fab3c2a7f9eb6eed9407f0b25390e0909e1a2791905d0",
+      "clusters": [
+        "skills-self-improvement"
+      ]
+    },
+    {
+      "paper_id": "paper-0076",
+      "title": "Locating Hidden Failures Makes Long-Horizon Agents More Reliable",
+      "source_uri": "recorded:arxiv:2609.17930v1",
+      "content_sha256": "ceca32e1cdf0b80ae97f9bd42b37c3ae0c94a83e36dc0ca43c5ef7cceddf4649",
+      "clusters": [
+        "context-memory"
+      ]
+    },
+    {
+      "paper_id": "paper-0077",
+      "title": "Whom Do AI Agents Work For? Role Assignment Induces Sponsorship Bias in LLM Recommenders",
+      "source_uri": "recorded:arxiv:2609.17989v1",
+      "content_sha256": "b3f53b5646001515cb8e3314e5103b166678243047f945cc2bcb80550d0b128c",
+      "clusters": [
+        "evaluation-safety"
+      ]
+    },
+    {
+      "paper_id": "paper-0078",
+      "title": "WFM: Wiki Foundation Model for Complex Agentic Reasoning",
+      "source_uri": "recorded:arxiv:2609.18182v1",
+      "content_sha256": "c8b512beed4619ed70612fa95f9cede85e71d118d6d4ca87bbb359f6294c9e6e",
+      "clusters": [
+        "context-memory"
+      ]
+    },
+    {
+      "paper_id": "paper-0079",
+      "title": "Bad Genius: Counterfactual-Guided Harness Evolution Beyond Task-Specific Shortcuts",
+      "source_uri": "recorded:arxiv:2609.18366v2",
+      "content_sha256": "4e00c9e545d76074216dcd91d634e7128482c54e0308356217132f456fb606d7",
+      "clusters": [
+        "evaluation-safety"
+      ]
+    },
+    {
+      "paper_id": "paper-0080",
+      "title": "M-SQE: Multilingual Skill Quality Estimation for Enhancing Language Equality in Agentic Skill Use",
+      "source_uri": "recorded:arxiv:2609.18445v1",
+      "content_sha256": "bba3f6303bb54854e6bb21c852b42862a1ffc10f8585ed7e1e0adc5a62e02cb7",
+      "clusters": [
+        "skills-self-improvement"
+      ]
+    },
+    {
+      "paper_id": "paper-0081",
+      "title": "Size Matters: Foundation Model for Czech HTML documents",
+      "source_uri": "recorded:arxiv:2609.18494v1",
+      "content_sha256": "cdde08ed0bf86dae2d098904594aa7ab6a71165e1de5c7d322cb88cca101c67a",
+      "clusters": [
+        "context-memory"
+      ]
+    },
+    {
+      "paper_id": "paper-0082",
+      "title": "PAPC: Platform Mediation for Privacy-Propagation Externalities in AI-Mediated Workflows",
+      "source_uri": "recorded:arxiv:2609.19226v1",
+      "content_sha256": "44ce72aa417dca7dfa7fe4a7b10d8f7cf2abe53f68c1e2aade1f37efe338ac14",
+      "clusters": [
+        "harness-design"
+      ]
+    },
+    {
+      "paper_id": "paper-0083",
+      "title": "ProgramDistill: From Interactive Web Apps to Verifiable Reference-Guided SWE Tasks",
+      "source_uri": "recorded:arxiv:2609.18805v1",
+      "content_sha256": "8de4162ca187b6b9cfb806b6064ad8d3f98090ca7be6cc072ef8fea7e04887ce",
+      "clusters": [
+        "harness-design"
+      ]
+    },
+    {
+      "paper_id": "paper-0084",
+      "title": "Compositional Policy Violations: When Step-Level Compliance Fails In Agentic AI Workflows",
+      "source_uri": "recorded:arxiv:2609.18820v2",
+      "content_sha256": "211371ea6de270a4d243da7ee2b9f8f50817782e07d9f65c740c17dddc0dc28f",
+      "clusters": [
+        "harness-design"
+      ]
+    },
+    {
+      "paper_id": "paper-0085",
+      "title": "Infinite-Parameter LLMs: Generating and Adapting Weights from Live Data",
+      "source_uri": "recorded:arxiv:2609.18842v2",
+      "content_sha256": "df112e52c79100eb2dd9705c49e39fd4e102b336aec6888b8845b9eb90da1437",
+      "clusters": [
+        "context-memory"
+      ]
+    },
+    {
+      "paper_id": "paper-0086",
+      "title": "Ask the Tool, Don't Guess: Agent Tool Calls Hold Their Progress, and the Serving System Should Read It",
+      "source_uri": "recorded:arxiv:2609.18849v1",
+      "content_sha256": "8cdf4f528dc829e108daec91678bb7aaf5947a77692194fd3d6e676615940876",
+      "clusters": [
+        "evaluation-safety"
+      ]
+    },
+    {
+      "paper_id": "paper-0087",
+      "title": "Beyond Outcomes: Dual-View Relational Learning for Efficient Agent Benchmarking",
+      "source_uri": "recorded:arxiv:2609.18909v1",
+      "content_sha256": "d34b5efa12fd192a13f5b31f4d880387be5af3ef269a8b724e1c9079311af33c",
+      "clusters": [
+        "evaluation-safety"
+      ]
+    },
+    {
+      "paper_id": "paper-0088",
+      "title": "Social Laws for Multi-agent Coordination in Stochastic Environments",
+      "source_uri": "recorded:arxiv:2609.18929v1",
+      "content_sha256": "c5f526f0b02bd47c34edfc0d61760ebe7ad455fbbce81bc9aeaa4b9c3a993c8b",
+      "clusters": [
+        "topologies"
+      ]
+    },
+    {
+      "paper_id": "paper-0089",
+      "title": "Cognitive Extensions for Dual-Process Language Agents: Memory and Self-Reflection in Interactive Environments",
+      "source_uri": "recorded:arxiv:2609.19128v1",
+      "content_sha256": "6040790f430a63718ab3ffd2395abdd9160e7b5a1aa268b3346b601a844c8734",
+      "clusters": [
+        "context-memory"
+      ]
+    },
+    {
+      "paper_id": "paper-0090",
+      "title": "An Architecture for Long-Horizon Agents: Levels, Ticks and Cascaded Intelligence",
+      "source_uri": "recorded:arxiv:2609.19519v1",
+      "content_sha256": "8439f30826e490d03e9e846e23750f23a33479462fdb78020f3f4b733241ee5f",
+      "clusters": [
+        "context-memory"
+      ]
+    },
+    {
+      "paper_id": "paper-0091",
+      "title": "Agentic AI Networking for Heterogeneous Unmanned Aerial Systems in Low-Altitude Wireless Networks",
+      "source_uri": "recorded:arxiv:2609.19538v1",
+      "content_sha256": "f3576e4260914f312e6f3265dc861be0b08d84f93c7cb79992708c5d12940187",
+      "clusters": [
+        "topologies"
+      ]
+    },
+    {
+      "paper_id": "paper-0092",
+      "title": "DataCanvas-EDU: An Agentic Framework for Instructor-Guided Synthetic Data Generation in Business Analytics Education",
+      "source_uri": "recorded:arxiv:2609.19617v1",
+      "content_sha256": "696a6e5d0eb9367f3263f4748e06e0fb87bd3f11b556352dd860d8918662b664",
+      "clusters": [
+        "skills-self-improvement"
+      ]
+    },
+    {
+      "paper_id": "paper-0093",
+      "title": "ScientistTwo: Pioneering the Human Knowledge Frontier with Autonomous AI",
+      "source_uri": "recorded:arxiv:2609.19644v1",
+      "content_sha256": "976a845f71caf58df01e2d4dc59610869be3d7067912023608be36274bbcdf34",
+      "clusters": [
+        "topologies"
+      ]
+    },
+    {
+      "paper_id": "paper-0094",
+      "title": "Self-Evolving Search Index",
+      "source_uri": "recorded:arxiv:2609.19656v1",
+      "content_sha256": "3f7d2d661468c0a3cec815755fc0c04fefc6d3b0fe0144fea241f9724c87a17b",
+      "clusters": [
+        "context-memory"
+      ]
+    },
+    {
+      "paper_id": "paper-0095",
+      "title": "FINSKILLOPS: A Self-Evolving Multi-Agent System for SEC Filing QA",
+      "source_uri": "recorded:arxiv:2609.19680v1",
+      "content_sha256": "242086b0b029c3d87d77e04473605c221d4da57b7d6b6318897a1d0c9645373e",
+      "clusters": [
+        "topologies"
+      ]
+    },
+    {
+      "paper_id": "paper-0096",
+      "title": "UniExo: Unified Multi-Skill Policies for Musculoskeletal Locomotion and Co-Adaptive Exoskeleton Control",
+      "source_uri": "recorded:arxiv:2609.19690v1",
+      "content_sha256": "2c60bfea71b7cec7b18fef6e70968d8ef231909d3a5dada0bdc70cee67073ace",
+      "clusters": [
+        "topologies"
+      ]
+    },
+    {
+      "paper_id": "paper-0097",
+      "title": "BA-TRACE: Boundary-Aware Trace Reconstruction for Scenario-Based Evaluation of Mixed AUTOSAR Adaptive and ROS 2 Vehicular Embedded Systems",
+      "source_uri": "recorded:arxiv:2609.19699v1",
+      "content_sha256": "13512c0a9ce1049fce0a509d2e1a92ee7d75474054441827adbca0620b3d49d5",
+      "clusters": [
+        "topologies"
+      ]
+    },
+    {
+      "paper_id": "paper-0098",
+      "title": "LearnActCoder: Role-Aware Error Memory for Adaptive Clinical Coding Agents",
+      "source_uri": "recorded:arxiv:2609.19721v1",
+      "content_sha256": "71a8a3a8de65ee5a5a988948b96abdc4e7035fa1604966f71c972352feccf922",
+      "clusters": [
+        "harness-design"
+      ]
+    },
+    {
+      "paper_id": "paper-0099",
+      "title": "Contagion on the Trading Floor: How Adversarial Signals Spread in Multi-Agent Trading Systems",
+      "source_uri": "recorded:arxiv:2609.19789v1",
+      "content_sha256": "44d629029e771f4908686ebf0e2357e02556122bed18648abe4910813b45e054",
+      "clusters": [
+        "topologies"
+      ]
+    },
+    {
+      "paper_id": "paper-0100",
+      "title": "Learning and Transferring Closed-Loop Robot Software",
+      "source_uri": "recorded:arxiv:2609.19906v1",
+      "content_sha256": "f0050c071b081f02ef830ff514261ddd33a4937ebd96101f391ba29e14aa3158",
+      "clusters": [
+        "harness-design"
+      ]
+    },
+    {
+      "paper_id": "paper-0101",
+      "title": "MaSCoD: A Multi-Agent Framework for Structural-Context-Guided Candidate Causal Graph Generation",
+      "source_uri": "recorded:arxiv:2609.19944v1",
+      "content_sha256": "c894e716277bbc2da78a72f34c44bb546a8dd218bc2453f3f04da1170bbc9d2a",
+      "clusters": [
+        "topologies"
+      ]
+    },
+    {
+      "paper_id": "paper-0102",
+      "title": "DeepSeek-V4.1-Flash: Pushing the Limits of KV Cache Compression",
+      "source_uri": "recorded:arxiv:2609.19969v1",
+      "content_sha256": "2596b1a1b190b6bb9dbd6b164d3bf002318de70d2f79eeb2d7b1e71f78541aba",
+      "clusters": [
+        "context-memory"
+      ]
+    },
+    {
+      "paper_id": "paper-0103",
+      "title": "Governance-as-Code: Translating EU AI Act Technical Requirements into Executable Compliance Pipelines for Generative AI Systems",
+      "source_uri": "recorded:arxiv:2609.20016v1",
+      "content_sha256": "f2b57cdd1e600014dbd148a1411f8b9535c82e51f2db53b4d2ec80f1e889258f",
+      "clusters": [
+        "evaluation-safety"
+      ]
+    },
+    {
+      "paper_id": "paper-0104",
+      "title": "The Missing Complement: State-Conditioned Minimal Sufficient Evidence for Coding Agents",
+      "source_uri": "recorded:arxiv:2609.20050v1",
+      "content_sha256": "634ce741e9ab6689dc522609639b3f9d5feb9b13dde62b3dc556996addc3c619",
+      "clusters": [
+        "harness-design"
+      ]
+    },
+    {
+      "paper_id": "paper-0105",
+      "title": "MTVA-Bench: Evaluating the Language Model Inside Cascaded Voice Agents",
+      "source_uri": "recorded:arxiv:2609.20152v1",
+      "content_sha256": "8e3b857c48d6a45daa780cc9a3e5ae3107931132f5cd0c60ecb1ad284c69b690",
+      "clusters": [
+        "evaluation-safety"
+      ]
+    },
+    {
+      "paper_id": "paper-0106",
+      "title": "STR-Agent: An LLM-Driven Agent for QoS-Aware Routing in LEO Satellite Networks",
+      "source_uri": "recorded:arxiv:2609.20347v1",
+      "content_sha256": "bbf713f0dd614b2e6b4008b80a5afea8c7ffc2b16458ff0574ad358fe8a34a26",
+      "clusters": [
+        "topologies"
+      ]
+    },
+    {
+      "paper_id": "paper-0107",
+      "title": "Xeno-Interpretability: Investigating the Alien Minds of LLMs",
+      "source_uri": "recorded:arxiv:2609.20408v2",
+      "content_sha256": "42cafb9e148800c48f3f45b903878603abad443bd36c0e691dc086886d7a7bc5",
+      "clusters": [
+        "topologies"
+      ]
+    },
+    {
+      "paper_id": "paper-0108",
+      "title": "Spotlights: Discovering Improvement Opportunities in Software Repositories",
+      "source_uri": "recorded:arxiv:2609.20446v1",
+      "content_sha256": "089928c06dbe67e472b91115cbb937dcee961ce1e8a1c3b98551a8e7f7cd1fbb",
+      "clusters": [
+        "harness-design"
+      ]
+    },
+    {
+      "paper_id": "paper-0109",
+      "title": "How Do Agent Harnesses Create Value? Planning Information and Release Control in Stateful LLM Agents",
+      "source_uri": "recorded:arxiv:2609.20474v1",
+      "content_sha256": "839c8fb6570bac6dc0488c7622c5558011c9d0fe3640f5021f47dc1a73af667e",
+      "clusters": [
+        "harness-design"
+      ]
+    },
+    {
+      "paper_id": "paper-0110",
+      "title": "greCAPTCHA: Assessing Understanding as Evidence of Research Authorship Under Generative AI",
+      "source_uri": "recorded:arxiv:2609.20481v1",
+      "content_sha256": "f46e34ef2ab7db9dd9d1097cf444a2333553a5a760757485b16c85a3ed2fa83d",
+      "clusters": [
+        "evaluation-safety"
+      ]
+    },
+    {
+      "paper_id": "paper-0111",
+      "title": "Inference-Engine Fingerprinting Attacks are Practical: Exploring Model-Driven Environmental Discovery, Exploitation, and Escape",
+      "source_uri": "recorded:arxiv:2609.20614v1",
+      "content_sha256": "1805702e0adcac8b3fdb8cbec5988c85d5ae396eb9fd83642bd95322f65d0e25",
+      "clusters": [
+        "harness-design"
+      ]
+    },
+    {
+      "paper_id": "paper-0112",
+      "title": "Quantifying Overclaiming Propensity in Frontier LLM Agents",
+      "source_uri": "recorded:arxiv:2609.20812v2",
+      "content_sha256": "85cf9cfef27ca1d2e863c41bf9e5865bcefe9268360042386bb117220fda5723",
+      "clusters": [
+        "harness-design"
+      ]
+    },
+    {
+      "paper_id": "paper-0113",
+      "title": "Coding Agents with an Obstacle-Aware Harness for Safe Robot Manipulation",
+      "source_uri": "recorded:arxiv:2609.20822v1",
+      "content_sha256": "54e378e13d437e98c4661bb47377ad1594aa8d61bcd6ea977876f2670b393264",
+      "clusters": [
+        "harness-design"
+      ]
+    },
+    {
+      "paper_id": "paper-0114",
+      "title": "Scaling Discovery through Test-Time Communication",
+      "source_uri": "recorded:arxiv:2609.21032v1",
+      "content_sha256": "34122e89fdd9249aeebb12e365102deca64bb8de5cd6c6c11b63b08f11b7fd8f",
+      "clusters": [
+        "topologies"
+      ]
+    },
+    {
+      "paper_id": "paper-0115",
+      "title": "PlaceReasoner-Beta: Reasoning-Driven Macro Placement and Benchmarking",
+      "source_uri": "recorded:arxiv:2609.21263v1",
+      "content_sha256": "69aaf9ec27161c65d3f882710d407a8b86ed12eb55bc5d0328d67967d2a09041",
+      "clusters": [
+        "topologies"
+      ]
+    },
+    {
+      "paper_id": "paper-0116",
+      "title": "Efficient Benchmarking in Production: A Study of an Evolving LLM Agent",
+      "source_uri": "recorded:arxiv:2609.21267v1",
+      "content_sha256": "8e7e04281d4765c6bbda58ed97f27d2d01f6d19c546585f9aba7c18c0fc93c0c",
+      "clusters": [
+        "evaluation-safety"
+      ]
+    },
+    {
+      "paper_id": "paper-0117",
+      "title": "AgentVidBench: A Multi-Hop Video Question Answering Benchmark for Evaluating MLLM Agents",
+      "source_uri": "recorded:arxiv:2609.21386v1",
+      "content_sha256": "7b7ba68eea55e9b5917504d6d05967481cfcea524652b5a4340a5330c0f6d1a8",
+      "clusters": [
+        "harness-design"
+      ]
+    },
+    {
+      "paper_id": "paper-0118",
+      "title": "OmniVChat: Synthesizing, Benchmarking, and Training for Native Audio-Visual Dialogue",
+      "source_uri": "recorded:arxiv:2609.21465v1",
+      "content_sha256": "cfdd32710edd721db76142325fcdcb572aa4f1855a3e313d04c68fd6eab6a8d8",
+      "clusters": [
+        "topologies"
+      ]
+    },
+    {
+      "paper_id": "paper-0119",
+      "title": "OpenMAS-GCom. A Diagnostic Benchmark for Graph-enhanced Multi-Agent Systems",
+      "source_uri": "recorded:arxiv:2609.21527v1",
+      "content_sha256": "b93eea409de52a722aff1713a4f6705b9fb478395186e7e3390c4489c9a03103",
+      "clusters": [
+        "topologies"
+      ]
+    },
+    {
+      "paper_id": "paper-0120",
+      "title": "GameLogicBench: Evaluating Coding Agents on Runtime Game Logic with Tick-Level State Assertions",
+      "source_uri": "recorded:arxiv:2609.21562v2",
+      "content_sha256": "cc908d3edf3a7e27192627639bff8d992535db960a738ef7445491fbbd4e9cbb",
+      "clusters": [
+        "harness-design"
+      ]
+    },
+    {
+      "paper_id": "paper-0121",
+      "title": "An Agentic Just-in-Time Adaptive Intervention System for Personalized Sleep Support: Proof-of-Concept Study with N of 1 Data",
+      "source_uri": "recorded:arxiv:2609.21805v1",
+      "content_sha256": "1eaf9773b56c4916fd6f7b38906f258134e7ff2e0ec91905e2e59124fcc7cbc8",
+      "clusters": [
+        "evaluation-safety"
+      ]
+    },
+    {
+      "paper_id": "paper-0122",
+      "title": "EnterpriseVal: Quantifying the Efficacy, Reliability and Value of Generative AI in the Enterprise",
+      "source_uri": "recorded:arxiv:2609.21841v1",
+      "content_sha256": "1e6ca94185d777f40ebf3ad1d7d35257b6c6c1e99e10ce0251192d346eda9215",
+      "clusters": [
+        "evaluation-safety"
+      ]
+    },
+    {
+      "paper_id": "paper-0123",
+      "title": "Supporting Industrial Test-Failure Analysis with LLM-Based Systems: An Experience Report",
+      "source_uri": "recorded:arxiv:2609.21843v1",
+      "content_sha256": "99502474424c4393eda6ae5b92a019347e40e290b8ae8df2822573cc628672b1",
+      "clusters": [
+        "topologies"
+      ]
+    },
+    {
+      "paper_id": "paper-0124",
+      "title": "TrialAtlas: Multi-Agent Research Organization for Clinical Trial Design and Optimization",
+      "source_uri": "recorded:arxiv:2609.21859v1",
+      "content_sha256": "a7c17046442d145436681fab75de3498f7ef619f013af349b5ab9ec82c0bab24",
+      "clusters": [
+        "topologies"
+      ]
+    },
+    {
+      "paper_id": "paper-0125",
+      "title": "Guiding Agents of Quantum Games to Equilibrium using Matrix Exponential Fixed-Point Iteration",
+      "source_uri": "recorded:arxiv:2609.21944v1",
+      "content_sha256": "e3751d658233eb74d3d3887fe597fa203612ebe0e6761f14b2ebe544f2938f15",
+      "clusters": [
+        "topologies"
+      ]
+    },
+    {
+      "paper_id": "paper-0126",
+      "title": "CodeMidas: Scaling Agentic Coding RL Environments from Code Itself",
+      "source_uri": "recorded:arxiv:2609.22068v1",
+      "content_sha256": "c44c1c60328f5e8b8a2aca021655708b0f385b2ad30fc7cb6c59479c00810e6e",
+      "clusters": [
+        "harness-design"
+      ]
+    },
+    {
+      "paper_id": "paper-0127",
+      "title": "Designer-RSI: Evolving Procedural Memory from User Traffic for Agentic Graphic Design",
+      "source_uri": "recorded:arxiv:2609.22086v1",
+      "content_sha256": "bd342b3057929e4611268eeb8e110fe44e0b1538135b6ef4257595a471cafe35",
+      "clusters": [
+        "context-memory"
+      ]
+    },
+    {
+      "paper_id": "paper-0128",
+      "title": "Toward Personalized Sleep Guidance from Wearable Data Using Language Models",
+      "source_uri": "recorded:arxiv:2609.22463v1",
+      "content_sha256": "8a60e496296f47e4368200f5abc7e4eaa707a47ecab88436e528467e18ccb89d",
+      "clusters": [
+        "topologies"
+      ]
+    },
+    {
+      "paper_id": "paper-0129",
+      "title": "FRAMES: Failure Recovery And Monitoring of Embodied Skills for Humanoid Loco-Manipulation",
+      "source_uri": "recorded:arxiv:2609.22538v1",
+      "content_sha256": "0f0ae5c8f9bc06dfbb50dd3f05c7d0ba83031c383027ca8cef20c0d82687d36e",
+      "clusters": [
+        "evaluation-safety"
+      ]
+    },
+    {
+      "paper_id": "paper-0130",
+      "title": "Fairly Compensated Distributed Information Retrieval and Augmentation for AI Agents",
+      "source_uri": "recorded:arxiv:2609.22601v1",
+      "content_sha256": "de803089923cdfb0343d6559e6011bd85305fe35204b0e3a13998df26e004115",
+      "clusters": [
+        "topologies"
+      ]
+    },
+    {
+      "paper_id": "paper-0131",
+      "title": "HIGenNTO: Scalable Humanoid Interaction Generation via Noise-Space Trajectory Optimization",
+      "source_uri": "recorded:arxiv:2609.22611v1",
+      "content_sha256": "88967bcf7bbeaaec6913598f0e4489cc9b9bf9a6400b7a4c5c0a8914e9b56aa7",
+      "clusters": [
+        "harness-design"
+      ]
+    },
+    {
+      "paper_id": "paper-0132",
+      "title": "Vision2CAD: A Visual Agent Harness for Explicit Geometry Referencing and Localization in Parametric CAD Modeling",
+      "source_uri": "recorded:arxiv:2609.22688v1",
+      "content_sha256": "a2d985cfa3b070432abdabf3ec1ba0fe42428f8cfbd0f05cf2dc3046dc676595",
+      "clusters": [
+        "harness-design"
+      ]
+    },
+    {
+      "paper_id": "paper-0133",
+      "title": "Trustworthy Agentic AI: Failure Modes, Mitigation Strategies, and a Lifecycle Framework for Autonomous LLM Systems",
+      "source_uri": "recorded:arxiv:2609.22712v1",
+      "content_sha256": "9a643f3787855138fe2a852078e55b63c3797e03aefdf5d986b4aef324ca686b",
+      "clusters": [
+        "evaluation-safety"
+      ]
+    },
+    {
+      "paper_id": "paper-0134",
+      "title": "Counterfactual Tool Ranking under Utility, Cost, and Privilege Constraints",
+      "source_uri": "recorded:arxiv:2609.22819v1",
+      "content_sha256": "3a2aa8e0b85c82fd62b3d48cae15b8d3f84606bd442bb2eef0af75f6b10d6921",
+      "clusters": [
+        "evaluation-safety"
+      ]
+    },
+    {
+      "paper_id": "paper-0135",
+      "title": "When Should a VLM Look? Paying Only for Visual Calls That Were Needed and Used",
+      "source_uri": "recorded:arxiv:2609.22910v1",
+      "content_sha256": "b0ca6ec3aa8250b9a20c49f0d61d268c3143a60d23fffd4721044f0c8db421ab",
+      "clusters": [
+        "evaluation-safety"
+      ]
+    },
+    {
+      "paper_id": "paper-0136",
+      "title": "An Evolutionary Agentic Approach for Open-ended Image Quality Perception",
+      "source_uri": "recorded:arxiv:2609.22942v1",
+      "content_sha256": "5f49f71fa5cbf53508acab525af0897cdc138f76d5cbf9b4a9318180788b8cbf",
+      "clusters": [
+        "topologies"
+      ]
+    },
+    {
+      "paper_id": "paper-0137",
+      "title": "Beyond Single-Model Injection: A Threat Model and Defense Architecture for Prompt Injection in Multi-Agent Systems",
+      "source_uri": "recorded:arxiv:2609.22949v1",
+      "content_sha256": "8ab5a44bd96cfb060e6b6509bf86e49d72cc2102b225e758b1545f70d58a8e23",
+      "clusters": [
+        "topologies"
+      ]
+    },
+    {
+      "paper_id": "paper-0138",
+      "title": "AgentRouter: Heterogeneous Model Routing for Cost-Optimal Multi-Step Agentic Workflows",
+      "source_uri": "recorded:arxiv:2609.22951v1",
+      "content_sha256": "f1d1b3eeb9f91a8688242f8097fbf1d0233a6191659f6deaf233a3e854e3bf47",
+      "clusters": [
+        "harness-design"
+      ]
+    },
+    {
+      "paper_id": "paper-0139",
+      "title": "General Collaborative Intelligence: Architecting Cognition for Resilient Multi-Agent Ecosystems",
+      "source_uri": "recorded:arxiv:2609.22967v1",
+      "content_sha256": "98a356285d985212e53587592faee9780f779fab23a3239b496b858c251cbb7a",
+      "clusters": [
+        "topologies"
+      ]
+    },
+    {
+      "paper_id": "paper-0140",
+      "title": "CraftBench-UE: Deterministic Evaluation for Coding Agents in Unreal Engine",
+      "source_uri": "recorded:arxiv:2609.23142v1",
+      "content_sha256": "f51af9a90fd84bb6bc938cd423ee5899f7d45fd2a5ebe89a40c7f9957d532c57",
+      "clusters": [
+        "harness-design"
+      ]
+    },
+    {
+      "paper_id": "paper-0141",
+      "title": "Latent Telepathy: Multi-Robot Communication with Self-Supervised Perceptual Latents",
+      "source_uri": "recorded:arxiv:2609.23269v1",
+      "content_sha256": "8194640bfca81eba10e5e2c1d8513616230f798ff21f0e7a72faa9e97997a2eb",
+      "clusters": [
+        "topologies"
+      ]
+    },
+    {
+      "paper_id": "paper-0142",
+      "title": "TicTacBench: Benchmarking Timing Closure Capabilities of Coding Agents",
+      "source_uri": "recorded:arxiv:2609.23363v1",
+      "content_sha256": "6c708d176d68ddff50920ffbd2927ec13ae75bf37cc107d94e973f09d263a1d6",
+      "clusters": [
+        "harness-design"
+      ]
+    },
+    {
+      "paper_id": "paper-0143",
+      "title": "AgentBetta: Verification-Driven Adaptive Configuration of an AI Nano-Agent through Selective Expansion and Verified Contraction",
+      "source_uri": "recorded:arxiv:2609.23512v1",
+      "content_sha256": "936000a6e9065229ba51b7ad66dcc13f11df4b7ac88a5451aaad76f617e8d09c",
+      "clusters": [
+        "topologies"
+      ]
+    },
+    {
+      "paper_id": "paper-0144",
+      "title": "VibeMemBench: Evaluating Memory Systems for Coding Agents on Real Repository Coding Tasks",
+      "source_uri": "recorded:arxiv:2609.23570v1",
+      "content_sha256": "5b1fb00f8e5ed5a074e0cdf3c65dc920bf1939d611a44c3dbf3d136b9d67f981",
+      "clusters": [
+        "harness-design"
+      ]
+    },
+    {
+      "paper_id": "paper-0145",
+      "title": "FLARE: A Full-Lifecycle Dense Supervision Paradigm for Long-Horizon Coding Agents via Generative Reward Model",
+      "source_uri": "recorded:arxiv:2609.23808v1",
+      "content_sha256": "963214a713b7577a7e8fbb8827884aa8a9ad63b6e9d08525ed06ef8e2f41353e",
+      "clusters": [
+        "harness-design"
+      ]
+    },
+    {
+      "paper_id": "paper-0146",
+      "title": "Packaged, But Not Portable: Why Conforming to the Agent Plugin Standard Is Rare, and Why Conforming Would Not Be Enough",
+      "source_uri": "recorded:arxiv:2609.23809v1",
+      "content_sha256": "d3d1d6006e541be11d26be07a76663db34f56b1fd8ab19ffd375ab28fb50b265",
+      "clusters": [
+        "harness-design"
+      ]
+    },
+    {
+      "paper_id": "paper-0147",
+      "title": "VISTA: An Attention-Based Multi-Agent Reinforcement Learning Architecture for Space Situational Awareness Sensor Tasking",
+      "source_uri": "recorded:arxiv:2609.23875v1",
+      "content_sha256": "bca15a1eccd6b859c25183a7a48042a3f0601f625448d983e54eb24f7aef5db4",
+      "clusters": [
+        "topologies"
+      ]
+    },
+    {
+      "paper_id": "paper-0148",
+      "title": "Connecting the Dots in Agentic AI Security: A Cross-Dimensional Threat Taxonomy, Evaluation Maturity, and Open Challenges",
+      "source_uri": "recorded:arxiv:2609.23894v1",
+      "content_sha256": "3b14ea749a22ed723ce31a65e6c27ea63ba309e733f2a2ee0bd4f458ff4061bb",
+      "clusters": [
+        "topologies"
+      ]
+    },
+    {
+      "paper_id": "paper-0149",
+      "title": "Agents That Edit Documents: Measuring Agentic PDF Forgery Against a Non-Agentic Control",
+      "source_uri": "recorded:arxiv:2609.23953v1",
+      "content_sha256": "167afad0e537e8fc9931b7f254cda6e44329ed47dddc5a79023fd8ba21120116",
+      "clusters": [
+        "harness-design"
+      ]
+    }
+  ],
+  "new_candidates": [
+    "paper-0000",
+    "paper-0001",
+    "paper-0002",
+    "paper-0003",
+    "paper-0004",
+    "paper-0005",
+    "paper-0006",
+    "paper-0007",
+    "paper-0008",
+    "paper-0009",
+    "paper-0010",
+    "paper-0011",
+    "paper-0012",
+    "paper-0013",
+    "paper-0014",
+    "paper-0015",
+    "paper-0016",
+    "paper-0017",
+    "paper-0018",
+    "paper-0019",
+    "paper-0020",
+    "paper-0021",
+    "paper-0022",
+    "paper-0023",
+    "paper-0024",
+    "paper-0025",
+    "paper-0026",
+    "paper-0027",
+    "paper-0028",
+    "paper-0029",
+    "paper-0030",
+    "paper-0031",
+    "paper-0032",
+    "paper-0033",
+    "paper-0034",
+    "paper-0035",
+    "paper-0036",
+    "paper-0037",
+    "paper-0038",
+    "paper-0039",
+    "paper-0040",
+    "paper-0041",
+    "paper-0042",
+    "paper-0043",
+    "paper-0044",
+    "paper-0045",
+    "paper-0046",
+    "paper-0047",
+    "paper-0048",
+    "paper-0049",
+    "paper-0050",
+    "paper-0051",
+    "paper-0052",
+    "paper-0053",
+    "paper-0054",
+    "paper-0055",
+    "paper-0056",
+    "paper-0057",
+    "paper-0058",
+    "paper-0059",
+    "paper-0060",
+    "paper-0061",
+    "paper-0062",
+    "paper-0063",
+    "paper-0064",
+    "paper-0065",
+    "paper-0066",
+    "paper-0067",
+    "paper-0068",
+    "paper-0069",
+    "paper-0070",
+    "paper-0071",
+    "paper-0072",
+    "paper-0073",
+    "paper-0074",
+    "paper-0075",
+    "paper-0076",
+    "paper-0077",
+    "paper-0078",
+    "paper-0079",
+    "paper-0080",
+    "paper-0081",
+    "paper-0082",
+    "paper-0083",
+    "paper-0084",
+    "paper-0085",
+    "paper-0086",
+    "paper-0087",
+    "paper-0088",
+    "paper-0089",
+    "paper-0090",
+    "paper-0091",
+    "paper-0092",
+    "paper-0093",
+    "paper-0094",
+    "paper-0095",
+    "paper-0096",
+    "paper-0097",
+    "paper-0098",
+    "paper-0099",
+    "paper-0100",
+    "paper-0101",
+    "paper-0102",
+    "paper-0103",
+    "paper-0104",
+    "paper-0105",
+    "paper-0106",
+    "paper-0107",
+    "paper-0108",
+    "paper-0109",
+    "paper-0110",
+    "paper-0111",
+    "paper-0112",
+    "paper-0113",
+    "paper-0114",
+    "paper-0115",
+    "paper-0116",
+    "paper-0117",
+    "paper-0118",
+    "paper-0119",
+    "paper-0120",
+    "paper-0121",
+    "paper-0122",
+    "paper-0123",
+    "paper-0124",
+    "paper-0125",
+    "paper-0126",
+    "paper-0127",
+    "paper-0128",
+    "paper-0129",
+    "paper-0130",
+    "paper-0131",
+    "paper-0132",
+    "paper-0133",
+    "paper-0134",
+    "paper-0135",
+    "paper-0136",
+    "paper-0137",
+    "paper-0138",
+    "paper-0139",
+    "paper-0140",
+    "paper-0141",
+    "paper-0142",
+    "paper-0143",
+    "paper-0144",
+    "paper-0145",
+    "paper-0146",
+    "paper-0147",
+    "paper-0148",
+    "paper-0149"
+  ],
+  "unchanged_candidates": []
+}

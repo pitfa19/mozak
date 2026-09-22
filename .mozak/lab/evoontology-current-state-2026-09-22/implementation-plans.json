@@ -1,0 +1,90 @@
+{
+  "contract_version": 1,
+  "run_id": "improve-0dcf6d817acd034bb8bafc69",
+  "plans": [
+    {
+      "id": "plan-current-state-projection",
+      "title": "Add a deterministic read-only current-state projection",
+      "mechanism_ids": [
+        "mechanism-layered-current-state"
+      ],
+      "deliverables": [
+        "A core current-state contract derived only from validated project, adapter, KB, and research artifacts",
+        "Typed relationships carrying source path, content hash, freshness, and authority",
+        "No independently stored acceptance, recommendation, or execution state"
+      ],
+      "acceptance_checks": [
+        "Repeated projection over unchanged inputs emits byte-identical JSON",
+        "Changing or removing a pinned source hash causes a fail-closed result rather than stale output",
+        "Every displayed relationship names its authoritative source and authority class",
+        "The projection performs no writes and cannot promote proposal-only evidence"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "plan-project-current-cli",
+      "title": "Expose the smallest useful project current command",
+      "mechanism_ids": [
+        "mechanism-layered-current-state",
+        "mechanism-selective-navigation"
+      ],
+      "deliverables": [
+        "A public `mozak project current PROJECT_ID` route",
+        "Bounded sections for goal state, adapter freshness, newest proposal-only research, superseded artifacts, and next owner decision",
+        "Explicit labels for latest recorded, latest observed, and accepted state"
+      ],
+      "acceptance_checks": [
+        "After a newer adapter run exists, the command does not describe an older run as current without a stale warning",
+        "For the MOZAK project it reports no ready goals, the compaction finding, and today's agentic-systems research freshness in one response",
+        "A project with no adapters or research still returns a valid bounded response",
+        "The command output makes no trust transfer or automatic-promotion claim"
+      ],
+      "dependencies": [
+        "plan-current-state-projection"
+      ]
+    },
+    {
+      "id": "plan-browse-resolve-why",
+      "title": "Add provenance-aware browse, resolve, and why navigation",
+      "mechanism_ids": [
+        "mechanism-selective-navigation"
+      ],
+      "deliverables": [
+        "Bounded browse over explicitly configured records without filesystem scanning",
+        "Resolve output that follows only declared relationships",
+        "Why output that explains inclusion, freshness, authority, and blocking conditions"
+      ],
+      "acceptance_checks": [
+        "Browse never presents ranking as recommendation, acceptance, or truth",
+        "Resolve refuses stale hashes and undeclared relationships",
+        "Why can explain why today's DAIR run supersedes yesterday's recorded run without accepting either as project knowledge",
+        "Default output remains bounded and does not dump note bodies or the full KB"
+      ],
+      "dependencies": [
+        "plan-current-state-projection",
+        "plan-project-current-cli"
+      ]
+    },
+    {
+      "id": "plan-attributed-improvement-loop",
+      "title": "Gate future navigation improvements through attributed paired evaluation",
+      "mechanism_ids": [
+        "mechanism-owner-gated-improvement"
+      ],
+      "deliverables": [
+        "A failure record that classifies each observed problem as content, schema, or tool behavior",
+        "A paired before-and-after CLI evaluation format with fixed project inputs",
+        "Owner-review packet that keeps passing proposals non-authoritative"
+      ],
+      "acceptance_checks": [
+        "The stale-DAIR scenario is reproduced through the installed CLI before a proposed change is evaluated",
+        "Only one attributed layer changes per proposal unless dependencies are explicitly justified",
+        "A failed or inconclusive comparison produces no implementation or promotion",
+        "A passing comparison still requires separate owner approval before implementation"
+      ],
+      "dependencies": [
+        "plan-project-current-cli"
+      ]
+    }
+  ]
+}

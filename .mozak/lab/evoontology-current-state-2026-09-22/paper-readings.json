@@ -1,0 +1,58 @@
+{
+  "contract_version": 1,
+  "run_id": "improve-0dcf6d817acd034bb8bafc69",
+  "readings": [
+    {
+      "paper_id": "paper-0060",
+      "source_class": "preprint",
+      "source_uri": "recorded:arxiv:2609.15779v1",
+      "content_sha256": "64012dfebd0f351cdb5c80176100c8dc8cc0ece04b938f75290026fe9493a338",
+      "read_depth": "full_text",
+      "claims": [
+        {
+          "id": "claim-evo-three-layers",
+          "text": "EvoOntology separates its versioned ontology into content, schema, and tool layers so semantic records, their object model, and runtime exposure can evolve independently.",
+          "origin": "source_claim",
+          "locator": "Method > Agent-First Ontology-Layer Architecture"
+        },
+        {
+          "id": "claim-evo-selective-tools",
+          "text": "The ontology is exposed through MCP browse and resolve tools while only a compact manifest is placed in the prompt, allowing selective runtime retrieval instead of full-context injection.",
+          "origin": "source_claim",
+          "locator": "Method > Agent-First Ontology-Layer Architecture > Tool Layer"
+        },
+        {
+          "id": "claim-evo-attributed-edits",
+          "text": "The evolution loop analyzes historical trajectories, attributes a failure signature to content, tool, or schema, and proposes a localized single-level patch with an expected behavioral effect.",
+          "origin": "source_claim",
+          "locator": "Method > Trajectory-Grounded Ontology Evolution > Trajectory Attribution and Localized Intervention"
+        },
+        {
+          "id": "claim-evo-paired-gate",
+          "text": "A candidate ontology patch is retained only when paired evaluation against its parent on the same validation set, decoding settings, and interaction budget reaches a required improvement margin.",
+          "origin": "source_claim",
+          "locator": "Method > Trajectory-Grounded Ontology Evolution > Backbone-Conditional Paired Validation, Equation 2"
+        },
+        {
+          "id": "claim-evo-gate-load-bearing",
+          "text": "The reported ablation found that removing the acceptance gate caused the largest performance drop, followed by removing failure attribution.",
+          "origin": "source_claim",
+          "locator": "Analyses > Ablation Study on Evolution Loop > Table 5"
+        },
+        {
+          "id": "claim-evo-static-layer-risk",
+          "text": "Static prompt injection of the semantic layer was inconsistent and sometimes reduced performance, while selective tool access produced stable gains in the reported benchmarks.",
+          "origin": "source_claim",
+          "locator": "Experiments > Main Results > Tables 1, 3, and 4"
+        }
+      ],
+      "limitations": [
+        "The source is an arXiv preprint and has not been treated as peer reviewed.",
+        "Its experiments concern data agents, not project-management or provenance frameworks like MOZAK.",
+        "Its self-evolution loop is automatic and backbone-specific, while MOZAK requires owner-gated authority transitions.",
+        "Reported benchmark gains do not establish that the same architecture will improve MOZAK usability."
+      ],
+      "retained_full_text": false
+    }
+  ]
+}

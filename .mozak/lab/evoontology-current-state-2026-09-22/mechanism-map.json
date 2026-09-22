@@ -1,0 +1,49 @@
+{
+  "contract_version": 1,
+  "run_id": "improve-0dcf6d817acd034bb8bafc69",
+  "mechanisms": [
+    {
+      "id": "mechanism-layered-current-state",
+      "proposed_mechanism": "Derive a read-only current-state projection with separate content, relationship-schema, and presentation-tool layers from already validated MOZAK artifacts.",
+      "affected_contract": "project context and project overview",
+      "expected_benefit": "A single view can connect goals, adapter freshness, research authority, supersession, and next owner decisions without making the projection authoritative.",
+      "risks": [
+        "The projection could become a competing source of truth if it stores independent state.",
+        "Cross-module relationships could imply authority transfer unless every edge carries provenance and authority."
+      ],
+      "supporting_claim_ids": [
+        "claim-evo-three-layers"
+      ]
+    },
+    {
+      "id": "mechanism-selective-navigation",
+      "proposed_mechanism": "Expose bounded current, browse, resolve, and why operations that retrieve only relevant validated records and explicitly distinguish latest recorded, latest observed, and accepted state.",
+      "affected_contract": "project context public CLI and MCP transport",
+      "expected_benefit": "Agents can answer current-state questions without manually joining project, adapter, KB, and research interfaces or loading the whole KB.",
+      "risks": [
+        "Search ranking could be mistaken for recommendation or truth.",
+        "A compact response could omit a blocking freshness or authority condition."
+      ],
+      "supporting_claim_ids": [
+        "claim-evo-selective-tools",
+        "claim-evo-static-layer-risk"
+      ]
+    },
+    {
+      "id": "mechanism-owner-gated-improvement",
+      "proposed_mechanism": "Record navigation failures, attribute each to content, schema, or tool behavior, propose one localized change, and require paired CLI evaluation plus owner approval before implementation or promotion.",
+      "affected_contract": "Improve Lab evaluation and owner review",
+      "expected_benefit": "MOZAK can learn from failures such as stale-research selection without permitting autonomous self-modification.",
+      "risks": [
+        "Synthetic evaluation scenarios may not predict real user benefit.",
+        "Poor attribution can optimize the wrong layer.",
+        "Evaluation can overfit to one model or workflow."
+      ],
+      "supporting_claim_ids": [
+        "claim-evo-attributed-edits",
+        "claim-evo-paired-gate",
+        "claim-evo-gate-load-bearing"
+      ]
+    }
+  ]
+}
