@@ -47,6 +47,7 @@ mozak project review <discovery.json>
 mozak project register <discovery.json> <approval.json>          # mutation
 mozak project refresh <discovery.json> <approval.json>           # mutation
 mozak project context <project-id>
+mozak project notes <project-id> [--limit N] [--offset N]
 mozak project linked-scopes <project-id> [--limit N] [--offset N]
 mozak project current <project-id>
 mozak project browse <project-id>
@@ -55,6 +56,11 @@ mozak project why <project-id> <record-id>
 mozak project registrations
 mozak project refresh history
 mozak project refresh rollback <config-sha256>
+mozak notes scope <scope-id> [--limit N] [--offset N]
+mozak notes meta-goal <meta-goal-id> [--limit N] [--offset N]
+mozak notes check
+mozak notes onboard propose <output.json>                       # create-only proposal
+mozak notes onboard apply <proposal.json> <approval.json>      # owner-approved mutation
 mozak scope init|add-topic <scope-root> <scope-id> <title> <intent>          # mutation
 mozak scope add-project <scope-root> <scope-id> <title> <intent> <project-root>  # mutation
 mozak scope add-goal <scope-root> <goal-id> <title> <scope-id> [scope-id ...]    # mutation
@@ -64,6 +70,8 @@ mozak scope ingest-links <scope-root> <source-root> <observed-revision> <plan.js
 ```
 
 `project context PROJECT_ID` keeps `knowledge.linked_scopes` backward-useful as a deterministic capped inline array and emits `linked_scopes_total_count`, `linked_scopes_returned_count`, `linked_scopes_truncated`, `linked_scopes_limit`, and `linked_scopes_detail_command`. Use `project linked-scopes PROJECT_ID [--limit N] [--offset N]` for bounded deterministic detail retrieval. Linked Scope records remain advisory-only, `accepted: false`, `trust_transfer: false`, and fail closed on configured KB drift.
+
+The Notes routes use only the configured KB, the existing device-local Notes profile, and explicit profile roots. `notes onboard propose` is deterministic and create-only; it emits relative-path evidence and digest pins without note bodies or absolute destination roots. `notes onboard apply` requires a separate exact owner approval and uses locked compare-and-swap atomic replacement with fsync and readback. `notes check` validates mapping integrity and mapped-prefix existence. It is not a Markdown audit: use `note-healthcheck` to inspect note content, links, formatting, and trust metadata.
 
 `project current PROJECT_ID` emits the sealed read-only current-state projection plus bounded sections for goal state, adapter freshness, newest proposal-only research, superseded artifacts, and next owner decision. `project browse PROJECT_ID` lists only explicitly configured records from the same bounded view and states that order is not recommendation, acceptance, or truth. `project resolve PROJECT_ID RECORD_ID` follows only declared Stage 1 projection relationships and refuses stale hashes/freshness or undeclared records. `project why PROJECT_ID RECORD_ID` explains inclusion, freshness, authority, and blocking conditions, including why a newer DAIR run supersedes an older recorded run without accepting either. These commands read only the registered project/config boundaries, configured KB, adapter registry, and adapter runs dirs. They label latest recorded, latest observed, and accepted, dump no note bodies/full KB, and claim no trust transfer or automatic promotion.
 
