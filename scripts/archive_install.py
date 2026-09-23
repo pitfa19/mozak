@@ -82,11 +82,20 @@ def allowed_legacy_alias(home: Path, path: Path) -> bool:
 
 def snapshot_managed_path(home: Path, path: Path) -> tuple[str, bytes | str, int]:
     alias = home / LEGACY_ALIAS
-    if path == alias or alias in path.parents:
+    if (path == alias or alias in path.parents) and alias.is_symlink():
         metadata = alias.lstat()
         if not stat.S_ISLNK(metadata.st_mode) or not allowed_legacy_alias(home, alias):
             raise RuntimeError(f"managed skill path is unsafe: {alias}")
         return ("symlink", os.readlink(alias), stat.S_IMODE(metadata.st_mode))
+    parent = path.parent
+    while parent != home:
+        try:
+            parent_metadata = parent.lstat()
+        except OSError as error:
+            raise RuntimeError(f"cannot inspect managed skill path {parent}: {error}") from error
+        if stat.S_ISLNK(parent_metadata.st_mode) or not stat.S_ISDIR(parent_metadata.st_mode):
+            raise RuntimeError(f"managed skill path is unsafe: {parent}")
+        parent = parent.parent
     metadata = path.lstat()
     if stat.S_ISLNK(metadata.st_mode):
         if not allowed_legacy_alias(home, path):
@@ -242,13 +251,13 @@ def migrate_skills(old_binary: Path | None, new_binary: Path, home: Path, owner:
         if old_check.returncode != 0 or not old_report or old_report.get("state") != "ready":
             raise RuntimeError("installed managed skills drifted; refusing automatic migration")
         old_paths = report_paths(old_report, home)
+        alias = home / LEGACY_ALIAS
+        alias_is_link = alias.is_symlink()
         for path in old_paths:
-            alias = home / LEGACY_ALIAS
-            backup_path = alias if path == alias or alias in path.parents else path
+            backup_path = alias if alias_is_link and (path == alias or alias in path.parents) else path
             backup[backup_path] = snapshot_managed_path(home, backup_path)
         for path in old_paths:
-            alias = home / LEGACY_ALIAS
-            if path == alias or alias in path.parents:
+            if alias_is_link and (path == alias or alias in path.parents):
                 alias.unlink(missing_ok=True)
             else:
                 path.unlink()

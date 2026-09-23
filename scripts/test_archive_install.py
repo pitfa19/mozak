@@ -58,6 +58,21 @@ print(json.dumps({{'state':'ready','checks':checks}})); sys.exit(0)
 
 
 class ArchiveInstallRegressionTests(unittest.TestCase):
+    def test_migration_accepts_real_adhd_skill_directories(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); home = root / "home"; home.mkdir()
+            old = root / "old"; new = root / "new"; old.mkdir(); new.mkdir()
+            write_binary(old / "mozak", "old", b"old-bytes")
+            write_binary(new / "mozak", "new", b"new-bytes")
+            for path in managed_paths(home):
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(b"old-bytes")
+
+            archive_install.migrate_skills(old / "mozak", new / "mozak", home)
+
+            self.assertTrue(all(path.read_bytes() == b"new-bytes" for path in managed_paths(home)))
+            self.assertFalse((home / ".claude/skills/i-have-adhd").is_symlink())
+
     def test_first_install_failure_preserves_pre_existing_skill_bytes(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory); home = root / "home"; home.mkdir()
