@@ -47,6 +47,39 @@ fn valid_kb(base: &Path) -> PathBuf {
     fs::write(kb.join("kb.json"), rb).unwrap();
     kb
 }
+fn linked_scope_kb(base: &Path) -> PathBuf {
+    let scope = base.join("scope-linked");
+    fs::create_dir_all(scope.join("projects/exact-project/.mozak")).unwrap();
+    let manifest = b"version: 1\nframework_contract_version: 1\nproject:\n  id: exact-project\n  name: Test Project\nrepository:\n  revision: 0123456789abcdef0123456789abcdef01234567\nowned_paths:\n  - src\n";
+    fs::write(
+        scope.join("projects/exact-project/.mozak/project.yml"),
+        manifest,
+    )
+    .unwrap();
+    let promoted_topic = json!({"id":"promoted-topic","kind":"topic","title":"Promoted Topic","intent":"Promotion source","history":[]});
+    let promoted_topic_hash = sha(&serde_json::to_vec(&promoted_topic).unwrap());
+    let mb = serde_json::to_vec_pretty(&json!({
+        "schema_version": 2,
+        "scopes": [
+            {"id":"exact-project","kind":"project","title":"Exact Project","intent":"Build exact project","history":[],"project":{"manifest_path":"projects/exact-project/.mozak/project.yml","manifest_sha256":sha(manifest),"project_id":"exact-project","repository_revision":"0123456789abcdef0123456789abcdef01234567","owned_paths":["src"]}},
+            {"id":"shared-topic","kind":"topic","title":"Shared Topic","intent":"Shared meta-goal knowledge","history":[]},
+            promoted_topic,
+            {"id":"related-topic","kind":"topic","title":"Related Topic","intent":"Related goal target","history":[]}
+        ],
+        "promotions": [{"id":"promotion-1","source_topic_id":"promoted-topic","target_project_id":"exact-project","source_topic_sha256":promoted_topic_hash}],
+        "meta_goals": [
+            {"id":"goal-1","title":"Shared Goal","authority":"advisory_only","scope_ids":["exact-project","shared-topic"],"relationships":[{"to_goal_id":"goal-2","kind":"supports"}]},
+            {"id":"goal-2","title":"Related Goal","authority":"advisory_only","scope_ids":["related-topic"],"relationships":[]}
+        ],
+        "inputs": []
+    })).unwrap();
+    fs::write(scope.join("scope.json"), &mb).unwrap();
+    let kb = base.join("kb-linked");
+    fs::create_dir_all(&kb).unwrap();
+    let rb = serde_json::to_vec_pretty(&json!({"schema_version":1,"registrations":[{"id":"linked","path":scope,"scope_manifest_sha256":sha(&mb)}]})).unwrap();
+    fs::write(kb.join("kb.json"), rb).unwrap();
+    kb
+}
 fn project(root: &Path, id: &str) {
     fs::create_dir_all(root.join(".mozak")).unwrap();
     fs::write(root.join(".mozak/project.yml"),format!("version: 1\nframework_contract_version: 1\nproject:\n  id: {id}\n  name: Test Project\nrepository:\n  revision: 0123456789abcdef0123456789abcdef01234567\nowned_paths:\n  - src\n")).unwrap();
@@ -1349,6 +1382,99 @@ fn discover_register_context_happy_path_is_bounded_and_reports_no_ready_goal() {
     );
     let wrong = run(&["project", "context", "exact"], &xdg);
     assert!(!wrong.status.success());
+}
+
+#[test]
+fn project_context_reports_linked_scopes_for_shared_meta_goal_and_promotion() {
+    let t = Temp::new("context-linked-scopes");
+    let kb = linked_scope_kb(&t.0);
+    let ws = t.0.join("workspace");
+    project(&ws.join("project"), "exact-project");
+    let xdg = t.0.join("xdg");
+    register_initial(&kb, &ws, &xdg, &t.0);
+
+    let out = run(&["project", "context", "exact-project"], &xdg);
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let c: Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(
+        c["knowledge"]["scope_matches"][0]["scope_id"],
+        "exact-project"
+    );
+    assert_eq!(c["knowledge"]["package_matches"], json!([]));
+    let links = c["knowledge"]["linked_scopes"].as_array().unwrap();
+    assert_eq!(
+        links.len(),
+        3,
+        "{}",
+        serde_json::to_string_pretty(links).unwrap()
+    );
+    assert!(links.iter().any(|link| link["scope_id"] == "shared-topic"
+        && link["relationship"] == "shared_meta_goal"
+        && link["via"] == json!({"type":"meta_goal","id":"goal-1"})));
+    assert!(links.iter().any(|link| link["scope_id"] == "promoted-topic"
+        && link["relationship"] == "promotion_source"
+        && link["via"] == json!({"type":"promotion","id":"promotion-1"})));
+    assert!(links.iter().any(|link| link["scope_id"] == "related-topic"
+        && link["relationship"] == "meta_goal_supports"
+        && link["via"] == json!({"type":"meta_goal_relationship","id":"goal-1->goal-2"})));
+    for link in links {
+        assert_eq!(link["registration_id"], "linked");
+        assert_eq!(link["kind"], "topic");
+        assert_eq!(link["authority"], "advisory_only");
+        assert_eq!(link["accepted"], false);
+        assert_eq!(link["trust_transfer"], false);
+        assert!(link["title"].as_str().is_some());
+        assert_eq!(link["root"], t.0.join("scope-linked").to_str().unwrap());
+    }
+}
+
+#[test]
+fn project_context_reports_empty_linked_scopes_when_kb_has_no_links() {
+    let t = Temp::new("context-empty-links");
+    let kb = valid_kb(&t.0);
+    let ws = t.0.join("workspace");
+    project(&ws.join("project"), "exact-project");
+    let xdg = t.0.join("xdg");
+    register_initial(&kb, &ws, &xdg, &t.0);
+
+    let out = run(&["project", "context", "exact-project"], &xdg);
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let c: Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(c["knowledge"]["linked_scopes"], json!([]));
+}
+
+#[test]
+fn project_context_fails_closed_for_drifted_configured_kb_links() {
+    let t = Temp::new("context-drifted-kb-links");
+    let kb = linked_scope_kb(&t.0);
+    let ws = t.0.join("workspace");
+    project(&ws.join("project"), "exact-project");
+    let xdg = t.0.join("xdg");
+    register_initial(&kb, &ws, &xdg, &t.0);
+    fs::write(
+        kb.join("kb.json"),
+        b"{\"schema_version\":1,\"registrations\":[]}",
+    )
+    .unwrap();
+
+    let out = run(&["project", "context", "exact-project"], &xdg);
+    assert_eq!(
+        out.status.code(),
+        Some(3),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let c: Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(c["kb"]["drift"], true);
+    assert_eq!(c["knowledge"]["linked_scopes"], json!([]));
 }
 
 #[test]

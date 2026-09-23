@@ -1010,6 +1010,10 @@ pub fn context(id: &str, mode: ContextOutputMode) -> Result<ExitCode, String> {
         Ok(kb) => knowledge_matches(kb, id)?,
         Err(_) => (Vec::new(), Vec::new()),
     };
+    let linked_scopes = match &live_kb {
+        Ok(kb) if kb_valid && !kb_drift => knowledge_linked_scopes(kb, id)?,
+        _ => Vec::new(),
+    };
     let context_notes = snapshot
         .as_ref()
         .map_or_else(Vec::new, |value| context_note_paths(value, root));
@@ -1022,7 +1026,7 @@ pub fn context(id: &str, mode: ContextOutputMode) -> Result<ExitCode, String> {
         "config": {"path": path_text(&config_path)?, "sha256": hash(&bytes)},
         "reconciliation": reconciliation.unwrap_or_else(|| serde_json::json!({"performed": false})),
         "kb": {"root": config.kb_root, "configured_sha256": config.kb_sha256, "current_sha256": current_kb_hash, "valid": kb_valid, "drift": kb_drift, "error": kb_error},
-        "knowledge": {"scope_matches": scope_matches, "package_matches": package_matches},
+        "knowledge": {"scope_matches": scope_matches, "package_matches": package_matches, "linked_scopes": linked_scopes},
         "foundation": {
             "valid": project_valid,
             "error": project_error,
@@ -1768,6 +1772,154 @@ fn knowledge_matches(
         })
         .collect::<Result<Vec<_>, String>>()?;
     Ok((scopes, packages))
+}
+
+fn knowledge_linked_scopes(
+    kb: &mozak_core::kb::ValidatedKb,
+    project_id: &str,
+) -> Result<Vec<serde_json::Value>, String> {
+    let mut records = Vec::new();
+    let mut seen = BTreeSet::new();
+    for entry in &kb.entries {
+        let project_scope_ids = entry
+            .scopes
+            .manifest
+            .scopes
+            .iter()
+            .filter(|scope| {
+                scope
+                    .project
+                    .as_ref()
+                    .is_some_and(|binding| binding.project_id == project_id)
+            })
+            .map(|scope| scope.id.clone())
+            .collect::<BTreeSet<_>>();
+        if project_scope_ids.is_empty() {
+            continue;
+        }
+        let scopes_by_id = entry
+            .scopes
+            .manifest
+            .scopes
+            .iter()
+            .map(|scope| (scope.id.as_str(), scope))
+            .collect::<BTreeMap<_, _>>();
+
+        for promotion in &entry.scopes.manifest.promotions {
+            if project_scope_ids.contains(&promotion.target_project_id) {
+                add_linked_scope_record(
+                    &mut records,
+                    &mut seen,
+                    entry,
+                    scopes_by_id
+                        .get(promotion.source_topic_id.as_str())
+                        .copied(),
+                    "promotion_source",
+                    "promotion",
+                    &promotion.id,
+                )?;
+            }
+        }
+
+        for goal in &entry.scopes.manifest.meta_goals {
+            if goal
+                .scope_ids
+                .iter()
+                .any(|scope_id| project_scope_ids.contains(scope_id))
+            {
+                for scope_id in &goal.scope_ids {
+                    if !project_scope_ids.contains(scope_id) {
+                        add_linked_scope_record(
+                            &mut records,
+                            &mut seen,
+                            entry,
+                            scopes_by_id.get(scope_id.as_str()).copied(),
+                            "shared_meta_goal",
+                            "meta_goal",
+                            &goal.id,
+                        )?;
+                    }
+                }
+                for relationship in &goal.relationships {
+                    let label = format!("meta_goal_{}", relationship.kind);
+                    let via_id = format!("{}->{}", goal.id, relationship.to_goal_id);
+                    for target_goal in &entry.scopes.manifest.meta_goals {
+                        if target_goal.id == relationship.to_goal_id {
+                            for scope_id in &target_goal.scope_ids {
+                                if !project_scope_ids.contains(scope_id) {
+                                    add_linked_scope_record(
+                                        &mut records,
+                                        &mut seen,
+                                        entry,
+                                        scopes_by_id.get(scope_id.as_str()).copied(),
+                                        &label,
+                                        "meta_goal_relationship",
+                                        &via_id,
+                                    )?;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    records.sort_by_key(|record| {
+        (
+            record["registration_id"]
+                .as_str()
+                .unwrap_or_default()
+                .to_owned(),
+            record["scope_id"].as_str().unwrap_or_default().to_owned(),
+            record["relationship"]
+                .as_str()
+                .unwrap_or_default()
+                .to_owned(),
+            record["via"]["type"]
+                .as_str()
+                .unwrap_or_default()
+                .to_owned(),
+            record["via"]["id"].as_str().unwrap_or_default().to_owned(),
+        )
+    });
+    Ok(records)
+}
+
+fn add_linked_scope_record(
+    records: &mut Vec<serde_json::Value>,
+    seen: &mut BTreeSet<(String, String, String, String, String)>,
+    entry: &mozak_core::kb::RegisteredScopes,
+    scope: Option<&mozak_core::scope::Scope>,
+    relationship: &str,
+    via_type: &str,
+    via_id: &str,
+) -> Result<(), String> {
+    let Some(scope) = scope else {
+        return Ok(());
+    };
+    let key = (
+        entry.registration.id.clone(),
+        scope.id.clone(),
+        relationship.to_owned(),
+        via_type.to_owned(),
+        via_id.to_owned(),
+    );
+    if !seen.insert(key) {
+        return Ok(());
+    }
+    records.push(serde_json::json!({
+        "registration_id": entry.registration.id,
+        "scope_id": scope.id,
+        "kind": scope.kind,
+        "title": scope.title,
+        "root": path_text(&entry.root)?,
+        "relationship": relationship,
+        "via": {"type": via_type, "id": via_id},
+        "authority": "advisory_only",
+        "accepted": false,
+        "trust_transfer": false
+    }));
+    Ok(())
 }
 
 fn context_note_paths(
