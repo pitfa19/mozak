@@ -1,0 +1,121 @@
+{
+  "contract_version": 1,
+  "id": "translation-mozak-evidence-gated-evolving-ontology",
+  "version": 2,
+  "concept": {
+    "id": "concept-evidence-gated-evolving-ontology",
+    "version": 1,
+    "concept_sha256": "5fedb2c8e68556bfeec02bc3eedc59d3b66efa0dc963ca25206e7dc685a46de1"
+  },
+  "target_scope_id": "mozak",
+  "target_revision": "3f8ae9a9014a2e3a8742fa20ac82190c40d0dd0d",
+  "assumption_checks": [
+    {
+      "assumption_id": "A-01",
+      "outcome": {
+        "kind": "holds",
+        "target_evidence_id": "T-AUTHORITY"
+      }
+    },
+    {
+      "assumption_id": "A-02",
+      "outcome": {
+        "kind": "holds",
+        "target_evidence_id": "T-LAYERS"
+      }
+    },
+    {
+      "assumption_id": "A-03",
+      "outcome": {
+        "kind": "replaced",
+        "substitution": "MOZAK keeps a capped deterministic linked-Scope summary in project context and exposes the complete relationship inventory through a separate bounded detail command with explicit count and truncation metadata.",
+        "target_evidence_id": "T-BOUNDED-ACCESS"
+      }
+    },
+    {
+      "assumption_id": "A-04",
+      "outcome": {
+        "kind": "holds",
+        "target_evidence_id": "T-OBSERVED-FAILURE"
+      }
+    },
+    {
+      "assumption_id": "A-05",
+      "outcome": {
+        "kind": "holds",
+        "target_evidence_id": "T-ATTRIBUTION"
+      }
+    },
+    {
+      "assumption_id": "A-06",
+      "outcome": {
+        "kind": "holds",
+        "target_evidence_id": "T-EVALUATION"
+      }
+    },
+    {
+      "assumption_id": "A-07",
+      "outcome": {
+        "kind": "holds",
+        "target_evidence_id": "T-RETAINED"
+      }
+    },
+    {
+      "assumption_id": "A-08",
+      "outcome": {
+        "kind": "holds",
+        "target_evidence_id": "T-APPROVAL"
+      }
+    },
+    {
+      "assumption_id": "A-09",
+      "outcome": {
+        "kind": "rejected",
+        "rationale": "MOZAK makes no transfer claim from the source paper benchmarks. Acceptance depends only on MOZAK-specific live CLI observations and project tests."
+      }
+    }
+  ],
+  "target_evidence": [
+    {
+      "id": "T-AUTHORITY",
+      "observation": "The configured KB remains authoritative, hash-pinned, and fail-closed; project context reports linked records as advisory, unaccepted, and non-trust-transferring.",
+      "locator": ".mozak/evaluations/linked-scopes-baseline-v1.json"
+    },
+    {
+      "id": "T-LAYERS",
+      "observation": "Scope manifests hold content and typed relationships while project_registry.rs controls the CLI exposure layer independently.",
+      "locator": "crates/mozak-cli/src/project_registry.rs"
+    },
+    {
+      "id": "T-BOUNDED-ACCESS",
+      "observation": "MOZAK now caps linked Scopes at ten records in project context, reports total/returned/truncation metadata, and exposes complete deterministic pages through project linked-scopes.",
+      "locator": ".mozak/evaluations/linked-scopes-after-v1.json"
+    },
+    {
+      "id": "T-OBSERVED-FAILURE",
+      "observation": "The live Potjera project context emitted 17 relationship-specific records inline, demonstrating context growth on the owner-configured KB.",
+      "locator": ".mozak/evaluations/linked-scopes-baseline-v1.json#observations"
+    },
+    {
+      "id": "T-ATTRIBUTION",
+      "observation": "The proposed edit is attributed to tool_behavior because authoritative Scope content and relationship schema remain unchanged.",
+      "locator": ".mozak/evaluations/linked-scopes-baseline-v1.json#attributed_layer"
+    },
+    {
+      "id": "T-EVALUATION",
+      "observation": "A fixed-input comparison on the owner-configured Potjera project reduced inline records from seventeen to ten while two bounded pages recovered all seventeen and preserved safety labels.",
+      "locator": ".mozak/evaluations/linked-scopes-comparison-v1.json"
+    },
+    {
+      "id": "T-RETAINED",
+      "observation": "MOZAK stores evaluation and comparison artifacts under .mozak so rejected or inconclusive changes remain reviewable.",
+      "locator": ".mozak/evaluations/linked-scopes-baseline-v1.json"
+    },
+    {
+      "id": "T-APPROVAL",
+      "observation": "Project refresh, planning acceptance, execution, release, and Concept adoption remain separate owner-controlled gates.",
+      "locator": "skills/mozak/SKILL.md"
+    }
+  ],
+  "adoption": "qualified"
+}
