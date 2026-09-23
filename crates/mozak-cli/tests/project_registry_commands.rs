@@ -2428,9 +2428,10 @@ fn project_notes_uses_two_file_schema_and_related_scopes_without_body_leak() {
         serde_json::to_vec(&json!({
             "schema_version": 1,
             "destinations": [
-                {"id": "research", "root": vault_a},
-                {"id": "creations", "root": vault_b}
-            ]
+                {"id": "research", "root": vault_a, "purpose": "Research notes", "default": true, "routing_signals": ["research"], "trim": "medium", "obsidian": true, "excluded_paths": []},
+                {"id": "creations", "root": vault_b, "purpose": "Creation notes", "default": false, "routing_signals": ["build"], "trim": "low", "obsidian": true, "excluded_paths": []}
+            ],
+            "preferences": {"writing_style": {"trim": "medium"}}
         }))
         .unwrap(),
     )

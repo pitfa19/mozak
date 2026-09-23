@@ -1173,7 +1173,11 @@ pub fn linked_scopes(id: &str, args: &[String]) -> Result<ExitCode, String> {
 #[serde(deny_unknown_fields)]
 struct NotesProfile {
     schema_version: u64,
+    #[serde(default)]
+    _comment: Option<String>,
     destinations: Vec<NotesDestination>,
+    #[serde(default, rename = "preferences")]
+    _preferences: Option<Value>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1181,6 +1185,18 @@ struct NotesProfile {
 struct NotesDestination {
     id: String,
     root: String,
+    #[serde(default, rename = "purpose")]
+    _purpose: Option<String>,
+    #[serde(default, rename = "default")]
+    _default: Option<bool>,
+    #[serde(default, rename = "routing_signals")]
+    _routing_signals: Option<Vec<String>>,
+    #[serde(default, rename = "trim")]
+    _trim: Option<String>,
+    #[serde(default, rename = "obsidian")]
+    _obsidian: Option<bool>,
+    #[serde(default, rename = "excluded_paths")]
+    _excluded_paths: Option<Vec<String>>,
 }
 
 #[derive(Debug, Deserialize)]
