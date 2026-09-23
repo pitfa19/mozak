@@ -1019,7 +1019,14 @@ pub fn context(id: &str, mode: ContextOutputMode) -> Result<ExitCode, String> {
         _ => Vec::new(),
     };
     let linked_scope_total = all_linked_scopes.len();
-    let all_linked_scopes_for_notes = all_linked_scopes.clone();
+    let all_linked_scopes_for_notes = all_linked_scopes
+        .iter()
+        .filter(|linked| {
+            linked["relationship"] == "shared_meta_goal"
+                || linked["relationship"] == "promotion_source"
+        })
+        .cloned()
+        .collect::<Vec<_>>();
     let linked_scopes = all_linked_scopes
         .into_iter()
         .take(LINKED_SCOPES_INLINE_LIMIT)
@@ -1214,6 +1221,9 @@ pub fn project_notes(id: &str, args: &[String]) -> Result<ExitCode, String> {
         let Some(relationship) = linked.get("relationship").and_then(Value::as_str) else {
             continue;
         };
+        if relationship != "shared_meta_goal" && relationship != "promotion_source" {
+            continue;
+        }
         scope_ids.push((scope_id.to_owned(), relationship.to_owned()));
     }
     scope_ids.sort();
