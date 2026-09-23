@@ -27,7 +27,8 @@ const SCHEMA_VERSION: u64 = 1;
 const CURRENT_SECTION_LIMIT: usize = 12;
 const LINKED_SCOPES_INLINE_LIMIT: usize = 10;
 const NOTES_INLINE_LIMIT: usize = 10;
-const DEFAULT_NOTES_PROFILE: &str = ".config/notes/mozak-links.json";
+const DEFAULT_NOTES_PROFILE: &str = "notes/profile.json";
+const DEFAULT_NOTES_LINKS: &str = "notes/mozak-links.json";
 const MAX_SCAN_ENTRIES: usize = 100_000;
 const PRUNED: [&str; 8] = [
     ".git",
@@ -1165,14 +1166,21 @@ pub fn linked_scopes(id: &str, args: &[String]) -> Result<ExitCode, String> {
 #[serde(deny_unknown_fields)]
 struct NotesProfile {
     schema_version: u64,
-    destinations: BTreeMap<String, NotesDestination>,
-    links: BTreeMap<String, NotesLink>,
+    destinations: Vec<NotesDestination>,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct NotesDestination {
+    id: String,
     root: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct NotesLinksProfile {
+    schema_version: u64,
+    links: BTreeMap<String, Vec<NotesLink>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1192,13 +1200,24 @@ pub fn project_notes(id: &str, args: &[String]) -> Result<ExitCode, String> {
         .projects
         .get(id)
         .ok_or_else(|| format!("project id is not registered: {id}"))?;
-    let scope_ids = kb
+    let mut scope_ids = kb
         .entries
         .iter()
         .flat_map(|entry| entry.scopes.manifest.scopes.iter())
         .filter(|scope| scope.id == id)
         .map(|scope| (scope.id.clone(), "direct_project_scope".to_owned()))
         .collect::<Vec<_>>();
+    for linked in knowledge_linked_scopes(&kb, id)? {
+        let Some(scope_id) = linked.get("scope_id").and_then(Value::as_str) else {
+            continue;
+        };
+        let Some(relationship) = linked.get("relationship").and_then(Value::as_str) else {
+            continue;
+        };
+        scope_ids.push((scope_id.to_owned(), relationship.to_owned()));
+    }
+    scope_ids.sort();
+    scope_ids.dedup();
     notes_for_scopes(
         "project notes",
         Some(
@@ -1296,6 +1315,7 @@ fn notes_for_scopes(
         return Ok(ExitCode::from(3));
     }
     let profile_path = notes_profile_path()?;
+    let links_path = notes_links_path()?;
     let Some(profile_bytes) = read_optional_regular(&profile_path)? else {
         println!("{}", serde_json::to_string(&serde_json::json!({
             "schema_version": 1, "command": command, "state": "needs_input",
@@ -1305,30 +1325,46 @@ fn notes_for_scopes(
         })).map_err(|e| e.to_string())?);
         return Ok(ExitCode::from(2));
     };
+    let Some(links_bytes) = read_optional_regular(&links_path)? else {
+        println!("{}", serde_json::to_string(&serde_json::json!({
+            "schema_version": 1, "command": command, "state": "needs_input",
+            "profile": {"path": path_text(&profile_path)?, "sha256": hash(&profile_bytes)},
+            "links": {"path": path_text(&links_path)?, "status": "missing"},
+            "records": [], "total_count": 0, "returned_count": 0, "offset": offset, "limit": limit,
+            "accepted": false, "trust_transfer": false, "labels": ["device_local", "advisory_only"]
+        })).map_err(|e| e.to_string())?);
+        return Ok(ExitCode::from(2));
+    };
     let profile: NotesProfile = serde_json::from_slice(&profile_bytes)
         .map_err(|e| format!("invalid notes profile {}: {e}", profile_path.display()))?;
-    validate_notes_profile(&profile)?;
+    let destinations = validate_notes_profile(&profile)?;
+    let links_profile: NotesLinksProfile = serde_json::from_slice(&links_bytes)
+        .map_err(|e| format!("invalid notes links {}: {e}", links_path.display()))?;
+    validate_notes_links(&links_profile, &destinations)?;
     let mut records = Vec::new();
     let mut seen = BTreeSet::new();
+    let mut scanned_entries = 0usize;
     for (scope_id, relationship) in scope_ids {
-        if let Some(link) = profile.links.get(&scope_id) {
-            let destination = profile
-                .destinations
-                .get(&link.destination_id)
-                .ok_or_else(|| format!("notes link for {scope_id} names unknown destination"))?;
-            let root = safe_notes_root(&destination.root)?;
-            for prefix in &link.safe_relative_path_prefixes {
-                let prefix_path = safe_note_relative(prefix)?;
-                let start = root.join(&prefix_path);
-                scan_notes(
-                    &root,
-                    &start,
-                    &scope_id,
-                    &relationship,
-                    &link.destination_id,
-                    &mut records,
-                    &mut seen,
-                )?;
+        if let Some(links) = links_profile.links.get(&scope_id) {
+            for link in links {
+                let root = destinations.get(&link.destination_id).ok_or_else(|| {
+                    format!("notes link for {scope_id} names unknown destination")
+                })?;
+                for prefix in &link.safe_relative_path_prefixes {
+                    let prefix_path = safe_note_relative(prefix)?;
+                    let start = root.join(&prefix_path);
+                    scan_notes(
+                        &root,
+                        &start,
+                        &scope_id,
+                        &relationship,
+                        &link.destination_id,
+                        &mut records,
+                        &mut seen,
+                        &mut scanned_entries,
+                        true,
+                    )?;
+                }
             }
         }
     }
@@ -1348,16 +1384,29 @@ fn notes_for_scopes(
         "schema_version": 1, "command": command, "state": "ready",
         "project": project, "meta_goal": meta_goal,
         "profile": {"path": path_text(&profile_path)?, "sha256": hash(&profile_bytes)},
+        "links": {"path": path_text(&links_path)?, "sha256": hash(&links_bytes)},
         "kb": {"root": config.kb_root, "configured_sha256": config.kb_sha256, "current_sha256": current_kb_sha256, "valid": true, "drift": false},
-        "records": page, "total_count": total, "returned_count": total.saturating_sub(offset).min(limit), "offset": offset, "limit": limit, "truncated": offset + limit < total,
+            "records": page, "total_count": total, "returned_count": total.saturating_sub(offset).min(limit), "offset": offset, "limit": limit, "truncated": offset + limit < total,
+        "scan": {"entry_ceiling": MAX_SCAN_ENTRIES, "entries_seen": scanned_entries},
         "accepted": false, "trust_transfer": false, "labels": ["device_local", "advisory_only"]
     })).map_err(|e| e.to_string())?);
     Ok(ExitCode::SUCCESS)
 }
 
 fn notes_profile_path() -> Result<PathBuf, String> {
-    let home = env::var_os("HOME").ok_or("HOME is not set for default notes profile path")?;
-    Ok(PathBuf::from(home).join(DEFAULT_NOTES_PROFILE))
+    let config = env::var_os("XDG_CONFIG_HOME")
+        .map(PathBuf::from)
+        .or_else(|| env::var_os("HOME").map(|home| PathBuf::from(home).join(".config")))
+        .ok_or("HOME or XDG_CONFIG_HOME is required for notes profile path")?;
+    Ok(config.join(DEFAULT_NOTES_PROFILE))
+}
+
+fn notes_links_path() -> Result<PathBuf, String> {
+    let config = env::var_os("XDG_CONFIG_HOME")
+        .map(PathBuf::from)
+        .or_else(|| env::var_os("HOME").map(|home| PathBuf::from(home).join(".config")))
+        .ok_or("HOME or XDG_CONFIG_HOME is required for notes links path")?;
+    Ok(config.join(DEFAULT_NOTES_LINKS))
 }
 
 fn notes_inline_count(
@@ -1366,12 +1415,19 @@ fn notes_inline_count(
     linked_scopes: &[Value],
 ) -> Result<(&'static str, usize), String> {
     let profile_path = notes_profile_path()?;
+    let links_path = notes_links_path()?;
     let Some(profile_bytes) = read_optional_regular(&profile_path)? else {
+        return Ok(("needs_input", 0));
+    };
+    let Some(links_bytes) = read_optional_regular(&links_path)? else {
         return Ok(("needs_input", 0));
     };
     let profile: NotesProfile = serde_json::from_slice(&profile_bytes)
         .map_err(|e| format!("invalid notes profile {}: {e}", profile_path.display()))?;
-    validate_notes_profile(&profile)?;
+    let destinations = validate_notes_profile(&profile)?;
+    let links_profile: NotesLinksProfile = serde_json::from_slice(&links_bytes)
+        .map_err(|e| format!("invalid notes links {}: {e}", links_path.display()))?;
+    validate_notes_links(&links_profile, &destinations)?;
     let mut scope_ids = BTreeSet::new();
     scope_ids.insert(project_id.to_owned());
     for linked in linked_scopes {
@@ -1381,56 +1437,81 @@ fn notes_inline_count(
     }
     let mut count = 0usize;
     for scope_id in scope_ids {
-        if let Some(link) = profile.links.get(&scope_id) {
-            let destination = profile
-                .destinations
-                .get(&link.destination_id)
-                .ok_or_else(|| format!("notes link for {scope_id} names unknown destination"))?;
-            let root = safe_notes_root(&destination.root)?;
-            let mut records = Vec::new();
-            let mut seen = BTreeSet::new();
-            for prefix in &link.safe_relative_path_prefixes {
-                let start = root.join(safe_note_relative(prefix)?);
-                scan_notes(
-                    &root,
-                    &start,
-                    &scope_id,
-                    "summary_count",
-                    &link.destination_id,
-                    &mut records,
-                    &mut seen,
-                )?;
+        if let Some(links) = links_profile.links.get(&scope_id) {
+            for link in links {
+                let root = destinations.get(&link.destination_id).ok_or_else(|| {
+                    format!("notes link for {scope_id} names unknown destination")
+                })?;
+                let mut records = Vec::new();
+                let mut seen = BTreeSet::new();
+                let mut scanned_entries = 0usize;
+                for prefix in &link.safe_relative_path_prefixes {
+                    let start = root.join(safe_note_relative(prefix)?);
+                    scan_notes(
+                        &root,
+                        &start,
+                        &scope_id,
+                        "summary_count",
+                        &link.destination_id,
+                        &mut records,
+                        &mut seen,
+                        &mut scanned_entries,
+                        false,
+                    )?;
+                }
+                count += records.len();
             }
-            count += records.len();
         }
     }
     Ok(("ready", count))
 }
 
-fn validate_notes_profile(profile: &NotesProfile) -> Result<(), String> {
+fn validate_notes_profile(profile: &NotesProfile) -> Result<BTreeMap<String, PathBuf>, String> {
     if profile.schema_version != 1 {
         return Err("unsupported notes profile schema_version".into());
     }
     if profile.destinations.is_empty() {
         return Err("notes profile destinations must not be empty".into());
     }
-    for (id, destination) in &profile.destinations {
-        validate_safe_id(id, "destination id")?;
-        let _ = safe_notes_root(&destination.root)?;
-    }
-    for (scope_id, link) in &profile.links {
-        validate_safe_id(scope_id, "scope id")?;
-        validate_safe_id(&link.destination_id, "destination id")?;
-        if !profile.destinations.contains_key(&link.destination_id) {
+    let mut destinations = BTreeMap::new();
+    for destination in &profile.destinations {
+        validate_safe_id(&destination.id, "destination id")?;
+        let root = safe_notes_root(&destination.root)?;
+        if destinations.insert(destination.id.clone(), root).is_some() {
             return Err(format!(
-                "notes link for {scope_id} names unknown destination"
+                "duplicate notes destination id: {}",
+                destination.id
             ));
         }
-        if link.safe_relative_path_prefixes.is_empty() {
-            return Err(format!("notes link for {scope_id} has no safe prefixes"));
+    }
+    Ok(destinations)
+}
+
+fn validate_notes_links(
+    links_profile: &NotesLinksProfile,
+    destinations: &BTreeMap<String, PathBuf>,
+) -> Result<(), String> {
+    if links_profile.schema_version != 1 {
+        return Err("unsupported notes links schema_version".into());
+    }
+    for (scope_id, links) in &links_profile.links {
+        validate_safe_id(scope_id, "scope id")?;
+        if links.is_empty() {
+            return Err(format!("notes links for {scope_id} must not be empty"));
         }
-        for prefix in &link.safe_relative_path_prefixes {
-            let _ = safe_note_relative(prefix)?;
+        for link in links {
+            validate_safe_id(&link.destination_id, "destination id")?;
+            if !destinations.contains_key(&link.destination_id) {
+                return Err(format!(
+                    "notes link for {scope_id} names unknown destination"
+                ));
+            }
+            if link.safe_relative_path_prefixes.is_empty() {
+                return Err(format!("notes link for {scope_id} has no safe prefixes"));
+            }
+            for prefix in &link.safe_relative_path_prefixes {
+                let _ = safe_note_relative(prefix)?;
+            }
         }
     }
     Ok(())
@@ -1488,7 +1569,15 @@ fn scan_notes(
     destination_id: &str,
     records: &mut Vec<Value>,
     seen: &mut BTreeSet<String>,
+    scanned_entries: &mut usize,
+    include_hash: bool,
 ) -> Result<(), String> {
+    *scanned_entries += 1;
+    if *scanned_entries > MAX_SCAN_ENTRIES {
+        return Err(format!(
+            "notes scan exceeded entry ceiling of {MAX_SCAN_ENTRIES}"
+        ));
+    }
     let start = contain_notes_path(root, start)?;
     if start.is_file() {
         maybe_add_note(
@@ -1499,6 +1588,7 @@ fn scan_notes(
             destination_id,
             records,
             seen,
+            include_hash,
         )?;
         return Ok(());
     }
@@ -1515,6 +1605,12 @@ fn scan_notes(
         if meta.file_type().is_symlink() {
             return Err(format!("notes path is a symlink: {}", path.display()));
         }
+        *scanned_entries += 1;
+        if *scanned_entries > MAX_SCAN_ENTRIES {
+            return Err(format!(
+                "notes scan exceeded entry ceiling of {MAX_SCAN_ENTRIES}"
+            ));
+        }
         if meta.is_dir() {
             scan_notes(
                 root,
@@ -1524,6 +1620,8 @@ fn scan_notes(
                 destination_id,
                 records,
                 seen,
+                scanned_entries,
+                include_hash,
             )?;
         } else if meta.is_file() {
             maybe_add_note(
@@ -1534,6 +1632,7 @@ fn scan_notes(
                 destination_id,
                 records,
                 seen,
+                include_hash,
             )?;
         }
     }
@@ -1561,6 +1660,7 @@ fn maybe_add_note(
     destination_id: &str,
     records: &mut Vec<Value>,
     seen: &mut BTreeSet<String>,
+    include_hash: bool,
 ) -> Result<(), String> {
     if path.extension().and_then(|v| v.to_str()) != Some("md") {
         return Ok(());
@@ -1575,14 +1675,13 @@ fn maybe_add_note(
     if !seen.insert(key) {
         return Ok(());
     }
-    let bytes = fs::read(&path)
-        .map_err(|e| format!("cannot read note metadata {}: {e}", path.display()))?;
-    let title = note_title(&bytes).unwrap_or_else(|| {
-        path.file_stem()
-            .and_then(|v| v.to_str())
-            .unwrap_or("note")
-            .to_owned()
-    });
+    let sha256 = if include_hash {
+        Some(hash(&fs::read(&path).map_err(|e| {
+            format!("cannot read note bytes {}: {e}", path.display())
+        })?))
+    } else {
+        None
+    };
     let mtime = fs::metadata(&path)
         .ok()
         .and_then(|m| m.modified().ok())
@@ -1590,21 +1689,11 @@ fn maybe_add_note(
         .map(|d| d.as_secs());
     records.push(serde_json::json!({
         "scope_id": scope_id, "relationship": relationship, "source_scope": scope_id,
-        "destination_id": destination_id, "path": relative, "title": title,
-        "sha256": hash(&bytes), "mtime": mtime,
+        "destination_id": destination_id, "path": relative,
+        "sha256": sha256, "mtime": mtime,
         "labels": ["device_local", "advisory_only"], "accepted": false, "trust_transfer": false
     }));
     Ok(())
-}
-
-fn note_title(bytes: &[u8]) -> Option<String> {
-    let text = std::str::from_utf8(bytes).ok()?;
-    text.lines().find_map(|line| {
-        line.strip_prefix("# ")
-            .map(str::trim)
-            .filter(|v| !v.is_empty())
-            .map(ToOwned::to_owned)
-    })
 }
 
 fn parse_limit_offset(args: &[String], default_limit: usize) -> Result<(usize, usize), String> {

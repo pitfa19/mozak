@@ -2390,3 +2390,183 @@ fn validate_and_discover_agree_about_a_hard_wrapped_idea_intent() {
     let message = String::from_utf8_lossy(&refused.stderr);
     assert!(message.contains("idea.md"), "{message}");
 }
+
+#[test]
+fn project_notes_uses_two_file_schema_and_related_scopes_without_body_leak() {
+    let t = Temp::new("notes-two-file-related");
+    let kb = linked_scope_kb(&t.0);
+    let ws = t.0.join("workspace");
+    project(&ws.join("project"), "exact-project");
+    let xdg = t.0.join("xdg");
+    register_initial(&kb, &ws, &xdg, &t.0);
+
+    let vault_a = t.0.join("vault-a");
+    let vault_b = t.0.join("vault-b");
+    fs::create_dir_all(vault_a.join("direct")).unwrap();
+    fs::create_dir_all(vault_a.join("shared")).unwrap();
+    fs::create_dir_all(vault_b.join("promoted")).unwrap();
+    fs::write(
+        vault_a.join("direct/project.md"),
+        "# Secret Direct Title\n\nDIRECT_BODY_SECRET",
+    )
+    .unwrap();
+    fs::write(
+        vault_a.join("shared/shared.md"),
+        "# Secret Shared Title\n\nSHARED_BODY_SECRET",
+    )
+    .unwrap();
+    fs::write(
+        vault_b.join("promoted/promoted.md"),
+        "# Secret Promoted Title\n\nPROMOTED_BODY_SECRET",
+    )
+    .unwrap();
+
+    let notes_dir = xdg.join("notes");
+    fs::create_dir_all(&notes_dir).unwrap();
+    fs::write(
+        notes_dir.join("profile.json"),
+        serde_json::to_vec(&json!({
+            "schema_version": 1,
+            "destinations": [
+                {"id": "research", "root": vault_a},
+                {"id": "creations", "root": vault_b}
+            ]
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+    fs::write(
+        notes_dir.join("mozak-links.json"),
+        serde_json::to_vec(&json!({
+            "schema_version": 1,
+            "links": {
+                "exact-project": [{"destination_id":"research","safe_relative_path_prefixes":["direct"]}],
+                "shared-topic": [{"destination_id":"research","safe_relative_path_prefixes":["shared"]}],
+                "promoted-topic": [{"destination_id":"creations","safe_relative_path_prefixes":["promoted"]}]
+            }
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+
+    let context = run(&["project", "context", "exact-project"], &xdg);
+    assert!(
+        context.status.success(),
+        "{}",
+        String::from_utf8_lossy(&context.stderr)
+    );
+    let context_text = String::from_utf8(context.stdout).unwrap();
+    assert!(!context_text.contains("DIRECT_BODY_SECRET"));
+    assert!(!context_text.contains("Secret Direct Title"));
+    assert!(!context_text.contains(vault_a.to_str().unwrap()));
+    let context_json: Value = serde_json::from_str(&context_text).unwrap();
+    assert_eq!(context_json["notes"]["state"], "ready");
+    assert_eq!(context_json["notes"]["count"], 3);
+
+    let notes = run(
+        &["project", "notes", "exact-project", "--limit", "10"],
+        &xdg,
+    );
+    assert!(
+        notes.status.success(),
+        "{}",
+        String::from_utf8_lossy(&notes.stderr)
+    );
+    let text = String::from_utf8(notes.stdout).unwrap();
+    assert!(!text.contains("DIRECT_BODY_SECRET"));
+    assert!(!text.contains("Secret Shared Title"));
+    assert!(!text.contains(vault_a.to_str().unwrap()));
+    let json: Value = serde_json::from_str(&text).unwrap();
+    let records = json["records"].as_array().unwrap();
+    assert_eq!(
+        records.len(),
+        3,
+        "{}",
+        serde_json::to_string_pretty(&json).unwrap()
+    );
+    assert!(
+        records.iter().any(
+            |r| r["scope_id"] == "exact-project" && r["relationship"] == "direct_project_scope"
+        )
+    );
+    assert!(
+        records
+            .iter()
+            .any(|r| r["scope_id"] == "shared-topic" && r["relationship"] == "shared_meta_goal")
+    );
+    assert!(
+        records
+            .iter()
+            .any(|r| r["scope_id"] == "promoted-topic" && r["relationship"] == "promotion_source")
+    );
+    assert!(records.iter().all(|r| r.get("title").is_none()));
+    assert!(records.iter().all(|r| r["sha256"].as_str().is_some()));
+}
+
+#[test]
+fn project_notes_missing_and_malformed_files_fail_as_required() {
+    let t = Temp::new("notes-missing-malformed");
+    let kb = valid_kb(&t.0);
+    let ws = t.0.join("workspace");
+    project(&ws.join("project"), "exact-project");
+    let xdg = t.0.join("xdg");
+    register_initial(&kb, &ws, &xdg, &t.0);
+
+    let missing = run(&["project", "notes", "exact-project"], &xdg);
+    assert_eq!(missing.status.code(), Some(2));
+    let context = run(&["project", "context", "exact-project"], &xdg);
+    assert!(
+        context.status.success(),
+        "{}",
+        String::from_utf8_lossy(&context.stderr)
+    );
+    let c: Value = serde_json::from_slice(&context.stdout).unwrap();
+    assert_eq!(c["state"], "ready");
+    assert_eq!(c["notes"]["state"], "needs_input");
+
+    let notes_dir = xdg.join("notes");
+    fs::create_dir_all(&notes_dir).unwrap();
+    fs::write(
+        notes_dir.join("profile.json"),
+        b"{\"schema_version\":1,\"destinations\":[]}",
+    )
+    .unwrap();
+    fs::write(
+        notes_dir.join("mozak-links.json"),
+        b"{\"schema_version\":1,\"links\":{}}",
+    )
+    .unwrap();
+    let malformed = run(&["project", "notes", "exact-project"], &xdg);
+    assert!(!malformed.status.success());
+    assert!(String::from_utf8_lossy(&malformed.stderr).contains("destinations must not be empty"));
+}
+
+#[test]
+#[cfg(unix)]
+fn project_notes_rejects_symlinked_note_paths() {
+    use std::os::unix::fs::symlink;
+    let t = Temp::new("notes-symlink");
+    let kb = linked_scope_kb(&t.0);
+    let ws = t.0.join("workspace");
+    project(&ws.join("project"), "exact-project");
+    let xdg = t.0.join("xdg");
+    register_initial(&kb, &ws, &xdg, &t.0);
+    let vault = t.0.join("vault");
+    fs::create_dir_all(vault.join("direct")).unwrap();
+    fs::write(t.0.join("outside.md"), "outside").unwrap();
+    symlink(t.0.join("outside.md"), vault.join("direct/link.md")).unwrap();
+    let notes_dir = xdg.join("notes");
+    fs::create_dir_all(&notes_dir).unwrap();
+    fs::write(
+        notes_dir.join("profile.json"),
+        serde_json::to_vec(
+            &json!({"schema_version":1,"destinations":[{"id":"research","root":vault}]}),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    fs::write(notes_dir.join("mozak-links.json"), serde_json::to_vec(&json!({"schema_version":1,"links":{"exact-project":[{"destination_id":"research","safe_relative_path_prefixes":["direct"]}]}})).unwrap()).unwrap();
+    let out = run(&["project", "notes", "exact-project"], &xdg);
+    assert!(!out.status.success());
+    assert!(String::from_utf8_lossy(&out.stderr).contains("symlink"));
+}
