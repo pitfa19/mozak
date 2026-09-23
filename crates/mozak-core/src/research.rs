@@ -1712,6 +1712,134 @@ fn validate_hyperresearch_records(
     }
     Ok(())
 }
+const MONOKL_RECORD_FIELDS: [&str; 11] = HYPERRESEARCH_RECORD_FIELDS;
+
+pub fn normalize_provider_monokl(input: &str) -> Result<ResearchRun, ResearchError> {
+    let fixture: ProviderHyperResearchFixture = serde_json::from_str(input)
+        .map_err(|error| ResearchError(format!("invalid provider-monokl fixture: {error}")))?;
+    require(
+        fixture.adapter == "adapter-monokl-v1" && fixture.adapter == fixture.run.receipt.adapter_id,
+        "provider-monokl adapter mismatch",
+    )?;
+    nonempty_text(&fixture.adapter_version, "adapter version")?;
+    nonempty_text(&fixture.capability, "adapter capability")?;
+    nonempty_text(&fixture.scope_id, "adapter scope id")?;
+    nonempty_text(&fixture.vault_root, "vault root")?;
+    require(
+        fixture.vault_root.starts_with('/'),
+        "vault_root must be an absolute path",
+    )?;
+    validate_adapter_effects(&fixture.effects)?;
+    // The harness already did every network fetch, outside MOZAK and before
+    // this run existed. A fixture claiming MOZAK's adapter used the network
+    // would misreport where retrieval happened.
+    require(
+        !fixture.effects.network_used,
+        "a MONOKL vault read performs no networking; retrieval happened in the harness",
+    )?;
+    require(
+        !fixture.response_files.is_empty(),
+        "a MONOKL fixture must pin the exact vault export it read",
+    )?;
+    for response in &fixture.response_files {
+        validate_sha256(response, "MONOKL export hash")?;
+    }
+
+    let kept = u64::try_from(fixture.run.raw_records.len())
+        .map_err(|_| ResearchError("record count overflow".into()))?;
+    require(
+        fixture.records_kept == kept,
+        "records_kept disagrees with the recorded raw records",
+    )?;
+    require(
+        fixture.records_kept <= fixture.total_matched,
+        "records_kept exceeds the total matched",
+    )?;
+    if fixture.truncated {
+        require(
+            fixture
+                .run
+                .gaps
+                .iter()
+                .any(|gap| gap.id == "gap-truncated" && gap.impact == GapImpact::High),
+            "a truncated MONOKL retrieval must record a high-impact gap",
+        )?;
+        require(
+            fixture.run.synthesis.overall_claim != OverallClaim::Supported,
+            "a truncated MONOKL retrieval must not claim full support",
+        )?;
+    } else {
+        require(
+            fixture.records_kept == fixture.total_matched,
+            "an untruncated retrieval must keep everything it matched",
+        )?;
+    }
+
+    // The corpus is whatever an external agent decided to fetch. Without this
+    // disclosure a vault snapshot would read like a survey of a field.
+    require(
+        fixture
+            .run
+            .gaps
+            .iter()
+            .any(|gap| gap.id == "gap-agent-selected-corpus" && gap.impact == GapImpact::High),
+        "a MONOKL retrieval must disclose that an external agent chose the corpus",
+    )?;
+    // Retention is the other load-bearing boundary, so it is stated in the run
+    // as well as enforced per record below.
+    require(
+        fixture
+            .run
+            .gaps
+            .iter()
+            .any(|gap| gap.id == "gap-body-not-retained"),
+        "a MONOKL retrieval must disclose that note bodies are not retained",
+    )?;
+    require(
+        fixture
+            .run
+            .gaps
+            .iter()
+            .any(|gap| gap.id == "gap-untrusted-web-text"),
+        "a MONOKL retrieval must disclose that vault notes are untrusted web text",
+    )?;
+    validate_monokl_records(&fixture)?;
+    validate_run(&fixture.run)?;
+    Ok(fixture.run)
+}
+
+fn validate_monokl_records(fixture: &ProviderHyperResearchFixture) -> Result<(), ResearchError> {
+    for record in &fixture.run.raw_records {
+        require(
+            record.source_uri.starts_with("recorded:monokl:"),
+            "MONOKL records must use the recorded:monokl scheme",
+        )?;
+        let lines = record.content.lines().collect::<Vec<_>>();
+        require(
+            lines.len() == MONOKL_RECORD_FIELDS.len(),
+            "a MONOKL record must carry exactly its retained metadata lines",
+        )?;
+        for (index, prefix) in MONOKL_RECORD_FIELDS.iter().enumerate() {
+            require(
+                lines[index].starts_with(prefix),
+                "MONOKL record fields are out of contract order",
+            )?;
+        }
+        require(
+            lines[10]
+                == "retention: identity, source, provenance and hashes only; note body prose not retained",
+            "a MONOKL record must declare that note prose was not retained",
+        )?;
+        // A body hash is what makes a discarded body re-checkable later. A
+        // record without one would retain neither the text nor a way back to
+        // it, which is a provenance claim that cannot be verified.
+        let body_hash = lines[3]
+            .strip_prefix("body_sha256: ")
+            .ok_or_else(|| ResearchError("MONOKL record is missing its body hash".into()))?;
+        validate_sha256(body_hash, "MONOKL note body hash")?;
+    }
+    Ok(())
+}
 
 /// A recorded retrieval from DAIR.AI's curated Papers of the Week repository.
 #[derive(Debug, Clone, Deserialize)]

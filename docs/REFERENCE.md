@@ -88,7 +88,7 @@ preserved generation with the same membership, roots, KB, and identities.
 
 ```bash
 mozak adapter catalog
-mozak adapter setup <dair-ai|mcp-registry|github-tooling> <binding-id> <scope-id> <request.json> <runner> <runs-dir>  # mutation
+mozak adapter setup <dair-ai|mcp-registry|github-tooling|hyperresearch|monokl> <binding-id> <scope-id> <request.json> <runner> <runs-dir>  # mutation
 mozak adapter list|show <id>|run <id>|recheck <id>
 mozak research normalize <arxiv|dair-ai|mcp-registry|github-tooling> <fixture.json> <run.json>
 mozak research validate <run.json>

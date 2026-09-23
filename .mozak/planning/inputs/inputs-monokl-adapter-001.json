@@ -1,0 +1,40 @@
+{
+  "contract_version": 1,
+  "id": "inputs-monokl-adapter-001",
+  "accepted_at": "2026-09-23T05:47:01Z",
+  "inputs": [
+    {
+      "id": "input-monokl-adapter-owner-approval",
+      "text": "The owner explicitly approved implementing and installing MONOKL as a distinct native MOZAK research adapter, including catalog and setup support, normalization, a bounded runner, contract tests, and one verified local binding.",
+      "provenance": {
+        "kind": "human_decision",
+        "decision_id": "decision-monokl-adapter-2026-09-23",
+        "actor": "pitfa"
+      }
+    },
+    {
+      "id": "input-monokl-adapter-current-state",
+      "text": "At repository revision 59911664bca48008e9dc238c9eeaac29948e76cc, MOZAK supports arxiv, dair-ai, mcp-registry, github-tooling, and hyperresearch adapters. MONOKL is installed locally and preserves the HyperResearch-compatible vault and JSON export surface, but MOZAK has no distinct monokl adapter identity, normalizer, setup route, runner, or binding.",
+      "provenance": {
+        "kind": "codebase_observation",
+        "observation_id": "obs-monokl-adapter-current-state-2026-09-23",
+        "repository_revision": "59911664bca48008e9dc238c9eeaac29948e76cc",
+        "paths": [
+          "scripts/adapters/hyperresearch_fetch.py",
+          "crates/mozak-cli/src/main.rs",
+          "crates/mozak-core/src/research.rs",
+          "skills/mozak/SKILL.md"
+        ]
+      }
+    },
+    {
+      "id": "input-monokl-adapter-boundary",
+      "text": "The adapter must read only a finished local MONOKL vault, retain identity, provenance, locators and hashes rather than note bodies, perform no networking, declare no mutation or irreversible effect, produce proposal-only research evidence, and never promote or accept results automatically.",
+      "provenance": {
+        "kind": "human_decision",
+        "decision_id": "decision-monokl-adapter-boundary-2026-09-23",
+        "actor": "pitfa"
+      }
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "contract_version": 1,
+  "id": "plan-v1-monokl-adapter",
+  "version": 1,
+  "input_set_id": "inputs-monokl-adapter-001",
+  "goals": [
+    {
+      "id": "native-monokl-adapter",
+      "version": 1,
+      "title": "Add and install a native MONOKL research adapter",
+      "status": "ready",
+      "priority": 1,
+      "input_ids": [
+        "input-monokl-adapter-owner-approval",
+        "input-monokl-adapter-current-state",
+        "input-monokl-adapter-boundary"
+      ],
+      "recovery_attempts": 0
+    }
+  ],
+  "dependencies": [],
+  "recovery": {
+    "max_attempts_per_goal": 2,
+    "allowed_failed_transition": "blocked"
+  }
+}

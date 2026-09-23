@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "scope_id": "monokl",
+  "vault_root": "/home/pitfa/Documents/monokl-vault",
+  "select": {
+    "note_ids": [],
+    "tags": []
+  },
+  "max_records": 50,
+  "question": "Which sources did MONOKL gather for owner review?"
+}

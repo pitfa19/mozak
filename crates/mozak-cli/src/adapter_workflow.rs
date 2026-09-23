@@ -70,6 +70,13 @@ fn catalog() -> Result<ExitCode, String> {
                 "normalizer": "research normalize hyperresearch"
             },
             {
+                "id": "monokl",
+                "kind": "optional_external_integration",
+                "capability": "external_research_vault_snapshot",
+                "setup_supported": true,
+                "normalizer": "research normalize monokl"
+            },
+            {
                 "id": "arxiv",
                 "kind": "optional_external_integration",
                 "capability": "broad_paper_metadata_search",
@@ -92,10 +99,10 @@ fn setup(
 ) -> Result<ExitCode, String> {
     if !matches!(
         adapter,
-        "arxiv" | "dair-ai" | "mcp-registry" | "github-tooling" | "hyperresearch"
+        "arxiv" | "dair-ai" | "mcp-registry" | "github-tooling" | "hyperresearch" | "monokl"
     ) {
         return Err(
-            "adapter setup currently supports arxiv, dair-ai, mcp-registry, github-tooling and hyperresearch only"
+            "adapter setup currently supports arxiv, dair-ai, mcp-registry, github-tooling, hyperresearch and monokl only"
                 .into(),
         );
     }
@@ -322,10 +329,10 @@ fn declared_effects(adapter: &str) -> serde_json::Value {
             "dry_run_available": true,
             "requires_owner_approval": true
         }),
-        // The HyperResearch harness already did its fetching, outside MOZAK.
-        // This adapter reads the local vault it left behind, so declaring
-        // network access here would misreport where retrieval happened.
-        "hyperresearch" => json!({
+        // These harnesses already did their fetching, outside MOZAK. The adapters
+        // read the local vault they left behind, so declaring network access here
+        // would misreport where retrieval happened.
+        "hyperresearch" | "monokl" => json!({
             "network_access": false,
             "external_writes": false,
             "mutations": false,

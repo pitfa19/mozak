@@ -64,7 +64,12 @@ pub fn validate_adapter_registry(registry: &AdapterRegistry) -> Result<(), Adapt
         require(
             matches!(
                 binding.adapter.as_str(),
-                "arxiv" | "dair-ai" | "mcp-registry" | "github-tooling" | "hyperresearch"
+                "arxiv"
+                    | "dair-ai"
+                    | "mcp-registry"
+                    | "github-tooling"
+                    | "hyperresearch"
+                    | "monokl"
             ),
             &format!("unsupported configured adapter: {}", binding.adapter),
         )?;

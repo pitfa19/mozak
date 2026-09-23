@@ -74,6 +74,7 @@ pub fn research_normalize(
         "mcp-registry" => mozak_core::research::normalize_provider_mcp_registry(&input),
         "github-tooling" => mozak_core::research::normalize_provider_github_tooling(&input),
         "hyperresearch" => mozak_core::research::normalize_provider_hyperresearch(&input),
+        "monokl" => mozak_core::research::normalize_provider_monokl(&input),
         _ => return Err(format!("unknown research adapter: {adapter}")),
     }
     .map_err(|error| error.to_string())?;
