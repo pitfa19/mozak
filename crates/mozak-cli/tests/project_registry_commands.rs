@@ -80,6 +80,40 @@ fn linked_scope_kb(base: &Path) -> PathBuf {
     fs::write(kb.join("kb.json"), rb).unwrap();
     kb
 }
+
+fn many_linked_scope_kb(base: &Path, count: usize) -> PathBuf {
+    let scope = base.join("scope-many-linked");
+    fs::create_dir_all(scope.join("projects/exact-project/.mozak")).unwrap();
+    let manifest = b"version: 1\nframework_contract_version: 1\nproject:\n  id: exact-project\n  name: Test Project\nrepository:\n  revision: 0123456789abcdef0123456789abcdef01234567\nowned_paths:\n  - src\n";
+    fs::write(
+        scope.join("projects/exact-project/.mozak/project.yml"),
+        manifest,
+    )
+    .unwrap();
+    let mut scopes = vec![
+        json!({"id":"exact-project","kind":"project","title":"Exact Project","intent":"Build exact project","history":[],"project":{"manifest_path":"projects/exact-project/.mozak/project.yml","manifest_sha256":sha(manifest),"project_id":"exact-project","repository_revision":"0123456789abcdef0123456789abcdef01234567","owned_paths":["src"]}}),
+    ];
+    let mut scope_ids = vec![json!("exact-project")];
+    for i in 0..count {
+        let id = format!("topic-{i:03}");
+        scopes.push(json!({"id":id,"kind":"topic","title":format!("Topic {i:03}"),"intent":"Bounded linked knowledge","history":[]}));
+        scope_ids.push(json!(id));
+    }
+    let mb = serde_json::to_vec_pretty(&json!({
+        "schema_version": 2,
+        "scopes": scopes,
+        "promotions": [],
+        "meta_goals": [{"id":"goal-many","title":"Many Links","authority":"advisory_only","scope_ids":scope_ids,"relationships":[]}],
+        "inputs": []
+    }))
+    .unwrap();
+    fs::write(scope.join("scope.json"), &mb).unwrap();
+    let kb = base.join("kb-many-linked");
+    fs::create_dir_all(&kb).unwrap();
+    let rb = serde_json::to_vec_pretty(&json!({"schema_version":1,"registrations":[{"id":"many-linked","path":scope,"scope_manifest_sha256":sha(&mb)}]})).unwrap();
+    fs::write(kb.join("kb.json"), rb).unwrap();
+    kb
+}
 fn project(root: &Path, id: &str) {
     fs::create_dir_all(root.join(".mozak")).unwrap();
     fs::write(root.join(".mozak/project.yml"),format!("version: 1\nframework_contract_version: 1\nproject:\n  id: {id}\n  name: Test Project\nrepository:\n  revision: 0123456789abcdef0123456789abcdef01234567\nowned_paths:\n  - src\n")).unwrap();
@@ -1429,6 +1463,101 @@ fn project_context_reports_linked_scopes_for_shared_meta_goal_and_promotion() {
         assert_eq!(link["trust_transfer"], false);
         assert!(link["title"].as_str().is_some());
         assert_eq!(link["root"], t.0.join("scope-linked").to_str().unwrap());
+    }
+    assert_eq!(c["knowledge"]["linked_scopes_total_count"], 3);
+    assert_eq!(c["knowledge"]["linked_scopes_returned_count"], 3);
+    assert_eq!(c["knowledge"]["linked_scopes_truncated"], false);
+    assert_eq!(c["knowledge"]["linked_scopes_limit"], 10);
+    assert!(
+        c["knowledge"]["linked_scopes_detail_command"]
+            .as_str()
+            .unwrap()
+            .contains("project linked-scopes")
+    );
+}
+
+#[test]
+fn project_context_caps_many_linked_scopes_and_detail_pages_reach_all_records() {
+    let t = Temp::new("context-many-linked-scopes");
+    let kb = many_linked_scope_kb(&t.0, 25);
+    let ws = t.0.join("workspace");
+    project(&ws.join("project"), "exact-project");
+    let xdg = t.0.join("xdg");
+    register_initial(&kb, &ws, &xdg, &t.0);
+
+    let out = run(&["project", "context", "exact-project"], &xdg);
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let c: Value = serde_json::from_slice(&out.stdout).unwrap();
+    let links = c["knowledge"]["linked_scopes"].as_array().unwrap();
+    assert_eq!(links.len(), 10);
+    assert_eq!(c["knowledge"]["linked_scopes_total_count"], 25);
+    assert_eq!(c["knowledge"]["linked_scopes_returned_count"], 10);
+    assert_eq!(c["knowledge"]["linked_scopes_truncated"], true);
+    assert_eq!(links[0]["scope_id"], "topic-000");
+    assert_eq!(links[9]["scope_id"], "topic-009");
+
+    let first = run(
+        &[
+            "project",
+            "linked-scopes",
+            "exact-project",
+            "--limit",
+            "10",
+            "--offset",
+            "0",
+        ],
+        &xdg,
+    );
+    assert!(
+        first.status.success(),
+        "{}",
+        String::from_utf8_lossy(&first.stderr)
+    );
+    let first_page: Value = serde_json::from_slice(&first.stdout).unwrap();
+    assert_eq!(first_page["total_count"], 25);
+    assert_eq!(first_page["returned_count"], 10);
+    assert_eq!(first_page["truncated"], true);
+
+    let last = run(
+        &[
+            "project",
+            "linked-scopes",
+            "exact-project",
+            "--limit",
+            "15",
+            "--offset",
+            "10",
+        ],
+        &xdg,
+    );
+    assert!(
+        last.status.success(),
+        "{}",
+        String::from_utf8_lossy(&last.stderr)
+    );
+    let last_page: Value = serde_json::from_slice(&last.stdout).unwrap();
+    assert_eq!(last_page["total_count"], 25);
+    assert_eq!(last_page["returned_count"], 15);
+    assert_eq!(last_page["truncated"], false);
+    let mut ids = first_page["records"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .chain(last_page["records"].as_array().unwrap().iter())
+        .map(|record| record["scope_id"].as_str().unwrap().to_owned())
+        .collect::<Vec<_>>();
+    ids.dedup();
+    assert_eq!(ids.len(), 25);
+    assert_eq!(ids.first().unwrap(), "topic-000");
+    assert_eq!(ids.last().unwrap(), "topic-024");
+    for record in last_page["records"].as_array().unwrap() {
+        assert_eq!(record["authority"], "advisory_only");
+        assert_eq!(record["accepted"], false);
+        assert_eq!(record["trust_transfer"], false);
     }
 }
 

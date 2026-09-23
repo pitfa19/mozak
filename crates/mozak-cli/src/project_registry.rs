@@ -25,6 +25,7 @@ use std::{
 
 const SCHEMA_VERSION: u64 = 1;
 const CURRENT_SECTION_LIMIT: usize = 12;
+const LINKED_SCOPES_INLINE_LIMIT: usize = 10;
 const MAX_SCAN_ENTRIES: usize = 100_000;
 const PRUNED: [&str; 8] = [
     ".git",
@@ -1010,10 +1011,22 @@ pub fn context(id: &str, mode: ContextOutputMode) -> Result<ExitCode, String> {
         Ok(kb) => knowledge_matches(kb, id)?,
         Err(_) => (Vec::new(), Vec::new()),
     };
-    let linked_scopes = match &live_kb {
+    let all_linked_scopes = match &live_kb {
         Ok(kb) if kb_valid && !kb_drift => knowledge_linked_scopes(kb, id)?,
         _ => Vec::new(),
     };
+    let linked_scope_total = all_linked_scopes.len();
+    let linked_scopes = all_linked_scopes
+        .into_iter()
+        .take(LINKED_SCOPES_INLINE_LIMIT)
+        .collect::<Vec<_>>();
+    let linked_scope_returned = linked_scopes.len();
+    let linked_scope_truncated = linked_scope_total > linked_scope_returned;
+    let linked_scope_detail_command = format!(
+        "mozak project linked-scopes {} --limit {} --offset 0",
+        shell_arg(id),
+        LINKED_SCOPES_INLINE_LIMIT
+    );
     let context_notes = snapshot
         .as_ref()
         .map_or_else(Vec::new, |value| context_note_paths(value, root));
@@ -1026,7 +1039,7 @@ pub fn context(id: &str, mode: ContextOutputMode) -> Result<ExitCode, String> {
         "config": {"path": path_text(&config_path)?, "sha256": hash(&bytes)},
         "reconciliation": reconciliation.unwrap_or_else(|| serde_json::json!({"performed": false})),
         "kb": {"root": config.kb_root, "configured_sha256": config.kb_sha256, "current_sha256": current_kb_hash, "valid": kb_valid, "drift": kb_drift, "error": kb_error},
-        "knowledge": {"scope_matches": scope_matches, "package_matches": package_matches, "linked_scopes": linked_scopes},
+        "knowledge": {"scope_matches": scope_matches, "package_matches": package_matches, "linked_scopes": linked_scopes, "linked_scopes_total_count": linked_scope_total, "linked_scopes_returned_count": linked_scope_returned, "linked_scopes_truncated": linked_scope_truncated, "linked_scopes_limit": LINKED_SCOPES_INLINE_LIMIT, "linked_scopes_detail_command": linked_scope_detail_command},
         "foundation": {
             "valid": project_valid,
             "error": project_error,
@@ -1042,7 +1055,7 @@ pub fn context(id: &str, mode: ContextOutputMode) -> Result<ExitCode, String> {
         "workflow_error": workflow_error,
         "context_notes": context_notes,
         "next_actions": snapshot.as_ref().map_or_else(|| vec!["Run `mozak project validate <project-root>` to inspect invalid current project bytes.".to_owned()], |s| s.next_actions.clone()),
-        "detail_commands": [format!("mozak project overview {}", shell_path(root)), format!("mozak project validate {}", shell_path(root)), format!("mozak project graph {}", shell_path(root))],
+        "detail_commands": [format!("mozak project overview {}", shell_path(root)), format!("mozak project validate {}", shell_path(root)), format!("mozak project graph {}", shell_path(root)), linked_scope_detail_command],
         "trust_transfer": false
     });
     let human = mode == ContextOutputMode::Human
@@ -1060,6 +1073,106 @@ pub fn context(id: &str, mode: ContextOutputMode) -> Result<ExitCode, String> {
     } else {
         ExitCode::from(3)
     })
+}
+
+pub fn linked_scopes(id: &str, args: &[String]) -> Result<ExitCode, String> {
+    if id.is_empty() || id.chars().any(char::is_control) {
+        return Err("project id is empty or contains control characters".into());
+    }
+    let (limit, offset) = parse_limit_offset(args, LINKED_SCOPES_INLINE_LIMIT)?;
+    let config_path = default_config_path()?;
+    validate_target_path(&config_path)?;
+    let bytes = read_optional_regular(&config_path)?
+        .ok_or_else(|| format!("local config does not exist: {}", config_path.display()))?;
+    let config: LocalConfig = serde_json::from_slice(&bytes)
+        .map_err(|e| format!("invalid local config {}: {e}", config_path.display()))?;
+    validate_local_config(&config)?;
+    let configured = config
+        .projects
+        .get(id)
+        .ok_or_else(|| format!("project id is not registered: {id}"))?;
+    let kb = load_registry(Path::new(&config.kb_root)).map_err(|error| error.to_string())?;
+    if kb.registry_sha256 != config.kb_sha256 {
+        println!(
+            "{}",
+            serde_json::to_string(&serde_json::json!({
+                "schema_version": 1,
+                "command": "project linked-scopes",
+                "project": {"id": configured.id, "name": configured.name, "root": configured.root},
+                "kb": {"root": config.kb_root, "configured_sha256": config.kb_sha256, "current_sha256": kb.registry_sha256, "valid": true, "drift": true},
+                "records": [],
+                "total_count": 0,
+                "returned_count": 0,
+                "offset": offset,
+                "limit": limit,
+                "truncated": false,
+                "advisory_only": true,
+                "accepted": false,
+                "trust_transfer": false,
+                "error": "configured KB hash drift; linked Scope records are fail-closed"
+            }))
+            .map_err(|e| e.to_string())?
+        );
+        return Ok(ExitCode::from(3));
+    }
+    let records = knowledge_linked_scopes(&kb, id)?;
+    let total = records.len();
+    let page = records
+        .into_iter()
+        .skip(offset)
+        .take(limit)
+        .collect::<Vec<_>>();
+    let returned = page.len();
+    println!(
+        "{}",
+        serde_json::to_string(&serde_json::json!({
+            "schema_version": 1,
+            "command": "project linked-scopes",
+            "project": {"id": configured.id, "name": configured.name, "root": configured.root},
+            "kb": {"root": config.kb_root, "configured_sha256": config.kb_sha256, "current_sha256": kb.registry_sha256, "valid": true, "drift": false},
+            "records": page,
+            "total_count": total,
+            "returned_count": returned,
+            "offset": offset,
+            "limit": limit,
+            "truncated": offset.saturating_add(returned) < total,
+            "advisory_only": true,
+            "accepted": false,
+            "trust_transfer": false
+        }))
+        .map_err(|e| e.to_string())?
+    );
+    Ok(ExitCode::SUCCESS)
+}
+
+fn parse_limit_offset(args: &[String], default_limit: usize) -> Result<(usize, usize), String> {
+    let mut limit = default_limit;
+    let mut offset = 0usize;
+    let mut i = 0;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--limit" => {
+                i += 1;
+                let value = args.get(i).ok_or("--limit requires a value")?;
+                limit = value
+                    .parse::<usize>()
+                    .map_err(|_| "--limit must be a non-negative integer".to_owned())?;
+                if limit == 0 || limit > 100 {
+                    return Err("--limit must be between 1 and 100".into());
+                }
+            }
+            "--offset" => {
+                i += 1;
+                let value = args.get(i).ok_or("--offset requires a value")?;
+                offset = value
+                    .parse::<usize>()
+                    .map_err(|_| "--offset must be a non-negative integer".to_owned())?;
+            }
+            other => return Err(format!("unknown project linked-scopes option: {other}")),
+        }
+        i += 1;
+    }
+    Ok((limit, offset))
 }
 
 fn configured_owner(config: &LocalConfig) -> &str {
@@ -2635,5 +2748,9 @@ fn path_text(path: &Path) -> Result<String, String> {
     Ok(value.to_owned())
 }
 fn shell_path(path: &Path) -> String {
-    format!("'{}'", path.to_string_lossy().replace('\'', "'\\''"))
+    shell_arg(&path.to_string_lossy())
+}
+
+fn shell_arg(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "'\\''"))
 }

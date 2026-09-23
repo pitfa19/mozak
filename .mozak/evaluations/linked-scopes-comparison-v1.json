@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "id": "comparison-linked-scopes-bounded-disclosure-v1",
+  "attributed_layer": "tool_behavior",
+  "fixed_conditions": {
+    "configured_kb_sha256": "e337e8c2f7dcad7e925386d4753653b43f49125afe430675ac8dd78590c440ce",
+    "project_id": "potjera-app",
+    "relationship_total": 17,
+    "ordering": "deterministic existing sort",
+    "authority": "advisory_only"
+  },
+  "before": {
+    "locator": ".mozak/evaluations/linked-scopes-baseline-v1.json",
+    "inline_count": 17,
+    "explicit_limit": false,
+    "truncation_metadata": false,
+    "bounded_detail_path": false
+  },
+  "after": {
+    "locator": ".mozak/evaluations/linked-scopes-after-v1.json",
+    "inline_count": 10,
+    "explicit_limit": true,
+    "truncation_metadata": true,
+    "bounded_detail_path": true,
+    "detail_records_recovered": 17
+  },
+  "acceptance_checks": {
+    "inline_link_limit": true,
+    "total_count": true,
+    "truncation_flag": true,
+    "complete_bounded_detail_path": true,
+    "safety_labels": true,
+    "deterministic_ordering": true,
+    "kb_drift_fail_closed": true
+  },
+  "result": "pass",
+  "authority": "difference_under_stated_conditions_only; does not generalize or authorize promotion"
+}

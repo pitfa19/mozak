@@ -47,6 +47,7 @@ mozak project review <discovery.json>
 mozak project register <discovery.json> <approval.json>          # mutation
 mozak project refresh <discovery.json> <approval.json>           # mutation
 mozak project context <project-id>
+mozak project linked-scopes <project-id> [--limit N] [--offset N]
 mozak project current <project-id>
 mozak project browse <project-id>
 mozak project resolve <project-id> <record-id>
@@ -61,6 +62,8 @@ mozak scope validate|list|graph-source|graph|export <scope-root>
 mozak scope source-check <scope-root> <source-id> <source-root> <observed-revision>
 mozak scope ingest-links <scope-root> <source-root> <observed-revision> <plan.json> <output-root>  # mutation
 ```
+
+`project context PROJECT_ID` keeps `knowledge.linked_scopes` backward-useful as a deterministic capped inline array and emits `linked_scopes_total_count`, `linked_scopes_returned_count`, `linked_scopes_truncated`, `linked_scopes_limit`, and `linked_scopes_detail_command`. Use `project linked-scopes PROJECT_ID [--limit N] [--offset N]` for bounded deterministic detail retrieval. Linked Scope records remain advisory-only, `accepted: false`, `trust_transfer: false`, and fail closed on configured KB drift.
 
 `project current PROJECT_ID` emits the sealed read-only current-state projection plus bounded sections for goal state, adapter freshness, newest proposal-only research, superseded artifacts, and next owner decision. `project browse PROJECT_ID` lists only explicitly configured records from the same bounded view and states that order is not recommendation, acceptance, or truth. `project resolve PROJECT_ID RECORD_ID` follows only declared Stage 1 projection relationships and refuses stale hashes/freshness or undeclared records. `project why PROJECT_ID RECORD_ID` explains inclusion, freshness, authority, and blocking conditions, including why a newer DAIR run supersedes an older recorded run without accepting either. These commands read only the registered project/config boundaries, configured KB, adapter registry, and adapter runs dirs. They label latest recorded, latest observed, and accepted, dump no note bodies/full KB, and claim no trust transfer or automatic promotion.
 

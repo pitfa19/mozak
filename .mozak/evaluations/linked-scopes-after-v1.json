@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "id": "evaluation-linked-scopes-after-2026-09-23",
+  "target_revision": "a5c2ba2cda241a763446094b787ac79deb32b8e6",
+  "attributed_layer": "tool_behavior",
+  "observations": {
+    "context_command": "cargo run -q -p mozak-cli -- project context potjera-app",
+    "context_stdout_sha256": "c159c2eb69f1cf1b17aaf1e75dbc33e35d144f435c1d8c97d8905468042e83ec",
+    "total_count": 17,
+    "inline_returned_count": 10,
+    "inline_limit": 10,
+    "truncated": true,
+    "detail_commands": [
+      "cargo run -q -p mozak-cli -- project linked-scopes potjera-app --limit 7 --offset 0",
+      "cargo run -q -p mozak-cli -- project linked-scopes potjera-app --limit 10 --offset 7"
+    ],
+    "detail_stdout_sha256": [
+      "bc2e75ef27fff2363b00336e71b0b4738204ac008be7d83f5d2219606e0430a3",
+      "8b453840e794b9c6ae1f8a8a225c7b20a321cf8f0058c81aca3365f66d8d777f"
+    ],
+    "detail_total_returned_count": 17,
+    "safety_labels_preserved": true
+  },
+  "result": "pass"
+}
