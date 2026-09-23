@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "id": "evaluation-linked-scopes-baseline-2026-09-23",
+  "target_revision": "551cc74ef32377fc0cc8103306ca2b41ac94ed5a",
+  "attributed_layer": "tool_behavior",
+  "problem": "project context emits every relationship-specific linked Scope record inline without an explicit output bound or truncation metadata",
+  "observations": [
+    {
+      "project_id": "potjera-app",
+      "command": "mozak project context potjera-app",
+      "stdout_sha256": "7a64f6abf605f84591f2ae869fb86f52612ef6add66420fd9f583c1fe7d35d3f",
+      "linked_scope_count": 17,
+      "all_advisory": true
+    },
+    {
+      "project_id": "genome-mcp",
+      "command": "mozak project context genome-mcp",
+      "stdout_sha256": "78a4aae6ad9243d5b6d1a18a9f14083fbfb1763a0363505def4ea9035e49e752",
+      "linked_scope_count": 5,
+      "all_advisory": true
+    }
+  ],
+  "acceptance_margin": {
+    "inline_link_limit": 10,
+    "requires_total_count": true,
+    "requires_truncation_flag": true,
+    "requires_complete_bounded_detail_path": true,
+    "preserve_safety_labels": true,
+    "preserve_deterministic_ordering": true,
+    "preserve_kb_drift_fail_closed": true
+  }
+}
