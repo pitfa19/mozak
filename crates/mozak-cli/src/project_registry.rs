@@ -1188,18 +1188,18 @@ struct NotesProfile {
 struct NotesDestination {
     id: String,
     root: String,
-    #[serde(default, rename = "purpose")]
-    _purpose: Option<String>,
-    #[serde(default, rename = "default")]
-    _default: Option<bool>,
-    #[serde(default, rename = "routing_signals")]
-    _routing_signals: Option<Vec<String>>,
-    #[serde(default, rename = "trim")]
-    _trim: Option<String>,
-    #[serde(default, rename = "obsidian")]
-    _obsidian: Option<bool>,
-    #[serde(default, rename = "excluded_paths")]
-    _excluded_paths: Option<Vec<String>>,
+    #[serde(default)]
+    purpose: Option<String>,
+    #[serde(default)]
+    default: Option<bool>,
+    #[serde(default)]
+    routing_signals: Option<Vec<String>>,
+    #[serde(default)]
+    trim: Option<String>,
+    #[serde(default)]
+    obsidian: Option<bool>,
+    #[serde(default)]
+    excluded_paths: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1371,14 +1371,15 @@ pub fn notes_onboard_propose(output: &Path) -> Result<ExitCode, String> {
         return Err("configured KB drifted; refusing Notes onboarding proposal".into());
     }
     let profile_path = notes_profile_path()?;
-    let profile_bytes = read_optional_regular(&profile_path)?.ok_or_else(|| {
-        "notes profile is missing; onboarding requires an existing profile".to_owned()
-    })?;
+    let profile_bytes =
+        read_optional_notes_input(&profile_path, "notes profile")?.ok_or_else(|| {
+            "notes profile is missing; onboarding requires an existing profile".to_owned()
+        })?;
     let profile: NotesProfile = serde_json::from_slice(&profile_bytes)
         .map_err(|error| format!("invalid notes profile: {error}"))?;
     let destinations = validate_notes_profile(&profile)?;
     let links_path = notes_links_path()?;
-    let links_bytes = read_optional_regular(&links_path)?;
+    let links_bytes = read_optional_notes_input(&links_path, "notes links")?;
     let links_base = notes_links_pin(links_bytes.as_deref());
     let existing_links = match links_bytes.as_deref() {
         Some(bytes) => {
@@ -1487,39 +1488,10 @@ pub fn notes_onboard_apply(proposal_path: &Path, approval_path: &Path) -> Result
         strict_json_file(approval_path, "Notes onboarding approval")?;
     validate_notes_onboard_approval(&approval, &proposal)?;
 
-    let (config, config_sha256, kb, kb_drift) = load_drift_free_kb()?;
-    if kb_drift {
-        return Err("configured KB drifted; refusing Notes onboarding apply".into());
-    }
-    if config_sha256 != proposal.config_sha256 {
-        return Err("stale Notes onboarding proposal: local config digest changed".into());
-    }
-    if kb.registry_sha256 != proposal.kb_sha256 || approval.kb_sha256 != proposal.kb_sha256 {
-        return Err("stale Notes onboarding proposal: KB digest changed".into());
-    }
-    let configured_owner = config
-        .configured_owner
-        .as_deref()
-        .ok_or("local config has no configured owner")?;
-    if approval.owner != configured_owner {
-        return Err("Notes onboarding approval owner is not the configured owner".into());
-    }
-    let profile_path = notes_profile_path()?;
-    let profile_bytes =
-        read_optional_regular(&profile_path)?.ok_or("notes profile disappeared before apply")?;
-    if hash(&profile_bytes) != proposal.profile_sha256
-        || approval.profile_sha256 != proposal.profile_sha256
-    {
-        return Err("stale Notes onboarding proposal: profile digest changed".into());
-    }
-    let profile: NotesProfile = serde_json::from_slice(&profile_bytes)
-        .map_err(|error| format!("invalid notes profile: {error}"))?;
-    let destinations = validate_notes_profile(&profile)?;
-    let scopes = registered_note_scopes(&kb)?;
-    validate_notes_proposal_live_bindings(&proposal, &destinations, &scopes)?;
+    let (destinations, scopes) = validate_notes_onboard_live_state(&proposal, &approval)?;
 
     let links_path = notes_links_path()?;
-    let live_links = read_optional_regular(&links_path)?;
+    let live_links = read_optional_notes_input(&links_path, "notes links")?;
     let live_pin = notes_links_pin(live_links.as_deref());
     if live_pin != proposal.links_base || approval.links_base != proposal.links_base {
         return Err("stale Notes onboarding proposal: links base changed".into());
@@ -1550,11 +1522,9 @@ pub fn notes_onboard_apply(proposal_path: &Path, approval_path: &Path) -> Result
     validate_notes_links(&links_profile, &destinations)?;
     validate_notes_mapping_integrity(&links_profile, &destinations, &scopes)?;
     let bytes = serde_json::to_vec_pretty(&links_profile).map_err(|error| error.to_string())?;
-    atomic_write_notes_links(&links_path, &bytes, &proposal.links_base)?;
-    let readback = read_optional_regular(&links_path)?.ok_or("notes links missing after apply")?;
-    if readback != bytes {
-        return Err("notes links readback did not match written bytes".into());
-    }
+    atomic_write_notes_links(&links_path, &bytes, &proposal.links_base, || {
+        validate_notes_onboard_live_state(&proposal, &approval).map(|_| ())
+    })?;
     println!(
         "{}",
         serde_json::to_string(&serde_json::json!({
@@ -1599,7 +1569,7 @@ pub fn notes_check() -> Result<ExitCode, String> {
     }
     let profile_path = notes_profile_path()?;
     let links_path = notes_links_path()?;
-    let Some(profile_bytes) = read_optional_regular(&profile_path)? else {
+    let Some(profile_bytes) = read_optional_notes_input(&profile_path, "notes profile")? else {
         println!(
             "{}",
             serde_json::to_string(&serde_json::json!({
@@ -1613,7 +1583,7 @@ pub fn notes_check() -> Result<ExitCode, String> {
     let profile: NotesProfile = serde_json::from_slice(&profile_bytes)
         .map_err(|error| format!("invalid notes profile: {error}"))?;
     let destinations = validate_notes_profile(&profile)?;
-    let Some(links_bytes) = read_optional_regular(&links_path)? else {
+    let Some(links_bytes) = read_optional_notes_input(&links_path, "notes links")? else {
         println!(
             "{}",
             serde_json::to_string(&serde_json::json!({
@@ -1630,6 +1600,7 @@ pub fn notes_check() -> Result<ExitCode, String> {
     validate_notes_links(&links, &destinations)?;
     let scopes = registered_note_scopes(&kb)?;
     let prefix_count = validate_notes_mapping_integrity(&links, &destinations, &scopes)?;
+    validate_notes_mapping_no_symlinks(&links, &destinations)?;
     println!(
         "{}",
         serde_json::to_string(&serde_json::json!({
@@ -1800,6 +1771,44 @@ fn validate_notes_onboard_approval(
     Ok(())
 }
 
+fn validate_notes_onboard_live_state(
+    proposal: &NotesOnboardProposal,
+    approval: &NotesOnboardApproval,
+) -> Result<
+    (
+        BTreeMap<String, PathBuf>,
+        BTreeMap<String, RegisteredNoteScope>,
+    ),
+    String,
+> {
+    let (config, config_sha256, kb, kb_drift) = load_drift_free_kb()?;
+    let configured_owner = config
+        .configured_owner
+        .as_deref()
+        .ok_or("local config has no configured owner")?;
+    if approval.owner != configured_owner {
+        return Err("Notes onboarding approval owner is not the configured owner".into());
+    }
+    if config_sha256 != proposal.config_sha256 {
+        return Err("stale Notes onboarding proposal: local config digest changed".into());
+    }
+    if kb_drift || kb.registry_sha256 != proposal.kb_sha256 {
+        return Err("stale Notes onboarding proposal: KB digest changed".into());
+    }
+    let profile_path = notes_profile_path()?;
+    let profile_bytes = read_optional_notes_input(&profile_path, "notes profile")?
+        .ok_or("notes profile disappeared before apply")?;
+    if hash(&profile_bytes) != proposal.profile_sha256 {
+        return Err("stale Notes onboarding proposal: profile digest changed".into());
+    }
+    let profile: NotesProfile = serde_json::from_slice(&profile_bytes)
+        .map_err(|error| format!("invalid notes profile: {error}"))?;
+    let destinations = validate_notes_profile(&profile)?;
+    let scopes = registered_note_scopes(&kb)?;
+    validate_notes_proposal_live_bindings(proposal, &destinations, &scopes)?;
+    Ok((destinations, scopes))
+}
+
 fn validate_notes_proposal_live_bindings(
     proposal: &NotesOnboardProposal,
     destinations: &BTreeMap<String, PathBuf>,
@@ -1875,10 +1884,41 @@ fn validate_notes_mapping_integrity(
     Ok(prefix_count)
 }
 
+fn validate_notes_mapping_no_symlinks(
+    links: &NotesLinksProfile,
+    destinations: &BTreeMap<String, PathBuf>,
+) -> Result<(), String> {
+    let mut records = Vec::new();
+    let mut seen = BTreeSet::new();
+    let mut scanned_entries = 0usize;
+    for (scope_id, scope_links) in &links.links {
+        for link in scope_links {
+            let root = destinations
+                .get(&link.destination_id)
+                .ok_or("notes mapping names unknown destination")?;
+            for prefix in &link.safe_relative_path_prefixes {
+                let start = root.join(safe_note_relative(prefix)?);
+                scan_notes(
+                    root,
+                    &start,
+                    scope_id,
+                    "integrity_check",
+                    &link.destination_id,
+                    &mut records,
+                    &mut seen,
+                    &mut scanned_entries,
+                )?;
+            }
+        }
+    }
+    Ok(())
+}
+
 fn validate_mapped_prefix(root: &Path, prefix: &str) -> Result<PathBuf, String> {
     let relative = safe_note_relative(prefix)?;
     let joined = root.join(relative);
-    reject_symlink_chain(&joined, "notes mapped prefix")?;
+    reject_symlink_chain(&joined, "notes mapped prefix")
+        .map_err(|_| format!("mapped notes prefix has a symlinked ancestor: {prefix}"))?;
     let metadata = fs::symlink_metadata(&joined)
         .map_err(|error| format!("mapped notes prefix does not exist: {prefix}: {error}"))?;
     if metadata.file_type().is_symlink() || (!metadata.is_file() && !metadata.is_dir()) {
@@ -1902,10 +1942,18 @@ fn scan_onboard_candidates(
         let root = destinations
             .get(&destination.id)
             .ok_or("validated Notes destination disappeared")?;
+        let excluded_paths = destination
+            .excluded_paths
+            .as_deref()
+            .unwrap_or_default()
+            .iter()
+            .map(|value| safe_note_relative(value).map(|relative| root.join(relative)))
+            .collect::<Result<Vec<_>, _>>()?;
         scan_onboard_directory(
             root,
             root,
             &destination.id,
+            &excluded_paths,
             &mut candidates,
             &mut entries_seen,
             &mut markdown_files_seen,
@@ -1923,6 +1971,7 @@ fn scan_onboard_directory(
     root: &Path,
     path: &Path,
     destination_id: &str,
+    excluded_paths: &[PathBuf],
     candidates: &mut Vec<OnboardNoteCandidate>,
     entries_seen: &mut usize,
     markdown_files_seen: &mut usize,
@@ -1951,7 +2000,17 @@ fn scan_onboard_directory(
         .map_err(|error| format!("cannot inspect notes entry: {error}"))?;
     entries.sort_by_key(|entry| entry.file_name());
     for entry in entries {
+        let file_name = entry.file_name();
+        if file_name.to_string_lossy().starts_with('.') {
+            continue;
+        }
         let child = entry.path();
+        if excluded_paths
+            .iter()
+            .any(|excluded| child.starts_with(excluded))
+        {
+            continue;
+        }
         let metadata = fs::symlink_metadata(&child)
             .map_err(|error| format!("cannot inspect notes path: {error}"))?;
         if metadata.file_type().is_symlink() {
@@ -1962,6 +2021,7 @@ fn scan_onboard_directory(
                 root,
                 &child,
                 destination_id,
+                excluded_paths,
                 candidates,
                 entries_seen,
                 markdown_files_seen,
@@ -2246,13 +2306,21 @@ fn ensure_output_outside_note_roots<'a>(
             .join(output)
     };
     let parent = absolute.parent().ok_or("proposal output has no parent")?;
-    fs::create_dir_all(parent)
-        .map_err(|error| format!("cannot create proposal parent: {error}"))?;
-    reject_symlink_chain(parent, "Notes onboarding proposal output")?;
-    let canonical_parent = parent
+    reject_symlink_chain(parent, "Notes onboarding proposal output")
+        .map_err(|_| "Notes onboarding proposal output has a symlinked ancestor".to_owned())?;
+    let mut existing = parent;
+    while !existing.exists() {
+        existing = existing
+            .parent()
+            .ok_or("proposal output has no existing ancestor")?;
+    }
+    let canonical_existing = existing
         .canonicalize()
-        .map_err(|error| format!("cannot resolve proposal parent: {error}"))?;
-    let candidate = canonical_parent.join(
+        .map_err(|error| format!("cannot resolve proposal output ancestor: {error}"))?;
+    let missing = parent
+        .strip_prefix(existing)
+        .map_err(|error| error.to_string())?;
+    let candidate = canonical_existing.join(missing).join(
         absolute
             .file_name()
             .ok_or("proposal output must name a JSON file")?,
@@ -2392,7 +2460,7 @@ fn notes_for_scopes(
     }
     let profile_path = notes_profile_path()?;
     let links_path = notes_links_path()?;
-    let Some(profile_bytes) = read_optional_regular(&profile_path)? else {
+    let Some(profile_bytes) = read_optional_notes_input(&profile_path, "notes profile")? else {
         println!("{}", serde_json::to_string(&serde_json::json!({
             "schema_version": 1, "command": command, "state": "needs_input",
             "profile": {"path": path_text(&profile_path)?, "status": "missing"},
@@ -2401,7 +2469,7 @@ fn notes_for_scopes(
         })).map_err(|e| e.to_string())?);
         return Ok(ExitCode::from(2));
     };
-    let Some(links_bytes) = read_optional_regular(&links_path)? else {
+    let Some(links_bytes) = read_optional_notes_input(&links_path, "notes links")? else {
         println!("{}", serde_json::to_string(&serde_json::json!({
             "schema_version": 1, "command": command, "state": "needs_input",
             "profile": {"path": path_text(&profile_path)?, "sha256": hash(&profile_bytes)},
@@ -2438,7 +2506,6 @@ fn notes_for_scopes(
                         &mut records,
                         &mut seen,
                         &mut scanned_entries,
-                        true,
                     )?;
                 }
             }
@@ -2451,11 +2518,24 @@ fn notes_for_scopes(
             .then(a["scope_id"].as_str().cmp(&b["scope_id"].as_str()))
     });
     let total = records.len();
-    let page = records
+    let mut page = records
         .into_iter()
         .skip(offset)
         .take(limit)
         .collect::<Vec<_>>();
+    for record in &mut page {
+        let destination_id = record["destination_id"]
+            .as_str()
+            .ok_or("note record is missing destination id")?;
+        let relative = record["path"]
+            .as_str()
+            .ok_or("note record is missing relative path")?;
+        let root = destinations
+            .get(destination_id)
+            .ok_or("note record names unknown destination")?;
+        let path = contain_notes_path(root, &root.join(safe_note_relative(relative)?))?;
+        record["sha256"] = Value::String(streaming_sha256_file(&path)?);
+    }
     println!("{}", serde_json::to_string(&serde_json::json!({
         "schema_version": 1, "command": command, "state": "ready",
         "project": project, "meta_goal": meta_goal,
@@ -2492,10 +2572,10 @@ fn notes_inline_count(
 ) -> Result<(&'static str, usize), String> {
     let profile_path = notes_profile_path()?;
     let links_path = notes_links_path()?;
-    let Some(profile_bytes) = read_optional_regular(&profile_path)? else {
+    let Some(profile_bytes) = read_optional_notes_input(&profile_path, "notes profile")? else {
         return Ok(("needs_input", 0));
     };
-    let Some(links_bytes) = read_optional_regular(&links_path)? else {
+    let Some(links_bytes) = read_optional_notes_input(&links_path, "notes links")? else {
         return Ok(("needs_input", 0));
     };
     let profile: NotesProfile = serde_json::from_slice(&profile_bytes)
@@ -2532,7 +2612,6 @@ fn notes_inline_count(
                         &mut records,
                         &mut seen,
                         &mut scanned_entries,
-                        false,
                     )?;
                 }
                 count += records.len();
@@ -2550,15 +2629,63 @@ fn validate_notes_profile(profile: &NotesProfile) -> Result<BTreeMap<String, Pat
         return Err("notes profile destinations must not be empty".into());
     }
     let mut destinations = BTreeMap::new();
+    let mut default_count = 0usize;
     for destination in &profile.destinations {
         validate_safe_id(&destination.id, "destination id")?;
         let root = safe_notes_root(&destination.root)?;
+        if let Some(purpose) = &destination.purpose {
+            display_safe("notes destination purpose", purpose)?;
+        }
+        if destination.default == Some(true) {
+            default_count += 1;
+        }
+        if let Some(trim) = destination.trim.as_deref()
+            && !matches!(trim, "low" | "medium" | "high")
+        {
+            return Err("notes destination trim must be low, medium, or high".into());
+        }
+        if let Some(signals) = &destination.routing_signals {
+            let mut seen = BTreeSet::new();
+            for signal in signals {
+                display_safe("notes destination routing signal", signal)?;
+                if !seen.insert(signal) {
+                    return Err(
+                        "notes destination routing signals must not contain duplicates".into(),
+                    );
+                }
+            }
+        }
+        if let Some(excluded_paths) = &destination.excluded_paths {
+            let mut seen = BTreeSet::new();
+            for excluded in excluded_paths {
+                let relative = safe_note_relative(excluded)?;
+                if !seen.insert(relative.clone()) {
+                    return Err(
+                        "notes destination excluded paths must not contain duplicates".into(),
+                    );
+                }
+                let excluded_path = root.join(relative);
+                reject_symlink_chain(&excluded_path, "notes excluded path")
+                    .map_err(|_| "notes excluded path has a symlinked ancestor".to_owned())?;
+                if excluded_path.exists() {
+                    let canonical = excluded_path
+                        .canonicalize()
+                        .map_err(|error| format!("cannot resolve notes excluded path: {error}"))?;
+                    if !canonical.starts_with(&root) {
+                        return Err("notes excluded path escapes destination root".into());
+                    }
+                }
+            }
+        }
         if destinations.insert(destination.id.clone(), root).is_some() {
             return Err(format!(
                 "duplicate notes destination id: {}",
                 destination.id
             ));
         }
+    }
+    if default_count > 1 {
+        return Err("notes profile must not declare more than one default destination".into());
     }
     Ok(destinations)
 }
@@ -2609,14 +2736,15 @@ fn safe_notes_root(root: &str) -> Result<PathBuf, String> {
     if !path.is_absolute() || path.components().any(|c| matches!(c, Component::ParentDir)) {
         return Err("notes destination root must be absolute without parent traversal".into());
     }
-    reject_symlink_chain(path, "notes destination root")?;
+    reject_symlink_chain(path, "notes destination root")
+        .map_err(|_| "notes destination root has a symlinked ancestor".to_owned())?;
     let meta = fs::symlink_metadata(path)
-        .map_err(|e| format!("cannot inspect notes root {}: {e}", path.display()))?;
+        .map_err(|e| format!("cannot inspect notes destination root: {e}"))?;
     if meta.file_type().is_symlink() || !meta.is_dir() {
         return Err("notes destination root must be a real directory".into());
     }
     path.canonicalize()
-        .map_err(|e| format!("cannot resolve notes root {}: {e}", path.display()))
+        .map_err(|e| format!("cannot resolve notes destination root: {e}"))
 }
 
 fn safe_note_relative(value: &str) -> Result<PathBuf, String> {
@@ -2647,7 +2775,6 @@ fn scan_notes(
     records: &mut Vec<Value>,
     seen: &mut BTreeSet<String>,
     scanned_entries: &mut usize,
-    include_hash: bool,
 ) -> Result<(), String> {
     *scanned_entries += 1;
     if *scanned_entries > MAX_SCAN_ENTRIES {
@@ -2665,22 +2792,21 @@ fn scan_notes(
             destination_id,
             records,
             seen,
-            include_hash,
         )?;
         return Ok(());
     }
     if !start.is_dir() {
         return Ok(());
     }
-    for entry in fs::read_dir(&start)
-        .map_err(|e| format!("cannot read notes directory {}: {e}", start.display()))?
+    for entry in
+        fs::read_dir(&start).map_err(|e| format!("cannot read mapped notes directory: {e}"))?
     {
         let entry = entry.map_err(|e| format!("cannot inspect notes entry: {e}"))?;
         let path = entry.path();
         let meta = fs::symlink_metadata(&path)
-            .map_err(|e| format!("cannot inspect notes path {}: {e}", path.display()))?;
+            .map_err(|e| format!("cannot inspect mapped notes path: {e}"))?;
         if meta.file_type().is_symlink() {
-            return Err(format!("notes path is a symlink: {}", path.display()));
+            return Err("mapped notes path is a symlink".into());
         }
         *scanned_entries += 1;
         if *scanned_entries > MAX_SCAN_ENTRIES {
@@ -2698,7 +2824,6 @@ fn scan_notes(
                 records,
                 seen,
                 scanned_entries,
-                include_hash,
             )?;
         } else if meta.is_file() {
             maybe_add_note(
@@ -2709,7 +2834,6 @@ fn scan_notes(
                 destination_id,
                 records,
                 seen,
-                include_hash,
             )?;
         }
     }
@@ -2719,12 +2843,9 @@ fn scan_notes(
 fn contain_notes_path(root: &Path, path: &Path) -> Result<PathBuf, String> {
     let canonical = path
         .canonicalize()
-        .map_err(|e| format!("cannot resolve notes path {}: {e}", path.display()))?;
+        .map_err(|e| format!("cannot resolve mapped notes path: {e}"))?;
     if !canonical.starts_with(root) {
-        return Err(format!(
-            "notes path escapes destination root: {}",
-            path.display()
-        ));
+        return Err("mapped notes path escapes destination root".into());
     }
     Ok(canonical)
 }
@@ -2737,7 +2858,6 @@ fn maybe_add_note(
     destination_id: &str,
     records: &mut Vec<Value>,
     seen: &mut BTreeSet<String>,
-    include_hash: bool,
 ) -> Result<(), String> {
     if path.extension().and_then(|v| v.to_str()) != Some("md") {
         return Ok(());
@@ -2752,13 +2872,6 @@ fn maybe_add_note(
     if !seen.insert(key) {
         return Ok(());
     }
-    let sha256 = if include_hash {
-        Some(hash(&fs::read(&path).map_err(|e| {
-            format!("cannot read note bytes {}: {e}", path.display())
-        })?))
-    } else {
-        None
-    };
     let mtime = fs::metadata(&path)
         .ok()
         .and_then(|m| m.modified().ok())
@@ -2767,10 +2880,26 @@ fn maybe_add_note(
     records.push(serde_json::json!({
         "scope_id": scope_id, "relationship": relationship, "source_scope": scope_id,
         "destination_id": destination_id, "path": relative,
-        "sha256": sha256, "mtime": mtime,
+        "sha256": Value::Null, "mtime": mtime,
         "labels": ["device_local", "advisory_only"], "accepted": false, "trust_transfer": false
     }));
     Ok(())
+}
+
+fn streaming_sha256_file(path: &Path) -> Result<String, String> {
+    let mut file = fs::File::open(path).map_err(|e| format!("cannot open mapped note: {e}"))?;
+    let mut digest = Sha256::new();
+    let mut buffer = [0u8; 64 * 1024];
+    loop {
+        let read = file
+            .read(&mut buffer)
+            .map_err(|e| format!("cannot hash mapped note: {e}"))?;
+        if read == 0 {
+            break;
+        }
+        digest.update(&buffer[..read]);
+    }
+    Ok(format!("{:x}", digest.finalize()))
 }
 
 fn parse_limit_offset(args: &[String], default_limit: usize) -> Result<(usize, usize), String> {
@@ -4214,9 +4343,15 @@ fn read_optional_regular(path: &Path) -> Result<Option<Vec<u8>>, String> {
     }
 }
 
+fn read_optional_notes_input(path: &Path, label: &str) -> Result<Option<Vec<u8>>, String> {
+    reject_symlink_chain(path, label).map_err(|_| format!("{label} has a symlinked ancestor"))?;
+    read_optional_regular(path)
+}
+
 fn atomic_create_output(path: &Path, bytes: &[u8]) -> Result<(), String> {
     reject_unsafe_lexical(path)?;
     let parent = path.parent().ok_or("output path has no parent")?;
+    validate_target_path(path)?;
     fs::create_dir_all(parent)
         .map_err(|error| format!("cannot create output directory: {error}"))?;
     validate_target_path(path)?;
@@ -4243,7 +4378,15 @@ fn atomic_create_output(path: &Path, bytes: &[u8]) -> Result<(), String> {
     result
 }
 
-fn atomic_write_notes_links(path: &Path, bytes: &[u8], base: &NotesLinksPin) -> Result<(), String> {
+fn atomic_write_notes_links<F>(
+    path: &Path,
+    bytes: &[u8],
+    base: &NotesLinksPin,
+    revalidate_live_state: F,
+) -> Result<(), String>
+where
+    F: FnOnce() -> Result<(), String>,
+{
     validate_notes_links_pin(base)?;
     validate_target_path(path)?;
     let parent = path.parent().ok_or("notes links path has no parent")?;
@@ -4304,6 +4447,7 @@ fn atomic_write_notes_links(path: &Path, bytes: &[u8], base: &NotesLinksPin) -> 
             if fs::read(&temp).map_err(|error| error.to_string())? != bytes {
                 return Err("temporary Notes links readback mismatch".into());
             }
+            revalidate_live_state()?;
             if notes_links_pin(read_optional_regular(path)?.as_deref()) != *base {
                 return Err("stale Notes links base during atomic apply".into());
             }
@@ -4316,40 +4460,43 @@ fn atomic_write_notes_links(path: &Path, bytes: &[u8], base: &NotesLinksPin) -> 
                 fs::hard_link(&temp, path).map_err(|error| {
                     format!("cannot atomically install absent Notes links: {error}")
                 })?;
-                fs::remove_file(&temp)
-                    .map_err(|error| format!("cannot remove temporary Notes links: {error}"))?;
+            }
+            if fs::read(path).map_err(|error| error.to_string())? != bytes {
+                return Err("Notes links readback mismatch".into());
             }
             fs::File::open(parent)
                 .and_then(|directory| directory.sync_all())
                 .map_err(|error| format!("cannot sync Notes config directory: {error}"))?;
-            if fs::read(path).map_err(|error| error.to_string())? != bytes {
-                return Err("Notes links readback mismatch".into());
-            }
-            if backup.exists() {
-                fs::remove_file(&backup)
-                    .map_err(|error| format!("cannot remove Notes links backup: {error}"))?;
-                fs::File::open(parent)
-                    .and_then(|directory| directory.sync_all())
-                    .map_err(|error| format!("cannot sync Notes config directory: {error}"))?;
-            }
             Ok(())
         })();
         if written.is_err() {
             let _ = fs::remove_file(&temp);
             if backup.exists() {
+                let _ = fs::remove_file(path);
                 let _ = fs::rename(&backup, path);
                 let _ = fs::File::open(parent).and_then(|directory| directory.sync_all());
             } else if original.is_none() {
                 let _ = fs::remove_file(path);
                 let _ = fs::File::open(parent).and_then(|directory| directory.sync_all());
             }
+        } else {
+            let _ = fs::remove_file(&temp);
+            let _ = fs::remove_file(&backup);
+            let _ = fs::File::open(parent).and_then(|directory| directory.sync_all());
         }
         written
     })();
+    finish_notes_lock(result, lock_file, &lock)
+}
+
+fn finish_notes_lock(
+    transaction: Result<(), String>,
+    lock_file: fs::File,
+    lock: &Path,
+) -> Result<(), String> {
     drop(lock_file);
-    let unlock =
-        fs::remove_file(&lock).map_err(|error| format!("cannot release Notes links lock: {error}"));
-    result.and(unlock)
+    let _ = fs::remove_file(lock);
+    transaction
 }
 
 fn atomic_install_absent(path: &Path, bytes: &[u8], base: Option<&str>) -> Result<(), String> {
@@ -4512,6 +4659,35 @@ fn path_text(path: &Path) -> Result<String, String> {
         ));
     }
     Ok(value.to_owned())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[cfg(unix)]
+    fn notes_committed_transaction_ignores_unlock_cleanup_failure() {
+        let root = env::temp_dir().join(format!(
+            "mozak-notes-unlock-cleanup-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&root).unwrap();
+        let lock = root.join("lock");
+        let lock_file = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&lock)
+            .unwrap();
+        fs::remove_file(&lock).unwrap();
+        fs::create_dir(&lock).unwrap();
+        assert!(finish_notes_lock(Ok(()), lock_file, &lock).is_ok());
+        fs::remove_dir_all(root).unwrap();
+    }
 }
 fn shell_path(path: &Path) -> String {
     shell_arg(&path.to_string_lossy())

@@ -203,6 +203,42 @@ fn write_notes_approval(proposal: &Value, path: &Path, owner: &str) {
     .unwrap();
 }
 
+fn apply_while_lock_held_then(
+    proposal_path: &Path,
+    approval_path: &Path,
+    xdg: &Path,
+    mutate: impl FnOnce(),
+) -> Output {
+    let lock_path = xdg.join("notes/.mozak-links.json.lock");
+    let lock = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&lock_path)
+        .unwrap();
+    let mut child = Command::new(env!("CARGO_BIN_EXE_mozak"))
+        .args([
+            "notes",
+            "onboard",
+            "apply",
+            proposal_path.to_str().unwrap(),
+            approval_path.to_str().unwrap(),
+        ])
+        .env("XDG_CONFIG_HOME", xdg)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    std::thread::sleep(std::time::Duration::from_millis(150));
+    assert!(
+        child.try_wait().unwrap().is_none(),
+        "apply exited before reaching the held transaction lock"
+    );
+    mutate();
+    drop(lock);
+    fs::remove_file(lock_path).unwrap();
+    child.wait_with_output().unwrap()
+}
+
 fn write_adapter_registry(xdg: &Path, runs_dir: &Path) {
     let dir = xdg.join("mozak");
     fs::create_dir_all(&dir).unwrap();
@@ -2607,6 +2643,11 @@ fn project_notes_rejects_symlinked_note_paths() {
     let out = run(&["project", "notes", "exact-project"], &xdg);
     assert!(!out.status.success());
     assert!(String::from_utf8_lossy(&out.stderr).contains("symlink"));
+    assert!(!String::from_utf8_lossy(&out.stderr).contains(vault.to_str().unwrap()));
+    let check = run(&["notes", "check"], &xdg);
+    assert!(!check.status.success());
+    assert!(String::from_utf8_lossy(&check.stderr).contains("symlink"));
+    assert!(!String::from_utf8_lossy(&check.stderr).contains(vault.to_str().unwrap()));
 }
 
 #[test]
@@ -2620,6 +2661,13 @@ fn notes_onboard_proposal_matches_project_and_topic_deterministically_without_le
 
     let vault = t.0.join("private-vault-root");
     fs::create_dir_all(vault.join("topics")).unwrap();
+    fs::create_dir_all(vault.join(".obsidian/plugins")).unwrap();
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(
+        t.0.join("outside-hidden-plugin"),
+        vault.join(".obsidian/plugins/example"),
+    )
+    .unwrap();
     fs::write(
         vault.join("exact-project.md"),
         "# Exact Project Delivery\n\nPRIVATE_PROJECT_BODY",
@@ -2698,6 +2746,169 @@ fn notes_onboard_proposal_matches_project_and_topic_deterministically_without_le
     );
     assert!(!create_only.status.success());
     assert_eq!(fs::read(&first).unwrap(), fs::read(&second).unwrap());
+}
+
+#[test]
+fn notes_onboard_validates_profile_controls_and_skips_excluded_trees() {
+    let t = Temp::new("notes-profile-controls");
+    let kb = valid_kb(&t.0);
+    let workspace = t.0.join("workspace");
+    project(&workspace.join("project"), "exact-project");
+    let xdg = t.0.join("xdg");
+    register_initial(&kb, &workspace, &xdg, &t.0);
+    let vault = t.0.join("vault");
+    fs::create_dir_all(vault.join("archive")).unwrap();
+    fs::create_dir_all(vault.join("zzz-active")).unwrap();
+    fs::write(vault.join("archive/topic.md"), "# Topic Bounded").unwrap();
+    fs::write(vault.join("zzz-active/topic.md"), "# Topic Bounded").unwrap();
+
+    let malformed = [
+        (
+            json!([{"id":"primary","root":vault,"trim":"extreme"}]),
+            "trim must be low, medium, or high",
+        ),
+        (
+            json!([{"id":"primary","root":vault,"purpose":""}]),
+            "purpose must be non-empty",
+        ),
+        (
+            json!([{"id":"primary","root":vault,"routing_signals":[""]}]),
+            "routing signal must be non-empty",
+        ),
+        (
+            json!([{"id":"primary","root":vault,"excluded_paths":["../outside"]}]),
+            "prefix/path",
+        ),
+        (
+            json!([
+                {"id":"primary","root":vault,"default":true},
+                {"id":"secondary","root":vault,"default":true}
+            ]),
+            "more than one default",
+        ),
+    ];
+    for (index, (destinations, expected)) in malformed.into_iter().enumerate() {
+        write_notes_profile(&xdg, destinations);
+        let output = t.0.join(format!("invalid-{index}.json"));
+        let result = run(
+            &["notes", "onboard", "propose", output.to_str().unwrap()],
+            &xdg,
+        );
+        assert!(!result.status.success());
+        assert!(
+            String::from_utf8_lossy(&result.stderr).contains(expected),
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+        assert!(!output.exists());
+    }
+
+    write_notes_profile(
+        &xdg,
+        json!([{
+            "id":"primary",
+            "root":vault,
+            "purpose":"Current topic notes",
+            "default":true,
+            "routing_signals":["topic"],
+            "trim":"medium",
+            "obsidian":true,
+            "excluded_paths":["archive"]
+        }]),
+    );
+    let proposal_path = t.0.join("excluded-proposal.json");
+    let result = run(
+        &[
+            "notes",
+            "onboard",
+            "propose",
+            proposal_path.to_str().unwrap(),
+        ],
+        &xdg,
+    );
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    let proposal: Value = serde_json::from_slice(&fs::read(&proposal_path).unwrap()).unwrap();
+    assert_eq!(proposal["scan"]["markdown_files_seen"], 1);
+    assert_eq!(
+        proposal["bindings"][0]["safe_relative_path_prefixes"][0],
+        "zzz-active/topic.md"
+    );
+    assert!(
+        !fs::read_to_string(proposal_path)
+            .unwrap()
+            .contains("archive/topic.md")
+    );
+
+    fs::write(
+        xdg.join("notes/mozak-links.json"),
+        serde_json::to_vec_pretty(&json!({
+            "schema_version":1,
+            "links":{"topic":[{"destination_id":"primary","safe_relative_path_prefixes":["archive/topic.md"]}]}
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+    let explicit_path = t.0.join("explicit-excluded-proposal.json");
+    let explicit = run(
+        &[
+            "notes",
+            "onboard",
+            "propose",
+            explicit_path.to_str().unwrap(),
+        ],
+        &xdg,
+    );
+    assert!(
+        explicit.status.success(),
+        "{}",
+        String::from_utf8_lossy(&explicit.stderr)
+    );
+    let explicit_proposal: Value =
+        serde_json::from_slice(&fs::read(explicit_path).unwrap()).unwrap();
+    assert_eq!(
+        explicit_proposal["bindings"][0]["safe_relative_path_prefixes"][0],
+        "archive/topic.md"
+    );
+}
+
+#[test]
+fn notes_detail_streams_large_markdown_hash_exactly() {
+    let t = Temp::new("notes-large-hash");
+    let kb = valid_kb(&t.0);
+    let workspace = t.0.join("workspace");
+    project(&workspace.join("project"), "exact-project");
+    let xdg = t.0.join("xdg");
+    register_initial(&kb, &workspace, &xdg, &t.0);
+    let vault = t.0.join("vault");
+    fs::create_dir_all(&vault).unwrap();
+    let mut bytes = Vec::with_capacity(8 * 1024 * 1024 + 32);
+    bytes.extend_from_slice(b"# Large note\n\n");
+    while bytes.len() < 8 * 1024 * 1024 {
+        bytes.extend_from_slice(b"0123456789abcdef\n");
+    }
+    fs::write(vault.join("large.md"), &bytes).unwrap();
+    write_notes_profile(&xdg, json!([{"id":"primary","root":vault}]));
+    fs::write(
+        xdg.join("notes/mozak-links.json"),
+        serde_json::to_vec(&json!({
+            "schema_version":1,
+            "links":{"topic":[{"destination_id":"primary","safe_relative_path_prefixes":["large.md"]}]}
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+    let result = run(&["notes", "scope", "topic", "--limit", "1"], &xdg);
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    let output: Value = serde_json::from_slice(&result.stdout).unwrap();
+    assert_eq!(output["records"][0]["sha256"], sha(&bytes));
 }
 
 #[test]
@@ -2945,6 +3156,93 @@ fn notes_onboard_apply_has_one_concurrent_winner_and_refuses_stale_absent_base()
 }
 
 #[test]
+fn notes_onboard_apply_revalidates_every_live_pin_after_acquiring_the_lock() {
+    for (case, expected) in [
+        ("config", "local config digest changed"),
+        ("owner", "owner is not the configured owner"),
+        ("kb", "KB digest changed"),
+        ("profile", "profile digest changed"),
+        ("links", "links base"),
+    ] {
+        let t = Temp::new(&format!("notes-onboard-race-{case}"));
+        let kb = valid_kb(&t.0);
+        let workspace = t.0.join("workspace");
+        project(&workspace.join("project"), "exact-project");
+        let xdg = t.0.join("xdg");
+        register_initial(&kb, &workspace, &xdg, &t.0);
+        let vault = t.0.join("vault");
+        fs::create_dir_all(&vault).unwrap();
+        fs::write(vault.join("topic.md"), "# Topic Bounded").unwrap();
+        let profile_path = write_notes_profile(&xdg, json!([{"id":"primary","root":vault}]));
+        let proposal_path = t.0.join("proposal.json");
+        let proposed = run(
+            &[
+                "notes",
+                "onboard",
+                "propose",
+                proposal_path.to_str().unwrap(),
+            ],
+            &xdg,
+        );
+        assert!(
+            proposed.status.success(),
+            "{case}: {}",
+            String::from_utf8_lossy(&proposed.stderr)
+        );
+        let proposal: Value = serde_json::from_slice(&fs::read(&proposal_path).unwrap()).unwrap();
+        let approval_path = t.0.join("approval.json");
+        write_notes_approval(&proposal, &approval_path, "test-owner");
+        let config_path = xdg.join("mozak/config.json");
+        let links_path = xdg.join("notes/mozak-links.json");
+        let output =
+            apply_while_lock_held_then(&proposal_path, &approval_path, &xdg, || match case {
+                "config" => {
+                    let mut bytes = fs::read(&config_path).unwrap();
+                    bytes.push(b'\n');
+                    fs::write(&config_path, bytes).unwrap();
+                }
+                "owner" => {
+                    let mut config: Value =
+                        serde_json::from_slice(&fs::read(&config_path).unwrap()).unwrap();
+                    config["configured_owner"] = json!("different-owner");
+                    fs::write(&config_path, serde_json::to_vec_pretty(&config).unwrap()).unwrap();
+                }
+                "kb" => {
+                    let registry = kb.join("kb.json");
+                    let mut bytes = fs::read(&registry).unwrap();
+                    bytes.push(b'\n');
+                    fs::write(registry, bytes).unwrap();
+                }
+                "profile" => {
+                    let mut bytes = fs::read(&profile_path).unwrap();
+                    bytes.push(b'\n');
+                    fs::write(&profile_path, bytes).unwrap();
+                }
+                "links" => {
+                    fs::write(
+                        &links_path,
+                        serde_json::to_vec_pretty(&json!({"schema_version":1,"links":{}})).unwrap(),
+                    )
+                    .unwrap();
+                }
+                _ => unreachable!(),
+            });
+        assert!(!output.status.success(), "{case} unexpectedly committed");
+        assert!(
+            String::from_utf8_lossy(&output.stderr).contains(expected),
+            "{case}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        if case == "links" {
+            let links: Value = serde_json::from_slice(&fs::read(&links_path).unwrap()).unwrap();
+            assert_eq!(links["links"], json!({}));
+        } else {
+            assert!(!links_path.exists(), "{case} wrote stale approved links");
+        }
+    }
+}
+
+#[test]
 #[cfg(unix)]
 fn notes_onboard_and_check_reject_symlinks_traversal_vault_outputs_and_scan_ceiling() {
     use std::os::unix::fs::symlink;
@@ -2972,6 +3270,9 @@ fn notes_onboard_and_check_reject_symlinks_traversal_vault_outputs_and_scan_ceil
     );
     assert!(!refused_root.status.success());
     assert!(String::from_utf8_lossy(&refused_root.stderr).contains("symlink"));
+    assert!(
+        !String::from_utf8_lossy(&refused_root.stderr).contains(linked_vault.to_str().unwrap())
+    );
 
     write_notes_profile(&xdg, json!([{"id":"primary","root":real_vault}]));
     symlink(t.0.join("outside.md"), real_vault.join("escape.md")).unwrap();
@@ -2987,6 +3288,7 @@ fn notes_onboard_and_check_reject_symlinks_traversal_vault_outputs_and_scan_ceil
     );
     assert!(!refused_entry.status.success());
     assert!(String::from_utf8_lossy(&refused_entry.stderr).contains("symlink"));
+    assert!(!String::from_utf8_lossy(&refused_entry.stderr).contains(real_vault.to_str().unwrap()));
     fs::remove_file(real_vault.join("escape.md")).unwrap();
 
     let inside_vault = run(
@@ -3000,6 +3302,21 @@ fn notes_onboard_and_check_reject_symlinks_traversal_vault_outputs_and_scan_ceil
     );
     assert!(!inside_vault.status.success());
     assert!(String::from_utf8_lossy(&inside_vault.stderr).contains("outside every Notes root"));
+    let nested_parent = real_vault.join("not-created/deeper");
+    let nested_inside_vault = run(
+        &[
+            "notes",
+            "onboard",
+            "propose",
+            nested_parent.join("proposal.json").to_str().unwrap(),
+        ],
+        &xdg,
+    );
+    assert!(!nested_inside_vault.status.success());
+    assert!(
+        String::from_utf8_lossy(&nested_inside_vault.stderr).contains("outside every Notes root")
+    );
+    assert!(!real_vault.join("not-created").exists());
     let traversal = run(&["notes", "onboard", "propose", "../escape.json"], &xdg);
     assert!(!traversal.status.success());
     assert!(String::from_utf8_lossy(&traversal.stderr).contains("traversal"));
@@ -3038,6 +3355,97 @@ fn notes_onboard_and_check_reject_symlinks_traversal_vault_outputs_and_scan_ceil
     assert!(!ceiling.status.success());
     assert!(String::from_utf8_lossy(&ceiling.stderr).contains("entry ceiling"));
     assert!(!ceiling_path.exists());
+}
+
+#[test]
+#[cfg(unix)]
+fn notes_inputs_reject_symlinked_ancestors_and_proposal_or_approval_paths() {
+    use std::os::unix::fs::symlink;
+
+    let t = Temp::new("notes-input-symlinks");
+    let kb = valid_kb(&t.0);
+    let workspace = t.0.join("workspace");
+    project(&workspace.join("project"), "exact-project");
+    let xdg = t.0.join("xdg");
+    register_initial(&kb, &workspace, &xdg, &t.0);
+    let vault = t.0.join("vault");
+    fs::create_dir_all(&vault).unwrap();
+    fs::write(vault.join("topic.md"), "# Topic Bounded").unwrap();
+
+    let real_notes = t.0.join("real-notes");
+    fs::create_dir_all(&real_notes).unwrap();
+    fs::write(
+        real_notes.join("profile.json"),
+        serde_json::to_vec_pretty(&json!({
+            "schema_version":1,
+            "destinations":[{"id":"primary","root":vault}]
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+    symlink(&real_notes, xdg.join("notes")).unwrap();
+    let profile_ancestor = run(
+        &[
+            "notes",
+            "onboard",
+            "propose",
+            t.0.join("profile-symlink.json").to_str().unwrap(),
+        ],
+        &xdg,
+    );
+    assert!(!profile_ancestor.status.success());
+    assert!(
+        String::from_utf8_lossy(&profile_ancestor.stderr)
+            .contains("notes profile has a symlinked ancestor")
+    );
+    fs::remove_file(xdg.join("notes")).unwrap();
+
+    write_notes_profile(&xdg, json!([{"id":"primary","root":vault}]));
+    let proposal_path = t.0.join("proposal.json");
+    assert!(
+        run(
+            &[
+                "notes",
+                "onboard",
+                "propose",
+                proposal_path.to_str().unwrap(),
+            ],
+            &xdg,
+        )
+        .status
+        .success()
+    );
+    let proposal: Value = serde_json::from_slice(&fs::read(&proposal_path).unwrap()).unwrap();
+    let approval_path = t.0.join("approval.json");
+    write_notes_approval(&proposal, &approval_path, "test-owner");
+    let linked_inputs = t.0.join("linked-inputs");
+    symlink(&t.0, &linked_inputs).unwrap();
+
+    let proposal_ancestor = run(
+        &[
+            "notes",
+            "onboard",
+            "apply",
+            linked_inputs.join("proposal.json").to_str().unwrap(),
+            approval_path.to_str().unwrap(),
+        ],
+        &xdg,
+    );
+    assert!(!proposal_ancestor.status.success());
+    assert!(String::from_utf8_lossy(&proposal_ancestor.stderr).contains("symlink component"));
+
+    let approval_ancestor = run(
+        &[
+            "notes",
+            "onboard",
+            "apply",
+            proposal_path.to_str().unwrap(),
+            linked_inputs.join("approval.json").to_str().unwrap(),
+        ],
+        &xdg,
+    );
+    assert!(!approval_ancestor.status.success());
+    assert!(String::from_utf8_lossy(&approval_ancestor.stderr).contains("symlink component"));
 }
 
 #[test]
