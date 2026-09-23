@@ -19,6 +19,34 @@ LAUNCHER_MARKER = b"MOZAK_MANAGED_LAUNCHER_V1"
 BUILD_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+-]{0,127}$")
 MOZAK_MANAGED_FILENAMES = {"SKILL.md", "install.py", "mcp.json", "tests/test_skill.py", "evals/evals.json", "companion-recommendations.json"}
 ADHD_MANAGED_FILENAMES = {"SKILL.md"}
+NOTE_MANAGED_FILENAMES = {
+    "SKILL.md",
+    "evals/evals.json",
+    "evals/live-eval-2026-09-23.json",
+    "references/note-blocks.md",
+    "references/preference-learning.md",
+    "references/profile.md",
+    "references/supplements.md",
+    "scripts/accept_preference.py",
+    "scripts/inspect_profile.py",
+    "scripts/profile_lib.py",
+    "scripts/propose_preference.py",
+}
+NOTE_HEALTHCHECK_MANAGED_FILENAMES = {
+    "SKILL.md",
+    "evals/evals.json",
+    "references/repair-boundary.md",
+    "references/report-schema.md",
+    "references/trust-metadata.md",
+    "scripts/healthcheck.py",
+}
+NOTE_VOICE_CENSUS_MANAGED_FILENAMES = {
+    "SKILL.md",
+    "evals/evals.json",
+    "references/default-thresholds.json",
+    "references/privacy.md",
+    "scripts/voice_census.py",
+}
 LEGACY_ALIAS = Path(".claude/skills/i-have-adhd")
 LEGACY_ALIAS_TARGET = Path(".agents/skills/i-have-adhd")
 
@@ -195,8 +223,8 @@ def report_paths(report: dict[str, Any] | None, home: Path) -> list[Path]:
         if target in paths:
             raise RuntimeError("setup report repeats a managed path")
         paths.append(target)
-    if len(paths) not in {16, 20, 24, 28}:
-        raise RuntimeError("setup report must declare exactly 16 legacy, 20 previous, 24 current, or 28 ADHD-managed files")
+    if len(paths) not in {16, 20, 24, 28, 116}:
+        raise RuntimeError("setup report must declare a recognized managed file generation")
     return paths
 
 
@@ -214,6 +242,12 @@ def allowed_managed_report_path(path: Path) -> bool:
         return suffix in MOZAK_MANAGED_FILENAMES
     if skill == "i-have-adhd":
         return suffix in ADHD_MANAGED_FILENAMES
+    if skill == "note":
+        return suffix in NOTE_MANAGED_FILENAMES
+    if skill == "note-healthcheck":
+        return suffix in NOTE_HEALTHCHECK_MANAGED_FILENAMES
+    if skill == "note-voice-census":
+        return suffix in NOTE_VOICE_CENSUS_MANAGED_FILENAMES
     return False
 
 
