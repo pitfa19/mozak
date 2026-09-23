@@ -8,7 +8,7 @@
       "id": "native-monokl-adapter",
       "version": 1,
       "title": "Add and install a native MONOKL research adapter",
-      "status": "ready",
+      "status": "completed",
       "priority": 1,
       "input_ids": [
         "input-monokl-adapter-owner-approval",
