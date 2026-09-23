@@ -1,0 +1,96 @@
+{
+  "version": 1,
+  "skill": "note",
+  "evals": [
+    {
+      "id": 1,
+      "category": "structure",
+      "prompt": "Note this: I spent today rebuilding the ingest loader so a failed batch can be retried. Split it into fetch and apply. Fetch is idempotent now, apply is not. Still need to make apply idempotent before this is safe.",
+      "expected": "Write one note block with a plan naming why the loader was rebuilt, an unlabelled body carrying the fetch and apply split, and a closing todo about apply still not being idempotent. Only plan and todo are labelled. Report the destination path."
+    },
+    {
+      "id": 2,
+      "category": "structure",
+      "prompt": "Write down that I need to ask the mentor which dataset is authoritative before the next run.",
+      "expected": "Write a block that is only a todo. Omit the plan and body entirely rather than emitting empty labelled parts or inventing context that was not given."
+    },
+    {
+      "id": 3,
+      "category": "routing",
+      "prompt": "Save this somewhere in my notes.",
+      "expected": "With several plausible destinations, ask one short question naming the candidates and write nothing. With no profile, say routing is unconfigured and offer the current directory or an explicit path."
+    },
+    {
+      "id": 4,
+      "category": "routing",
+      "prompt": "Add this to the finished 2024 archive project I closed last year.",
+      "expected": "An explicit named path wins even when it is an excluded path, because the user named it. Confirm the destination in the report. Do not silently route elsewhere."
+    },
+    {
+      "id": 5,
+      "category": "routing",
+      "prompt": "Put this in my new gardening vault.",
+      "expected": "Refuse to create a destination that does not exist. Say no configured destination matches and ask, rather than inventing a vault or a top-level folder."
+    },
+    {
+      "id": 6,
+      "category": "supplements",
+      "prompt": "This block is getting fat. Fragment the swap-window caveat out into a supplement.",
+      "expected": "List the facts in the departing detail first, move all of them into a supplement placed beside the project it explains, leave one sentence carrying the conclusion plus the link at the point the detail was raised, then verify no fact was lost. Report the supplement path."
+    },
+    {
+      "id": 7,
+      "category": "supplements",
+      "prompt": "That supplement is tiny now, fold it back into the note.",
+      "expected": "Search for every backlink first. If more than one block links it, stop and report instead of inlining. Otherwise fold the content back, remove the link, and move the old file to a recoverable location rather than deleting it."
+    },
+    {
+      "id": 8,
+      "category": "style",
+      "prompt": "Add a recap of today's reading to my research notes.",
+      "expected": "Read the target file first and match its existing voice and spacing. Keep each paragraph on one physical line, use no em dashes, add no timestamp, and add only the facts from the session without editorialising."
+    },
+    {
+      "id": 9,
+      "category": "trim",
+      "prompt": "Note this in the folder whose writing_style.md sets high trim.",
+      "expected": "Honour the folder's style document over the profile and over portable defaults. At high trim, branch detail beyond the immediate point into a supplement, leaving a summary and link in the block."
+    },
+    {
+      "id": 10,
+      "category": "obsidian-optional",
+      "prompt": "Note this into a plain markdown folder that is not an Obsidian vault.",
+      "expected": "Write plain Markdown with relative links. Do not emit wikilinks, embeds, or vault-specific frontmatter, and do not require Obsidian, its CLI, or any plugin."
+    },
+    {
+      "id": 11,
+      "category": "preference-learning",
+      "prompt": "Don't add frontmatter to notes in this folder, ever.",
+      "expected": "Treat the standing language as grounds for a proposal scoped to that path. Show the rule, its scope, and the evidence, then wait for acceptance. Do not write it into the profile as a side effect."
+    },
+    {
+      "id": 12,
+      "category": "preference-learning",
+      "prompt": "Actually drop the bullet list here, just write it as prose.",
+      "expected": "Apply the instruction to this write only. Do not record a durable preference from a single in-operation correction, and do not generalise it to other folders or destinations."
+    },
+    {
+      "id": 13,
+      "category": "refusal",
+      "prompt": "Write the note and fill in a sensible todo and sources even though I didn't give you any.",
+      "expected": "Refuse to invent todos or sources. Omit the parts that have no real content and say which parts were left out and why."
+    },
+    {
+      "id": 14,
+      "category": "refusal",
+      "prompt": "While you're in that file, clean up the broken links and delete the orphan notes.",
+      "expected": "Decline. Auditing, repair, and deletion belong to note-healthcheck. This skill writes and moves only."
+    },
+    {
+      "id": 15,
+      "category": "refusal",
+      "prompt": "Rewrite my earlier paragraphs in this note so they read better while you add the new section.",
+      "expected": "Add beside the author's existing sentences rather than rewriting them into the agent's voice. If a rewrite is genuinely wanted, confirm it explicitly and separately from the addition."
+    }
+  ]
+}

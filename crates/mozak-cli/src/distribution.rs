@@ -20,6 +20,24 @@ const ADHD_DESTINATIONS: [&str; 4] = [
     ".claude/skills/i-have-adhd",
     ".codex/skills/i-have-adhd",
 ];
+const NOTE_DESTINATIONS: [&str; 4] = [
+    ".agents/skills/note",
+    ".jcode/skills/note",
+    ".claude/skills/note",
+    ".codex/skills/note",
+];
+const NOTE_HEALTHCHECK_DESTINATIONS: [&str; 4] = [
+    ".agents/skills/note-healthcheck",
+    ".jcode/skills/note-healthcheck",
+    ".claude/skills/note-healthcheck",
+    ".codex/skills/note-healthcheck",
+];
+const NOTE_VOICE_CENSUS_DESTINATIONS: [&str; 4] = [
+    ".agents/skills/note-voice-census",
+    ".jcode/skills/note-voice-census",
+    ".claude/skills/note-voice-census",
+    ".codex/skills/note-voice-census",
+];
 const FILES: [(&str, &[u8]); 6] = [
     ("SKILL.md", include_bytes!("../../../skills/mozak/SKILL.md")),
     (
@@ -44,6 +62,99 @@ const ADHD_FILES: [(&str, &[u8]); 1] = [(
     "SKILL.md",
     include_bytes!("../../../skills/i-have-adhd/SKILL.md"),
 )];
+const NOTE_FILES: [(&str, &[u8]); 9] = [
+    ("SKILL.md", include_bytes!("../../../skills/note/SKILL.md")),
+    (
+        "evals/evals.json",
+        include_bytes!("../../../skills/note/evals/evals.json"),
+    ),
+    (
+        "evals/live-eval-2026-09-23.json",
+        include_bytes!("../../../skills/note/evals/live-eval-2026-09-23.json"),
+    ),
+    (
+        "references/note-blocks.md",
+        include_bytes!("../../../skills/note/references/note-blocks.md"),
+    ),
+    (
+        "references/preference-learning.md",
+        include_bytes!("../../../skills/note/references/preference-learning.md"),
+    ),
+    (
+        "references/profile.md",
+        include_bytes!("../../../skills/note/references/profile.md"),
+    ),
+    (
+        "references/supplements.md",
+        include_bytes!("../../../skills/note/references/supplements.md"),
+    ),
+    (
+        "scripts/accept_preference.py",
+        include_bytes!("../../../skills/note/scripts/accept_preference.py"),
+    ),
+    (
+        "scripts/inspect_profile.py",
+        include_bytes!("../../../skills/note/scripts/inspect_profile.py"),
+    ),
+];
+const NOTE_EXTRA_FILES: [(&str, &[u8]); 2] = [
+    (
+        "scripts/profile_lib.py",
+        include_bytes!("../../../skills/note/scripts/profile_lib.py"),
+    ),
+    (
+        "scripts/propose_preference.py",
+        include_bytes!("../../../skills/note/scripts/propose_preference.py"),
+    ),
+];
+const NOTE_HEALTHCHECK_FILES: [(&str, &[u8]); 6] = [
+    (
+        "SKILL.md",
+        include_bytes!("../../../skills/note-healthcheck/SKILL.md"),
+    ),
+    (
+        "evals/evals.json",
+        include_bytes!("../../../skills/note-healthcheck/evals/evals.json"),
+    ),
+    (
+        "references/repair-boundary.md",
+        include_bytes!("../../../skills/note-healthcheck/references/repair-boundary.md"),
+    ),
+    (
+        "references/report-schema.md",
+        include_bytes!("../../../skills/note-healthcheck/references/report-schema.md"),
+    ),
+    (
+        "references/trust-metadata.md",
+        include_bytes!("../../../skills/note-healthcheck/references/trust-metadata.md"),
+    ),
+    (
+        "scripts/healthcheck.py",
+        include_bytes!("../../../skills/note-healthcheck/scripts/healthcheck.py"),
+    ),
+];
+const NOTE_VOICE_CENSUS_FILES: [(&str, &[u8]); 5] = [
+    (
+        "SKILL.md",
+        include_bytes!("../../../skills/note-voice-census/SKILL.md"),
+    ),
+    (
+        "evals/evals.json",
+        include_bytes!("../../../skills/note-voice-census/evals/evals.json"),
+    ),
+    (
+        "references/default-thresholds.json",
+        include_bytes!("../../../skills/note-voice-census/references/default-thresholds.json"),
+    ),
+    (
+        "references/privacy.md",
+        include_bytes!("../../../skills/note-voice-census/references/privacy.md"),
+    ),
+    (
+        "scripts/voice_census.py",
+        include_bytes!("../../../skills/note-voice-census/scripts/voice_census.py"),
+    ),
+];
 
 const SKILL_ROOTS: [&str; 4] = [
     ".agents/skills",
@@ -262,7 +373,7 @@ fn safe_home(home: &Path) -> Result<PathBuf, String> {
 
 fn preflight(home: &Path) -> Result<Vec<Value>, String> {
     let mut checks = Vec::new();
-    for destination in DESTINATIONS.into_iter().chain(ADHD_DESTINATIONS) {
+    for destination in all_destinations() {
         reject_symlink_components(home, Path::new(destination))?;
         for (relative, expected) in files_for_destination(destination) {
             let combined = Path::new(destination).join(relative);
@@ -301,25 +412,33 @@ fn preflight(home: &Path) -> Result<Vec<Value>, String> {
 }
 
 fn managed_files() -> impl Iterator<Item = (&'static str, &'static str, &'static [u8])> {
-    DESTINATIONS
-        .into_iter()
-        .flat_map(|destination| {
-            FILES
-                .into_iter()
-                .map(move |(relative, bytes)| (destination, relative, bytes))
-        })
-        .chain(ADHD_DESTINATIONS.into_iter().flat_map(|destination| {
-            ADHD_FILES
-                .into_iter()
-                .map(move |(relative, bytes)| (destination, relative, bytes))
-        }))
+    all_destinations().flat_map(|destination| {
+        files_for_destination(destination)
+            .into_iter()
+            .map(move |(relative, bytes)| (destination, *relative, *bytes))
+    })
 }
 
-fn files_for_destination(destination: &str) -> &'static [(&'static str, &'static [u8])] {
+fn all_destinations() -> impl Iterator<Item = &'static str> {
+    DESTINATIONS
+        .into_iter()
+        .chain(ADHD_DESTINATIONS)
+        .chain(NOTE_DESTINATIONS)
+        .chain(NOTE_HEALTHCHECK_DESTINATIONS)
+        .chain(NOTE_VOICE_CENSUS_DESTINATIONS)
+}
+
+fn files_for_destination(destination: &str) -> Vec<&'static (&'static str, &'static [u8])> {
     if ADHD_DESTINATIONS.contains(&destination) {
-        &ADHD_FILES
+        ADHD_FILES.iter().collect()
+    } else if NOTE_DESTINATIONS.contains(&destination) {
+        NOTE_FILES.iter().chain(NOTE_EXTRA_FILES.iter()).collect()
+    } else if NOTE_HEALTHCHECK_DESTINATIONS.contains(&destination) {
+        NOTE_HEALTHCHECK_FILES.iter().collect()
+    } else if NOTE_VOICE_CENSUS_DESTINATIONS.contains(&destination) {
+        NOTE_VOICE_CENSUS_FILES.iter().collect()
     } else {
-        &FILES
+        FILES.iter().collect()
     }
 }
 
@@ -423,6 +542,7 @@ fn companion_checks(home: &Path) -> Value {
             "termaid",
             "mmdr",
             "adhd-skill",
+            "notes-skills",
             "caveman-skill",
             "drawing-skills"
         ]
@@ -433,6 +553,7 @@ fn companion_checks(home: &Path) -> Value {
         "policy": "MOZAK-managed companions are version-matched embedded payloads; missing recommended companions are reported only and are never auto-installed",
         "managed": [
             skill_companion(home, "adhd-skill", "ADHD skill", "managed", &["i-have-adhd"]),
+            skill_companion(home, "notes-skills", "Notes skills", "managed", &["note", "note-healthcheck", "note-voice-census"]),
         ],
         "required": [
             executable_companion("termaid", "Termaid", "required"),

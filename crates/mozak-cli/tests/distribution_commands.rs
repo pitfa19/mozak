@@ -51,7 +51,7 @@ fn install_and_check_are_embedded_idempotent_and_deterministic() {
     assert_eq!(report["state"], "ready");
     assert_eq!(report["parity"], true);
     assert_eq!(report["embedded"], true);
-    assert_eq!(report["checks"].as_array().unwrap().len(), 28);
+    assert_eq!(report["checks"].as_array().unwrap().len(), 116);
     for root in [".agents", ".jcode", ".claude", ".codex"] {
         assert!(
             home.join(root)
@@ -63,6 +63,15 @@ fn install_and_check_are_embedded_idempotent_and_deterministic() {
                 .join("skills/i-have-adhd/SKILL.md")
                 .is_file()
         );
+        for skill in ["note", "note-healthcheck", "note-voice-census"] {
+            assert!(
+                home.join(root)
+                    .join("skills")
+                    .join(skill)
+                    .join("SKILL.md")
+                    .is_file()
+            );
+        }
     }
     assert_eq!(
         report["companion_recommendations"]["policy"],
@@ -83,6 +92,14 @@ fn install_and_check_are_embedded_idempotent_and_deterministic() {
     assert_eq!(
         report["companion_recommendations"]["managed"][0]["status"],
         "present"
+    );
+    assert_eq!(
+        report["companion_recommendations"]["managed"][1]["id"],
+        "notes-skills"
+    );
+    assert_eq!(
+        report["companion_recommendations"]["managed"][1]["classification"],
+        "managed"
     );
     assert_eq!(
         report["companion_recommendations"]["recommended"][0]["id"],

@@ -324,6 +324,12 @@ fn run_project_registry_command(args: &[String]) -> Option<Result<ExitCode, Stri
         [project, command, id] if project == "project" && command == "context" => Some(
             project_registry::context(id, project_registry::ContextOutputMode::Auto),
         ),
+        [project, command, id, rest @ ..] if project == "project" && command == "notes" => {
+            Some(project_registry::project_notes(id, rest))
+        }
+        [notes, command, id, rest @ ..] if notes == "notes" && command == "meta-goal" => {
+            Some(project_registry::meta_goal_notes(id, rest))
+        }
         [project, command, id, rest @ ..] if project == "project" && command == "linked-scopes" => {
             Some(project_registry::linked_scopes(id, rest))
         }

@@ -1,0 +1,48 @@
+{
+  "schema_version": 2,
+  "skill": "note",
+  "date": "2026-09-23",
+  "method": {
+    "design": "paired live-agent filesystem comparison",
+    "eval_ids": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+    "with_skill": "an agent loaded the repository SKILL.md and relevant references or scripts before acting",
+    "baseline": "an independent agent received the same request and identical starting fixture without the skill",
+    "fixture_policy": "isolated temporary Markdown vaults with identical starting bytes",
+    "acceptance_boundary": "real agent decisions, filesystem writes or refusals, profile inspection or proposal tooling, and byte-level preservation checks"
+  },
+  "eval_results": [
+    {"eval_id": 1, "category": "structure", "with_skill": "pass", "baseline": "fail", "evidence": "required plan/body/todo structure and governing folder style"},
+    {"eval_id": 2, "category": "structure", "with_skill": "pass", "baseline": "fail", "evidence": "todo-only block with no invented or empty parts"},
+    {"eval_id": 3, "category": "routing", "with_skill": "pass", "baseline": "pass", "evidence": "both asked rather than guessing when content and destination were absent"},
+    {"eval_id": 4, "category": "routing", "with_skill": "pass", "baseline": "fail", "evidence": "with-skill wrote to the explicitly named excluded archive path and reported it"},
+    {"eval_id": 5, "category": "routing", "with_skill": "pass", "baseline": "pass", "evidence": "both refused to invent an unconfigured gardening vault"},
+    {"eval_id": 6, "category": "supplements", "with_skill": "pass", "baseline": "fail", "evidence": "with-skill passed 19/19 checks and preserved 12/12 facts; baseline passed 1/19 and preserved 0/12"},
+    {"eval_id": 7, "category": "supplements", "with_skill": "pass", "baseline": "fail", "evidence": "with-skill searched backlinks, stopped with two backlinks, and used a recoverable move with one backlink"},
+    {"eval_id": 8, "category": "style", "with_skill": "pass", "baseline": "fail", "evidence": "with-skill passed 12/12 voice, spacing, structure, non-invention, and source checks"},
+    {"eval_id": 9, "category": "trim", "with_skill": "pass", "baseline": "fail", "evidence": "with-skill scored 25/25 and honored folder high trim over profile low trim; baseline scored 14/25"},
+    {"eval_id": 10, "category": "obsidian-optional", "with_skill": "pass", "baseline": "pass", "evidence": "independent live agents both passed 12/12 plain-Markdown portability checks without Obsidian dependencies"},
+    {"eval_id": 11, "category": "preference-learning", "with_skill": "pass", "baseline": "fail", "evidence": "with-skill produced a scoped proposal with evidence and no profile mutation, scoring 6/6; baseline scored 1/6"},
+    {"eval_id": 12, "category": "preference-learning", "with_skill": "pass", "baseline": "pass", "evidence": "both applied the correction only to the current write and left the profile unchanged"},
+    {"eval_id": 13, "category": "refusal", "with_skill": "pass", "baseline": "fail", "evidence": "with-skill omitted unsupported todos and sources; baseline invented both sections"},
+    {"eval_id": 14, "category": "refusal", "with_skill": "pass", "baseline": "fail", "evidence": "with-skill declined healthcheck work and preserved the broken link and author text"},
+    {"eval_id": 15, "category": "refusal", "with_skill": "pass", "baseline": "fail", "evidence": "with-skill kept prior paragraphs byte-identical, added beside them, and separated rewrite confirmation, scoring 5/5; baseline scored 4/5"}
+  ],
+  "totals": {
+    "with_skill": {"passed_evals": 15, "possible_evals": 15},
+    "baseline": {"passed_evals": 4, "possible_evals": 15}
+  },
+  "integration_coverage": [
+    "SKILL.md trigger and policy interface",
+    "routing and nearest-style precedence across directory boundaries",
+    "supplement fragmentation and safe inlining across linked files",
+    "plain Markdown operation without Obsidian",
+    "device-local profile inspection and non-mutating preference proposals",
+    "refusal boundary between note writing and note-healthcheck"
+  ],
+  "observed_difference": "Across every authored eval, the skill passed 15/15 compared with 4/15 for baseline. The largest differences were safe supplement handling, explicit-path routing, style precedence, non-invention, preference proposal discipline, and preservation of existing author material.",
+  "limitations": [
+    "Agent outputs can vary across runs and model versions.",
+    "The suite used more than one available model route because one provider rate-limited an initial eval 10 attempt; the final eval 10 evidence comes from two independent successful live agents.",
+    "Fixtures exercised the repository skill, references, scripts, and filesystem integrations, but not installation through a future MOZAK release payload."
+  ]
+}

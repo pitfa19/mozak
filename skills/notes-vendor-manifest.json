@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "source": {
+    "repository": "notes",
+    "commit": "91a2b675bf876e71433bec7d0d0cb6ef080d957c"
+  },
+  "skills": [
+    "note",
+    "note-healthcheck",
+    "note-voice-census"
+  ],
+  "files": [
+    {
+      "path": "skills/note/SKILL.md",
+      "sha256": "7c68d8e7fa581cfe397f269ceae25b881b81626089498b5f9b396f6844648d00"
+    },
+    {
+      "path": "skills/note/evals/evals.json",
+      "sha256": "5e457bdc9f6c0c0044729d63dbe87f9f55d86395ff69374984e00d594539ef52"
+    },
+    {
+      "path": "skills/note/evals/live-eval-2026-09-23.json",
+      "sha256": "e063995114d0fbe721f7231f3dd4c6c4f677e5ff881df960b56ff171c0470734"
+    },
+    {
+      "path": "skills/note/references/note-blocks.md",
+      "sha256": "8f4c8e78f8b819d4185f667dc9667d3bce19bf73b61e55d7b31ef4626c903f07"
+    },
+    {
+      "path": "skills/note/references/preference-learning.md",
+      "sha256": "ba705c18978a4ca7b99226e784782830f6b1b93b9dc399cf53219bb765a9c143"
+    },
+    {
+      "path": "skills/note/references/profile.md",
+      "sha256": "dec50082e97920cf39984396cdc3d76e5bb7492e3d60f1a1dbc74fead292235c"
+    },
+    {
+      "path": "skills/note/references/supplements.md",
+      "sha256": "dd723c8b8895f502ae8f118f692cfac30fbbe5e4574e3137c18933e7ace7dc03"
+    },
+    {
+      "path": "skills/note/scripts/accept_preference.py",
+      "sha256": "de3a6494917cbc2735aea3a2a74edd7b3bc46aa22db3fda9972babb87d1c5bd3"
+    },
+    {
+      "path": "skills/note/scripts/inspect_profile.py",
+      "sha256": "3cd5dbfb8f0f4adc1965cd88fe4ec0ea72883a7333bd912e72e8a2e257d66cec"
+    },
+    {
+      "path": "skills/note/scripts/profile_lib.py",
+      "sha256": "058d1c818c3b5595b2cfadbf711b2d04638fb7802135c6f7b4af2787adde6499"
+    },
+    {
+      "path": "skills/note/scripts/propose_preference.py",
+      "sha256": "26f033568a31d5ee953f517c28bc9c72f2741847a40502b69a9ac60f10d3d0ef"
+    },
+    {
+      "path": "skills/note-healthcheck/SKILL.md",
+      "sha256": "6db3976e351085daa62e90d08d6e68245fee2fcb05ae95c8e149be65b2fab873"
+    },
+    {
+      "path": "skills/note-healthcheck/evals/evals.json",
+      "sha256": "fb0c688e2175caf4e20b85874bb460a03e7a809ec2ec399a9438874d71cd6cae"
+    },
+    {
+      "path": "skills/note-healthcheck/references/repair-boundary.md",
+      "sha256": "a12ca8f8a354ca0083d7d3c9669f9b77de114bda27b36d0b9d6a5cc74cda9f9d"
+    },
+    {
+      "path": "skills/note-healthcheck/references/report-schema.md",
+      "sha256": "3036cd76580f1747ba243f78a5b7a01a8096b9587361c2d5999457c4cbd194c9"
+    },
+    {
+      "path": "skills/note-healthcheck/references/trust-metadata.md",
+      "sha256": "eae5c6378b9750ae0a2c4d4e4ed274ea0bc76052c0535545180c238d85f73f5d"
+    },
+    {
+      "path": "skills/note-healthcheck/scripts/healthcheck.py",
+      "sha256": "346251e57cc5d9b91a805d7e0c7906c93cb612598431905842618cf57fce4800"
+    },
+    {
+      "path": "skills/note-voice-census/SKILL.md",
+      "sha256": "dfa5452589627377982f96512c0c94dfcef759c2f1e98d0d3da48bb93811229d"
+    },
+    {
+      "path": "skills/note-voice-census/evals/evals.json",
+      "sha256": "cedc23efd1d1186188fab2f78917f3f13e1e9306fb88189c029a5c4e1a8d5f62"
+    },
+    {
+      "path": "skills/note-voice-census/references/default-thresholds.json",
+      "sha256": "028b198931d224aafd2709a2ae644f051f2587b50ba1c4a0190b4e321c8e719f"
+    },
+    {
+      "path": "skills/note-voice-census/references/privacy.md",
+      "sha256": "791f7656183f938f85c403b062276cb2bc3c7eedebab5d61a4e5fc3cba725564"
+    },
+    {
+      "path": "skills/note-voice-census/scripts/voice_census.py",
+      "sha256": "828b5de25fd7dfdbbbde7c7b0b235448e3f8d8fe708d88b2fc92d06850601d3c"
+    }
+  ]
+}

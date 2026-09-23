@@ -26,6 +26,8 @@ use std::{
 const SCHEMA_VERSION: u64 = 1;
 const CURRENT_SECTION_LIMIT: usize = 12;
 const LINKED_SCOPES_INLINE_LIMIT: usize = 10;
+const NOTES_INLINE_LIMIT: usize = 10;
+const DEFAULT_NOTES_PROFILE: &str = ".config/notes/mozak-links.json";
 const MAX_SCAN_ENTRIES: usize = 100_000;
 const PRUNED: [&str; 8] = [
     ".git",
@@ -1016,6 +1018,7 @@ pub fn context(id: &str, mode: ContextOutputMode) -> Result<ExitCode, String> {
         _ => Vec::new(),
     };
     let linked_scope_total = all_linked_scopes.len();
+    let all_linked_scopes_for_notes = all_linked_scopes.clone();
     let linked_scopes = all_linked_scopes
         .into_iter()
         .take(LINKED_SCOPES_INLINE_LIMIT)
@@ -1030,6 +1033,18 @@ pub fn context(id: &str, mode: ContextOutputMode) -> Result<ExitCode, String> {
     let context_notes = snapshot
         .as_ref()
         .map_or_else(Vec::new, |value| context_note_paths(value, root));
+    let notes_summary = if !kb_valid || kb_drift {
+        serde_json::json!({"state": "invalid", "count": 0, "truncated": false, "detail_command": format!("mozak project notes {} --limit {} --offset 0", shell_arg(id), NOTES_INLINE_LIMIT), "reason": "configured KB is invalid or drifted"})
+    } else {
+        match notes_inline_count(id, &config, &all_linked_scopes_for_notes) {
+            Ok((state, count)) => {
+                serde_json::json!({"state": state, "count": count, "truncated": count > NOTES_INLINE_LIMIT, "limit": NOTES_INLINE_LIMIT, "detail_command": format!("mozak project notes {} --limit {} --offset 0", shell_arg(id), NOTES_INLINE_LIMIT)})
+            }
+            Err(error) => {
+                serde_json::json!({"state": "invalid", "count": 0, "truncated": false, "detail_command": format!("mozak project notes {} --limit {} --offset 0", shell_arg(id), NOTES_INLINE_LIMIT), "error": error})
+            }
+        }
+    };
     let output = serde_json::json!({
         "schema_version": 1,
         "command": "project context",
@@ -1054,6 +1069,7 @@ pub fn context(id: &str, mode: ContextOutputMode) -> Result<ExitCode, String> {
         "workflow": snapshot.as_ref().map(|s| serde_json::json!({"state": s.state, "latest_plan": s.latest_valid_plan, "ready_goals": s.ready_goals, "compaction": s.compaction})),
         "workflow_error": workflow_error,
         "context_notes": context_notes,
+        "notes": notes_summary,
         "next_actions": snapshot.as_ref().map_or_else(|| vec!["Run `mozak project validate <project-root>` to inspect invalid current project bytes.".to_owned()], |s| s.next_actions.clone()),
         "detail_commands": [format!("mozak project overview {}", shell_path(root)), format!("mozak project validate {}", shell_path(root)), format!("mozak project graph {}", shell_path(root)), linked_scope_detail_command],
         "trust_transfer": false
@@ -1143,6 +1159,452 @@ pub fn linked_scopes(id: &str, args: &[String]) -> Result<ExitCode, String> {
         .map_err(|e| e.to_string())?
     );
     Ok(ExitCode::SUCCESS)
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct NotesProfile {
+    schema_version: u64,
+    destinations: BTreeMap<String, NotesDestination>,
+    links: BTreeMap<String, NotesLink>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct NotesDestination {
+    root: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct NotesLink {
+    destination_id: String,
+    safe_relative_path_prefixes: Vec<String>,
+}
+
+pub fn project_notes(id: &str, args: &[String]) -> Result<ExitCode, String> {
+    if id.is_empty() || id.chars().any(char::is_control) {
+        return Err("project id is empty or contains control characters".into());
+    }
+    let (limit, offset) = parse_limit_offset(args, NOTES_INLINE_LIMIT)?;
+    let (config, config_sha256, kb, kb_drift) = load_drift_free_kb()?;
+    let configured = config
+        .projects
+        .get(id)
+        .ok_or_else(|| format!("project id is not registered: {id}"))?;
+    let scope_ids = kb
+        .entries
+        .iter()
+        .flat_map(|entry| entry.scopes.manifest.scopes.iter())
+        .filter(|scope| scope.id == id)
+        .map(|scope| (scope.id.clone(), "direct_project_scope".to_owned()))
+        .collect::<Vec<_>>();
+    notes_for_scopes(
+        "project notes",
+        Some(
+            serde_json::json!({"id": configured.id, "name": configured.name, "root": configured.root}),
+        ),
+        None,
+        &config,
+        &config_sha256,
+        &kb.registry_sha256,
+        kb_drift,
+        scope_ids,
+        limit,
+        offset,
+    )
+}
+
+pub fn meta_goal_notes(id: &str, args: &[String]) -> Result<ExitCode, String> {
+    if id.is_empty() || id.chars().any(char::is_control) {
+        return Err("meta goal id is empty or contains control characters".into());
+    }
+    let (limit, offset) = parse_limit_offset(args, NOTES_INLINE_LIMIT)?;
+    let (config, config_sha256, kb, kb_drift) = load_drift_free_kb()?;
+    let mut scope_ids = Vec::new();
+    for entry in &kb.entries {
+        for goal in &entry.scopes.manifest.meta_goals {
+            if goal.id == id {
+                for scope_id in &goal.scope_ids {
+                    scope_ids.push((scope_id.clone(), "shared_meta_goal".to_owned()));
+                }
+            }
+        }
+    }
+    if scope_ids.is_empty() {
+        return Err(format!(
+            "meta goal id is not registered in configured KB: {id}"
+        ));
+    }
+    notes_for_scopes(
+        "notes meta-goal",
+        None,
+        Some(serde_json::json!({"id": id})),
+        &config,
+        &config_sha256,
+        &kb.registry_sha256,
+        kb_drift,
+        scope_ids,
+        limit,
+        offset,
+    )
+}
+
+fn load_drift_free_kb() -> Result<(LocalConfig, String, mozak_core::kb::ValidatedKb, bool), String>
+{
+    let config_path = default_config_path()?;
+    validate_target_path(&config_path)?;
+    let bytes = read_optional_regular(&config_path)?
+        .ok_or_else(|| format!("local config does not exist: {}", config_path.display()))?;
+    let config: LocalConfig = serde_json::from_slice(&bytes)
+        .map_err(|e| format!("invalid local config {}: {e}", config_path.display()))?;
+    validate_local_config(&config)?;
+    let kb = load_registry(Path::new(&config.kb_root)).map_err(|error| error.to_string())?;
+    let drift = kb.registry_sha256 != config.kb_sha256;
+    Ok((config, hash(&bytes), kb, drift))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn notes_for_scopes(
+    command: &str,
+    project: Option<Value>,
+    meta_goal: Option<Value>,
+    config: &LocalConfig,
+    config_sha256: &str,
+    current_kb_sha256: &str,
+    kb_drift: bool,
+    scope_ids: Vec<(String, String)>,
+    limit: usize,
+    offset: usize,
+) -> Result<ExitCode, String> {
+    if kb_drift {
+        println!(
+            "{}",
+            serde_json::to_string(&serde_json::json!({
+                "schema_version": 1,
+                "command": command,
+                "state": "invalid",
+                "config": {"sha256": config_sha256},
+                "kb": {"root": config.kb_root, "configured_sha256": config.kb_sha256, "current_sha256": current_kb_sha256, "valid": true, "drift": true},
+                "records": [],
+                "accepted": false,
+                "trust_transfer": false,
+                "labels": ["device_local", "advisory_only"]
+            }))
+            .map_err(|e| e.to_string())?
+        );
+        return Ok(ExitCode::from(3));
+    }
+    let profile_path = notes_profile_path()?;
+    let Some(profile_bytes) = read_optional_regular(&profile_path)? else {
+        println!("{}", serde_json::to_string(&serde_json::json!({
+            "schema_version": 1, "command": command, "state": "needs_input",
+            "profile": {"path": path_text(&profile_path)?, "status": "missing"},
+            "records": [], "total_count": 0, "returned_count": 0, "offset": offset, "limit": limit,
+            "accepted": false, "trust_transfer": false, "labels": ["device_local", "advisory_only"]
+        })).map_err(|e| e.to_string())?);
+        return Ok(ExitCode::from(2));
+    };
+    let profile: NotesProfile = serde_json::from_slice(&profile_bytes)
+        .map_err(|e| format!("invalid notes profile {}: {e}", profile_path.display()))?;
+    validate_notes_profile(&profile)?;
+    let mut records = Vec::new();
+    let mut seen = BTreeSet::new();
+    for (scope_id, relationship) in scope_ids {
+        if let Some(link) = profile.links.get(&scope_id) {
+            let destination = profile
+                .destinations
+                .get(&link.destination_id)
+                .ok_or_else(|| format!("notes link for {scope_id} names unknown destination"))?;
+            let root = safe_notes_root(&destination.root)?;
+            for prefix in &link.safe_relative_path_prefixes {
+                let prefix_path = safe_note_relative(prefix)?;
+                let start = root.join(&prefix_path);
+                scan_notes(
+                    &root,
+                    &start,
+                    &scope_id,
+                    &relationship,
+                    &link.destination_id,
+                    &mut records,
+                    &mut seen,
+                )?;
+            }
+        }
+    }
+    records.sort_by(|a, b| {
+        a["path"]
+            .as_str()
+            .cmp(&b["path"].as_str())
+            .then(a["scope_id"].as_str().cmp(&b["scope_id"].as_str()))
+    });
+    let total = records.len();
+    let page = records
+        .into_iter()
+        .skip(offset)
+        .take(limit)
+        .collect::<Vec<_>>();
+    println!("{}", serde_json::to_string(&serde_json::json!({
+        "schema_version": 1, "command": command, "state": "ready",
+        "project": project, "meta_goal": meta_goal,
+        "profile": {"path": path_text(&profile_path)?, "sha256": hash(&profile_bytes)},
+        "kb": {"root": config.kb_root, "configured_sha256": config.kb_sha256, "current_sha256": current_kb_sha256, "valid": true, "drift": false},
+        "records": page, "total_count": total, "returned_count": total.saturating_sub(offset).min(limit), "offset": offset, "limit": limit, "truncated": offset + limit < total,
+        "accepted": false, "trust_transfer": false, "labels": ["device_local", "advisory_only"]
+    })).map_err(|e| e.to_string())?);
+    Ok(ExitCode::SUCCESS)
+}
+
+fn notes_profile_path() -> Result<PathBuf, String> {
+    let home = env::var_os("HOME").ok_or("HOME is not set for default notes profile path")?;
+    Ok(PathBuf::from(home).join(DEFAULT_NOTES_PROFILE))
+}
+
+fn notes_inline_count(
+    project_id: &str,
+    _config: &LocalConfig,
+    linked_scopes: &[Value],
+) -> Result<(&'static str, usize), String> {
+    let profile_path = notes_profile_path()?;
+    let Some(profile_bytes) = read_optional_regular(&profile_path)? else {
+        return Ok(("needs_input", 0));
+    };
+    let profile: NotesProfile = serde_json::from_slice(&profile_bytes)
+        .map_err(|e| format!("invalid notes profile {}: {e}", profile_path.display()))?;
+    validate_notes_profile(&profile)?;
+    let mut scope_ids = BTreeSet::new();
+    scope_ids.insert(project_id.to_owned());
+    for linked in linked_scopes {
+        if let Some(scope_id) = linked.get("scope_id").and_then(Value::as_str) {
+            scope_ids.insert(scope_id.to_owned());
+        }
+    }
+    let mut count = 0usize;
+    for scope_id in scope_ids {
+        if let Some(link) = profile.links.get(&scope_id) {
+            let destination = profile
+                .destinations
+                .get(&link.destination_id)
+                .ok_or_else(|| format!("notes link for {scope_id} names unknown destination"))?;
+            let root = safe_notes_root(&destination.root)?;
+            let mut records = Vec::new();
+            let mut seen = BTreeSet::new();
+            for prefix in &link.safe_relative_path_prefixes {
+                let start = root.join(safe_note_relative(prefix)?);
+                scan_notes(
+                    &root,
+                    &start,
+                    &scope_id,
+                    "summary_count",
+                    &link.destination_id,
+                    &mut records,
+                    &mut seen,
+                )?;
+            }
+            count += records.len();
+        }
+    }
+    Ok(("ready", count))
+}
+
+fn validate_notes_profile(profile: &NotesProfile) -> Result<(), String> {
+    if profile.schema_version != 1 {
+        return Err("unsupported notes profile schema_version".into());
+    }
+    if profile.destinations.is_empty() {
+        return Err("notes profile destinations must not be empty".into());
+    }
+    for (id, destination) in &profile.destinations {
+        validate_safe_id(id, "destination id")?;
+        let _ = safe_notes_root(&destination.root)?;
+    }
+    for (scope_id, link) in &profile.links {
+        validate_safe_id(scope_id, "scope id")?;
+        validate_safe_id(&link.destination_id, "destination id")?;
+        if !profile.destinations.contains_key(&link.destination_id) {
+            return Err(format!(
+                "notes link for {scope_id} names unknown destination"
+            ));
+        }
+        if link.safe_relative_path_prefixes.is_empty() {
+            return Err(format!("notes link for {scope_id} has no safe prefixes"));
+        }
+        for prefix in &link.safe_relative_path_prefixes {
+            let _ = safe_note_relative(prefix)?;
+        }
+    }
+    Ok(())
+}
+
+fn validate_safe_id(value: &str, label: &str) -> Result<(), String> {
+    if value.is_empty()
+        || !value
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
+    {
+        return Err(format!("invalid {label}: {value}"));
+    }
+    Ok(())
+}
+
+fn safe_notes_root(root: &str) -> Result<PathBuf, String> {
+    let path = Path::new(root);
+    if !path.is_absolute() || path.components().any(|c| matches!(c, Component::ParentDir)) {
+        return Err("notes destination root must be absolute without parent traversal".into());
+    }
+    let meta = fs::symlink_metadata(path)
+        .map_err(|e| format!("cannot inspect notes root {}: {e}", path.display()))?;
+    if meta.file_type().is_symlink() || !meta.is_dir() {
+        return Err("notes destination root must be a real directory".into());
+    }
+    path.canonicalize()
+        .map_err(|e| format!("cannot resolve notes root {}: {e}", path.display()))
+}
+
+fn safe_note_relative(value: &str) -> Result<PathBuf, String> {
+    let path = Path::new(value);
+    if value.is_empty() || path.is_absolute() {
+        return Err("notes prefix/path must be safe relative".into());
+    }
+    let mut out = PathBuf::new();
+    for component in path.components() {
+        match component {
+            Component::Normal(part) => out.push(part),
+            _ => {
+                return Err(
+                    "notes prefix/path must not contain '.', '..', roots, or prefixes".into(),
+                );
+            }
+        }
+    }
+    Ok(out)
+}
+
+fn scan_notes(
+    root: &Path,
+    start: &Path,
+    scope_id: &str,
+    relationship: &str,
+    destination_id: &str,
+    records: &mut Vec<Value>,
+    seen: &mut BTreeSet<String>,
+) -> Result<(), String> {
+    let start = contain_notes_path(root, start)?;
+    if start.is_file() {
+        maybe_add_note(
+            root,
+            &start,
+            scope_id,
+            relationship,
+            destination_id,
+            records,
+            seen,
+        )?;
+        return Ok(());
+    }
+    if !start.is_dir() {
+        return Ok(());
+    }
+    for entry in fs::read_dir(&start)
+        .map_err(|e| format!("cannot read notes directory {}: {e}", start.display()))?
+    {
+        let entry = entry.map_err(|e| format!("cannot inspect notes entry: {e}"))?;
+        let path = entry.path();
+        let meta = fs::symlink_metadata(&path)
+            .map_err(|e| format!("cannot inspect notes path {}: {e}", path.display()))?;
+        if meta.file_type().is_symlink() {
+            return Err(format!("notes path is a symlink: {}", path.display()));
+        }
+        if meta.is_dir() {
+            scan_notes(
+                root,
+                &path,
+                scope_id,
+                relationship,
+                destination_id,
+                records,
+                seen,
+            )?;
+        } else if meta.is_file() {
+            maybe_add_note(
+                root,
+                &path,
+                scope_id,
+                relationship,
+                destination_id,
+                records,
+                seen,
+            )?;
+        }
+    }
+    Ok(())
+}
+
+fn contain_notes_path(root: &Path, path: &Path) -> Result<PathBuf, String> {
+    let canonical = path
+        .canonicalize()
+        .map_err(|e| format!("cannot resolve notes path {}: {e}", path.display()))?;
+    if !canonical.starts_with(root) {
+        return Err(format!(
+            "notes path escapes destination root: {}",
+            path.display()
+        ));
+    }
+    Ok(canonical)
+}
+
+fn maybe_add_note(
+    root: &Path,
+    path: &Path,
+    scope_id: &str,
+    relationship: &str,
+    destination_id: &str,
+    records: &mut Vec<Value>,
+    seen: &mut BTreeSet<String>,
+) -> Result<(), String> {
+    if path.extension().and_then(|v| v.to_str()) != Some("md") {
+        return Ok(());
+    }
+    let path = contain_notes_path(root, path)?;
+    let relative = path
+        .strip_prefix(root)
+        .map_err(|e| e.to_string())?
+        .to_string_lossy()
+        .replace('\\', "/");
+    let key = format!("{scope_id}\0{destination_id}\0{relative}");
+    if !seen.insert(key) {
+        return Ok(());
+    }
+    let bytes = fs::read(&path)
+        .map_err(|e| format!("cannot read note metadata {}: {e}", path.display()))?;
+    let title = note_title(&bytes).unwrap_or_else(|| {
+        path.file_stem()
+            .and_then(|v| v.to_str())
+            .unwrap_or("note")
+            .to_owned()
+    });
+    let mtime = fs::metadata(&path)
+        .ok()
+        .and_then(|m| m.modified().ok())
+        .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+        .map(|d| d.as_secs());
+    records.push(serde_json::json!({
+        "scope_id": scope_id, "relationship": relationship, "source_scope": scope_id,
+        "destination_id": destination_id, "path": relative, "title": title,
+        "sha256": hash(&bytes), "mtime": mtime,
+        "labels": ["device_local", "advisory_only"], "accepted": false, "trust_transfer": false
+    }));
+    Ok(())
+}
+
+fn note_title(bytes: &[u8]) -> Option<String> {
+    let text = std::str::from_utf8(bytes).ok()?;
+    text.lines().find_map(|line| {
+        line.strip_prefix("# ")
+            .map(str::trim)
+            .filter(|v| !v.is_empty())
+            .map(ToOwned::to_owned)
+    })
 }
 
 fn parse_limit_offset(args: &[String], default_limit: usize) -> Result<(usize, usize), String> {

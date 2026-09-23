@@ -1,0 +1,11 @@
+{
+  "min_corpus_word_count": 20,
+  "word_rate_multiplier": 2.0,
+  "word_rate_absolute_floor": 0.08,
+  "sentence_shape_multiplier": 2.0,
+  "sentence_shape_absolute_floor": 0.35,
+  "sentence_length_multiplier": 2.0,
+  "sentence_length_absolute_floor": 0.35,
+  "heading_opener_multiplier": 2.0,
+  "heading_opener_absolute_floor": 0.6
+}

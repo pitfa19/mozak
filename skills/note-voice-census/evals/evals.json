@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "evals": [
+    {
+      "id": "baseline-aggregate-only",
+      "goal": "Build a baseline from local Markdown while outputting no note bodies or absolute roots.",
+      "command": "python3 skills/note-voice-census/scripts/voice_census.py baseline --corpus FIXTURE --output SCRATCH/baseline.json",
+      "expected": "Exit 0 and baseline JSON contains aggregate metrics only."
+    },
+    {
+      "id": "compare-threshold-fails",
+      "goal": "Return nonzero when a draft overuses a corpus-relative word above threshold.",
+      "command": "python3 skills/note-voice-census/scripts/voice_census.py compare --baseline SCRATCH/baseline.json --draft FIXTURE/draft.md",
+      "expected": "Exit 1 with exceeded metrics and no draft text."
+    }
+  ]
+}

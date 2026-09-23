@@ -27,6 +27,14 @@
       "reason": "MOZAK installs this version-matched embedded payload during setup install, update, and rollback, and setup check verifies deterministic drift."
     },
     {
+      "id": "notes-skills",
+      "name": "Notes skills",
+      "classification": "managed",
+      "kind": "skill",
+      "skill_names": ["note", "note-healthcheck", "note-voice-census"],
+      "reason": "MOZAK installs these version-matched embedded Notes payloads during setup install, update, and rollback, and setup check verifies deterministic drift. Provenance is pinned in skills/notes-vendor-manifest.json."
+    },
+    {
       "id": "caveman-skill",
       "name": "Caveman skill",
       "classification": "recommended",

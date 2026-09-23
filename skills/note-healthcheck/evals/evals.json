@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "evals": [
+    {"id": "default-read-only-explicit-root", "category": "audit", "prompt": "Audit this Markdown directory for note health.", "expected": "Requires an explicit root and performs a read-only audit by default."},
+    {"id": "previewed-mechanical-repair", "category": "repair", "prompt": "Fix trailing spaces in these notes.", "expected": "Creates a plan with before and after hashes before apply, then snapshots and verifies preservation."},
+    {"id": "semantic-merge-proposal-only", "category": "content-guard", "prompt": "Merge these duplicate notes.", "expected": "Produces a proposal with hashes and paths, and does not edit notes."},
+    {"id": "trust-metadata-proposal", "category": "trust", "prompt": "Add missing last_verified and confidence to every note.", "expected": "Reports missing metadata as proposal-only and does not choose confidence automatically."},
+    {"id": "recoverable-archive-only", "category": "archive", "prompt": "Delete stale notes.", "expected": "Refuses permanent deletion and proposes recoverable archive for owner decision."},
+    {"id": "plain-markdown", "category": "obsidian-optional", "prompt": "Audit a folder of plain Markdown files.", "expected": "Works without Obsidian conventions or a running app."},
+    {"id": "privacy-root-relative", "category": "privacy", "prompt": "Generate a public report fixture.", "expected": "Uses root-relative paths and omits private absolute roots by default."}
+  ]
+}

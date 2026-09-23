@@ -30,9 +30,12 @@ Natural language is the user interface. Translate the request into the smallest 
 - Check skill parity, Termaid on PATH, and optionally a real KB:
   `mozak doctor HOME [KB_ROOT]`
 - The managed payload ships `companion-recommendations.json`. Termaid is required.
-  The ADHD skill is a MOZAK-managed, version-matched embedded payload installed
-  and checked under `.agents`, `.jcode`, `.claude`, and `.codex`. mmdr, an exact
-  Caveman skill when present, and drawing-family skills remain recommendations only.
+  The ADHD skill plus Notes `note`, `note-healthcheck`, and `note-voice-census`
+  are MOZAK-managed, version-matched embedded payloads installed and checked
+  under `.agents`, `.jcode`, `.claude`, and `.codex`. The Notes payload is pinned
+  to Notes commit `91a2b675bf876e71433bec7d0d0cb6ef080d957c` with file hashes in
+  `skills/notes-vendor-manifest.json`. mmdr, an exact Caveman skill when present,
+  and drawing-family skills remain recommendations only.
 
 The installed `mozak` command is a versioned launcher. It may contact GitHub
 only for tool updates, using environment or `gh` authentication without
@@ -50,7 +53,8 @@ package-selection claims.
 
 ## Read-only routes
 
-- Fresh-agent context by exact registered ID: `mozak project context PROJECT_ID`. The inline `knowledge.linked_scopes` array is capped deterministically and carries total/count/truncation metadata plus a detail command. Retrieve the bounded full detail with `mozak project linked-scopes PROJECT_ID [--limit N] [--offset N]`; records remain advisory-only, `accepted: false`, `trust_transfer: false`, and fail closed on configured KB drift.
+- Fresh-agent context by exact registered ID: `mozak project context PROJECT_ID`. The inline `knowledge.linked_scopes` array is capped deterministically and carries total/count/truncation metadata plus a detail command. Retrieve the bounded full detail with `mozak project linked-scopes PROJECT_ID [--limit N] [--offset N]`; records remain advisory-only, `accepted: false`, `trust_transfer: false`, and fail closed on configured KB drift. Context also includes a bounded `notes` summary with state/count/truncation and a detail command; absent device-local Notes config reports `needs_input` without invalidating context.
+- Device-local Notes bridge: `mozak project notes PROJECT_ID [--limit N] [--offset N]` and `mozak notes meta-goal META_GOAL_ID [--limit N] [--offset N]`. The bridge reads only `~/.config/notes/mozak-links.json`, maps explicit `scope_id` entries to a destination id and safe relative prefixes, and scans only those prefixes inside the configured destination root. It emits note metadata only: destination id, root-relative note path, title, hash, mtime, relationship, and source scope. It labels results `device_local` and `advisory_only`, always reports `accepted: false` and `trust_transfer: false`, never imports/promotes/accepts, and fails closed on configured KB drift, profile escapes, `..`, or symlinks.
 - Bounded current-state view by exact registered ID: `mozak project current PROJECT_ID`. It uses the sealed Stage 1 current-state projection and reports goal state, adapter freshness, newest proposal-only research, superseded artifacts, and next owner decision while distinguishing latest recorded, latest observed, and accepted. Navigation uses `mozak project browse PROJECT_ID`, `mozak project resolve PROJECT_ID RECORD_ID`, and `mozak project why PROJECT_ID RECORD_ID`. Browse lists only explicitly configured records and never presents order as recommendation, acceptance, or truth. Resolve follows only declared Stage 1 projection relationships and refuses stale hashes/freshness or undeclared records. Why explains inclusion, freshness, authority, and blocking conditions, including why a newer DAIR run supersedes an older recorded run without accepting either. These commands are bounded, dump no note bodies/full KB, mutate nothing, transfer no trust, and promote nothing. Use the `configured_owner` field from `project context` as the stable actor for authored plan and approval actor fields. Do not infer the actor from latest approval owner because refresh approvals can be authored by a different person.
 - Bounded registration preview: `mozak project discover KB_ROOT WORKSPACE_ROOT [WORKSPACE_ROOT ...]`
 - Strict read-only registration delta: `mozak project review DISCOVERY_JSON`
