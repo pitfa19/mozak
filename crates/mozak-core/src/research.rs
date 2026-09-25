@@ -1714,6 +1714,10 @@ fn validate_hyperresearch_records(
 }
 const MONOKL_RECORD_FIELDS: [&str; 11] = HYPERRESEARCH_RECORD_FIELDS;
 
+/// Normalizes a recorded Monokl provider fixture into a proposal-only research run.
+///
+/// # Errors
+/// Returns an error when the fixture is malformed or violates the research contract.
 pub fn normalize_provider_monokl(input: &str) -> Result<ResearchRun, ResearchError> {
     let fixture: ProviderHyperResearchFixture = serde_json::from_str(input)
         .map_err(|error| ResearchError(format!("invalid provider-monokl fixture: {error}")))?;

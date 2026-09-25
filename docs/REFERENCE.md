@@ -519,6 +519,20 @@ deterministically ready goals, bounded findings, counts, and next actions
 without changing the project. `project list` renders the same snapshot as
 stable terminal text.
 
+### Goal evidence
+
+A goal may carry an optional `evidence` array of `{path, sha256}` pins. Each
+path is project-relative and must live under `.mozak/evidence/`. This is where
+closure, acceptance, audit, release-candidate, and handoff records belong, so
+they never leak into a project's user documentation. When a goal version closes
+or is superseded, write the record under `.mozak/evidence/<goal-id>/` and pin it
+in the successor plan. `project overview` lists each goal's evidence paths,
+counts pins under `artifact_counts.evidence`, reports a missing, non-regular, or
+digest-drifted pin as invalid, and emits one summary `unknown` finding for
+evidence files no goal in the latest plan pins. `README.md` files are ignored.
+Plans without evidence serialize exactly as before. A pin records why a goal
+reached its status; it transfers no trust and accepts no result.
+
 `project graph-source` emits deterministic Mermaid source. `project graph`
 sends those exact bytes to the `termaid` executable through stdin and has no
 web fallback. Set `MOZAK_TERMAID` to override the executable path. Missing or
