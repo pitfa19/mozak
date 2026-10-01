@@ -90,6 +90,176 @@ fn compaction_archives_losslessly_and_restores_from_deterministic_index() {
     assert_eq!(planning_bytes(&restore), originals);
 }
 
+#[test]
+fn relocated_archive_is_readable_but_mutations_remain_pinned_to_original_root() {
+    let root = temp_root("archive-relocation");
+    write_artifacts(&root);
+    let (plan_path, approval_path, _) = write_plan_and_approval(&root);
+    apply_compaction_plan(&root, &plan_path, &approval_path).expect("apply at original root");
+
+    let moved = root.with_file_name(format!(
+        "{}-moved",
+        root.file_name().unwrap().to_string_lossy()
+    ));
+    fs::rename(&root, &moved).expect("relocate complete project");
+    // Force the resolver to use the pinned archive rather than the loose copies.
+    fs::remove_file(moved.join(".mozak/planning/inputs/accepted.json"))
+        .expect("remove loose input");
+    fs::remove_file(moved.join(".mozak/planning/plans/plan.json")).expect("remove loose plan");
+    let (inputs, plans) = archived_planning_artifacts(&moved).expect("read relocated archive");
+    assert_eq!(inputs.len(), 1);
+    assert_eq!(plans.len(), 1);
+
+    let index = moved.join(".mozak/planning/active-index.json");
+    let approval = moved.join("approval.json");
+    let apply_error = apply_compaction_plan(&moved, &moved.join("compact-plan.json"), &approval)
+        .expect_err("old approval cannot apply at a new root");
+    assert!(
+        apply_error
+            .to_string()
+            .contains("project_root does not match invocation root")
+    );
+    let restore_error =
+        restore_compaction(&moved, &index, &approval, &moved.with_extension("restore"))
+            .expect_err("old approval cannot restore from a new root");
+    assert!(
+        restore_error
+            .to_string()
+            .contains("project_root does not match invocation root")
+    );
+
+    let archive: serde_json::Value = serde_json::from_slice(&fs::read(&index).unwrap()).unwrap();
+    let hash = archive["entries"][0]["sha256"].as_str().unwrap();
+    fs::remove_file(moved.join(format!(
+        ".mozak/planning/archive/sha256/{}/{}.json",
+        &hash[..2],
+        hash
+    )))
+    .expect("remove one archive blob");
+    let read_error = archived_planning_artifacts(&moved).expect_err("incomplete relocated archive");
+    assert!(read_error.to_string().contains("cannot read archive blob"));
+}
+
+#[test]
+fn relocated_index_still_rejects_unsafe_paths_and_loose_hash_disagreement() {
+    let root = temp_root("archive-relocation-invalid");
+    write_artifacts(&root);
+    let (plan_path, approval_path, _) = write_plan_and_approval(&root);
+    apply_compaction_plan(&root, &plan_path, &approval_path).expect("apply at original root");
+    let moved = root.with_file_name(format!(
+        "{}-moved",
+        root.file_name().unwrap().to_string_lossy()
+    ));
+    fs::rename(&root, &moved).expect("relocate complete project");
+    let index = moved.join(".mozak/planning/active-index.json");
+
+    fs::write(
+        moved.join(".mozak/planning/inputs/accepted.json"),
+        b"changed",
+    )
+    .unwrap();
+    let mismatch = archived_planning_artifacts(&moved).expect_err("loose bytes must match index");
+    assert!(
+        mismatch
+            .to_string()
+            .contains("active/archive hash disagreement")
+    );
+
+    let mut archive: serde_json::Value =
+        serde_json::from_slice(&fs::read(&index).unwrap()).unwrap();
+    let original_path = archive["entries"][0]["relative_path"].clone();
+    archive["entries"][0]["relative_path"] = "../escape.json".into();
+    fs::write(&index, serde_json::to_vec(&archive).unwrap()).unwrap();
+    let unsafe_path = archived_planning_artifacts(&moved).expect_err("unsafe relative path");
+    assert!(unsafe_path.to_string().contains("path traversal"));
+
+    archive["entries"][0]["relative_path"] = original_path;
+    archive["project_root"] = "relative/root".into();
+    fs::write(&index, serde_json::to_vec(&archive).unwrap()).unwrap();
+    let relative_root = archived_planning_artifacts(&moved).expect_err("origin must be absolute");
+    assert!(
+        relative_root
+            .to_string()
+            .contains("project_root must be absolute")
+    );
+}
+
+#[test]
+fn changed_origin_cannot_hide_missing_blob_while_loose_copy_exists() {
+    let root = temp_root("archive-edited-origin");
+    write_artifacts(&root);
+    let (plan_path, approval_path, _) = write_plan_and_approval(&root);
+    apply_compaction_plan(&root, &plan_path, &approval_path).expect("apply at original root");
+    let moved = root.with_file_name(format!(
+        "{}-moved",
+        root.file_name().unwrap().to_string_lossy()
+    ));
+    fs::rename(&root, &moved).expect("relocate complete project");
+    let index = moved.join(".mozak/planning/active-index.json");
+    let mut archive: serde_json::Value =
+        serde_json::from_slice(&fs::read(&index).unwrap()).unwrap();
+    archive["project_root"] = moved.to_string_lossy().into_owned().into();
+    let retained = archive["entries"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|entry| {
+            moved
+                .join(entry["relative_path"].as_str().unwrap())
+                .is_file()
+        })
+        .expect("retained loose artifact");
+    let hash = retained["sha256"].as_str().unwrap().to_owned();
+    fs::write(&index, serde_json::to_vec(&archive).unwrap()).unwrap();
+    fs::remove_file(moved.join(format!(
+        ".mozak/planning/archive/sha256/{}/{}.json",
+        &hash[..2],
+        hash
+    )))
+    .unwrap();
+    let error = archived_planning_artifacts(&moved).expect_err("all blobs must exist");
+    assert!(error.to_string().contains("cannot read archive blob"));
+}
+
+#[cfg(unix)]
+#[test]
+fn relocated_read_rejects_symlinked_archive_or_loose_artifact() {
+    use std::os::unix::fs::symlink;
+
+    let root = temp_root("archive-symlink");
+    write_artifacts(&root);
+    let (plan_path, approval_path, _) = write_plan_and_approval(&root);
+    apply_compaction_plan(&root, &plan_path, &approval_path).expect("apply at original root");
+    let moved = root.with_file_name(format!(
+        "{}-moved",
+        root.file_name().unwrap().to_string_lossy()
+    ));
+    fs::rename(&root, &moved).expect("relocate complete project");
+    let archive_dir = moved.join(".mozak/planning/archive/sha256");
+    let outside = moved.with_extension("outside");
+    fs::rename(&archive_dir, &outside).unwrap();
+    symlink(&outside, &archive_dir).unwrap();
+    let error = archived_planning_artifacts(&moved).expect_err("archive symlink escape");
+    assert!(
+        error
+            .to_string()
+            .contains("planning read path contains symlink")
+    );
+
+    fs::remove_file(&archive_dir).unwrap();
+    fs::rename(&outside, &archive_dir).unwrap();
+    let loose = moved.join(".mozak/planning/inputs/accepted.json");
+    let outside = moved.with_extension("loose-outside");
+    fs::rename(&loose, &outside).unwrap();
+    symlink(&outside, &loose).unwrap();
+    let error = archived_planning_artifacts(&moved).expect_err("loose symlink escape");
+    assert!(
+        error
+            .to_string()
+            .contains("planning read path contains symlink")
+    );
+}
+
 fn planning_bytes(root: &Path) -> Vec<(String, Vec<u8>)> {
     let mut bytes = files_under(&root.join(".mozak/planning"))
         .into_iter()

@@ -308,6 +308,7 @@ pub fn resolve_planning_artifacts(
 ) -> Result<PlanningArtifactResolver, PlanningArchiveError> {
     let root = canonical_existing_dir(root, "project root")?;
     let index = root.join(".mozak/planning/active-index.json");
+    reject_read_symlinks(&root, Path::new(".mozak/planning/active-index.json"))?;
     if !index.exists() {
         return Ok(PlanningArtifactResolver {
             archived_inputs: Vec::new(),
@@ -317,7 +318,17 @@ pub fn resolve_planning_artifacts(
     let text = read_text(&index)?;
     let archive: PlanningCompactionPlan = serde_json::from_str(&text)
         .map_err(|e| PlanningArchiveError(format!("invalid active index JSON: {e}")))?;
-    validate_plan_shape(&root, &archive)?;
+    // An active index records the root where compaction was approved. A copied
+    // checkout may live elsewhere, but read-only resolution still verifies the
+    // exact archived/loose artifact bytes below. Applying or restoring a plan
+    // continues to require its original canonical root and approval.
+    validate_read_only_index_shape(&archive)?;
+    // The index's origin is not an authority marker: it can itself be edited.
+    // Require a complete content-addressed archive at every root, even when
+    // a loose copy exists for an entry or the origin field was changed.
+    for entry in &archive.entries {
+        read_archive_blob(&root, &archive, entry)?;
+    }
     let mut inputs = Vec::new();
     let mut input_map = BTreeMap::new();
     for entry in archive.entries.iter().filter(|entry| {
@@ -451,6 +462,7 @@ fn read_logical_artifact(
     entry: &PlanningArchiveEntry,
 ) -> Result<(Vec<u8>, bool), PlanningArchiveError> {
     let loose = root.join(safe_relative(&entry.relative_path)?);
+    reject_read_symlinks(root, Path::new(&entry.relative_path))?;
     if loose.is_file() {
         let bytes = fs::read(&loose).map_err(|e| {
             PlanningArchiveError(format!(
@@ -598,10 +610,11 @@ fn read_archive_blob(
     archive: &PlanningCompactionPlan,
     entry: &PlanningArchiveEntry,
 ) -> Result<Vec<u8>, PlanningArchiveError> {
-    let source = root
-        .join(&archive.archive_root)
+    let relative = Path::new(&archive.archive_root)
         .join(&entry.sha256[..2])
         .join(format!("{}.json", entry.sha256));
+    reject_read_symlinks(root, &relative)?;
+    let source = root.join(relative);
     let bytes = fs::read(&source).map_err(|e| {
         PlanningArchiveError(format!(
             "cannot read archive blob {}: {e}",
@@ -615,6 +628,30 @@ fn read_archive_blob(
         ))?;
     }
     Ok(bytes)
+}
+
+fn reject_read_symlinks(root: &Path, relative: &Path) -> Result<(), PlanningArchiveError> {
+    let mut current = root.to_path_buf();
+    for component in relative.components() {
+        current.push(component);
+        match fs::symlink_metadata(&current) {
+            Ok(metadata) if metadata.file_type().is_symlink() => {
+                return fail(&format!(
+                    "planning read path contains symlink: {}",
+                    current.display()
+                ));
+            }
+            Ok(_) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => break,
+            Err(error) => {
+                return fail(&format!(
+                    "cannot inspect planning read path {}: {error}",
+                    current.display()
+                ));
+            }
+        }
+    }
+    Ok(())
 }
 
 fn collect_planning_files(
@@ -728,14 +765,29 @@ fn validate_plan_shape(
     root: &Path,
     plan: &PlanningCompactionPlan,
 ) -> Result<(), PlanningArchiveError> {
-    if plan.schema_version != COMPACTION_SCHEMA_VERSION {
-        fail("unsupported compaction schema_version")?;
-    }
+    validate_index_entries_shape(plan)?;
     let actual = canonical_existing_dir(root, "project root")?
         .to_string_lossy()
         .into_owned();
     if plan.project_root != actual {
         fail("compaction plan project_root does not match invocation root")?;
+    }
+    Ok(())
+}
+
+fn validate_read_only_index_shape(
+    plan: &PlanningCompactionPlan,
+) -> Result<(), PlanningArchiveError> {
+    validate_index_entries_shape(plan)?;
+    if !Path::new(&plan.project_root).is_absolute() {
+        fail("active index project_root must be absolute")?;
+    }
+    Ok(())
+}
+
+fn validate_index_entries_shape(plan: &PlanningCompactionPlan) -> Result<(), PlanningArchiveError> {
+    if plan.schema_version != COMPACTION_SCHEMA_VERSION {
+        fail("unsupported compaction schema_version")?;
     }
     safe_relative(&plan.archive_root)?;
     safe_relative(&plan.active_index_path)?;
