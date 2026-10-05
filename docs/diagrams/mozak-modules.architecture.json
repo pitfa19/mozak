@@ -73,7 +73,7 @@
       "id": "research",
       "type": "external",
       "label": "Research",
-      "sublabel": "research.rs adapter_workflow.rs case_study.rs",
+      "sublabel": "research.rs tool_evidence_workflow.rs",
       "pos": [
         320,
         110
