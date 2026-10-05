@@ -510,6 +510,12 @@ pub fn validate_run(run: &ResearchRun) -> Result<(), ResearchError> {
     )?;
 
     validate_receipt(run, expected_overall)?;
+    // A run that claims any tool-evidence identity must be exactly re-derivable
+    // from the provenance fixture it embeds, so a hand-edited or partially
+    // forged tool-evidence run fails closed even without the response bytes.
+    if crate::tool_evidence::claims_tool_evidence_identity(run) {
+        crate::tool_evidence::validate_tool_evidence_run(run)?;
+    }
     Ok(())
 }
 
@@ -823,7 +829,7 @@ pub fn normalize_provider_beta(input: &str) -> Result<ResearchRun, ResearchError
     Ok(run)
 }
 
-fn canonical_json_bytes(value: &Value) -> Vec<u8> {
+pub(crate) fn canonical_json_bytes(value: &Value) -> Vec<u8> {
     fn write(value: &Value, output: &mut String) {
         match value {
             Value::Null => output.push_str("null"),
@@ -864,11 +870,11 @@ fn canonical_json_bytes(value: &Value) -> Vec<u8> {
     output.into_bytes()
 }
 
-fn sha256_hex(bytes: &[u8]) -> String {
+pub(crate) fn sha256_hex(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }
 
-fn validate_sha256(value: &str, field: &str) -> Result<(), ResearchError> {
+pub(crate) fn validate_sha256(value: &str, field: &str) -> Result<(), ResearchError> {
     require(
         value.len() == 64
             && value
@@ -878,7 +884,11 @@ fn validate_sha256(value: &str, field: &str) -> Result<(), ResearchError> {
     )
 }
 
-fn validate_identifier(value: &str, field: &str, prefix: &str) -> Result<(), ResearchError> {
+pub(crate) fn validate_identifier(
+    value: &str,
+    field: &str,
+    prefix: &str,
+) -> Result<(), ResearchError> {
     require(
         value.starts_with(prefix)
             && value.len() > prefix.len()
@@ -889,7 +899,7 @@ fn validate_identifier(value: &str, field: &str, prefix: &str) -> Result<(), Res
     )
 }
 
-fn validate_timestamp(value: &str, field: &str) -> Result<(), ResearchError> {
+pub(crate) fn validate_timestamp(value: &str, field: &str) -> Result<(), ResearchError> {
     let bytes = value.as_bytes();
     require(
         bytes.len() == 20
@@ -906,7 +916,7 @@ fn validate_timestamp(value: &str, field: &str) -> Result<(), ResearchError> {
     )
 }
 
-fn require(condition: bool, message: &str) -> Result<(), ResearchError> {
+pub(crate) fn require(condition: bool, message: &str) -> Result<(), ResearchError> {
     if condition {
         Ok(())
     } else {
