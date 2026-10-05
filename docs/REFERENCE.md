@@ -10,7 +10,10 @@ the authoritative usage.
 
 Read-only routes are safe to ask for at any time. Anything marked **mutation**
 needs your explicit approval, and some need an approval file. MOZAK core routes
-are offline; configured adapters may use the network and must declare it.
+are offline: they read local config, files, and recorded evidence. Your agent
+host calls MCP tools, which may use the network. Legacy adapter runners may use
+the network and must declare it. The managed launcher may contact GitHub only
+to check for tool updates.
 
 Exit codes: `0` valid, `2` incomplete, `3` invalid, `1` bad invocation.
 
@@ -85,26 +88,81 @@ identity or owned-path authority changes still require reviewed discovery and a
 strict owner approval. `project refresh rollback` likewise accepts only a
 preserved generation with the same membership, roots, KB, and identities.
 
+### Tool stack
+
+| Say this | Agent runs |
+|---|---|
+| "What tools does MOZAK know about?" | `mozak stack catalog` |
+| "What do I need for literature / references / manuscripts?" | `mozak stack recommend <use-case>` |
+| "Is it ready on this machine?" | `mozak stack check "$HOME" [use-case]` |
+
+```bash
+mozak stack catalog
+mozak stack recommend <baseline|literature|references|manuscript|tooling-watch|deep-research>
+mozak stack check <HOME> [use-case]
+```
+
+All three are read-only and offline. They install nothing, never emit or store
+credential values (only declared key names and presence), and perform no MCP
+handshake. `stack check` observes readiness only up
+to `configured` and reports `handshake: "not_observed"`, `usable: "unknown"`,
+and `write_grant: "not_observed"`. Installed, configured, handshake, usable,
+and write-granted are separate facts. `prerequisite_missing` means configured
+but a declared prerequisite, such as the Zotero database, is absent. Exit:
+`0` when every required tool reaches its declared `ready_at` rung with
+prerequisites present and each `any_of` group has one ready member, `2`
+incomplete, `3` invalid or unknown use case. `baseline` is always included. Missing tools come
+with the catalog's exact install steps; installing each one is a separate owner
+decision. Full guide: [TOOL-STACK.md](TOOL-STACK.md).
+
 ### Research
 
 | Say this | Agent runs |
 |---|---|
-| "Which adapters do I have?" | `mozak adapter catalog` then `mozak adapter list` |
-| "Tell me about one of my bindings." | `mozak adapter show <binding-id>` |
-| "Fetch new papers for this topic." | `mozak adapter run <binding-id>` |
-| "Turn that fetch into a research run." | `mozak research normalize <source> <fixture.json> <run.json>` |
+| "Find papers on this topic." | `mozak stack check "$HOME" literature`, then the agent calls the arXiv MCP tool |
+| "Record that tool result as evidence." | `mozak research record-tool <fixture.json> <response-bytes> <run.json>` |
+| "Is that recorded run still intact?" | `mozak research verify-tool <fixture.json> <response-bytes> <run.json>` |
 | "Check this research run is valid." | `mozak research validate <run.json>` |
 | "Validate this case record." | `mozak case validate <case.json>` |
 | "Build a packet so someone can reproduce this case." | `mozak case reproduce-packet <case.json>` |
 
 ```bash
-mozak adapter catalog
-mozak adapter setup <dair-ai|mcp-registry|github-tooling|hyperresearch|monokl> <binding-id> <scope-id> <request.json> <runner> <runs-dir>  # mutation
-mozak adapter list|show <id>|run <id>|recheck <id>
-mozak research normalize <arxiv|dair-ai|mcp-registry|github-tooling> <fixture.json> <run.json>
+mozak research record-tool <fixture.json> <response-bytes> <run.json>  # create-only
+mozak research verify-tool <fixture.json> <response-bytes> <run.json>
 mozak research validate <run.json>
 mozak research landmarks <run.json> <landmarks.json>
 mozak case validate|list|reproduce-packet <case.json>
+```
+
+`record-tool` turns one saved tool response into a standard proposal-only
+research run. The `mozak.tool-evidence.v1` fixture pins the catalog tool,
+exact version, operation, call arguments, call window, declared effects, the
+response hash and length, and each excerpt's byte range. The full response is
+never stored. It refuses hash or excerpt mismatches, declared external writes,
+mutations other than `none`, irreversible effects, pending owner approval,
+unpinned versions, credential-looking argument keys,
+`accepted: true`, symlinks, and existing outputs. `verify-tool` re-derives the
+run and requires a byte-for-byte match. A recorded run is never acceptance.
+Example: [examples/tool-evidence-example.md](examples/tool-evidence-example.md).
+
+### Legacy adapters (compatibility only)
+
+Adapters are no longer the default research path. They stay supported so every
+recorded run remains valid and reproducible, and they are the verified path for
+a capability until a real recorded run through its new MCP tool exists.
+
+| Say this | Agent runs |
+|---|---|
+| "Which adapters do I have?" | `mozak adapter catalog` then `mozak adapter list` |
+| "Tell me about one of my bindings." | `mozak adapter show <binding-id>` |
+| "Run this legacy binding." | `mozak adapter run <binding-id>` |
+| "Turn that fetch into a research run." | `mozak research normalize <source> <fixture.json> <run.json>` |
+
+```bash
+mozak adapter catalog
+mozak adapter setup <dair-ai|mcp-registry|github-tooling|hyperresearch|monokl> <binding-id> <scope-id> <request.json> <runner> <runs-dir>  # mutation
+mozak adapter list|show <id>|run <id>|recheck <id>
+mozak research normalize <arxiv|dair-ai|mcp-registry|github-tooling|hyperresearch|monokl> <fixture.json> <run.json>
 ```
 
 `adapter show` and `adapter run` take a **binding id** from `adapter list`, not
@@ -113,7 +171,7 @@ SHA-256; editing either moves the binding to `needs_recheck` and makes it
 non-callable until `adapter recheck` re-pins the observed hashes. Recheck
 records hashes only. It approves nothing and accepts no prior run.
 
-MOZAK performs no networking. An adapter fetches outside MOZAK and MOZAK
+MOZAK routes perform no networking. An adapter fetches outside MOZAK and MOZAK
 validates the recorded snapshot. `research normalize` refuses any adapter that
 declares a write, a mutation, an irreversible effect, or a pending approval.
 
@@ -349,7 +407,9 @@ mozak doctor "$HOME" [/path/to/kb-root]
   each managed file as matching or drifted.
 - `setup` and `doctor` include the versioned companion recommendation manifest
   from the managed skill payload. Missing recommended companions are reported
-  only and never auto-installed.
+  only and never auto-installed. They also add a nonblocking `stack_onboarding`
+  pointer to `mozak stack recommend` and `mozak stack check`; the managed
+  payload ships the `tool-stack.json` catalog next to the skill.
 - `doctor` emits deterministic JSON: ready/0, incomplete/2, invalid/3. Termaid
   remains required. mmdr remains recommended.
 

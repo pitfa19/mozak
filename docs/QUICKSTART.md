@@ -5,13 +5,13 @@ Scopes, and adapters. If someone else already onboarded the projects you need,
 use the shorter [teammate quickstart](TEAMMATE-QUICKSTART.md) instead.
 
 **Steps 1 to 3 take about fifteen minutes with a MOZAK-aware coding agent. Stop
-there unless you want Topics, shared knowledge, and research adapters.**
+there unless you want Topics, shared knowledge, and research tools.**
 
 | Steps | Time | You get |
 |---|---|---|
 | 1 to 3 | 15 min | An onboarded repository, accepted inputs, and a reviewable first plan |
 | 4 to 6 | 10 min | A research Topic and a knowledge base holding both |
-| 7 to 9 | 15 min | Path-free commands and a bound research adapter |
+| 7 to 9 | 15 min | Path-free commands and research through the tool stack |
 
 Every knowledge command here is offline and deterministic. The optional managed
 launcher contacts GitHub only for checksum-verified tool updates. Nothing is
@@ -288,8 +288,39 @@ Use `mozak project refresh` later when pins change.
 
 ## 8. Research the topic
 
-MOZAK never touches the network. An **adapter** does the fetching outside
-MOZAK, and MOZAK validates the snapshot it recorded.
+MOZAK's own routes stay offline. Your agent calls research tools through its
+MCP host, and MOZAK records and validates what came back.
+
+Check what the `literature` use case needs and what is ready:
+
+```bash
+mozak stack recommend literature
+mozak stack check "$HOME" literature
+```
+
+If the arXiv MCP tool is missing, `stack recommend` prints the exact install
+step from the shipped catalog. Install it only if you want it. `stack check`
+reads local config only, so `configured` does not mean the server answers or
+that your library is usable. Then ask your agent:
+
+> Search arXiv for recent async runtime and tail-latency papers for
+> `topic-rust-async`, and record the result as MOZAK evidence.
+
+The agent saves the exact response, writes a `mozak.tool-evidence.v1` fixture,
+and runs:
+
+```bash
+mozak research record-tool fixture.json response.json ~/mozak-kb/runs/arxiv-run.json
+mozak research validate ~/mozak-kb/runs/arxiv-run.json
+```
+
+See [the worked example](examples/tool-evidence-example.md) for the fixture.
+
+### Alternative: a legacy adapter binding
+
+The older adapters still work and remain the verified path until a real
+recorded run through the new tool exists. Use one if you prefer a fixed weekly
+feed:
 
 ```bash
 mozak adapter catalog
@@ -330,9 +361,8 @@ Setup pins the request and runner by SHA-256. If either changes, the binding
 becomes non-callable instead of silently running something else, and
 `mozak adapter recheck rust-async-dair` re-pins it after a deliberate edit.
 
-The run produces a validated research run: paper titles, links, matched
-clusters, and exact source provenance. It is **proposal-only**. Nothing entered
-your Topic yet.
+Either way the result is a validated research run. It is **proposal-only**.
+Nothing entered your Topic yet.
 
 Accept what you actually want with `mozak scope ingest-links`, which applies an
 owner-approved plan and writes a new validated Scope root.

@@ -16,6 +16,8 @@ MANAGED_FILES = (
     "SKILL.md",
     "install.py",
     "mcp.json",
+    "tool-stack.json",
+    "companion-recommendations.json",
     "tests/test_skill.py",
     "evals/evals.json",
 )

@@ -224,6 +224,8 @@ impl Module {
             ],
             Self::Research => &[
                 "research.rs",
+                "tool_evidence.rs",
+                "tool_evidence_workflow.rs",
                 "adapter.rs",
                 "adapter_workflow.rs",
                 "landmark.rs",
@@ -245,7 +247,7 @@ impl Module {
                 "package_import.rs",
             ],
             Self::ImproveLab => &["lab.rs", "lab_evidence.rs", "lab_evaluation.rs"],
-            Self::Skill => &["distribution.rs"],
+            Self::Skill => &["distribution.rs", "stack_workflow.rs", "tool-stack.json"],
             // Deliberately empty. The files a retired boundary covered have
             // since been redistributed, so naming today's files would claim
             // the old run studied code it never saw.

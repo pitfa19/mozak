@@ -24,6 +24,8 @@ mod package_workflow;
 mod project_registry;
 mod project_workflow;
 mod scope_workflow;
+mod stack_workflow;
+mod tool_evidence_workflow;
 
 const PROJECT_FILE: &str = ".mozak/project.yml";
 const IDEA_FILE: &str = ".mozak/idea.md";
@@ -165,6 +167,26 @@ fn run() -> Result<ExitCode, String> {
         return result;
     }
     match args.as_slice() {
+        [research, command, fixture, response, output]
+            if research == "research" && command == "record-tool" =>
+        {
+            tool_evidence_workflow::record_tool(
+                Path::new(fixture),
+                Path::new(response),
+                Path::new(output),
+            )?;
+            Ok(ExitCode::SUCCESS)
+        }
+        [research, command, fixture, response, run]
+            if research == "research" && command == "verify-tool" =>
+        {
+            tool_evidence_workflow::verify_tool(
+                Path::new(fixture),
+                Path::new(response),
+                Path::new(run),
+            )?;
+            Ok(ExitCode::SUCCESS)
+        }
         [research, command, adapter, fixture, output]
             if research == "research" && command == "normalize" =>
         {
@@ -327,28 +349,6 @@ fn run_project_registry_command(args: &[String]) -> Option<Result<ExitCode, Stri
         [project, command, id, rest @ ..] if project == "project" && command == "notes" => {
             Some(project_registry::project_notes(id, rest))
         }
-        [notes, command, id, rest @ ..] if notes == "notes" && command == "scope" => {
-            Some(project_registry::notes_scope(id, rest))
-        }
-        [notes, command, id, rest @ ..] if notes == "notes" && command == "meta-goal" => {
-            Some(project_registry::meta_goal_notes(id, rest))
-        }
-        [notes, command] if notes == "notes" && command == "check" => {
-            Some(project_registry::notes_check())
-        }
-        [notes, onboard, command, output]
-            if notes == "notes" && onboard == "onboard" && command == "propose" =>
-        {
-            Some(project_registry::notes_onboard_propose(Path::new(output)))
-        }
-        [notes, onboard, command, proposal, approval]
-            if notes == "notes" && onboard == "onboard" && command == "apply" =>
-        {
-            Some(project_registry::notes_onboard_apply(
-                Path::new(proposal),
-                Path::new(approval),
-            ))
-        }
         [project, command, id, rest @ ..] if project == "project" && command == "linked-scopes" => {
             Some(project_registry::linked_scopes(id, rest))
         }
@@ -383,12 +383,41 @@ fn run_project_registry_command(args: &[String]) -> Option<Result<ExitCode, Stri
                 project_registry::ContextOutputMode::Human,
             ))
         }
+        _ => run_notes_command(args),
+    }
+}
+
+fn run_notes_command(args: &[String]) -> Option<Result<ExitCode, String>> {
+    match args {
+        [notes, command, id, rest @ ..] if notes == "notes" && command == "scope" => {
+            Some(project_registry::notes_scope(id, rest))
+        }
+        [notes, command, id, rest @ ..] if notes == "notes" && command == "meta-goal" => {
+            Some(project_registry::meta_goal_notes(id, rest))
+        }
+        [notes, command] if notes == "notes" && command == "check" => {
+            Some(project_registry::notes_check())
+        }
+        [notes, onboard, command, output]
+            if notes == "notes" && onboard == "onboard" && command == "propose" =>
+        {
+            Some(project_registry::notes_onboard_propose(Path::new(output)))
+        }
+        [notes, onboard, command, proposal, approval]
+            if notes == "notes" && onboard == "onboard" && command == "apply" =>
+        {
+            Some(project_registry::notes_onboard_apply(
+                Path::new(proposal),
+                Path::new(approval),
+            ))
+        }
         _ => None,
     }
 }
 
 fn run_distribution_command(args: &[String]) -> Option<Result<ExitCode, String>> {
     match args {
+        [stack, rest @ ..] if stack == "stack" => Some(stack_workflow::run(rest)),
         [adapter, rest @ ..] if adapter == "adapter" => Some(adapter_workflow::run(rest)),
         [lab, rest @ ..] if lab == "lab" => Some(lab_workflow::run(rest)),
         [scope, rest @ ..] if scope == "scope" => Some(run_scope_command(rest)),
@@ -741,9 +770,9 @@ fn valid_revision(value: &str) -> bool {
 }
 
 pub(crate) fn usage() -> String {
-    "usage: mozak --version\n       mozak delivery status\n       mozak update [--channel stable|main] [--enable-auto|--disable-auto]  (managed launcher)\n       mozak rollback  (managed launcher)\n       mozak setup <install|check> <HOME> [--owner OWNER --kb-root KB_ROOT]\n       mozak doctor <HOME> [KB_ROOT]\n       mozak adapter catalog\n       mozak adapter setup <arxiv|dair-ai|mcp-registry|github-tooling|hyperresearch|monokl> <binding-id> <scope-id> <request.json> <runner> <runs-dir>\n       mozak adapter <list|show ID|run ID|recheck ID>\n       mozak lab modules\n       mozak lab start <run-dir> <scope-id> <module> <question> <binding-id> [binding-id ...]\n       mozak lab refresh <run-dir> <adapter-run.json>\n       mozak lab objective <run-dir> <objective.json>\n       mozak lab <select|read|mechanisms|plans|evidence> <run-dir> <input.json>\n       mozak lab evaluation failure <project-id> <problem.json> <failure.json>\n       mozak lab evaluation observe <failure.json> <label> <attributed-layer> <expected-stdout-sha256> <observation.json>\n       mozak lab evaluation compare <failure.json> <before.json> <after.json> <comparison.json>\n       mozak lab evaluation review <comparison.json> <failure.json> <before.json> <after.json> <review-packet.json>\n       mozak lab group define <run-dir> <source-inventory.json> <groups.json>\n       mozak lab group synthesize <run-dir> <group-synthesis.json>\n       mozak lab group skill <run-dir> <group-skill.json>\n       mozak lab group materialize <run-dir> <approval.json> <output-skill-dir> <predecessor-manifest.json|none>\n       mozak lab <review|status> <run-dir>\n       mozak <validate|replay> <fixture-file>\n       mozak project <init|status|validate|overview|list|graph-source|graph> [project-directory]\n       mozak project discover <kb-root> <workspace-root> [workspace-root ...]\n       mozak project review <discovery.json>\n       mozak project register <discovery.json> <approval.json>\n       mozak project refresh <discovery.json> <approval.json>\n       mozak project refresh history\n       mozak project refresh rollback <config-sha256>\n       mozak project context <project-id>\n       mozak project notes <project-id> [--limit N] [--offset N]\n       mozak project linked-scopes <project-id> [--limit N] [--offset N]\n       mozak notes scope <scope-id> [--limit N] [--offset N]\n       mozak notes meta-goal <meta-goal-id> [--limit N] [--offset N]\n       mozak notes check\n       mozak notes onboard propose <output.json>\n       mozak notes onboard apply <proposal.json> <approval.json>\n       mozak project registrations\n       mozak project release <project-root> <accepted-state.json> <output.json>\n       mozak package <validate|list|attest> <package-root>\n       mozak package history validate <package-root> [package-root ...]\n       mozak meta <validate|list|graph-source|graph> <meta-kb-root>
+    "usage: mozak --version\n       mozak delivery status\n       mozak update [--channel stable|main] [--enable-auto|--disable-auto]  (managed launcher)\n       mozak rollback  (managed launcher)\n       mozak setup <install|check> <HOME> [--owner OWNER --kb-root KB_ROOT]\n       mozak doctor <HOME> [KB_ROOT]\n       mozak stack catalog\n       mozak stack recommend <use-case>\n       mozak stack check <HOME> [use-case]\n       mozak adapter catalog\n       mozak adapter setup <arxiv|dair-ai|mcp-registry|github-tooling|hyperresearch|monokl> <binding-id> <scope-id> <request.json> <runner> <runs-dir>\n       mozak adapter <list|show ID|run ID|recheck ID>\n       mozak lab modules\n       mozak lab start <run-dir> <scope-id> <module> <question> <binding-id> [binding-id ...]\n       mozak lab refresh <run-dir> <adapter-run.json>\n       mozak lab objective <run-dir> <objective.json>\n       mozak lab <select|read|mechanisms|plans|evidence> <run-dir> <input.json>\n       mozak lab evaluation failure <project-id> <problem.json> <failure.json>\n       mozak lab evaluation observe <failure.json> <label> <attributed-layer> <expected-stdout-sha256> <observation.json>\n       mozak lab evaluation compare <failure.json> <before.json> <after.json> <comparison.json>\n       mozak lab evaluation review <comparison.json> <failure.json> <before.json> <after.json> <review-packet.json>\n       mozak lab group define <run-dir> <source-inventory.json> <groups.json>\n       mozak lab group synthesize <run-dir> <group-synthesis.json>\n       mozak lab group skill <run-dir> <group-skill.json>\n       mozak lab group materialize <run-dir> <approval.json> <output-skill-dir> <predecessor-manifest.json|none>\n       mozak lab <review|status> <run-dir>\n       mozak <validate|replay> <fixture-file>\n       mozak project <init|status|validate|overview|list|graph-source|graph> [project-directory]\n       mozak project discover <kb-root> <workspace-root> [workspace-root ...]\n       mozak project review <discovery.json>\n       mozak project register <discovery.json> <approval.json>\n       mozak project refresh <discovery.json> <approval.json>\n       mozak project refresh history\n       mozak project refresh rollback <config-sha256>\n       mozak project context <project-id>\n       mozak project notes <project-id> [--limit N] [--offset N]\n       mozak project linked-scopes <project-id> [--limit N] [--offset N]\n       mozak notes scope <scope-id> [--limit N] [--offset N]\n       mozak notes meta-goal <meta-goal-id> [--limit N] [--offset N]\n       mozak notes check\n       mozak notes onboard propose <output.json>\n       mozak notes onboard apply <proposal.json> <approval.json>\n       mozak project registrations\n       mozak project release <project-root> <accepted-state.json> <output.json>\n       mozak package <validate|list|attest> <package-root>\n       mozak package history validate <package-root> [package-root ...]\n       mozak meta <validate|list|graph-source|graph> <meta-kb-root>
        mozak kb concept candidates <target-scope-id> [research-run.json ...]
-       mozak kb concept translation-packet <target-scope-id> <concept-id> <concept-sha256>\n       mozak case <validate|list|reproduce-packet> <case.json>\n       mozak concept <validate|list> <concept.json>\n       mozak concept list <concept.json> <translation.json>\n       mozak concept translation validate <concept.json> <translation.json>\n       mozak scope init <scope-root> <scope-id> <title> <intent>\n       mozak scope add-topic <scope-root> <scope-id> <title> <intent>\n       mozak scope add-project <scope-root> <scope-id> <title> <intent> <project-root>\n       mozak scope add-goal <scope-root> <goal-id> <title> <scope-id> [scope-id ...]\n       mozak scope <validate|list|graph-source|graph|export> <scope-root>\n       mozak scope source-check <scope-root> <source-id> <source-root> <observed-revision>\n       mozak scope ingest-links <scope-root> <source-root> <observed-revision> <plan.json> <output-root>\n       mozak kb <validate|list|graph-source|graph> [registry-root]\n       mozak kb tree [registry-root] [--concept] [--project] [--topic]\n       mozak kb register <registry-root> <registration-id> <scope-root>\n       mozak kb repin <registry-root> <registration-id> <scope-root>\n       mozak kb parity <registry-root> <observations.json>\n       mozak kb import-package <package-root> <input-registry-root> <approval.json> <output-kb-root>\n       mozak research validate <run.json>\n       mozak research landmarks <run.json> <landmarks.json>\n       mozak research normalize <arxiv|dair-ai|mcp-registry|github-tooling|hyperresearch|monokl> <fixture.json> <run.json>\n       mozak planning compact plan <project-root> <plan.json> <generated-at>\n       mozak planning compact apply <project-root> <plan.json> <approval.json>\n       mozak planning compact restore <project-root> <active-index.json> <approval.json> <output-root>\n       mozak planning next <accepted-inputs.json> <plan.json>\n       mozak execution validate <bundle.json> <observed-revision> <observed-at>".to_owned()
+       mozak kb concept translation-packet <target-scope-id> <concept-id> <concept-sha256>\n       mozak case <validate|list|reproduce-packet> <case.json>\n       mozak concept <validate|list> <concept.json>\n       mozak concept list <concept.json> <translation.json>\n       mozak concept translation validate <concept.json> <translation.json>\n       mozak scope init <scope-root> <scope-id> <title> <intent>\n       mozak scope add-topic <scope-root> <scope-id> <title> <intent>\n       mozak scope add-project <scope-root> <scope-id> <title> <intent> <project-root>\n       mozak scope add-goal <scope-root> <goal-id> <title> <scope-id> [scope-id ...]\n       mozak scope <validate|list|graph-source|graph|export> <scope-root>\n       mozak scope source-check <scope-root> <source-id> <source-root> <observed-revision>\n       mozak scope ingest-links <scope-root> <source-root> <observed-revision> <plan.json> <output-root>\n       mozak kb <validate|list|graph-source|graph> [registry-root]\n       mozak kb tree [registry-root] [--concept] [--project] [--topic]\n       mozak kb register <registry-root> <registration-id> <scope-root>\n       mozak kb repin <registry-root> <registration-id> <scope-root>\n       mozak kb parity <registry-root> <observations.json>\n       mozak kb import-package <package-root> <input-registry-root> <approval.json> <output-kb-root>\n       mozak research record-tool <fixture.json> <response-bytes> <run.json>\n       mozak research verify-tool <fixture.json> <response-bytes> <run.json>\n       mozak research validate <run.json>\n       mozak research landmarks <run.json> <landmarks.json>\n       mozak research normalize <arxiv|dair-ai|mcp-registry|github-tooling|hyperresearch|monokl> <fixture.json> <run.json>\n       mozak planning compact plan <project-root> <plan.json> <generated-at>\n       mozak planning compact apply <project-root> <plan.json> <approval.json>\n       mozak planning compact restore <project-root> <active-index.json> <approval.json> <output-root>\n       mozak planning next <accepted-inputs.json> <plan.json>\n       mozak execution validate <bundle.json> <observed-revision> <observed-at>".to_owned()
 }
 
 fn main() -> ExitCode {

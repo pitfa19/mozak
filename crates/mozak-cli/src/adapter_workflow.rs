@@ -412,6 +412,62 @@ fn validate_registered_scope(scope_id: &str) -> Result<(), String> {
     }
 }
 
+/// Scope ids registered in an explicit KB whose `kb.json` hash must equal
+/// `expected_sha256`. Read-only; used by `stack check` with an explicit HOME
+/// instead of the ambient configured KB.
+pub(crate) fn registered_scope_ids(
+    kb_root: &Path,
+    expected_sha256: &str,
+) -> Result<std::collections::BTreeSet<String>, String> {
+    let kb = load_registry(kb_root).map_err(|error| error.to_string())?;
+    if kb.registry_sha256 != expected_sha256 {
+        return Err("configured KB drifted".into());
+    }
+    Ok(kb
+        .entries
+        .iter()
+        .flat_map(|entry| entry.scopes.manifest.scopes.iter().map(|s| s.id.clone()))
+        .collect())
+}
+
+/// Read-only readiness of every binding in strict adapter registry JSON, using
+/// the same validator and pin check as `adapter list`. A binding is callable
+/// only when both pins match and its target Scope is in `registered_scopes`;
+/// `None` means the KB could not be verified, which fails closed.
+pub(crate) fn binding_readiness(
+    registry_json: &str,
+    registered_scopes: Option<&std::collections::BTreeSet<String>>,
+) -> Result<Vec<serde_json::Value>, String> {
+    let registry = validate_adapter_registry_json(registry_json).map_err(|e| e.to_string())?;
+    Ok(registry
+        .bindings
+        .iter()
+        .map(|binding| {
+            let mut reasons = Vec::new();
+            if pin_status(&binding.request_path, &binding.request_sha256) != "ready" {
+                reasons.push("request_pin_drifted");
+            }
+            if pin_status(&binding.runner_path, &binding.runner_sha256) != "ready" {
+                reasons.push("runner_pin_drifted");
+            }
+            match registered_scopes {
+                None => reasons.push("target_scope_unverified"),
+                Some(scopes) if !scopes.contains(&binding.target_scope_id) => {
+                    reasons.push("target_scope_not_registered");
+                }
+                Some(_) => {}
+            }
+            json!({
+                "id": binding.id,
+                "adapter": binding.adapter,
+                "callable": reasons.is_empty(),
+                "state": if reasons.is_empty() { "ready" } else { "needs_recheck" },
+                "reasons": reasons,
+            })
+        })
+        .collect())
+}
+
 fn validate_id(value: &str, label: &str) -> Result<(), String> {
     let valid = !value.is_empty()
         && value

@@ -1,0 +1,400 @@
+{
+  "schema_version": 1,
+  "catalog_id": "mozak-tool-stack",
+  "catalog_version": "2026-10-05.1",
+  "policy": {
+    "selection": "Tools are selected explicitly per named use case. A use case returns only the tools that apply to it, plus the baseline that applies to every use case.",
+    "installation": "MOZAK never installs, registers, launches, or updates third-party tools. Install and registration steps are reported text for the owner or agent host to run deliberately.",
+    "networking": "stack catalog, recommend, and check perform no networking, no MCP handshake, and execute no external program.",
+    "credentials": "Credential values are never read into reports. Only environment variable names and their presence are reported.",
+    "readiness": "stack check observes at most `configured` from explicit host files. Handshake, service usability, and write grants require a separate agent-host probe and are never inferred.",
+    "shipping": "Third-party tools are not shipped in the MOZAK payload unless `shipped_by_mozak` is true. Pins record the version observed in primary docs on `verified_at`; they are not a claim that MOZAK tested every host combination.",
+    "evidence": "Anything a tool retrieves is proposal-only research evidence until the owner separately accepts an input."
+  },
+  "readiness_ladder": [
+    {"id": "missing", "observed_by": "stack check", "meaning": "No declared executable, skill directory, or host registration was found."},
+    {"id": "installed", "observed_by": "stack check", "meaning": "A declared executable is on PATH or a declared skill directory exists under HOME."},
+    {"id": "configured", "observed_by": "stack check", "meaning": "An explicit host MCP config or MOZAK adapter binding names the tool."},
+    {"id": "handshake_ok", "observed_by": "agent host", "meaning": "The agent host completed an MCP initialize and tools/list against the server. Not observable by stack check."},
+    {"id": "usable", "observed_by": "agent host", "meaning": "A read-only probe call returned real data, for example a library or search result. Not observable by stack check."},
+    {"id": "write_granted", "observed_by": "owner", "meaning": "The owner explicitly granted write access for a specific purpose. Never inferred and never blanket."}
+  ],
+  "observed_states": ["missing", "installed", "configured", "prerequisite_missing"],
+  "hosts": [
+    {"id": "jcode", "config_path": ".jcode/mcp.json", "format": "json", "servers_key": "servers"},
+    {"id": "claude-code", "config_path": ".claude.json", "format": "json", "servers_key": "mcpServers"},
+    {"id": "claude-desktop", "config_path": ".config/Claude/claude_desktop_config.json", "format": "json", "servers_key": "mcpServers"},
+    {"id": "codex", "config_path": ".codex/config.toml", "format": "toml", "servers_key": "mcp_servers"}
+  ],
+  "adapter_registry_path": ".config/mozak/adapters.json",
+  "use_cases": [
+    {
+      "id": "baseline",
+      "title": "Baseline for every MOZAK session",
+      "summary": "Output shaping, Notes capture, and terminal diagrams. Merged into every other use case.",
+      "tools": [
+        {"tool_id": "adhd-skill", "requirement": "required"},
+        {"tool_id": "notes-skills", "requirement": "required"},
+        {"tool_id": "termaid", "requirement": "required"},
+        {"tool_id": "mmdr", "requirement": "optional"},
+        {"tool_id": "caveman-skill", "requirement": "optional"},
+        {"tool_id": "drawing-skills", "requirement": "optional"}
+      ]
+    },
+    {
+      "id": "literature",
+      "title": "Literature search and section-level paper reading",
+      "summary": "Search arXiv, read one LaTeX section at a time, export BibTeX, and keep topic watches through the arXiv MCP server. The legacy hash-pinned arXiv and DAIR.AI adapters remain available for recorded batch snapshots.",
+      "tools": [
+        {"tool_id": "arxiv-mcp", "requirement": "required"},
+        {"tool_id": "adapter-arxiv", "requirement": "legacy_alternative"},
+        {"tool_id": "adapter-dair-ai", "requirement": "optional"}
+      ]
+    },
+    {
+      "id": "references",
+      "title": "Reference library, paper reading, and citations",
+      "summary": "Search and read the owner's Zotero library, extract annotations, and export citations. Requires a real local Zotero data directory or web API credentials.",
+      "tools": [
+        {"tool_id": "zotero-mcp", "requirement": "required"},
+        {"tool_id": "zotero-cli-skill", "requirement": "optional"}
+      ]
+    },
+    {
+      "id": "manuscript",
+      "title": "Manuscript editing on Overleaf (optional)",
+      "summary": "Read, compile, and with an explicit git token edit an Overleaf project. Needs owner-supplied credentials and is never part of the default stack.",
+      "tools": [
+        {"tool_id": "overleaf-mcp", "requirement": "required"}
+      ]
+    },
+    {
+      "id": "tooling-watch",
+      "title": "Released tooling watch",
+      "summary": "Track MCP server releases and GitHub repositories through the existing hash-pinned adapters. No MCP replacement is selected yet, so these remain the supported route.",
+      "tools": [
+        {"tool_id": "adapter-mcp-registry", "requirement": "any_of", "group": "tooling-source"},
+        {"tool_id": "adapter-github-tooling", "requirement": "any_of", "group": "tooling-source"}
+      ]
+    },
+    {
+      "id": "deep-research",
+      "title": "External deep-research vault snapshots",
+      "summary": "Normalize a HyperResearch or MONOKL vault snapshot into proposal-only MOZAK evidence through the existing adapters.",
+      "tools": [
+        {"tool_id": "adapter-hyperresearch", "requirement": "any_of", "group": "research-vault"},
+        {"tool_id": "adapter-monokl", "requirement": "any_of", "group": "research-vault"}
+      ]
+    }
+  ],
+  "tools": [
+    {
+      "id": "adhd-skill",
+      "name": "ADHD skill",
+      "kind": "managed_skill",
+      "companion_classification": "managed",
+      "shipped_by_mozak": true,
+      "ready_at": "installed",
+      "detection": {"skill_dirs": ["i-have-adhd"]},
+      "install": ["mozak setup install HOME"],
+      "notes": "Version-matched embedded payload. setup check verifies drift."
+    },
+    {
+      "id": "notes-skills",
+      "name": "Notes skills",
+      "kind": "managed_skill",
+      "companion_classification": "managed",
+      "shipped_by_mozak": true,
+      "ready_at": "installed",
+      "detection": {"skill_dirs": ["note", "note-healthcheck", "note-voice-census"], "skill_match": "all"},
+      "install": ["mozak setup install HOME"],
+      "notes": "Pinned to Notes commit 91a2b675bf876e71433bec7d0d0cb6ef080d957c; file hashes in skills/notes-vendor-manifest.json."
+    },
+    {
+      "id": "termaid",
+      "name": "Termaid",
+      "kind": "executable",
+      "companion_classification": "required",
+      "shipped_by_mozak": false,
+      "ready_at": "installed",
+      "detection": {"executables": ["termaid"]},
+      "install": ["Install the termaid CLI so `termaid` is on PATH; MOZAK graph commands render through it."],
+      "notes": "Required for MOZAK graph rendering."
+    },
+    {
+      "id": "mmdr",
+      "name": "mmdr",
+      "kind": "executable",
+      "companion_classification": "recommended",
+      "shipped_by_mozak": false,
+      "ready_at": "installed",
+      "detection": {"executables": ["mmdr"]},
+      "install": ["Optional: install mmdr to convert Mermaid to SVG/PNG."],
+      "notes": "Recommendation only."
+    },
+    {
+      "id": "caveman-skill",
+      "name": "Caveman skill",
+      "kind": "skill",
+      "companion_classification": "recommended",
+      "shipped_by_mozak": false,
+      "ready_at": "installed",
+      "detection": {"skill_dirs": ["caveman"]},
+      "install": [],
+      "notes": "Detected only when an exact Caveman skill directory is already installed."
+    },
+    {
+      "id": "drawing-skills",
+      "name": "Drawing skills",
+      "kind": "skill",
+      "companion_classification": "recommended",
+      "shipped_by_mozak": false,
+      "ready_at": "installed",
+      "detection": {"skill_dirs": ["archify", "excalidraw-skill"]},
+      "install": [],
+      "notes": "Detected only when exact drawing skill directories are already installed."
+    },
+    {
+      "id": "arxiv-mcp",
+      "name": "arXiv MCP server",
+      "kind": "mcp_server",
+      "shipped_by_mozak": false,
+      "ready_at": "configured",
+      "upstream": {
+        "repository": "https://github.com/blazickjp/arxiv-mcp-server",
+        "docs_url": "https://github.com/blazickjp/arxiv-mcp-server#readme",
+        "registry": "pypi",
+        "package": "arxiv-mcp-server",
+        "pinned_version": "0.8.1",
+        "requires_python": ">=3.11",
+        "license": "Apache-2.0",
+        "verified_at": "2026-10-05",
+        "warning": "An unrelated npm package uses the same name. Do not install with npm, pnpm, or npx."
+      },
+      "detection": {
+        "executables": ["arxiv-mcp-server"],
+        "launcher_executables": ["uvx"],
+        "host_server_names": ["arxiv"],
+        "command_markers": ["arxiv-mcp-server"]
+      },
+      "prerequisites": [
+        {"id": "uv", "kind": "executable_any", "executables": ["uvx", "arxiv-mcp-server"], "message": "Install uv (provides uvx) or `uv tool install arxiv-mcp-server==0.8.1`."}
+      ],
+      "credentials": {"required_env": [], "optional_env": []},
+      "effects": {"network": "arXiv API and Semantic Scholar for search, source, and citation graph", "local_writes": "~/.arxiv-mcp-server/papers and watch state", "external_writes": false},
+      "install": [
+        "uv tool install arxiv-mcp-server==0.8.1",
+        "or run without installing: uvx arxiv-mcp-server@0.8.1"
+      ],
+      "registration": {
+        "jcode": {"path": ".jcode/mcp.json", "snippet": {"servers": {"arxiv": {"command": "uvx", "args": ["arxiv-mcp-server@0.8.1"]}}}},
+        "claude-code": {"command": "claude mcp add --transport stdio --scope user arxiv -- uvx arxiv-mcp-server@0.8.1", "verify": "claude mcp get arxiv"},
+        "codex": {"command": "codex mcp add arxiv -- uvx arxiv-mcp-server@0.8.1", "verify": "codex mcp get arxiv"},
+        "claude-desktop": {"path": ".config/Claude/claude_desktop_config.json", "snippet": {"mcpServers": {"arxiv": {"type": "stdio", "command": "uvx", "args": ["arxiv-mcp-server@0.8.1"]}}}}
+      },
+      "probes": {
+        "handshake": "From the agent host, list tools on server `arxiv` and confirm `search_papers`, `get_paper_outline`, and `export_citations` are present.",
+        "usable": "Call `get_abstract` with paper_id `2404.19756` and confirm metadata is returned.",
+        "write": "None. The server writes only its local paper cache."
+      },
+      "notes": "Read loop: paper id, outline, one section, citations. Results remain proposal-only evidence."
+    },
+    {
+      "id": "zotero-mcp",
+      "name": "Zotero MCP server",
+      "kind": "mcp_server",
+      "shipped_by_mozak": false,
+      "ready_at": "configured",
+      "upstream": {
+        "repository": "https://github.com/54yyyu/zotero-mcp",
+        "docs_url": "https://github.com/54yyyu/zotero-mcp/blob/main/docs/for-agents.md",
+        "registry": "pypi",
+        "package": "zotero-mcp-server",
+        "pinned_version": "0.13.2",
+        "requires_python": ">=3.10",
+        "license": "MIT",
+        "verified_at": "2026-10-05"
+      },
+      "detection": {
+        "executables": ["zotero-mcp"],
+        "host_server_names": ["zotero"],
+        "command_markers": ["zotero-mcp"]
+      },
+      "prerequisites": [
+        {
+          "id": "zotero-database",
+          "kind": "file_any",
+          "path_env": "ZOTERO_DB_PATH",
+          "prefs": {"dir": ".zotero/zotero", "file": "prefs.js", "pref": "extensions.zotero.dataDir", "join": "zotero.sqlite"},
+          "home_paths": ["Zotero/zotero.sqlite"],
+          "alternative_env_all": ["ZOTERO_API_KEY", "ZOTERO_LIBRARY_ID"],
+          "alternative_label": "web API mode: both env names declared in the matched host server config or process env (values never read)",
+          "message": "No zotero.sqlite was found (checked ZOTERO_DB_PATH, Zotero prefs dataDir, and ~/Zotero) and web API mode is not declared. Install Zotero 7+ and open it once to create the data directory, set ZOTERO_DB_PATH to the real database, or declare ZOTERO_API_KEY and ZOTERO_LIBRARY_ID for web mode. Without one of these the server can start and complete a handshake but cannot read a library."
+        }
+      ],
+      "credentials": {"required_env": [], "optional_env": ["ZOTERO_API_KEY", "ZOTERO_LIBRARY_ID", "ZOTERO_LOCAL_API_KEY"]},
+      "effects": {"network": "none in local read mode; Zotero web API in web or hybrid mode", "local_writes": "~/.config/zotero-mcp and optional semantic index", "external_writes": "only when the owner authorizes writes (authorize-local or web API key)"},
+      "install": [
+        "uv tool install zotero-mcp-server==0.13.2",
+        "In Zotero 7+: Settings, Advanced, enable `Allow other applications on this computer to communicate with Zotero`.",
+        "Writes are optional and need a separate owner decision: `zotero-mcp authorize-local` on Zotero 10+."
+      ],
+      "registration": {
+        "jcode": {"path": ".jcode/mcp.json", "snippet": {"servers": {"zotero": {"command": "zotero-mcp", "args": ["serve"], "env": {"ZOTERO_LOCAL": "true"}}}}},
+        "claude-code": {"command": "claude mcp add --transport stdio --scope user -e ZOTERO_LOCAL=true zotero -- zotero-mcp", "verify": "claude mcp get zotero"},
+        "codex": {"command": "codex mcp add zotero --env ZOTERO_LOCAL=true -- zotero-mcp", "verify": "codex mcp get zotero"},
+        "claude-desktop": {"path": ".config/Claude/claude_desktop_config.json", "snippet": {"mcpServers": {"zotero": {"command": "zotero-mcp", "env": {"ZOTERO_LOCAL": "true"}}}}}
+      },
+      "probes": {
+        "handshake": "From the agent host, list tools on server `zotero`. A successful handshake does not prove a library is readable.",
+        "usable": "Call a read-only search tool and confirm at least one real library item. An error about a missing database means the prerequisite is unmet, not that the tool is ready.",
+        "write": "Never assume. Requires an explicit owner grant per purpose."
+      },
+      "notes": "Handshake can succeed while no database exists, so `configured` never implies `usable`."
+    },
+    {
+      "id": "zotero-cli-skill",
+      "name": "zotero-cli agent skill",
+      "kind": "skill",
+      "shipped_by_mozak": false,
+      "ready_at": "installed",
+      "upstream": {
+        "repository": "https://github.com/54yyyu/zotero-mcp",
+        "docs_url": "https://github.com/54yyyu/zotero-mcp/blob/main/docs/cli.md",
+        "registry": "pypi",
+        "package": "zotero-mcp-server",
+        "pinned_version": "0.13.2",
+        "license": "MIT",
+        "verified_at": "2026-10-05"
+      },
+      "detection": {"skill_dirs": ["zotero-cli"], "executables": ["zotero-cli"]},
+      "prerequisites": [],
+      "credentials": {"required_env": [], "optional_env": []},
+      "install": ["zotero-mcp install-skill --list-targets", "zotero-mcp install-skill --target <host>"],
+      "notes": "Lower-context alternative to the MCP server for shell-capable hosts. Shares the Zotero MCP config and database prerequisite."
+    },
+    {
+      "id": "overleaf-mcp",
+      "name": "Overleaf MCP server",
+      "kind": "mcp_server",
+      "shipped_by_mozak": false,
+      "ready_at": "configured",
+      "upstream": {
+        "repository": "https://github.com/rangehow/overleaf-mcp",
+        "docs_url": "https://github.com/rangehow/overleaf-mcp#readme",
+        "registry": "pypi",
+        "package": "overleaf-mcp-plus",
+        "pinned_version": "0.3.1",
+        "requires_python": ">=3.10",
+        "license": "MIT",
+        "verified_at": "2026-10-05",
+        "warning": "The PyPI name `overleaf-mcp` belongs to an unrelated project. The entry point is still `overleaf-mcp`."
+      },
+      "detection": {
+        "executables": ["overleaf-mcp"],
+        "launcher_executables": ["uvx"],
+        "host_server_names": ["overleaf"],
+        "command_markers": ["overleaf-mcp"]
+      },
+      "prerequisites": [
+        {"id": "overleaf-session", "kind": "credential_env", "env": "OVERLEAF_SESSION", "message": "Set OVERLEAF_SESSION in the host server env from the owner's own browser session. MOZAK never reads or stores it."}
+      ],
+      "credentials": {"required_env": ["OVERLEAF_SESSION"], "optional_env": ["OVERLEAF_GIT_TOKEN"]},
+      "effects": {"network": "overleaf.com and git.overleaf.com", "local_writes": "OVERLEAF_TEMP_DIR git cache", "external_writes": "edit, create, delete, and push tools when OVERLEAF_GIT_TOKEN is supplied"},
+      "install": [
+        "uv tool install \"overleaf-mcp-plus[compile]==0.3.1\"",
+        "or run without installing: uvx --from \"overleaf-mcp-plus[compile]==0.3.1\" overleaf-mcp"
+      ],
+      "registration": {
+        "jcode": {"path": ".jcode/mcp.json", "snippet": {"servers": {"overleaf": {"command": "overleaf-mcp", "env": {"OVERLEAF_SESSION": "<owner supplies>"}}}}},
+        "claude-code": {"command": "claude mcp add --transport stdio --scope user -e OVERLEAF_SESSION=<owner supplies> overleaf -- overleaf-mcp", "verify": "claude mcp get overleaf"},
+        "codex": {"command": "codex mcp add overleaf --env OVERLEAF_SESSION=<owner supplies> -- overleaf-mcp", "verify": "codex mcp get overleaf"},
+        "claude-desktop": {"path": ".config/Claude/claude_desktop_config.json", "snippet": {"mcpServers": {"overleaf": {"command": "overleaf-mcp", "env": {"OVERLEAF_SESSION": "<owner supplies>"}}}}}
+      },
+      "probes": {
+        "handshake": "From the agent host, list tools on server `overleaf`.",
+        "usable": "Call `list_projects`. An auth error means the session cookie is missing or expired.",
+        "write": "Edit and push tools need OVERLEAF_GIT_TOKEN and a separate owner grant for the exact project."
+      },
+      "notes": "Optional. Never part of the default stack."
+    },
+    {
+      "id": "adapter-arxiv",
+      "name": "MOZAK arXiv adapter (legacy batch snapshots)",
+      "kind": "legacy_adapter",
+      "adapter": "arxiv",
+      "shipped_by_mozak": true,
+      "ready_at": "configured",
+      "detection": {"executables": ["python3"], "adapter_bindings": ["arxiv"]},
+      "prerequisites": [],
+      "credentials": {"required_env": [], "optional_env": []},
+      "install": ["mozak adapter setup arxiv BINDING_ID SCOPE_ID REQUEST_JSON scripts/adapters/weekly.sh RUNS_DIR (after owner accepts the request)"],
+      "notes": "Recorded hash-pinned catch-up and query snapshots. Existing runs and bindings stay valid; normalize with `mozak research normalize arxiv`."
+    },
+    {
+      "id": "adapter-dair-ai",
+      "name": "MOZAK DAIR.AI adapter",
+      "kind": "legacy_adapter",
+      "adapter": "dair-ai",
+      "shipped_by_mozak": true,
+      "ready_at": "configured",
+      "detection": {"executables": ["python3"], "adapter_bindings": ["dair-ai"]},
+      "prerequisites": [],
+      "credentials": {"required_env": [], "optional_env": []},
+      "install": ["mozak adapter setup dair-ai BINDING_ID SCOPE_ID REQUEST_JSON scripts/adapters/dair_weekly.sh RUNS_DIR (after owner accepts the request)"],
+      "notes": "Curated complement to arXiv, not a complete search. Normalize with `mozak research normalize dair-ai`."
+    },
+    {
+      "id": "adapter-mcp-registry",
+      "name": "MOZAK MCP registry adapter",
+      "kind": "legacy_adapter",
+      "adapter": "mcp-registry",
+      "shipped_by_mozak": true,
+      "ready_at": "configured",
+      "detection": {"executables": ["python3"], "adapter_bindings": ["mcp-registry"]},
+      "prerequisites": [],
+      "credentials": {"required_env": [], "optional_env": []},
+      "install": ["mozak adapter setup mcp-registry BINDING_ID SCOPE_ID REQUEST_JSON scripts/adapters/mcp_registry_weekly.sh RUNS_DIR (after owner accepts the request)"],
+      "notes": "Self-published registry entries record publication, not assessed quality."
+    },
+    {
+      "id": "adapter-github-tooling",
+      "name": "MOZAK GitHub tooling adapter",
+      "kind": "legacy_adapter",
+      "adapter": "github-tooling",
+      "shipped_by_mozak": true,
+      "ready_at": "configured",
+      "detection": {"executables": ["python3"], "adapter_bindings": ["github-tooling"]},
+      "prerequisites": [],
+      "credentials": {"required_env": [], "optional_env": ["GITHUB_TOKEN"]},
+      "install": ["mozak adapter setup github-tooling BINDING_ID SCOPE_ID REQUEST_JSON scripts/adapters/github_tooling_run.sh RUNS_DIR (after owner accepts the request)"],
+      "notes": "Discover and watch modes. Stars and pushes measure attention, not quality."
+    },
+    {
+      "id": "adapter-hyperresearch",
+      "name": "MOZAK HyperResearch adapter",
+      "kind": "legacy_adapter",
+      "adapter": "hyperresearch",
+      "shipped_by_mozak": true,
+      "ready_at": "configured",
+      "detection": {"executables": ["hyperresearch"], "adapter_bindings": ["hyperresearch"]},
+      "prerequisites": [],
+      "credentials": {"required_env": [], "optional_env": []},
+      "install": ["pipx install hyperresearch", "See docs/HYPERRESEARCH.md, then mozak adapter setup hyperresearch ... after owner acceptance"],
+      "notes": "Vault snapshot normalized as proposal-only evidence."
+    },
+    {
+      "id": "adapter-monokl",
+      "name": "MOZAK MONOKL adapter",
+      "kind": "legacy_adapter",
+      "adapter": "monokl",
+      "shipped_by_mozak": true,
+      "ready_at": "configured",
+      "detection": {"executables": ["monokl"], "adapter_bindings": ["monokl"]},
+      "prerequisites": [],
+      "credentials": {"required_env": [], "optional_env": []},
+      "install": ["pipx install monokl", "See docs/MONOKL.md, then mozak adapter setup monokl ... after owner acceptance"],
+      "notes": "Vault snapshot normalized as proposal-only evidence."
+    }
+  ]
+}

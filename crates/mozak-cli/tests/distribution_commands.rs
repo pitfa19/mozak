@@ -51,7 +51,26 @@ fn install_and_check_are_embedded_idempotent_and_deterministic() {
     assert_eq!(report["state"], "ready");
     assert_eq!(report["parity"], true);
     assert_eq!(report["embedded"], true);
-    assert_eq!(report["checks"].as_array().unwrap().len(), 116);
+    assert_eq!(report["checks"].as_array().unwrap().len(), 120);
+    let catalog_bytes = fs::read(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../skills/mozak/tool-stack.json"),
+    )
+    .unwrap();
+    for root in [".agents", ".jcode", ".claude", ".codex"] {
+        assert_eq!(
+            fs::read(home.join(root).join("skills/mozak/tool-stack.json")).unwrap(),
+            catalog_bytes
+        );
+    }
+    assert_eq!(report["stack_onboarding"]["blocking"], false);
+    assert_eq!(
+        report["stack_onboarding"]["next_steps"][1],
+        "mozak stack recommend USE_CASE"
+    );
+    assert_eq!(
+        report["stack_onboarding"]["recommended_mcp_servers"],
+        serde_json::json!(["arxiv-mcp", "zotero-mcp", "overleaf-mcp"])
+    );
     for root in [".agents", ".jcode", ".claude", ".codex"] {
         assert!(
             home.join(root)
@@ -232,6 +251,11 @@ fn doctor_reports_honest_incomplete_and_invalid_states() {
     assert_eq!(output.status.code(), Some(2));
     let report: Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(report["state"], "incomplete");
+    assert_eq!(report["stack_onboarding"]["blocking"], false);
+    assert_eq!(
+        report["stack_onboarding"]["next_steps"][0],
+        "mozak stack catalog"
+    );
     let companion_check = report["checks"]
         .as_array()
         .unwrap()

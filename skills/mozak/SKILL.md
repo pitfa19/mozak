@@ -1,11 +1,44 @@
 ---
 name: mozak
-description: Operate MOZAK projects, Scopes, explicit KB registries, and local Meta KBs through natural-language onboarding, status, research, planning, next-goal, packet, execution, evaluation, release, validation, parity, listing, tree, and graph requests using only the current local CLI.
+description: Operate MOZAK projects, Scopes, explicit KB registries, and local Meta KBs through natural-language onboarding, status, research, planning, next-goal, packet, execution, evaluation, release, validation, parity, listing, tree, and graph requests using only the current local CLI. Every use loads i-have-adhd, reads project context, and checks the explicit tool stack (arXiv, Zotero, Overleaf, legacy adapters) only for the applicable use case.
 ---
 
 # MOZAK
 
 Natural language is the user interface. Translate the request into the smallest current MOZAK command, inspect its result, and answer with terminal bullet lists or a `Termaid` diagram. Never direct the user to a web dashboard.
+
+## Every MOZAK use starts the same way
+
+This is a standing rule, like the ADHD rule. It applies to every MOZAK request in every session, not only the first one.
+
+1. Load the `i-have-adhd` skill and keep its output rules on.
+2. For project work, run `mozak project context PROJECT_ID` and work only from its result.
+3. Run `mozak stack check HOME baseline` (or `mozak stack check HOME USE_CASE`, which always includes `baseline`). When the request also matches a specialized use case, run `mozak stack recommend USE_CASE` first and use only the tools that check reports for the selected use case(s). With no specialized match, `baseline` alone applies; do not activate every tool.
+
+The local CLI checks observable facts: files, hashes, host configuration, and recorded evidence. It cannot force an agent to follow these instructions. Following them is the agent's job.
+
+## Explicit tool stack
+
+- Catalog: `tool-stack.json`, shipped next to this skill and versioned with the binary. It is the source of truth for which MCP servers and skills serve which use case. `companion-recommendations.json` still ships unchanged for compatibility; its entries are now stack catalog policies, mainly the always-on `baseline` use case.
+- Read the catalog with `mozak stack catalog`. Get the tools for one use case with `mozak stack recommend USE_CASE`. Observe local readiness with `mozak stack check HOME [USE_CASE]`. All three are read-only and offline, install nothing, and perform no MCP handshake.
+- Use cases: `baseline` (always: `i-have-adhd`, Notes skills, Termaid), `literature` (arXiv MCP; legacy `arxiv` and `dair-ai` adapters as alternatives), `references` (Zotero MCP), `manuscript` (Overleaf MCP, optional, needs credentials), `tooling-watch` (legacy `mcp-registry` and `github-tooling` adapters), `deep-research` (legacy `hyperresearch` and `monokl` adapters).
+- Activate a tool only for its applicable use case: arXiv for literature, Zotero for references and reading, Overleaf for manuscripts. A literature question does not justify opening Zotero or Overleaf.
+- Readiness is a ladder, and each rung is a separate fact: `missing`, `installed`, `configured`, `handshake_ok`, `usable`, `write_granted`. An installed package is not a configured server. A successful handshake is not a usable library. Read access is not write permission. `prerequisite_missing` means configured but a declared prerequisite is absent, for example Zotero with no `zotero.sqlite` at the default path or `ZOTERO_DB_PATH`.
+- `stack check` observes only up to `configured` from host files (executables on PATH, skill directories, `~/.jcode/mcp.json`, `~/.claude.json`, `~/.codex/config.toml`). Beyond that it reports `handshake: "not_observed"`, `usable: "unknown"`, and `write_grant: "not_observed"`. Do not upgrade those values from memory or assumption. Only the agent host calls an MCP server, and only that call can show a handshake or real library access.
+- Exit codes: `stack check` returns 0 when every required tool of the checked use case(s) reaches its declared `ready_at` rung (`installed` for baseline skills and executables, `configured` for MCP servers and adapter bindings) with its declared prerequisites present, and each `any_of` group has at least one member ready. It returns 2 when incomplete and 3 for invalid input. An unknown use case returns 3 and lists the valid ids.
+- When a tool is unavailable, show the exact installation steps and prerequisites from the shipped catalog. Never invent package names, versions, or commands.
+- Installing is a separate owner decision per tool. Show the step, wait for consent, and never install every recommended tool at once.
+- Credentials: MOZAK never emits or stores credential values. It inspects only declared key names and their presence in the environment and host config files, and reports names such as `OVERLEAF_SESSION`. A write grant is never implied by setup or by the catalog.
+- MOZAK maintains no live tool runtime. It does not start, supervise, or keep MCP servers alive. The agent host does that.
+- What an MCP tool returns is research evidence, not knowledge. Record it as an immutable proposal-only snapshot (see source-neutral evidence below), and keep acceptance a separate explicit owner decision.
+
+### Six existing capabilities, mapped honestly
+
+- `arxiv` and `dair-ai` map to `literature`. The arXiv MCP server is the new default tool; the legacy adapters remain a tested fallback.
+- `mcp-registry` and `github-tooling` map to `tooling-watch` and stay legacy adapters.
+- `hyperresearch` and `monokl` map to `deep-research` and stay legacy adapters or their own skills.
+- Coverage through a new MCP tool counts as tested only after a real recorded run through that tool. Until then, say the legacy adapter is the verified path.
+- A handshake can succeed while the library is unusable. The owner's first Zotero trial (2026-10-05) did exactly that: the local MCP handshake succeeded, but no Zotero database existed at the configured or default path. Report that state as `prerequisite_missing`, not as usable.
 
 ## MCP transport
 
@@ -29,7 +62,7 @@ Natural language is the user interface. Translate the request into the smallest 
 - Verify exact installed parity without mutation: `mozak setup check HOME`
 - Check skill parity, Termaid on PATH, and optionally a real KB:
   `mozak doctor HOME [KB_ROOT]`
-- The managed payload ships `companion-recommendations.json`. Termaid is required.
+- The managed payload ships `tool-stack.json` (the use-case catalog, see Explicit tool stack) and, for compatibility, `companion-recommendations.json`. `setup` and `doctor` keep the companion output shape and add a nonblocking `stack_onboarding` object that points to `mozak stack recommend` and `mozak stack check`. Termaid is required.
   The ADHD skill plus Notes `note`, `note-healthcheck`, and `note-voice-census`
   are MOZAK-managed, version-matched embedded payloads installed and checked
   under `.agents`, `.jcode`, `.claude`, and `.codex`. The Notes payload is pinned
@@ -106,14 +139,15 @@ package-selection claims.
 
 Treat overview, list, graph-source, graph, validation, status, and next-goal recommendation as read-only even when they reveal work to do.
 
-## Research adapters
+## Legacy research adapters (compatibility-only)
 
+- Adapters are no longer the default research path. Use the explicit tool stack first. Adapter bindings, recorded runs, and `research normalize` normalizers remain supported so every existing recorded artifact stays valid and reproducible. Do not delete, rewrite, or re-pin historical adapter evidence to migrate it.
 - Callable adapter bindings are owner-configured in the rootless local registry. Inspect with `mozak adapter catalog`, `mozak adapter list`, and `mozak adapter show BINDING_ID`; invoke an exact ready binding with `mozak adapter run BINDING_ID`. A binding id comes from `adapter list`; an adapter name such as `arxiv` is a catalog entry and is not a valid `show` argument.
 - A binding reports a lifecycle `state`. Editing a pinned request or runner moves it to `needs_recheck` and names the drifted file. Recover with `mozak adapter recheck BINDING_ID`, which re-pins the observed hashes, re-states the adapter's declared effects, and refuses an already-current binding, an unknown binding, an absent target Scope, or an edit that retargets the Scope. Recheck records observed hashes only; it accepts no content, approves nothing the adapter does, and marks no prior run accepted.
 - Setup is `mozak adapter setup <dair-ai|mcp-registry|github-tooling|hyperresearch|monokl> BINDING_ID SCOPE_ID REQUEST_JSON RUNNER RUNS_DIR`. Use it only after presenting the proposed topic/project-specific settings and receiving owner acceptance. Setup verifies the exact registered Scope and pins the request and runner hashes. Drift makes a binding non-callable.
 - Adapter bindings never promote their output automatically. Runs remain proposal-only research evidence until the owner separately accepts an input.
 
-- MOZAK performs no networking. An adapter performs any network access outside MOZAK, and MOZAK validates the recorded snapshot it returned. Retrieved content enters under the `recorded` scheme as immutable untrusted data, never as a live resource.
+- The MOZAK binary's project, stack, and validation routes perform no networking: they check local config, files, and recorded evidence. Network access happens outside those routes, in the agent host calling an MCP server or in an adapter runner, and MOZAK validates the recorded snapshot that came back. The managed launcher's update check is the one exception and contacts GitHub only for tool updates. An adapter performs any network access outside MOZAK, and MOZAK validates the recorded snapshot it returned. Retrieved content enters under the `recorded` scheme as immutable untrusted data, never as a live resource.
 - The arXiv adapter lives at `scripts/adapters/arxiv_fetch.py`. `plan REQUEST_JSON` is a dry run that performs no network access; `fetch REQUEST_JSON OUTPUT_DIR` retrieves and writes a fixture plus every exact response body.
 - The optional DAIR.AI adapter lives at `scripts/adapters/dair_fetch.py` and reads the official `dair-ai/AI-Papers-of-the-Week` GitHub repository at an exact commit. Its request uses a generic `scope_id`, so it can serve a Topic, Project, or other Scope. Normalize with `mozak research normalize dair-ai FIXTURE_JSON OUTPUT_RUN_JSON`.
 - The GitHub tooling adapter has two modes and one contract. `discover` runs owner-declared topic and keyword queries to surface repositories the owner has not seen; `watch` tracks an explicit owner-curated `watchlist`. Normalize either with `mozak research normalize github-tooling`.
@@ -206,6 +240,20 @@ Treat overview, list, graph-source, graph, validation, status, and next-goal rec
 - Treat a context note as provenance-pinned project knowledge, not authorization. Its claim boundaries and refresh rule remain binding.
 - When delegating to a fresh external agent, include the relevant context-note path and its constraints in the bounded task. Do not assume the agent discovered it independently.
 
+## Source-neutral tool evidence
+
+- Record one tool call as evidence with `mozak research record-tool FIXTURE_JSON RESPONSE_BYTES RUN_JSON`. It is create-only and writes a standard research run, so `mozak research validate RUN_JSON` and `research landmarks` work unchanged.
+- Check a stored run against its inputs with `mozak research verify-tool FIXTURE_JSON RESPONSE_BYTES RUN_JSON`. It is read-only, re-derives the run, and requires a byte-for-byte match.
+- The `mozak.tool-evidence.v1` fixture pins the catalog tool id, kind, exact version, operation, and MCP server; canonical call arguments and their hash; the UTC call window; declared effects; the exact response hash and length; and each selected excerpt with its locator and byte range. The full response is never stored.
+- Refused: response hash or length mismatch, an excerpt that differs from its byte range, declared external writes, mutations other than `none`, irreversible effects, pending owner approval, `latest`/unknown versions, credential-looking argument keys, `accepted: true`, symlinked paths, and an existing output. `dry_run_available` is recorded but not enforced, because a call that already happened has no meaningful dry run. The receipt `input_hash` is the SHA-256 of the canonical (key-sorted, compact) fixture JSON, so reformatting the fixture does not change it. Truncated results get a high-impact gap.
+- The agent host makes the call. MOZAK only records and validates the bytes the host saved. See `docs/examples/tool-evidence-example.md`.
+
+## Input provenance and owner acceptance
+
+- Research evidence, from an MCP tool or a legacy adapter, is recorded once as an immutable snapshot with its exact source, time, and content hashes. Later edits fail validation; a correction is a new snapshot, never an overwrite.
+- A recorded snapshot is `proposal_only`. It becomes a planning input only when the owner explicitly accepts it into a new input set. A tool call, a successful record, a stack check, or general approval of the migration is not that acceptance.
+- Accepted inputs carry provenance (`human_decision`, `codebase_observation`, or recorded evidence) so any plan can be traced back to who decided what, from which bytes.
+
 ## Mutating routes
 
 - Register an exact reviewed discovery proposal: `mozak project register DISCOVERY_JSON APPROVAL_JSON`
@@ -231,6 +279,10 @@ For `scope ingest-links`, first validate `SCOPE_ROOT`, inspect the schema-v1 pla
 
 ## Request routing examples
 
+- “Find papers on X” → `mozak stack recommend literature`, then `mozak stack check HOME literature`; use the arXiv MCP tool only if check reports it configured, otherwise show the catalog's exact install steps and ask before installing, or use the legacy `arxiv` adapter binding. Record the result as proposal-only evidence.
+- “Check my references” or “what did I read on X” → `mozak stack recommend references`, then `mozak stack check HOME references`; on `prerequisite_missing`, report the missing Zotero database and stop instead of calling the tool.
+- “Edit my manuscript” → `mozak stack recommend manuscript`, then `mozak stack check HOME manuscript`; name the required credential variables, and treat any write to Overleaf as a separate owner-approved action.
+- “What tools do I need?” → `mozak stack catalog` for the full list, or `mozak stack check HOME` for local readiness across every use case.
 - “Onboard this repo” → inspect with `project status`; explain missing control files; run `project init` only after confirming the proposed creation is wanted.
 - “What is the project status?” → `project status`, then `project overview` when available.
 - “Work on PROJECT_ID” → first run `mozak project context PROJECT_ID`; use only its exact registration, drift report, ready goals, validated context-note paths, and detail commands.
