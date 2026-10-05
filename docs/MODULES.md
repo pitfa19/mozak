@@ -37,21 +37,23 @@ could outrank it.
 
 ## Research
 
-**Id** `research` · **Files** `research.rs` `adapter_workflow.rs` `landmark.rs` `case_study.rs` · **Commands** `mozak research`, `mozak adapter`, `mozak case`
+**Id** `research` · **Files** `research.rs` `tool_evidence.rs` `adapter.rs` (historical readers) `landmark.rs` `case_study.rs` · **Commands** `mozak research`, `mozak stack`, `mozak case`
 
-Bounded observation, either of the outside world through an adapter or of your
-own finished work as a case. Adapters own any declared network access outside
-the MOZAK core, and everything they produce is proposal-only.
+Bounded observation, either of the outside world through an MCP tool call made
+by the agent host or of your own finished work as a case. The agent host owns
+all network access; MOZAK records the exact returned bytes, and everything
+recorded is proposal-only. Live source adapters are retired: their already
+recorded runs remain readable historical evidence, and nothing launches them.
 
-### Runs and adapters
+### Runs and tool evidence
 
 | Taken | From | What exactly |
 |---|---|---|
 | Run provenance fields | [DVC](https://dvc.org/doc/user-guide/pipelines), MLflow, OpenLineage | Explicit inputs, parameters, tool and environment versions, outputs, timestamps, baseline revision, reproducibility instructions. |
 | Reproducible computation is evidence, not authority | Same | A run never becomes an accepted decision merely by existing. |
 | Recorded time separate from valid time | [Graphiti](https://github.com/getzep/graphiti) | Keep raw source episodes; keep contradictions and superseded claims queryable. |
-| Registry identity pinned to one URL | [MCP registry](https://registry.modelcontextprotocol.io) | The tooling adapter refuses any fixture whose registry identity is not the exact official URL. |
-| A curated source read at an exact commit | [dair-ai](https://github.com/dair-ai/AI-Papers-of-the-Week) | A second, curated complement to arXiv. Only metadata is retained, because upstream declares no license. |
+| Registry identity pinned to one URL | [MCP registry](https://registry.modelcontextprotocol.io) | Historical tooling runs pinned the exact official URL. New registry reads go through a catalog MCP fetch tool and are recorded as tool evidence with the URL in the call arguments. |
+| A curated source read at an exact commit | [dair-ai](https://github.com/dair-ai/AI-Papers-of-the-Week) | A second, curated complement to arXiv. New snapshots are read through a catalog MCP tool at an exact commit. Only metadata is retained, because upstream declares no license. |
 
 ### Cases
 

@@ -20,6 +20,7 @@ fn request() -> ImproveRequest {
         question: "How should planning handle budgets?".to_owned(),
         constraints: vec!["planning only".to_owned()],
         adapter_bindings: vec!["agentic-systems-dair-ai".to_owned()],
+        tool_ids: Vec::new(),
         stop_at: RunState::OwnerReviewed,
         created_at: "2026-09-06T00:00:00Z".to_owned(),
         performed_by: None,
@@ -49,6 +50,7 @@ fn candidate(id: &str, hash: &str) -> Candidate {
         source_uri: format!("recorded:dair-ai:rev:{id}"),
         content_sha256: hash.to_owned(),
         clusters: vec!["budgets".to_owned()],
+        evidence_record_ids: Vec::new(),
     }
 }
 
@@ -67,6 +69,7 @@ fn literature(candidates: Vec<Candidate>) -> LiteratureRun {
             artifact_hash: "hash".to_owned(),
             source_revision: "78e4809".to_owned(),
         }],
+        tool_evidence: Vec::new(),
         candidates,
         new_candidates: ids,
         unchanged_candidates: Vec::new(),
@@ -951,5 +954,216 @@ fn a_retired_module_describes_itself_as_retired_rather_than_as_a_current_boundar
     );
     for current in Module::all() {
         assert_ne!(module.summary(), current.summary());
+    }
+}
+
+mod mcp_only {
+    use super::{candidate, ledger, literature, request};
+    use mozak_core::lab::{
+        ImproveRequest, LiteratureRun, ToolEvidenceRef, literature_from_tool_evidence,
+        validate_literature, validate_literature_for_request, validate_request,
+    };
+    use mozak_core::tool_evidence::record_tool_evidence;
+    use serde_json::json;
+    use sha2::{Digest, Sha256};
+
+    const RESPONSE: &[u8] = b"{\"papers\":[{\"title\":\"Budgeted planning\"}]}\n";
+
+    fn sha(bytes: &[u8]) -> String {
+        format!("{:x}", Sha256::digest(bytes))
+    }
+
+    fn new_request() -> ImproveRequest {
+        ImproveRequest {
+            adapter_bindings: Vec::new(),
+            tool_ids: vec!["arxiv-mcp".to_owned()],
+            ..request()
+        }
+    }
+
+    fn evidence(tool_id: &str, kind: &str, scope_id: &str) -> mozak_core::research::ResearchRun {
+        let excerpt = "Budgeted planning";
+        let start = 21;
+        assert_eq!(&RESPONSE[start..start + excerpt.len()], excerpt.as_bytes());
+        let mut tool = json!({"tool_id": tool_id, "kind": kind, "version": "0.8.1",
+            "operation": "search_papers"});
+        if kind == "mcp" {
+            tool["server"] = json!("arxiv");
+        }
+        let fixture = json!({
+            "schema": "mozak.tool-evidence.v1", "scope_id": scope_id,
+            "question": "budgets?", "tool": tool,
+            "call": {"arguments": {"query": "budgets"},
+                     "started_at": "2026-10-05T18:00:00Z", "finished_at": "2026-10-05T18:00:01Z"},
+            "effects": {"network_used": true, "external_writes": [], "mutations_performed": "none",
+                        "irreversible_effects": [], "dry_run_available": false,
+                        "owner_approval_required": false},
+            "response": {"sha256": sha(RESPONSE), "byte_length": RESPONSE.len(),
+                         "media_type": "application/json"},
+            "selections": [{"id": "sel-0001", "locator": "arxiv:2501.00001",
+                            "response_byte_start": start, "response_byte_end": start + excerpt.len(),
+                            "excerpt": excerpt}],
+            "total_results": 1, "truncated": false, "gaps": [],
+            "accepted": false, "authority": "proposal_only"
+        });
+        record_tool_evidence(&fixture.to_string(), RESPONSE).expect("fixture records")
+    }
+
+    #[test]
+    fn historical_request_bytes_and_hash_are_unchanged() {
+        let historical = request();
+        let value = serde_json::to_value(&historical).expect("json");
+        assert!(
+            value.get("tool_ids").is_none(),
+            "empty tool_ids is not serialized"
+        );
+        assert!(value.get("adapter_bindings").is_some());
+        let parsed: ImproveRequest = serde_json::from_value(value.clone()).expect("reads back");
+        assert_eq!(parsed, historical);
+        assert_eq!(
+            mozak_core::canonical_hash(&parsed).expect("hash"),
+            mozak_core::canonical_hash(&value).expect("hash")
+        );
+        validate_request(&parsed).expect("historical request still validates");
+
+        let old = literature(vec![candidate("paper-0000", "h")]);
+        let value = serde_json::to_value(&old).expect("json");
+        assert!(value.get("tool_evidence").is_none());
+        assert!(value["candidates"][0].get("evidence_record_ids").is_none());
+        let parsed: LiteratureRun = serde_json::from_value(value).expect("reads back");
+        validate_literature(&parsed).expect("historical literature validates");
+        validate_literature_for_request(&parsed, &request()).expect("historical pair validates");
+    }
+
+    #[test]
+    fn a_request_names_exactly_one_kind_of_source() {
+        let mut both = new_request();
+        both.adapter_bindings = vec!["binding".to_owned()];
+        assert!(validate_request(&both).unwrap_err().0.contains("not both"));
+        let mut neither = new_request();
+        neither.tool_ids.clear();
+        assert!(
+            validate_request(&neither)
+                .unwrap_err()
+                .0
+                .contains("tool_ids")
+        );
+        let mut duplicate = new_request();
+        duplicate.tool_ids.push("arxiv-mcp".to_owned());
+        assert!(validate_request(&duplicate).is_err());
+        let mut bad = new_request();
+        bad.tool_ids = vec!["Arxiv MCP".to_owned()];
+        assert!(validate_request(&bad).is_err());
+        validate_request(&new_request()).expect("tool ids validate");
+    }
+
+    #[test]
+    fn fresh_literature_cites_selected_records_with_exact_hashes() {
+        let run = evidence("arxiv-mcp", "mcp", "topic-agentic-systems");
+        let mut ledger = ledger();
+        let literature =
+            literature_from_tool_evidence(&new_request(), &mut ledger, std::slice::from_ref(&run))
+                .expect("ingests");
+        assert!(literature.adapter_runs.is_empty());
+        let reference: &ToolEvidenceRef = &literature.tool_evidence[0];
+        assert_eq!(reference.tool_id, "arxiv-mcp");
+        assert_eq!(reference.server, "arxiv");
+        assert_eq!(reference.research_run_id, run.run_id);
+        assert_eq!(reference.artifact_hash, run.receipt.artifact_hash);
+        assert_eq!(reference.input_hash, run.receipt.input_hash);
+        assert_eq!(reference.response_sha256, sha(RESPONSE));
+        assert_eq!(reference.raw_record_ids, vec!["raw-sel-0001".to_owned()]);
+        assert_eq!(
+            literature.candidates.len(),
+            1,
+            "provenance is not a candidate"
+        );
+        let candidate = &literature.candidates[0];
+        assert_eq!(candidate.source_uri, "arxiv:2501.00001");
+        assert_eq!(candidate.content_sha256, sha(b"Budgeted planning"));
+        assert!(candidate.title.contains("not a verified title"));
+        assert_eq!(
+            candidate.evidence_record_ids,
+            vec![format!("{}#raw-sel-0001", run.run_id)]
+        );
+        assert_eq!(ledger.seen_sources.len(), 1);
+        validate_literature_for_request(&literature, &new_request()).expect("valid");
+    }
+
+    #[test]
+    fn unselected_tool_wrong_scope_and_non_mcp_are_refused_without_touching_the_ledger() {
+        for (run, needle) in [
+            (
+                evidence("zotero-mcp", "mcp", "topic-agentic-systems"),
+                "not selected",
+            ),
+            (
+                evidence("arxiv-mcp", "mcp", "topic-other"),
+                "scope topic-other",
+            ),
+            (
+                evidence("arxiv-mcp", "cli", "topic-agentic-systems"),
+                "kind mcp",
+            ),
+        ] {
+            let mut ledger = ledger();
+            let error = literature_from_tool_evidence(&new_request(), &mut ledger, &[run])
+                .expect_err("refused");
+            assert!(error.0.contains(needle), "{needle}: {error}");
+            assert!(ledger.seen_sources.is_empty());
+        }
+    }
+
+    #[test]
+    fn historical_requests_and_tampered_evidence_cannot_ingest() {
+        let run = evidence("arxiv-mcp", "mcp", "topic-agentic-systems");
+        let error =
+            literature_from_tool_evidence(&request(), &mut ledger(), std::slice::from_ref(&run))
+                .expect_err("historical");
+        assert!(error.0.contains("cannot ingest new literature"));
+
+        let mut tampered = run.clone();
+        tampered.raw_records[1].content = "Budgeted planninG".to_owned();
+        assert!(literature_from_tool_evidence(&new_request(), &mut ledger(), &[tampered]).is_err());
+
+        let mut promoted =
+            literature_from_tool_evidence(&new_request(), &mut ledger(), &[run]).expect("ingests");
+        promoted.tool_evidence[0].tool_kind = "cli".to_owned();
+        assert!(validate_literature(&promoted).is_err());
+    }
+
+    #[test]
+    fn literature_cannot_mix_or_forge_provenance() {
+        let run = evidence("arxiv-mcp", "mcp", "topic-agentic-systems");
+        let fresh =
+            literature_from_tool_evidence(&new_request(), &mut ledger(), &[run]).expect("ingests");
+
+        let mut mixed = fresh.clone();
+        mixed.adapter_runs = literature(Vec::new()).adapter_runs;
+        assert!(
+            validate_literature(&mixed)
+                .unwrap_err()
+                .0
+                .contains("not both")
+        );
+
+        let mut provenance = fresh.clone();
+        provenance.tool_evidence[0].raw_record_ids = vec!["raw-provenance".to_owned()];
+        assert!(validate_literature(&provenance).is_err());
+
+        let mut forged = fresh.clone();
+        forged.candidates[0].evidence_record_ids = vec!["other#raw-sel-0001".to_owned()];
+        assert!(validate_literature(&forged).is_err());
+
+        let mut uncited = fresh.clone();
+        uncited.candidates[0].evidence_record_ids.clear();
+        assert!(validate_literature(&uncited).is_err());
+
+        // Fresh tool evidence cannot be smuggled into a historical run either.
+        let historical = ImproveRequest {
+            run_id: fresh.run_id.clone(),
+            ..request()
+        };
+        assert!(validate_literature_for_request(&fresh, &historical).is_err());
     }
 }

@@ -123,21 +123,41 @@ fn catalog_lists_every_named_use_case_and_declares_no_effects() {
     assert_eq!(report["effects"]["network"], false);
     assert_eq!(report["effects"]["installs"], false);
     assert_eq!(report["effects"]["executes_external_programs"], false);
-    // Every existing adapter capability is named somewhere in the catalog.
-    let tools = report["document"]["tools"].as_array().unwrap();
-    for adapter in [
-        "arxiv",
-        "dair-ai",
-        "mcp-registry",
-        "github-tooling",
-        "hyperresearch",
-        "monokl",
-    ] {
+    // The catalog is MCP-only: no legacy adapter kind, field, or registry.
+    let document = &report["document"];
+    assert!(document.get("adapter_registry_path").is_none());
+    let tools = document["tools"].as_array().unwrap();
+    for tool in tools {
+        assert_ne!(tool["kind"], "legacy_adapter", "{tool}");
+        assert!(tool.get("adapter").is_none(), "{tool}");
         assert!(
-            tools.iter().any(|t| t["adapter"] == adapter),
-            "adapter {adapter} has no catalog guidance"
+            tool["detection"].get("adapter_bindings").is_none(),
+            "{tool}"
         );
     }
+    for use_case in document["use_cases"].as_array().unwrap() {
+        for entry in use_case["tools"].as_array().unwrap() {
+            assert_ne!(entry["requirement"], "legacy_alternative", "{entry}");
+        }
+    }
+    let mut mcp: Vec<&str> = tools
+        .iter()
+        .filter(|t| t["kind"] == "mcp_server")
+        .map(|t| t["id"].as_str().unwrap())
+        .collect();
+    mcp.sort_unstable();
+    assert_eq!(
+        mcp,
+        [
+            "arxiv-mcp",
+            "fetch-mcp",
+            "firecrawl-mcp",
+            "github-mcp",
+            "overleaf-mcp",
+            "zotero-mcp"
+        ]
+    );
+    assert!(!String::from_utf8_lossy(&output.stdout).contains("adapters.json"));
 }
 
 #[test]
@@ -158,10 +178,10 @@ fn recommend_returns_only_applicable_tools_plus_baseline() {
         .iter()
         .map(|t| t["id"].as_str().unwrap())
         .collect();
-    assert_eq!(
-        literature,
-        ["arxiv-mcp", "adapter-arxiv", "adapter-dair-ai"]
-    );
+    assert_eq!(literature[0], "arxiv-mcp");
+    let mut sorted = literature.clone();
+    sorted.sort_unstable();
+    assert_eq!(sorted, ["arxiv-mcp", "fetch-mcp", "github-mcp"]);
     let arxiv = &report["use_cases"][1]["tools"][0];
     assert_eq!(
         arxiv["upstream"]["repository"],
@@ -564,110 +584,278 @@ fn home_kb(home: &Path) {
     .unwrap();
 }
 
-/// Writes one adapter binding with real pinned files. Returns the request path.
-fn bind(home: &Path, adapter: &str, scope: &str) -> PathBuf {
+/// Writes a legacy adapter binding with real pinned files and a HOME-local
+/// verified KB, i.e. what was formerly a callable adapter configuration.
+fn legacy_binding(home: &Path, adapter: &str) {
+    home_kb(home);
     let request = home.join(format!("{adapter}-request.json"));
     let runner = home.join(format!("{adapter}-runner.sh"));
     fs::write(&request, b"{}").unwrap();
     fs::write(&runner, b"#!/bin/sh\n").unwrap();
-    fs::create_dir_all(home.join(".config/mozak")).unwrap();
     fs::write(
         home.join(".config/mozak/adapters.json"),
         serde_json::to_vec(&json!({"schema_version": 1, "bindings": [{
-            "id": format!("{adapter}-binding"), "adapter": adapter, "target_scope_id": scope,
+            "id": format!("{adapter}-binding"), "adapter": adapter, "target_scope_id": "topic-test",
             "request_path": request, "request_sha256": sha(b"{}"),
             "runner_path": runner, "runner_sha256": sha(b"#!/bin/sh\n"),
             "runs_dir": home.join("runs")}]}))
         .unwrap(),
     )
     .unwrap();
-    request
 }
 
-fn binding_state(home: &Path, bin: &Path) -> (Option<i32>, Value) {
-    let output = run_with(
-        &["stack", "check", home.to_str().unwrap(), "tooling-watch"],
+fn check_use_case(home: &Path, bin: &Path, use_case: &str, env: &[(&str, &str)]) -> Output {
+    run_with(
+        &["stack", "check", home.to_str().unwrap(), use_case],
         bin.to_str().unwrap(),
-        &[],
-    );
-    (output.status.code(), json_of(&output))
+        env,
+    )
+}
+
+/// Strips the HOME-specific prefix so reports from different HOMEs compare.
+fn normalized(output: &Output, home: &Path) -> String {
+    String::from_utf8_lossy(&output.stdout).replace(home.to_str().unwrap(), "HOME")
 }
 
 #[cfg(unix)]
 #[test]
-fn only_callable_adapter_bindings_with_registered_scope_count_as_configured() {
-    let home = scratch("adapters");
+fn existing_adapter_bindings_never_satisfy_mcp_readiness_and_are_never_read() {
+    let home = scratch("legacy-bindings");
     install_baseline(&home);
     let bin = home.join("bin");
     fake_executable(&bin, "termaid");
     fake_executable(&bin, "python3");
+    fake_executable(&bin, "npx");
 
-    let (code, before) = binding_state(&home, &bin);
-    assert_eq!(code, Some(2));
-    assert_eq!(
-        tool(&before, "tooling-watch", "adapter-github-tooling")["state"],
-        "installed"
-    );
+    let fresh = check_use_case(&home, &bin, "tooling-watch", &[]);
+    assert_eq!(fresh.status.code(), Some(2));
+    let fresh_text = normalized(&fresh, &home);
 
-    // Valid pins but no verifiable KB under HOME: not callable.
-    bind(&home, "github-tooling", "topic-test");
-    let (code, unverified) = binding_state(&home, &bin);
-    assert_eq!(code, Some(2));
-    assert_eq!(
-        tool(&unverified, "tooling-watch", "adapter-github-tooling")["state"],
-        "installed"
-    );
-    assert_eq!(
-        unverified["adapter_registry"]["bindings"][0]["reasons"],
-        json!(["target_scope_unverified"])
-    );
+    // A formerly callable binding for every retired adapter changes nothing.
+    for adapter in ["github-tooling", "mcp-registry", "hyperresearch", "monokl"] {
+        legacy_binding(&home, adapter);
+        for use_case in ["tooling-watch", "deep-research"] {
+            let output = check_use_case(&home, &bin, use_case, &[]);
+            assert_eq!(output.status.code(), Some(2), "{adapter} {use_case}");
+            let report = json_of(&output);
+            assert_eq!(report["state"], "incomplete");
+            assert!(report.get("adapter_registry").is_none());
+            let text = String::from_utf8_lossy(&output.stdout);
+            assert!(!text.contains("adapters.json"), "{text}");
+            assert!(!text.contains("adapter_binding"), "{text}");
+            assert!(
+                !report["observation_boundary"]["observed"]
+                    .as_array()
+                    .unwrap()
+                    .contains(&json!("mozak_adapter_registry"))
+            );
+            for tool in report["use_cases"][1]["tools"].as_array().unwrap() {
+                assert_eq!(tool["kind"], "mcp_server", "{tool}");
+                assert_ne!(tool["state"], "configured", "{tool}");
+                assert!(tool["configured"].get("adapter_binding").is_none());
+            }
+        }
+    }
+    let bound = check_use_case(&home, &bin, "tooling-watch", &[]);
+    // The report never depends on the registry: only HOME-local MOZAK config
+    // files were added, which stack check does not read either.
+    assert_eq!(normalized(&bound, &home), fresh_text);
 
-    // Verified KB but the target Scope is not registered: not callable.
-    home_kb(&home);
-    bind(&home, "github-tooling", "topic-missing");
-    let (code, missing_scope) = binding_state(&home, &bin);
-    assert_eq!(code, Some(2));
+    // Malformed registry: identical report, no "invalid registry" status.
+    fs::write(home.join(".config/mozak/adapters.json"), b"{not json").unwrap();
     assert_eq!(
-        missing_scope["adapter_registry"]["bindings"][0]["reasons"],
-        json!(["target_scope_not_registered"])
+        normalized(&check_use_case(&home, &bin, "tooling-watch", &[]), &home),
+        fresh_text
     );
-
-    // Registered Scope and current pins: callable and configured.
-    let request = bind(&home, "github-tooling", "topic-test");
-    let (code, ready) = binding_state(&home, &bin);
-    assert_eq!(code, Some(0), "{ready}");
-    assert_eq!(
-        tool(&ready, "tooling-watch", "adapter-github-tooling")["state"],
-        "configured"
-    );
-    assert_eq!(ready["adapter_registry"]["bindings"][0]["state"], "ready");
-
-    // A drifted pin needs recheck and stops counting.
-    fs::write(&request, b"{\"edited\":true}").unwrap();
-    let (code, drifted) = binding_state(&home, &bin);
-    assert_eq!(code, Some(2));
-    assert_eq!(
-        drifted["adapter_registry"]["bindings"][0]["state"],
-        "needs_recheck"
-    );
-    assert_eq!(
-        drifted["adapter_registry"]["bindings"][0]["reasons"],
-        json!(["request_pin_drifted"])
-    );
-
-    // A registry the strict validator rejects never counts.
-    fs::write(
+    // Symlinked registry pointing outside HOME: identical report.
+    let outside = scratch("legacy-bindings-outside");
+    fs::write(outside.join("adapters.json"), b"{}").unwrap();
+    fs::remove_file(home.join(".config/mozak/adapters.json")).unwrap();
+    std::os::unix::fs::symlink(
+        outside.join("adapters.json"),
         home.join(".config/mozak/adapters.json"),
-        r#"{"schema_version":1,"bindings":[{"id":"b","adapter":"github-tooling","target_scope_id":"s","request_path":"/r","request_sha256":"0","runner_path":"/x","runner_sha256":"0","runs_dir":"/d"}]}"#,
     )
     .unwrap();
-    let (code, invalid) = binding_state(&home, &bin);
-    assert_eq!(code, Some(2));
     assert_eq!(
-        invalid["adapter_registry"]["status"],
-        "unreadable: invalid adapter registry"
+        normalized(&check_use_case(&home, &bin, "tooling-watch", &[]), &home),
+        fresh_text
+    );
+    // A registry that would block a reader (FIFO) never hangs the check.
+    fs::remove_file(home.join(".config/mozak/adapters.json")).unwrap();
+    assert!(
+        Command::new("mkfifo")
+            .arg(home.join(".config/mozak/adapters.json"))
+            .status()
+            .unwrap()
+            .success()
+    );
+    assert_eq!(
+        normalized(&check_use_case(&home, &bin, "tooling-watch", &[]), &home),
+        fresh_text
     );
     assert!(!bin.join("python3.executed").exists());
+    fs::remove_dir_all(home).unwrap();
+    fs::remove_dir_all(outside).unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn tooling_watch_is_ready_through_a_configured_mcp_server_only() {
+    let home = scratch("tooling-watch");
+    install_baseline(&home);
+    let bin = home.join("bin");
+    fake_executable(&bin, "termaid");
+    fake_executable(&bin, "uvx");
+    fake_executable(&bin, "docker");
+    fs::create_dir_all(home.join(".jcode")).unwrap();
+
+    // Optional GitHub MCP configured without its token stays
+    // prerequisite_missing, and cannot stand in for required fetch.
+    fs::write(
+        home.join(".jcode/mcp.json"),
+        r#"{"servers":{"github":{"command":"docker","args":["run","-i","--rm","ghcr.io/github/github-mcp-server"]}}}"#,
+    )
+    .unwrap();
+    let output = check_use_case(&home, &bin, "tooling-watch", &[]);
+    assert_eq!(output.status.code(), Some(2));
+    let report = json_of(&output);
+    let github = tool(&report, "tooling-watch", "github-mcp");
+    assert_eq!(github["state"], "prerequisite_missing");
+    assert_eq!(github["requirement"], "optional");
+    assert_eq!(
+        tool(&report, "tooling-watch", "fetch-mcp")["requirement"],
+        "required"
+    );
+
+    // The token name completes GitHub without leaking a value, but the use
+    // case stays incomplete while required fetch is unconfigured.
+    fs::write(
+        home.join(".jcode/mcp.json"),
+        r#"{"servers":{"github":{"command":"docker","args":["run","ghcr.io/github/github-mcp-server"],"env":{"GITHUB_PERSONAL_ACCESS_TOKEN":"sekret-token"}}}}"#,
+    )
+    .unwrap();
+    let output = check_use_case(&home, &bin, "tooling-watch", &[]);
+    assert!(!String::from_utf8_lossy(&output.stdout).contains("sekret"));
+    assert_eq!(output.status.code(), Some(2), "{}", json_of(&output));
+    let report = json_of(&output);
+    assert_eq!(report["state"], "incomplete");
+    assert_eq!(
+        tool(&report, "tooling-watch", "github-mcp")["state"],
+        "configured"
+    );
+    assert!(
+        report["next_steps"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|s| s["tool_id"] == "fetch-mcp")
+    );
+
+    // Fetch MCP alone makes it ready; it needs no credential.
+    fs::write(
+        home.join(".jcode/mcp.json"),
+        r#"{"servers":{"fetch":{"command":"uvx","args":["mcp-server-fetch"]}}}"#,
+    )
+    .unwrap();
+    let output = check_use_case(&home, &bin, "tooling-watch", &[]);
+    let report = json_of(&output);
+    assert_eq!(output.status.code(), Some(0), "{report}");
+    assert_eq!(
+        tool(&report, "tooling-watch", "fetch-mcp")["state"],
+        "configured"
+    );
+    assert_ne!(
+        tool(&report, "tooling-watch", "github-mcp")["state"],
+        "configured"
+    );
+    assert!(!bin.join("uvx.executed").exists());
+    assert!(!bin.join("docker.executed").exists());
+    fs::remove_dir_all(home).unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn deep_research_requires_configured_firecrawl_with_credential_name() {
+    let home = scratch("deep-research");
+    install_baseline(&home);
+    let bin = home.join("bin");
+    fake_executable(&bin, "termaid");
+    fake_executable(&bin, "uvx");
+    fake_executable(&bin, "npx");
+    fs::create_dir_all(home.join(".jcode")).unwrap();
+
+    // Optional fetch configured, required firecrawl absent: incomplete.
+    fs::write(
+        home.join(".jcode/mcp.json"),
+        r#"{"servers":{"fetch":{"command":"uvx","args":["mcp-server-fetch"]}}}"#,
+    )
+    .unwrap();
+    let output = check_use_case(&home, &bin, "deep-research", &[]);
+    assert_eq!(output.status.code(), Some(2));
+    let report = json_of(&output);
+    assert_eq!(report["state"], "incomplete");
+    let firecrawl = tool(&report, "deep-research", "firecrawl-mcp");
+    assert_eq!(firecrawl["requirement"], "required");
+    assert_ne!(firecrawl["state"], "configured");
+    assert!(
+        report["next_steps"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|s| s["tool_id"] == "firecrawl-mcp")
+    );
+
+    // Firecrawl configured without FIRECRAWL_API_KEY: still incomplete.
+    fs::write(
+        home.join(".jcode/mcp.json"),
+        r#"{"servers":{"firecrawl":{"command":"npx","args":["-y","firecrawl-mcp"]}}}"#,
+    )
+    .unwrap();
+    let output = check_use_case(&home, &bin, "deep-research", &[]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        tool(&json_of(&output), "deep-research", "firecrawl-mcp")["state"],
+        "prerequisite_missing"
+    );
+
+    // The key name in the process env completes it; the value never leaks.
+    let output = check_use_case(
+        &home,
+        &bin,
+        "deep-research",
+        &[("FIRECRAWL_API_KEY", "sekret-key")],
+    );
+    assert!(!String::from_utf8_lossy(&output.stdout).contains("sekret"));
+    let report = json_of(&output);
+    assert_eq!(output.status.code(), Some(0), "{report}");
+    assert_eq!(
+        tool(&report, "deep-research", "firecrawl-mcp")["state"],
+        "configured"
+    );
+    assert!(!bin.join("npx.executed").exists());
+    fs::remove_dir_all(home).unwrap();
+}
+
+#[test]
+fn explicit_baseline_check_gates_baseline_once() {
+    let home = scratch("baseline-once");
+    let output = run_with(
+        &["stack", "check", home.to_str().unwrap(), "baseline"],
+        "",
+        &[],
+    );
+    let report = json_of(&output);
+    assert_eq!(report["gating_use_cases"], json!(["baseline"]));
+    let ids: Vec<&str> = report["use_cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|u| u["id"].as_str().unwrap())
+        .collect();
+    assert_eq!(ids, ["baseline"]);
+    let steps = report["next_steps"].as_array().unwrap();
+    let termaid = steps.iter().filter(|s| s["tool_id"] == "termaid").count();
+    assert_eq!(termaid, 1, "{steps:?}");
     fs::remove_dir_all(home).unwrap();
 }
 

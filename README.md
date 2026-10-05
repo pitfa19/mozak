@@ -56,12 +56,15 @@ mozak stack recommend literature       # arXiv; references: Zotero; manuscript: 
 mozak stack check "$HOME" literature    # what is ready on this machine
 ```
 
-MOZAK ships a catalog of MCP servers and skills per use case. It shows exact
-install steps for what is missing and installs nothing without your consent.
+MOZAK ships a catalog of MCP servers and skills per use case: arXiv for
+literature, Zotero for references, Overleaf for manuscripts, Fetch and GitHub
+for tooling watch, and Firecrawl for deep research. It shows exact install
+steps for what is missing and installs nothing without your consent.
 `stack check` reads local config only: an installed package is not a working
 connection, and a working connection is not write access. Your agent makes the
-tool calls. MOZAK records the results as proposal-only evidence that you accept
-separately. Older source adapters keep working for compatibility. See the
+MCP calls. MOZAK records the results as proposal-only evidence that you accept
+separately. New research is MCP-only; the old source adapters are retired, and
+their recorded runs stay readable as history. See the
 [tool-stack guide](docs/TOOL-STACK.md).
 
 ## Start

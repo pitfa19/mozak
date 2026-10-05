@@ -34,6 +34,16 @@ fn version_is_stable() {
     );
 }
 
+/// Every MCP server in the MCP-only catalog, in catalog order.
+const CATALOG_MCP_SERVERS: [&str; 6] = [
+    "arxiv-mcp",
+    "zotero-mcp",
+    "overleaf-mcp",
+    "fetch-mcp",
+    "github-mcp",
+    "firecrawl-mcp",
+];
+
 #[test]
 fn install_and_check_are_embedded_idempotent_and_deterministic() {
     let home = scratch("install");
@@ -69,7 +79,7 @@ fn install_and_check_are_embedded_idempotent_and_deterministic() {
     );
     assert_eq!(
         report["stack_onboarding"]["recommended_mcp_servers"],
-        serde_json::json!(["arxiv-mcp", "zotero-mcp", "overleaf-mcp"])
+        serde_json::json!(CATALOG_MCP_SERVERS)
     );
     for root in [".agents", ".jcode", ".claude", ".codex"] {
         assert!(

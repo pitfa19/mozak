@@ -227,7 +227,6 @@ impl Module {
                 "tool_evidence.rs",
                 "tool_evidence_workflow.rs",
                 "adapter.rs",
-                "adapter_workflow.rs",
                 "landmark.rs",
                 "case_study.rs",
             ],
@@ -456,7 +455,17 @@ pub struct ImproveRequest {
     pub question: String,
     #[serde(default)]
     pub constraints: Vec<String>,
+    /// Historical only. Runs recorded before MOZAK retired live adapters named
+    /// registry binding ids here. Still read and validated so their recorded
+    /// hashes hold, but no new run is authored with it and a run carrying it
+    /// cannot ingest fresh literature.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub adapter_bindings: Vec<String>,
+    /// Shipped-catalog MCP tool ids this run may ingest evidence from. Exactly
+    /// one of this and `adapter_bindings` is non-empty. Omitted when empty so a
+    /// historical request serializes, and therefore hashes, exactly as before.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tool_ids: Vec<String>,
     pub stop_at: RunState,
     pub created_at: String,
     /// Who authored the run's readings, mechanisms and plans. Absent in runs
@@ -478,6 +487,13 @@ pub struct ImproveRequest {
 }
 
 impl ImproveRequest {
+    /// Whether this request predates MCP-only retrieval and names adapter
+    /// bindings. Such a run is readable but never ingests new literature.
+    #[must_use]
+    pub fn is_historical_adapter_run(&self) -> bool {
+        !self.adapter_bindings.is_empty()
+    }
+
     /// The acceptance this run can honestly claim.
     ///
     /// A run that recorded no actors gets `None` rather than a default, because
@@ -494,7 +510,12 @@ impl ImproveRequest {
     }
 }
 
-/// A candidate paper discovered through an adapter run.
+/// A candidate source discovered through recorded tool evidence (or, in
+/// historical runs, an adapter run).
+///
+/// For tool evidence, `title` is a label built from the first line of a
+/// selected excerpt. It is untrusted tool output and not a verified paper
+/// title; `evidence_record_ids` names the exact retained records it came from.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct Candidate {
@@ -504,18 +525,53 @@ pub struct Candidate {
     pub content_sha256: String,
     #[serde(default)]
     pub clusters: Vec<String>,
+    /// Raw record ids, inside the cited tool-evidence runs, whose excerpts
+    /// this candidate is built from. Empty only in historical adapter runs.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub evidence_record_ids: Vec<String>,
 }
 
-/// Literature refresh derived from one or more adapter runs.
+/// Literature refresh derived from recorded MCP tool evidence or, in
+/// historical runs, from adapter runs.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct LiteratureRun {
     pub contract_version: u32,
     pub run_id: String,
+    /// Historical only; omitted when empty so old artifacts keep their bytes.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub adapter_runs: Vec<AdapterRunRef>,
+    /// Source-neutral provenance for every tool-evidence run ingested.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tool_evidence: Vec<ToolEvidenceRef>,
     pub candidates: Vec<Candidate>,
     pub new_candidates: Vec<String>,
     pub unchanged_candidates: Vec<String>,
+}
+
+/// The only tool kind a new Lab run may ingest.
+pub const LAB_TOOL_KIND: &str = "mcp";
+
+/// Provenance for one validated tool-evidence run consumed by the Lab.
+///
+/// Pins the declared tool, the derived research run, and the exact response
+/// it was recorded from. No binding id: tool evidence has no registry binding.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ToolEvidenceRef {
+    pub tool_id: String,
+    pub tool_kind: String,
+    pub tool_version: String,
+    pub server: String,
+    pub operation: String,
+    pub scope_id: String,
+    pub research_run_id: String,
+    pub input_hash: String,
+    pub artifact_hash: String,
+    pub response_sha256: String,
+    /// Raw records of the selected excerpts. The provenance record that
+    /// embeds the fixture is never a candidate and is not listed.
+    pub raw_record_ids: Vec<String>,
 }
 
 /// Provenance for one adapter invocation consumed by the Lab.
@@ -881,6 +937,58 @@ fn unique_ids<'a>(
     Ok(seen)
 }
 
+fn validate_tool_id_syntax(value: &str) -> Result<(), LabError> {
+    require(
+        !value.is_empty()
+            && value.len() <= 128
+            && value.as_bytes()[0].is_ascii_lowercase()
+            && value.bytes().all(|byte| {
+                byte.is_ascii_lowercase()
+                    || byte.is_ascii_digit()
+                    || matches!(byte, b'-' | b'.' | b'_')
+            }),
+        &format!("tool id has invalid identifier syntax: {value}"),
+    )
+}
+
+fn require_sha256(value: &str, label: &str) -> Result<(), LabError> {
+    require(
+        value.len() == 64
+            && value
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)),
+        &format!("{label} must be a lowercase SHA-256 hex digest"),
+    )
+}
+
+/// A request names its sources one way: historical adapter bindings, or MCP
+/// tool ids. Never both, never neither.
+fn validate_request_sources(request: &ImproveRequest) -> Result<(), LabError> {
+    match (
+        request.adapter_bindings.is_empty(),
+        request.tool_ids.is_empty(),
+    ) {
+        (true, true) => Err(LabError(
+            "tool_ids must name at least one catalog MCP tool".to_owned(),
+        )),
+        (false, false) => Err(LabError(
+            "a request names either historical adapter_bindings or tool_ids, not both".to_owned(),
+        )),
+        (false, true) => unique_ids(
+            request.adapter_bindings.iter().map(String::as_str),
+            "adapter binding",
+        )
+        .map(|_| ()),
+        (true, false) => {
+            unique_ids(request.tool_ids.iter().map(String::as_str), "tool id")?;
+            request
+                .tool_ids
+                .iter()
+                .try_for_each(|id| validate_tool_id_syntax(id))
+        }
+    }
+}
+
 /// Validates an improvement request.
 ///
 /// # Errors
@@ -898,14 +1006,7 @@ pub fn validate_request(request: &ImproveRequest) -> Result<(), LabError> {
         !request.module.is_retired(),
         "module is retired and cannot be used for a new run; run `mozak lab modules`",
     )?;
-    require(
-        !request.adapter_bindings.is_empty(),
-        "adapter_bindings must not be empty",
-    )?;
-    unique_ids(
-        request.adapter_bindings.iter().map(String::as_str),
-        "adapter binding",
-    )?;
+    validate_request_sources(request)?;
     require(
         request.stop_at == RunState::OwnerReviewed,
         "phase A runs must stop at owner_reviewed",
@@ -974,10 +1075,23 @@ pub fn validate_request(request: &ImproveRequest) -> Result<(), LabError> {
 pub fn validate_literature(literature: &LiteratureRun) -> Result<(), LabError> {
     validate_version(literature.contract_version)?;
     validate_run_id(&literature.run_id)?;
-    require(
-        !literature.adapter_runs.is_empty(),
-        "adapter_runs must not be empty",
-    )?;
+    match (
+        literature.adapter_runs.is_empty(),
+        literature.tool_evidence.is_empty(),
+    ) {
+        (true, true) => {
+            return Err(LabError(
+                "literature must cite tool_evidence provenance".to_owned(),
+            ));
+        }
+        (false, false) => {
+            return Err(LabError(
+                "literature cites either historical adapter_runs or tool_evidence, not both"
+                    .to_owned(),
+            ));
+        }
+        _ => {}
+    }
     for reference in &literature.adapter_runs {
         require_filled(&reference.binding_id, "binding_id")?;
         require_filled(&reference.adapter_id, "adapter_id")?;
@@ -985,6 +1099,7 @@ pub fn validate_literature(literature: &LiteratureRun) -> Result<(), LabError> {
         require_filled(&reference.artifact_hash, "artifact_hash")?;
         require_filled(&reference.source_revision, "source_revision")?;
     }
+    let evidence_records = validate_tool_evidence_refs(&literature.tool_evidence)?;
     let ids = unique_ids(
         literature.candidates.iter().map(|c| c.paper_id.as_str()),
         "paper_id",
@@ -993,6 +1108,7 @@ pub fn validate_literature(literature: &LiteratureRun) -> Result<(), LabError> {
         require_filled(&candidate.title, "candidate title")?;
         require_filled(&candidate.source_uri, "candidate source_uri")?;
         require_filled(&candidate.content_sha256, "candidate content_sha256")?;
+        validate_candidate_records(candidate, literature, &evidence_records)?;
     }
     for paper_id in literature
         .new_candidates
@@ -1009,6 +1125,319 @@ pub fn validate_literature(literature: &LiteratureRun) -> Result<(), LabError> {
             == literature.candidates.len(),
         "every candidate must be classified as new or unchanged",
     )
+}
+
+/// Joins a research run id and one of its raw record ids into the key a
+/// candidate cites, unique across every tool-evidence run in a refresh.
+#[must_use]
+pub fn evidence_record_key(research_run_id: &str, raw_record_id: &str) -> String {
+    format!("{research_run_id}#{raw_record_id}")
+}
+
+fn validate_tool_evidence_refs(refs: &[ToolEvidenceRef]) -> Result<BTreeSet<String>, LabError> {
+    let mut records = BTreeSet::new();
+    unique_ids(
+        refs.iter()
+            .map(|reference| reference.research_run_id.as_str()),
+        "tool evidence research_run_id",
+    )?;
+    for reference in refs {
+        validate_tool_id_syntax(&reference.tool_id)?;
+        require(
+            reference.tool_kind == LAB_TOOL_KIND,
+            &format!(
+                "tool evidence {} must come from an mcp tool, not {}",
+                reference.tool_id, reference.tool_kind
+            ),
+        )?;
+        require_filled(&reference.tool_version, "tool_version")?;
+        require_filled(&reference.server, "server")?;
+        require_filled(&reference.operation, "operation")?;
+        require_filled(&reference.scope_id, "tool evidence scope_id")?;
+        require_filled(&reference.research_run_id, "research_run_id")?;
+        require_sha256(&reference.input_hash, "input_hash")?;
+        require_sha256(&reference.artifact_hash, "artifact_hash")?;
+        require_sha256(&reference.response_sha256, "response_sha256")?;
+        require(
+            !reference.raw_record_ids.is_empty(),
+            "tool evidence must cite at least one selected raw record",
+        )?;
+        for record in &reference.raw_record_ids {
+            require(
+                record.starts_with(SELECTED_RECORD_PREFIX),
+                &format!("tool evidence raw record {record} is not a selected excerpt"),
+            )?;
+            require(
+                records.insert(evidence_record_key(&reference.research_run_id, record)),
+                &format!("duplicate tool evidence raw record {record}"),
+            )?;
+        }
+    }
+    Ok(records)
+}
+
+fn validate_candidate_records(
+    candidate: &Candidate,
+    literature: &LiteratureRun,
+    evidence_records: &BTreeSet<String>,
+) -> Result<(), LabError> {
+    if literature.tool_evidence.is_empty() {
+        return require(
+            candidate.evidence_record_ids.is_empty(),
+            "historical adapter candidates do not cite tool evidence records",
+        );
+    }
+    require(
+        !candidate.evidence_record_ids.is_empty(),
+        &format!(
+            "candidate {} must cite the tool evidence records it was built from",
+            candidate.paper_id
+        ),
+    )?;
+    for record in &candidate.evidence_record_ids {
+        require(
+            evidence_records.contains(record),
+            &format!(
+                "candidate {} cites unknown tool evidence record {record}",
+                candidate.paper_id
+            ),
+        )?;
+    }
+    Ok(())
+}
+
+/// Validates that a literature refresh is legal for the request it belongs
+/// to: a new request accepts only MCP tool evidence for its own Scope from a
+/// tool it declared, and a historical adapter request accepts nothing new.
+///
+/// # Errors
+/// Returns the first contract violation.
+pub fn validate_literature_for_request(
+    literature: &LiteratureRun,
+    request: &ImproveRequest,
+) -> Result<(), LabError> {
+    validate_literature(literature)?;
+    require(
+        literature.run_id == request.run_id,
+        "literature run_id must match the request",
+    )?;
+    if request.is_historical_adapter_run() {
+        return require(
+            literature.tool_evidence.is_empty(),
+            "a historical adapter-bound run cannot cite tool evidence",
+        );
+    }
+    require(
+        literature.adapter_runs.is_empty() && !literature.tool_evidence.is_empty(),
+        "a new Lab run ingests only MCP tool evidence; legacy adapter research is refused",
+    )?;
+    for reference in &literature.tool_evidence {
+        require(
+            request.tool_ids.contains(&reference.tool_id),
+            &format!(
+                "tool evidence from {} was not selected for this run; declared tools: {}",
+                reference.tool_id,
+                request.tool_ids.join(", ")
+            ),
+        )?;
+        require(
+            reference.scope_id == request.scope_id,
+            &format!(
+                "tool evidence was recorded for scope {} but this run is scope {}",
+                reference.scope_id, request.scope_id
+            ),
+        )?;
+    }
+    Ok(())
+}
+
+const SELECTED_RECORD_PREFIX: &str = "raw-sel-";
+const MAX_LABEL_CHARS: usize = 160;
+
+fn sha256_hex(bytes: &[u8]) -> String {
+    use sha2::Digest as _;
+    format!("{:x}", sha2::Sha256::digest(bytes))
+}
+
+/// Reads the fixture a validated tool-evidence run embeds in its provenance
+/// record. The provenance record itself is never turned into a candidate.
+fn embedded_fixture(
+    run: &crate::research::ResearchRun,
+) -> Result<crate::tool_evidence::ToolEvidenceFixture, LabError> {
+    let line = run
+        .raw_records
+        .iter()
+        .find(|record| record.id == "raw-provenance")
+        .and_then(|record| record.content.lines().last())
+        .and_then(|line| line.strip_prefix("fixture: "))
+        .ok_or_else(|| LabError("tool-evidence run does not embed its fixture".to_owned()))?;
+    crate::tool_evidence::parse_fixture(line).map_err(|error| LabError(error.to_string()))
+}
+
+/// Validates one research run as MCP tool evidence for this request and
+/// returns its provenance plus the selected records it contributes.
+fn tool_evidence_ref(run: &crate::research::ResearchRun) -> Result<ToolEvidenceRef, LabError> {
+    crate::research::validate_run(run).map_err(|error| {
+        LabError(format!(
+            "tool evidence is not a valid research run: {error}"
+        ))
+    })?;
+    require(
+        crate::tool_evidence::claims_tool_evidence_identity(run)
+            && run.receipt.adapter_id == crate::tool_evidence::TOOL_EVIDENCE_ADAPTER_ID,
+        "a new Lab run ingests only `mozak research record-tool` MCP evidence; legacy adapter research is refused",
+    )?;
+    // validate_run re-derived the whole run from this fixture, so every field
+    // read below is bound to the run's hashes.
+    let fixture = embedded_fixture(run)?;
+    require(
+        fixture.schema == crate::tool_evidence::TOOL_EVIDENCE_SCHEMA,
+        "tool evidence schema must be mozak.tool-evidence.v1",
+    )?;
+    require(
+        matches!(fixture.tool.kind, crate::tool_evidence::ToolKind::Mcp),
+        "a new Lab run ingests only tool evidence of kind mcp",
+    )?;
+    require(
+        !fixture.accepted && fixture.authority == "proposal_only",
+        "tool evidence must remain unaccepted and proposal_only",
+    )?;
+    require(
+        run.synthesis.overall_claim != crate::research::OverallClaim::Supported,
+        "tool evidence must not be promoted to a supported claim",
+    )?;
+    let server = fixture
+        .tool
+        .server
+        .clone()
+        .ok_or_else(|| LabError("an mcp tool must name its server".to_owned()))?;
+    let raw_record_ids = run
+        .raw_records
+        .iter()
+        .filter(|record| record.id.starts_with(SELECTED_RECORD_PREFIX))
+        .map(|record| record.id.clone())
+        .collect::<Vec<_>>();
+    require(
+        raw_record_ids.len() == fixture.selections.len(),
+        "tool evidence selected records do not match its fixture selections",
+    )?;
+    Ok(ToolEvidenceRef {
+        tool_id: fixture.tool.tool_id,
+        tool_kind: LAB_TOOL_KIND.to_owned(),
+        tool_version: fixture.tool.version,
+        server,
+        operation: fixture.tool.operation,
+        scope_id: fixture.scope_id,
+        research_run_id: run.run_id.clone(),
+        input_hash: run.receipt.input_hash.clone(),
+        artifact_hash: run.receipt.artifact_hash.clone(),
+        response_sha256: fixture.response.sha256,
+        raw_record_ids,
+    })
+}
+
+fn candidate_label(tool_id: &str, excerpt: &str) -> String {
+    let first = excerpt
+        .lines()
+        .map(str::trim)
+        .find(|line| !line.is_empty())
+        .unwrap_or_default();
+    let clipped = first.chars().take(MAX_LABEL_CHARS).collect::<String>();
+    format!("untrusted {tool_id} excerpt (not a verified title): {clipped}")
+}
+
+/// Builds a literature refresh from validated MCP tool-evidence runs.
+///
+/// One candidate per distinct selection locator. The label is the first line
+/// of the selected excerpt, marked as untrusted tool output rather than a
+/// verified title; `source_uri` is the selection locator; the content hash is
+/// the excerpt hash (or, for several excerpts of one locator, the hash of
+/// their ordered keyed hashes). The provenance record that embeds the fixture
+/// is never a candidate. Seen sources are updated on the ledger.
+///
+/// # Errors
+/// Fails when the request is historical, when any run is not valid MCP tool
+/// evidence, names an undeclared tool or a different Scope, or when the
+/// derived literature fails its own contract.
+pub fn literature_from_tool_evidence(
+    request: &ImproveRequest,
+    ledger: &mut RunLedger,
+    runs: &[crate::research::ResearchRun],
+) -> Result<LiteratureRun, LabError> {
+    require(
+        !request.is_historical_adapter_run(),
+        "this run predates MCP-only retrieval and names adapter bindings; it stays readable but cannot ingest new literature. Start a new run with catalog MCP tool ids",
+    )?;
+    validate_request(request)?;
+    require(
+        !runs.is_empty(),
+        "at least one tool-evidence run is required",
+    )?;
+    let mut refs = Vec::new();
+    // locator -> (label, ordered (key, excerpt sha))
+    let mut by_locator: BTreeMap<String, (String, Vec<(String, String)>)> = BTreeMap::new();
+    for run in runs {
+        let reference = tool_evidence_ref(run)?;
+        for record in run
+            .raw_records
+            .iter()
+            .filter(|record| record.id.starts_with(SELECTED_RECORD_PREFIX))
+        {
+            let locator = record
+                .source_uri
+                .strip_prefix(crate::tool_evidence::TOOL_EVIDENCE_URI_PREFIX)
+                .ok_or_else(|| LabError("selected record has no tool-evidence locator".into()))?
+                .to_owned();
+            let entry = by_locator.entry(locator).or_insert_with(|| {
+                (
+                    candidate_label(&reference.tool_id, &record.content),
+                    Vec::new(),
+                )
+            });
+            entry.1.push((
+                evidence_record_key(&run.run_id, &record.id),
+                record.content_sha256.clone(),
+            ));
+        }
+        refs.push(reference);
+    }
+    let candidates = by_locator
+        .into_iter()
+        .map(|(locator, (title, records))| {
+            let content_sha256 = if records.len() == 1 {
+                records[0].1.clone()
+            } else {
+                let joined = records
+                    .iter()
+                    .map(|(key, sha)| format!("{key}={sha}"))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                sha256_hex(joined.as_bytes())
+            };
+            Candidate {
+                paper_id: format!("paper-{}", &sha256_hex(locator.as_bytes())[..16]),
+                title,
+                source_uri: locator,
+                content_sha256,
+                clusters: Vec::new(),
+                evidence_record_ids: records.into_iter().map(|(key, _)| key).collect(),
+            }
+        })
+        .collect::<Vec<_>>();
+    let mut probe = ledger.clone();
+    let (new_candidates, unchanged_candidates) = classify_candidates(&mut probe, &candidates);
+    let literature = LiteratureRun {
+        contract_version: CONTRACT_VERSION,
+        run_id: request.run_id.clone(),
+        adapter_runs: Vec::new(),
+        tool_evidence: refs,
+        candidates,
+        new_candidates,
+        unchanged_candidates,
+    };
+    validate_literature_for_request(&literature, request)?;
+    *ledger = probe;
+    Ok(literature)
 }
 
 /// Validates that selection covers the refreshed candidates with reasons.

@@ -564,10 +564,10 @@ fn current_document_with_full_state(id: &str) -> Result<CurrentDocument, String>
 
     let mut research_views = Vec::new();
     if let Some((registry, _)) = &adapter_registry {
+        // Adapter execution is retired. A binding is now only a historical
+        // pointer to where its recorded runs live, so pin drift or a deleted
+        // runner must never hide evidence that was already recorded.
         for binding in &registry.bindings {
-            if !adapter_binding_callable(binding) {
-                continue;
-            }
             for (path, run, stale) in validated_runs_in(Path::new(&binding.runs_dir))? {
                 let bytes = fs::read(&path).map_err(|e| format!("cannot read run: {e}"))?;
                 let freshness = if stale {
@@ -2952,26 +2952,13 @@ fn adapter_registry_path() -> Result<PathBuf, String> {
     Ok(base.join("mozak/adapters.json"))
 }
 
+/// Historical view of one configured adapter binding.
+///
+/// Retrieval is MCP-only, so no binding is callable. The view reports where the
+/// binding's recorded runs live and how fresh they are. Pin drift, including a
+/// deleted runner or request, is reported as information and never hides runs.
 fn binding_current_view(binding: &mozak_core::adapter::AdapterBinding) -> Result<Value, String> {
-    let drifted = drifted_adapter_pins(binding);
-    let callable = drifted.is_empty();
-    if !callable {
-        return Ok(serde_json::json!({
-            "binding_id": binding.id,
-            "adapter": binding.adapter,
-            "target_scope_id": binding.target_scope_id,
-            "runs_dir": binding.runs_dir,
-            "latest_recorded": Value::Null,
-            "latest_observed": Value::Null,
-            "accepted": false,
-            "freshness": "needs_recheck",
-            "state": "needs_recheck",
-            "callable": false,
-            "drifted": drifted,
-            "stale_run_count": 0,
-            "authority": "owner_configured_needs_recheck"
-        }));
-    }
+    let pin_drift = drifted_adapter_pins(binding);
     let runs = validated_runs_in(Path::new(&binding.runs_dir))?;
     let newest = runs.iter().find(|(_, _, stale)| !*stale);
     Ok(serde_json::json!({
@@ -2983,16 +2970,12 @@ fn binding_current_view(binding: &mozak_core::adapter::AdapterBinding) -> Result
         "latest_observed": newest.and_then(|(path, _, _)| path.metadata().ok()).and_then(|m| m.modified().ok()).and_then(system_time_text),
         "accepted": false,
         "freshness": if newest.is_some() {"current"} else {"not_observed"},
-        "state": "ready",
-        "callable": true,
-        "drifted": [],
+        "state": "historical",
+        "callable": false,
+        "pin_drift": pin_drift,
         "stale_run_count": runs.iter().filter(|(_, _, stale)| *stale).count(),
-        "authority": "owner_configured_callable"
+        "authority": "historical_record"
     }))
-}
-
-fn adapter_binding_callable(binding: &mozak_core::adapter::AdapterBinding) -> bool {
-    drifted_adapter_pins(binding).is_empty()
 }
 
 fn drifted_adapter_pins(binding: &mozak_core::adapter::AdapterBinding) -> Vec<Value> {

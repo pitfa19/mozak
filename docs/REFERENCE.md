@@ -11,9 +11,9 @@ the authoritative usage.
 Read-only routes are safe to ask for at any time. Anything marked **mutation**
 needs your explicit approval, and some need an approval file. MOZAK core routes
 are offline: they read local config, files, and recorded evidence. Your agent
-host calls MCP tools, which may use the network. Legacy adapter runners may use
-the network and must declare it. The managed launcher may contact GitHub only
-to check for tool updates.
+host calls MCP tools, which may use the network. New retrieval happens only
+through those MCP calls; MOZAK runs no source adapters. The managed launcher
+may contact GitHub only to check for tool updates.
 
 Exit codes: `0` valid, `2` incomplete, `3` invalid, `1` bad invocation.
 
@@ -76,7 +76,7 @@ mozak scope ingest-links <scope-root> <source-root> <observed-revision> <plan.js
 
 The Notes routes use only the configured KB, the existing device-local Notes profile, and explicit profile roots. `notes onboard propose` is deterministic and create-only; it emits relative-path evidence and digest pins without note bodies or absolute destination roots. `notes onboard apply` requires a separate exact owner approval and uses locked compare-and-swap atomic replacement with fsync and readback. `notes check` validates mapping integrity and mapped-prefix existence. It is not a Markdown audit: use `note-healthcheck` to inspect note content, links, formatting, and trust metadata.
 
-`project current PROJECT_ID` emits the sealed read-only current-state projection plus bounded sections for goal state, adapter freshness, newest proposal-only research, superseded artifacts, and next owner decision. `project browse PROJECT_ID` lists only explicitly configured records from the same bounded view and states that order is not recommendation, acceptance, or truth. `project resolve PROJECT_ID RECORD_ID` follows only declared Stage 1 projection relationships and refuses stale hashes/freshness or undeclared records. `project why PROJECT_ID RECORD_ID` explains inclusion, freshness, authority, and blocking conditions, including why a newer DAIR run supersedes an older recorded run without accepting either. These commands read only the registered project/config boundaries, configured KB, adapter registry, and adapter runs dirs. They label latest recorded, latest observed, and accepted, dump no note bodies/full KB, and claim no trust transfer or automatic promotion.
+`project current PROJECT_ID` emits the sealed read-only current-state projection plus bounded sections for goal state, historical adapter-run freshness, newest proposal-only research, superseded artifacts, and next owner decision. The `adapter_freshness` field name is kept for hash compatibility; it reports `historical`, `callable: false`, and informational pin drift, which describes artifact age, not runtime availability. `project browse PROJECT_ID` lists only explicitly configured records from the same bounded view and states that order is not recommendation, acceptance, or truth. `project resolve PROJECT_ID RECORD_ID` follows only declared Stage 1 projection relationships and refuses stale hashes/freshness or undeclared records. `project why PROJECT_ID RECORD_ID` explains inclusion, freshness, authority, and blocking conditions, including why a newer DAIR run supersedes an older recorded run without accepting either. These commands read only the registered project/config boundaries, configured KB, and the historical adapter registry and runs dirs, which they never execute. They label latest recorded, latest observed, and accepted, dump no note bodies/full KB, and claim no trust transfer or automatic promotion.
 
 Since 0.3.1, `project context` self-reconciles only valid, identity-preserving
 pin drift for the exact requested registration. It takes the existing exclusive
@@ -119,7 +119,9 @@ decision. Full guide: [TOOL-STACK.md](TOOL-STACK.md).
 
 | Say this | Agent runs |
 |---|---|
-| "Find papers on this topic." | `mozak stack check "$HOME" literature`, then the agent calls the arXiv MCP tool |
+| "Find papers on this topic." | `mozak stack check "$HOME" literature`, then the agent calls `arxiv-mcp` |
+| "Watch new tooling releases." | `mozak stack check "$HOME" tooling-watch`, then the agent calls `fetch-mcp` (and `github-mcp` if configured) |
+| "Research this question across the web." | `mozak stack check "$HOME" deep-research`, then the agent calls `firecrawl-mcp` |
 | "Record that tool result as evidence." | `mozak research record-tool <fixture.json> <response-bytes> <run.json>` |
 | "Is that recorded run still intact?" | `mozak research verify-tool <fixture.json> <response-bytes> <run.json>` |
 | "Check this research run is valid." | `mozak research validate <run.json>` |
@@ -145,35 +147,22 @@ unpinned versions, credential-looking argument keys,
 run and requires a byte-for-byte match. A recorded run is never acceptance.
 Example: [examples/tool-evidence-example.md](examples/tool-evidence-example.md).
 
-### Legacy adapters (compatibility only)
+### Historical adapter evidence (offline readers only)
 
-Adapters are no longer the default research path. They stay supported so every
-recorded run remains valid and reproducible, and they are the verified path for
-a capability until a real recorded run through its new MCP tool exists.
-
-| Say this | Agent runs |
-|---|---|
-| "Which adapters do I have?" | `mozak adapter catalog` then `mozak adapter list` |
-| "Tell me about one of my bindings." | `mozak adapter show <binding-id>` |
-| "Run this legacy binding." | `mozak adapter run <binding-id>` |
-| "Turn that fetch into a research run." | `mozak research normalize <source> <fixture.json> <run.json>` |
+Live source adapters are retired. There is no adapter command, no adapter
+setup or run, and no adapter fallback. Runs they already recorded stay valid,
+and these offline routes keep their hashes verifiable:
 
 ```bash
-mozak adapter catalog
-mozak adapter setup <dair-ai|mcp-registry|github-tooling|hyperresearch|monokl> <binding-id> <scope-id> <request.json> <runner> <runs-dir>  # mutation
-mozak adapter list|show <id>|run <id>|recheck <id>
-mozak research normalize <arxiv|dair-ai|mcp-registry|github-tooling|hyperresearch|monokl> <fixture.json> <run.json>
+mozak research validate <run.json>
+mozak research normalize <arxiv|dair-ai|mcp-registry|github-tooling|hyperresearch|monokl> <fixture.json> <run.json>   # historical fixtures, offline
 ```
 
-`adapter show` and `adapter run` take a **binding id** from `adapter list`, not
-an adapter name from `adapter catalog`. A binding pins its request and runner by
-SHA-256; editing either moves the binding to `needs_recheck` and makes it
-non-callable until `adapter recheck` re-pins the observed hashes. Recheck
-records hashes only. It approves nothing and accepts no prior run.
-
-MOZAK routes perform no networking. An adapter fetches outside MOZAK and MOZAK
-validates the recorded snapshot. `research normalize` refuses any adapter that
-declares a write, a mutation, an irreversible effect, or a pending approval.
+`research normalize` only re-derives a run from an already-recorded fixture in
+an existing format. It never retrieves anything and is not a way to add new
+evidence. It refuses any fixture that declares a write, a mutation, an
+irreversible effect, or a pending approval. New evidence goes through
+`research record-tool`. Do not delete, rewrite, or re-pin historical runs.
 
 `research landmarks` makes a condensed statement addressable: each statement
 records the evidence id it came from and pins that evidence's content hash, so
@@ -283,15 +272,15 @@ read-only, and authorize no execution or mutation.
 | Say this | Agent runs |
 |---|---|
 | "What can the Lab improve?" | `mozak lab modules` |
-| "Open a Lab run on the plans module." | `mozak lab start <run-dir> <scope-id> plans "<question>" <binding-id>` |
-| "Ingest this adapter run into the Lab." | `mozak lab refresh <run-dir> <adapter-run.json>` |
+| "Open a Lab run on the plans module." | `mozak lab start <run-dir> <scope-id> plans "<question>" <mcp-tool-id>` |
+| "Feed this recorded tool run into the Lab." | `mozak lab refresh <run-dir> <mcp-research-run.json> [mcp-research-run.json ...]` |
 | "Where is this Lab run up to?" | `mozak lab status <run-dir>` |
 | "Show me the Lab's proposed plans." | `mozak lab review <run-dir>` |
 
 ```bash
 mozak lab modules
-mozak lab start <run-dir> <scope-id> <module> <question> <binding-id> [binding-id ...]
-mozak lab refresh <run-dir> <adapter-run.json>
+mozak lab start <run-dir> <scope-id> <module> <question> <mcp-tool-id> [mcp-tool-id ...]
+mozak lab refresh <run-dir> <mcp-research-run.json> [mcp-research-run.json ...]
 mozak lab select|read|mechanisms|plans <run-dir> <input.json>
 mozak lab evaluation failure <project-id> <problem.json> <failure.json>
 mozak lab evaluation observe <failure.json> <label> <attributed-layer> <expected-stdout-sha256> <observation.json>
@@ -303,6 +292,17 @@ mozak lab review|status <run-dir>
 `<module>` is one of `scope`, `research`, `plans`, `meta-kb`, `improve-lab`,
 `skill`. `mozak lab modules` is authoritative and returns each id, a one-line
 summary, and the source files it governs.
+
+`lab start` takes one or more shipped-catalog MCP tool ids such as `arxiv-mcp`
+or `github-mcp`. Unknown ids, non-MCP catalog entries, and retired adapter or
+binding ids are refused, and no adapter registry is read. `lab refresh` takes a
+run written by `research record-tool`. The run must re-derive cleanly, have
+`tool.kind` `mcp`, a `tool_id` exactly equal to one of the ids given at `lab
+start`, the Lab's `scope_id`, and `accepted: false` with `proposal_only`
+authority. Candidates come only from the run's selected excerpt records.
+Historical adapter runs are refused by refresh. Lab runs opened with binding
+ids before the retirement stay readable through `status`, `select`, `read`,
+and `review`, but cannot ingest new evidence.
 
 The ordered steps are `refresh`, `select`, `read`, `mechanisms`, `plans`,
 `review`. Each records an immutable transition with actor, time, and input
@@ -364,7 +364,8 @@ mozak doctor <HOME> [KB_ROOT]
 
 - Registering, refreshing, importing or releasing without an explicit approval file.
 - Overwriting an existing accepted state or output path.
-- Treating adapter output, an imported package, or a registered scope as true.
+- Treating recorded tool evidence, an imported package, or a registered scope as true.
+- Running a retired source adapter or falling back to one when an MCP tool is missing.
 - Advancing a Lab run past your review.
 
 ## Distribution and managed setup
@@ -386,7 +387,7 @@ state preservation.
 
 The launcher updates only its own version directories, symlinks, delivery
 config, and managed skill files. Project repositories, registries, Scopes,
-adapters, and KB roots are **not** delivery state.
+recorded evidence, and KB roots are **not** delivery state.
 
 The real binary retains the offline setup and verification routes:
 
@@ -618,8 +619,8 @@ python3 scripts/validate_m0.py
 ./scripts/verify_phase1_slice.sh
 ```
 
-`mozak-core` holds contracts and validators, `mozak-cli` holds routes, adapters
-are Python under `scripts/adapters/` and stay proposal-only. Milestone 0 is an
+`mozak-core` holds contracts and validators and `mozak-cli` holds routes. New
+retrieval happens in the agent host through MCP tools. Milestone 0 is an
 executable specification rather than production code; its contracts, schemas,
 adversarial histories, and reference validator live under
 [`spec/m0`](../spec/m0/README.md). A change to a contract changes its
@@ -632,7 +633,7 @@ is carried forward, so a later run inherits knowledge instead of reconstructing
 it from whatever files survived.
 
 ```bash
-mozak lab start <run-dir> <scope-id> <module> "<question>" <binding-id>
+mozak lab start <run-dir> <scope-id> <module> "<question>" <mcp-tool-id>
 # reports inherited_evidence, preservation_requirements and open_failures
 ```
 

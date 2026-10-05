@@ -476,8 +476,38 @@ fn project_current_without_adapters_or_research_is_valid_and_bounded() {
     );
 }
 
+/// Asserts the retired-adapter historical binding view and that the recorded
+/// run is still visible and related to its Scope.
+fn assert_historical_binding_keeps_runs(report: &Value, expected_drift: &[&str]) {
+    let binding = &report["adapter_freshness"]["records"][0];
+    assert_eq!(binding["state"], "historical");
+    assert_eq!(binding["callable"], false);
+    assert_eq!(binding["authority"], "historical_record");
+    assert_eq!(binding["accepted"], false);
+    assert_eq!(binding["freshness"], "current");
+    assert_eq!(binding["latest_recorded"], "2026-09-06T22:17:35Z");
+    let drift = binding["pin_drift"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|entry| entry["pin"].as_str().unwrap())
+        .collect::<Vec<_>>();
+    assert_eq!(drift, expected_drift);
+    assert!(binding.get("drifted").is_none());
+    let newest = &report["newest_proposal_only_research"];
+    assert_eq!(newest["binding_id"], "agentic-systems-dair");
+    assert_eq!(newest["authority"], "proposal_only");
+    assert_eq!(newest["accepted"], false);
+    assert_eq!(report["proposal_only_research"]["total_count"], 1);
+    assert_eq!(
+        report["current_state_projection"]["observes_relationships"]["total_count"],
+        1
+    );
+    assert_eq!(report["mutation"], false);
+}
+
 #[test]
-fn project_current_marks_drifted_adapter_pins_needs_recheck_without_current_runs() {
+fn project_current_keeps_runs_visible_when_adapter_pins_drift() {
     let t = Temp::new("current-drifted-adapter");
     let kb = valid_kb(&t.0);
     let ws = t.0.join("workspace");
@@ -486,29 +516,94 @@ fn project_current_marks_drifted_adapter_pins_needs_recheck_without_current_runs
     register_initial(&kb, &ws, &xdg, &t.0);
     let runs = t.0.join("runs");
     fs::create_dir_all(&runs).unwrap();
-    write_research_run(&runs.join("run.json"));
+    write_research_run_with_id(
+        &runs.join("run.json"),
+        "run-drifted-10b5a0e19c4191556e69e",
+        "2026-09-06T22:17:35Z",
+    );
     write_adapter_registry(&xdg, &runs);
-    drift_adapter_request(&xdg);
 
+    let clean = run(&["project", "current", "drifted-current"], &xdg);
+    assert!(
+        clean.status.success(),
+        "{}",
+        String::from_utf8_lossy(&clean.stderr)
+    );
+    assert_historical_binding_keeps_runs(&serde_json::from_slice(&clean.stdout).unwrap(), &[]);
+
+    drift_adapter_request(&xdg);
     let out = run(&["project", "current", "drifted-current"], &xdg);
     assert!(
         out.status.success(),
         "{}",
         String::from_utf8_lossy(&out.stderr)
     );
-    let report: Value = serde_json::from_slice(&out.stdout).unwrap();
-    let binding = &report["adapter_freshness"]["records"][0];
-    assert_eq!(binding["freshness"], "needs_recheck");
-    assert_eq!(binding["state"], "needs_recheck");
-    assert_eq!(binding["callable"], false);
-    assert_eq!(binding["authority"], "owner_configured_needs_recheck");
-    assert_eq!(binding["latest_recorded"], Value::Null);
-    assert_eq!(binding["drifted"][0]["pin"], "request");
-    assert_eq!(report["newest_proposal_only_research"], Value::Null);
-    assert_eq!(
-        report["current_state_projection"]["observes_relationships"]["total_count"],
-        0
+    assert_historical_binding_keeps_runs(
+        &serde_json::from_slice(&out.stdout).unwrap(),
+        &["request"],
     );
+}
+
+#[test]
+fn deleted_runner_and_request_keep_history_readable_in_current_browse_and_why() {
+    let t = Temp::new("current-deleted-runner");
+    let kb = valid_kb(&t.0);
+    let ws = t.0.join("workspace");
+    project(&ws.join("history"), "history-current");
+    let xdg = t.0.join("xdg");
+    register_initial(&kb, &ws, &xdg, &t.0);
+    let runs = t.0.join("runs");
+    fs::create_dir_all(&runs).unwrap();
+    write_research_run_with_id(
+        &runs.join("run.json"),
+        "run-history-10b5a0e19c4191556e69e",
+        "2026-09-06T22:17:35Z",
+    );
+    write_adapter_registry(&xdg, &runs);
+    let registry_before = fs::read(xdg.join("mozak/adapters.json")).unwrap();
+    fs::remove_file(xdg.join("mozak/runner.sh")).unwrap();
+    fs::remove_file(xdg.join("mozak/request.json")).unwrap();
+
+    let current = run(&["project", "current", "history-current"], &xdg);
+    assert!(
+        current.status.success(),
+        "{}",
+        String::from_utf8_lossy(&current.stderr)
+    );
+    let report: Value = serde_json::from_slice(&current.stdout).unwrap();
+    assert_historical_binding_keeps_runs(&report, &["request", "runner"]);
+    let drift = &report["adapter_freshness"]["records"][0]["pin_drift"];
+    assert_eq!(drift[0]["observed_sha256"], Value::Null);
+    assert_eq!(drift[1]["observed_sha256"], Value::Null);
+
+    let browse = run(&["project", "browse", "history-current"], &xdg);
+    assert!(
+        browse.status.success(),
+        "{}",
+        String::from_utf8_lossy(&browse.stderr)
+    );
+    let browse: Value = serde_json::from_slice(&browse.stdout).unwrap();
+    let record = &browse["records"]["proposal_only_research"]["records"][0];
+    assert_eq!(record["run_id"], "run-history-10b5a0e19c4191556e69e");
+    let record_id = record["record_id"].as_str().unwrap().to_owned();
+
+    let why = run(&["project", "why", "history-current", &record_id], &xdg);
+    assert!(
+        why.status.success(),
+        "{}",
+        String::from_utf8_lossy(&why.stderr)
+    );
+    let why: Value = serde_json::from_slice(&why.stdout).unwrap();
+    assert_eq!(why["authority"], "proposal_only");
+    assert_eq!(why["mutation"], false);
+
+    // Reading history never re-pins, rewrites, or recreates adapter files.
+    assert_eq!(
+        fs::read(xdg.join("mozak/adapters.json")).unwrap(),
+        registry_before
+    );
+    assert!(!xdg.join("mozak/runner.sh").exists());
+    assert!(!xdg.join("mozak/request.json").exists());
 }
 
 #[test]

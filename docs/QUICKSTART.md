@@ -1,7 +1,7 @@
 # MOZAK quickstart
 
 This guide creates a new MOZAK project and then introduces advanced Topics,
-Scopes, and adapters. If someone else already onboarded the projects you need,
+Scopes, and MCP research tools. If someone else already onboarded the projects you need,
 use the shorter [teammate quickstart](TEAMMATE-QUICKSTART.md) instead.
 
 **Steps 1 to 3 take about fifteen minutes with a MOZAK-aware coding agent. Stop
@@ -298,10 +298,11 @@ mozak stack recommend literature
 mozak stack check "$HOME" literature
 ```
 
-If the arXiv MCP tool is missing, `stack recommend` prints the exact install
-step from the shipped catalog. Install it only if you want it. `stack check`
-reads local config only, so `configured` does not mean the server answers or
-that your library is usable. Then ask your agent:
+If `arxiv-mcp` is missing, `stack recommend` prints the exact install step
+from the shipped catalog. Install it only if you want it. Until it is
+configured, this step stops as incomplete; there is no adapter fallback.
+`stack check` reads local config only, so `configured` does not mean the
+server answers or that your library is usable. Then ask your agent:
 
 > Search arXiv for recent async runtime and tail-latency papers for
 > `topic-rust-async`, and record the result as MOZAK evidence.
@@ -316,52 +317,18 @@ mozak research validate ~/mozak-kb/runs/arxiv-run.json
 
 See [the worked example](examples/tool-evidence-example.md) for the fixture.
 
-### Alternative: a legacy adapter binding
+### Other research workflows
 
-The older adapters still work and remain the verified path until a real
-recorded run through the new tool exists. Use one if you prefer a fixed weekly
-feed:
+- Curated DAIR.AI weekly papers: same `literature` use case, read through
+  `fetch-mcp` or `github-mcp` at an exact commit.
+- New tooling releases and repositories: `mozak stack check "$HOME" tooling-watch`
+  (needs `fetch-mcp`).
+- Multi-source web research: `mozak stack check "$HOME" deep-research` (needs
+  `firecrawl-mcp` and a `FIRECRAWL_API_KEY`; calls consume credits).
 
-```bash
-mozak adapter catalog
-```
+Each is described step by step in the [tool-stack guide](TOOL-STACK.md#workflows).
 
-Write a request describing what you care about, as named interest clusters:
-
-```json
-{
-  "schema_version": 1,
-  "scope_id": "topic-rust-async",
-  "weeks": 2,
-  "clusters": [
-    {"name": "runtimes", "terms": ["async runtime", "scheduler", "work stealing", "executor"]},
-    {"name": "latency", "terms": ["tail latency", "throughput", "concurrency"]}
-  ],
-  "max_records": 50,
-  "question": "Which curated papers relate to async runtime design and latency?"
-}
-```
-
-Bind it once, then it is callable. Step 7 is a prerequisite: setup resolves the
-target Scope through your configured KB and refuses a Scope that is not
-registered there.
-
-```bash
-mozak adapter setup dair-ai rust-async-dair topic-rust-async \
-  ~/mozak-kb/rust-request.json \
-  /path/to/mozak/scripts/adapters/dair_weekly.sh \
-  ~/mozak-kb/runs
-
-mozak adapter list
-mozak adapter run rust-async-dair
-```
-
-The runner path is a real script from a MOZAK checkout, so give it in full.
-Setup pins the request and runner by SHA-256. If either changes, the binding
-becomes non-callable instead of silently running something else, and
-`mozak adapter recheck rust-async-dair` re-pins it after a deliberate edit.
-
-Either way the result is a validated research run. It is **proposal-only**.
+Every path ends in a validated research run. It is **proposal-only**.
 Nothing entered your Topic yet.
 
 Accept what you actually want with `mozak scope ingest-links`, which applies an
@@ -377,7 +344,7 @@ mozak project context <project-id>
 mozak project refresh history
 ```
 
-`project context` is the command to give a fresh agent. `project current` is the bounded read-only current-state view: goal state, adapter freshness, newest proposal-only research, superseded artifacts, and the next owner decision. `project browse <project-id>` lists the bounded configured records behind that view. `project resolve <project-id> <record-id>` follows only declared Stage 1 projection relationships and refuses stale or undeclared records. `project why <project-id> <record-id>` explains inclusion, freshness, authority, and blocking conditions, including why a newer DAIR run supersedes an older recorded run without accepting either. These commands label latest recorded, latest observed, and accepted separately, do not scan arbitrary files, do not dump note bodies, and do not transfer trust or promote research. `project context` reports the current
+`project context` is the command to give a fresh agent. `project current` is the bounded read-only current-state view: goal state, historical adapter-run freshness (artifact age, not a runnable adapter), newest proposal-only research, superseded artifacts, and the next owner decision. `project browse <project-id>` lists the bounded configured records behind that view. `project resolve <project-id> <record-id>` follows only declared Stage 1 projection relationships and refuses stale or undeclared records. `project why <project-id> <record-id>` explains inclusion, freshness, authority, and blocking conditions, including why a newer DAIR run supersedes an older recorded run without accepting either. These commands label latest recorded, latest observed, and accepted separately, do not scan arbitrary files, do not dump note bodies, and do not transfer trust or promote research. `project context` reports the current
 idea, latest plan, ready goals, and next actions in one JSON payload.
 It may also repair valid pin-only drift for that exact registration. This uses
 an exclusive lock and config digest check, records tamper-evident history, and

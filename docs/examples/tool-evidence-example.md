@@ -70,7 +70,10 @@ That file is 63 bytes (with a trailing newline) and its SHA-256 is
 What each part pins:
 
 - `tool`: which catalog tool, exact version, which operation, which server.
-  `latest`, `unknown`, or `*` versions are refused.
+  `tool_id` is the shipped catalog id (`arxiv-mcp`), never a package name such
+  as the server's install package. New recordings must use `kind: "mcp"` and a
+  catalog MCP tool id; `record-tool` refuses anything else. `latest`,
+  `unknown`, or `*` versions are refused.
 - `call`: the canonical arguments (hashed) and the UTC call window.
   Argument keys that look like credentials (`token`, `api_key`, `cookie`, ...)
   are refused.
@@ -82,7 +85,9 @@ What each part pins:
   `impact` of `low`, `medium`, or `high`. MOZAK adds
   `gap-tool-output-untrusted`, `gap-selected-excerpts-only`, and
   `gap-truncated` itself, so a fixture cannot supply those ids.
-- `tool.server` is required for `kind: "mcp"` and absent for other kinds.
+- `tool.server` is required for `kind: "mcp"`. The generic format still
+  describes other kinds so that `verify-tool` and `research validate` can read
+  evidence recorded before the MCP-only rule, but new recordings are MCP only.
 
 ## 3. Record, then verify
 
@@ -100,6 +105,16 @@ mozak research validate run.json
 receipt `input_hash` is the SHA-256 of the canonical (key-sorted, compact)
 fixture JSON, so reformatting the fixture does not change it.
 `verify-tool` re-derives the run and requires it to match byte for byte.
+
+Because `tool_id` is the catalog id, this run can feed a Lab opened with that
+id:
+
+```bash
+mozak lab start lab-run topic-agentic-systems research "Which memory designs apply?" arxiv-mcp
+mozak lab refresh lab-run run.json
+```
+
+`lab refresh` reads only the run's selected excerpt records as candidates.
 
 ## 4. What gets refused
 

@@ -26,6 +26,7 @@ pub(crate) const CATALOG_FILE: &str = "tool-stack.json";
 const MAX_CONFIG_BYTES: u64 = 8 * 1024 * 1024;
 const MAX_PREFS_PROFILES: usize = 32;
 const BASELINE: &str = "baseline";
+const MAX_MCP_TOOL_IDS: usize = 16;
 const NOT_OBSERVED: [&str; 4] = [
     "mcp_handshake",
     "service_usability",
@@ -44,7 +45,6 @@ pub(crate) struct Catalog {
     pub readiness_ladder: Vec<Ladder>,
     pub observed_states: Vec<String>,
     pub hosts: Vec<Host>,
-    pub adapter_registry_path: String,
     pub use_cases: Vec<UseCase>,
     pub tools: Vec<Tool>,
 }
@@ -96,8 +96,6 @@ pub(crate) struct Tool {
     pub shipped_by_mozak: bool,
     pub ready_at: String,
     #[serde(default)]
-    pub adapter: Option<String>,
-    #[serde(default)]
     pub upstream: Option<Value>,
     pub detection: Detection,
     #[serde(default)]
@@ -129,8 +127,6 @@ pub(crate) struct Detection {
     pub host_server_names: Vec<String>,
     #[serde(default)]
     pub command_markers: Vec<String>,
-    #[serde(default)]
-    pub adapter_bindings: Vec<String>,
 }
 
 #[derive(Deserialize)]
@@ -259,9 +255,6 @@ fn validate_catalog(catalog: &Catalog) -> Result<(), String> {
     if catalog.observed_states != ["missing", "installed", "configured", "prerequisite_missing"] {
         return Err("tool-stack observed_states is not the fixed contract".into());
     }
-    if !safe_relative(&catalog.adapter_registry_path) {
-        return Err("adapter_registry_path must be a safe relative path".into());
-    }
     for host in &catalog.hosts {
         if !valid_id(&host.id)
             || !safe_relative(&host.config_path)
@@ -295,7 +288,7 @@ fn validate_catalog(catalog: &Catalog) -> Result<(), String> {
             }
             match (entry.requirement.as_str(), &entry.group) {
                 ("any_of", Some(group)) if valid_id(group) => {}
-                ("required" | "optional" | "legacy_alternative", None) => {}
+                ("required" | "optional", None) => {}
                 _ => {
                     return Err(format!(
                         "use case {} has invalid requirement for {}",
@@ -318,7 +311,7 @@ fn validate_tool(tool: &Tool) -> Result<(), String> {
     }
     if !matches!(
         tool.kind.as_str(),
-        "managed_skill" | "skill" | "executable" | "mcp_server" | "legacy_adapter"
+        "managed_skill" | "skill" | "executable" | "mcp_server"
     ) {
         return fail("kind");
     }
@@ -338,8 +331,7 @@ fn validate_tool(tool: &Tool) -> Result<(), String> {
         .iter()
         .chain(&d.launcher_executables)
         .chain(&d.skill_dirs)
-        .chain(&d.host_server_names)
-        .chain(&d.adapter_bindings);
+        .chain(&d.host_server_names);
     for name in names.chain(&d.command_markers) {
         if !valid_name(name) {
             return fail("detection name");
@@ -380,9 +372,6 @@ fn validate_tool(tool: &Tool) -> Result<(), String> {
         if d.host_server_names.is_empty() {
             return fail("mcp server needs host_server_names");
         }
-    }
-    if tool.kind == "legacy_adapter" && (tool.adapter.is_none() || d.adapter_bindings.is_empty()) {
-        return fail("legacy adapter needs adapter and adapter_bindings");
     }
     for env_name in tool
         .credentials
@@ -438,6 +427,48 @@ fn validate_prerequisite(p: &Prerequisite) -> Result<(), String> {
         Ok(())
     } else {
         Err(format!("prerequisite {} is malformed", p.id))
+    }
+}
+
+/// Validates tool IDs a Lab request selects: non-empty, distinct, and each an
+/// exact catalog entry of kind `mcp_server`. Never reads HOME or any registry.
+pub(crate) fn validate_mcp_tool_ids(ids: &[String]) -> Result<(), String> {
+    validate_mcp_tool_ids_in(&load_catalog()?, ids)
+}
+
+fn validate_mcp_tool_ids_in(catalog: &Catalog, ids: &[String]) -> Result<(), String> {
+    if ids.is_empty() {
+        return Err("at least one MCP tool id is required".into());
+    }
+    if ids.len() > MAX_MCP_TOOL_IDS {
+        return Err(format!(
+            "at most {MAX_MCP_TOOL_IDS} MCP tool ids are allowed"
+        ));
+    }
+    let mut seen = BTreeSet::new();
+    for id in ids {
+        if !seen.insert(id.as_str()) {
+            return Err(format!("duplicate MCP tool id: {id}"));
+        }
+        match catalog.tool(id) {
+            Some(tool) if tool.kind == "mcp_server" => {}
+            Some(tool) => {
+                return Err(format!(
+                    "tool {id} is kind {} and not an MCP server",
+                    tool.kind
+                ));
+            }
+            None => return Err(format!("unknown MCP tool id: {id}")),
+        }
+    }
+    Ok(())
+}
+
+/// Use cases that gate readiness: baseline, then the named one once.
+fn gating_use_cases(use_case: Option<&str>) -> Vec<&str> {
+    match use_case {
+        Some(id) if id != BASELINE => vec![BASELINE, id],
+        _ => vec![BASELINE],
     }
 }
 
@@ -1049,60 +1080,6 @@ fn server_matches(tool: &Tool, server: &HostServer) -> bool {
     })
 }
 
-/// Scope ids from the KB named by HOME's own MOZAK config, never the ambient
-/// one. `Err` explains why the target Scope cannot be verified.
-fn home_registered_scopes(home: &Path) -> Result<BTreeSet<String>, String> {
-    let text = read_in_home(home, Path::new(".config/mozak/config.json"))?
-        .ok_or_else(|| "no MOZAK config under HOME".to_owned())?;
-    let config: Value =
-        serde_json::from_str(&text).map_err(|_| "malformed MOZAK config".to_owned())?;
-    let (Some(root), Some(sha)) = (config["kb_root"].as_str(), config["kb_sha256"].as_str()) else {
-        return Err("MOZAK config names no KB".into());
-    };
-    crate::adapter_workflow::registered_scope_ids(Path::new(root), sha)
-}
-
-/// Adapters with at least one callable binding, plus a report of every
-/// binding. Uses the strict registry validator and pin check shared with
-/// `adapter list`; a binding whose pins drifted or whose target Scope is not
-/// in HOME's verified KB never counts.
-fn observe_adapters(catalog: &Catalog, home: &Path) -> (Value, Vec<String>) {
-    let path = &catalog.adapter_registry_path;
-    let text = match read_in_home(home, Path::new(path)) {
-        Ok(None) => return (json!({"path": path, "status": "absent"}), Vec::new()),
-        Err(reason) => {
-            return (
-                json!({"path": path, "status": format!("unreadable: {reason}")}),
-                Vec::new(),
-            );
-        }
-        Ok(Some(text)) => text,
-    };
-    let scopes = home_registered_scopes(home);
-    match crate::adapter_workflow::binding_readiness(&text, scopes.as_ref().ok()) {
-        Ok(bindings) => {
-            let callable: Vec<String> = bindings
-                .iter()
-                .filter(|b| b["callable"] == true)
-                .filter_map(|b| b["adapter"].as_str().map(str::to_owned))
-                .collect();
-            (
-                json!({
-                    "path": path,
-                    "status": format!("read ({} bindings, {} callable)", bindings.len(), callable.len()),
-                    "scope_verification": scopes.as_ref().map_or_else(|e| format!("unverified: {e}"), |_| "verified".to_owned()),
-                    "bindings": bindings,
-                }),
-                callable,
-            )
-        }
-        Err(_) => (
-            json!({"path": path, "status": "unreadable: invalid adapter registry"}),
-            Vec::new(),
-        ),
-    }
-}
-
 fn zotero_style_prefs_data_dirs(home: &Path, prefs: &Prefs) -> Vec<PathBuf> {
     if read_in_home(home, Path::new(&prefs.dir)).is_err_and(|e| e.contains("symlink")) {
         return Vec::new();
@@ -1141,7 +1118,6 @@ fn zotero_style_prefs_data_dirs(home: &Path, prefs: &Prefs) -> Vec<PathBuf> {
 struct Context<'a> {
     home: &'a Path,
     hosts: &'a HostObservation,
-    adapters: &'a [String],
 }
 
 fn check_prerequisite(p: &Prerequisite, ctx: &Context, matched: &[&HostServer]) -> Value {
@@ -1304,8 +1280,9 @@ fn observe_tool(tool: &Tool, entry: &UseCaseTool, ctx: &Context) -> (Value, bool
         .iter()
         .filter(|server| !d.host_server_names.is_empty() && server_matches(tool, server))
         .collect();
-    let bound = d.adapter_bindings.iter().any(|a| ctx.adapters.contains(a));
-    let configured = !matched.is_empty() || bound;
+    // Only an enabled host MCP server entry configures a tool. MOZAK adapter
+    // registries are never read and never count.
+    let configured = !matched.is_empty();
     let mut state = if configured {
         "configured"
     } else if installed {
@@ -1342,7 +1319,6 @@ fn observe_tool(tool: &Tool, entry: &UseCaseTool, ctx: &Context) -> (Value, bool
         "configured": {
             "status": if configured {"present"} else {"absent"},
             "hosts": matched.iter().map(|s| json!({"host": s.host, "config_path": s.config_path, "server_name": s.name})).collect::<Vec<_>>(),
-            "adapter_binding": bound,
         },
         "prerequisites": prerequisites,
         "credentials": credential_presence(tool, &matched),
@@ -1398,21 +1374,13 @@ fn next_step(tool: &Tool, state: &str, prerequisites: &[Value]) -> String {
             },
             |step| format!("Owner runs deliberately: {step}"),
         ),
-        "installed" if tool.ready_at == "configured" => {
-            if tool.kind == "legacy_adapter" {
-                tool.install
-                    .first()
-                    .map_or_else(String::new, |s| format!("Owner runs deliberately: {s}"))
-            } else {
-                format!(
-                    "Register server `{}` with the agent host. Exact snippets: `mozak stack recommend USE_CASE`.",
-                    tool.detection
-                        .host_server_names
-                        .first()
-                        .map_or("", String::as_str)
-                )
-            }
-        }
+        "installed" if tool.ready_at == "configured" => format!(
+            "Register server `{}` with the agent host. Exact snippets: `mozak stack recommend USE_CASE`.",
+            tool.detection
+                .host_server_names
+                .first()
+                .map_or("", String::as_str)
+        ),
         "prerequisite_missing" => prerequisites
             .iter()
             .find(|p| p["status"] != "satisfied")
@@ -1465,11 +1433,9 @@ fn check(catalog: &Catalog, home: &Path, use_case: Option<&str>) -> Result<ExitC
         );
     }
     let hosts = observe_hosts(catalog, &home);
-    let (adapter_registry, adapters) = observe_adapters(catalog, &home);
     let ctx = Context {
         home: &home,
         hosts: &hosts,
-        adapters: &adapters,
     };
     let chosen: Vec<&UseCase> = match use_case {
         Some(id) => selected(catalog, id),
@@ -1479,10 +1445,7 @@ fn check(catalog: &Catalog, home: &Path, use_case: Option<&str>) -> Result<ExitC
         .iter()
         .map(|u| evaluate_use_case(catalog, u, &ctx))
         .collect();
-    let gating: Vec<&str> = match use_case {
-        Some(id) => vec![BASELINE, id],
-        None => vec![BASELINE],
-    };
+    let gating = gating_use_cases(use_case);
     let ready = reports
         .iter()
         .filter(|r| gating.iter().any(|g| r["id"] == *g))
@@ -1508,12 +1471,11 @@ fn check(catalog: &Catalog, home: &Path, use_case: Option<&str>) -> Result<ExitC
         "state": if ready {"ready"} else {"incomplete"},
         "gating_use_cases": gating,
         "observation_boundary": {
-            "observed": ["executables_on_path", "skill_directories", "host_mcp_config_files", "mozak_adapter_registry", "declared_prerequisite_files", "credential_env_names"],
+            "observed": ["executables_on_path", "skill_directories", "host_mcp_config_files", "declared_prerequisite_files", "credential_env_names"],
             "not_observed": NOT_OBSERVED,
             "strongest_observable_state": "configured",
         },
         "host_configs": hosts.hosts,
-        "adapter_registry": adapter_registry,
         "use_cases": reports,
         "next_steps": next_steps,
         "effects": no_effects(),
@@ -1529,10 +1491,123 @@ fn check(catalog: &Catalog, home: &Path, use_case: Option<&str>) -> Result<ExitC
 mod tests {
     use super::*;
 
+    /// The embedded catalog with any legacy adapter material stripped, so
+    /// these tests exercise the MCP-only parser independent of catalog edits.
+    fn clean_value() -> Value {
+        let mut value: Value = serde_json::from_slice(CATALOG_BYTES).unwrap();
+        let object = value.as_object_mut().unwrap();
+        object.remove("adapter_registry_path");
+        let legacy: BTreeSet<String> = object["tools"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|t| t["kind"] == "legacy_adapter")
+            .map(|t| t["id"].as_str().unwrap().to_owned())
+            .collect();
+        object["tools"]
+            .as_array_mut()
+            .unwrap()
+            .retain(|t| t["kind"] != "legacy_adapter");
+        for tool in object["tools"].as_array_mut().unwrap() {
+            let tool = tool.as_object_mut().unwrap();
+            tool.remove("adapter");
+            tool["detection"]
+                .as_object_mut()
+                .unwrap()
+                .remove("adapter_bindings");
+        }
+        let use_cases = object["use_cases"].as_array_mut().unwrap();
+        for use_case in use_cases.iter_mut() {
+            use_case["tools"].as_array_mut().unwrap().retain(|t| {
+                !legacy.contains(t["tool_id"].as_str().unwrap())
+                    && t["requirement"] != "legacy_alternative"
+            });
+        }
+        use_cases.retain(|u| !u["tools"].as_array().unwrap().is_empty());
+        value
+    }
+
+    fn clean_catalog() -> Catalog {
+        parse_catalog(&serde_json::to_vec(&clean_value()).unwrap()).unwrap()
+    }
+
+    fn parse_err(value: &Value) -> String {
+        parse_catalog(&serde_json::to_vec(value).unwrap())
+            .err()
+            .expect("catalog must be rejected")
+    }
+
     #[test]
     fn embedded_catalog_is_valid() {
         let catalog = load_catalog().unwrap();
         assert!(catalog.use_case("literature").is_some());
+        assert!(catalog.tools.iter().all(|t| t.kind != "legacy_adapter"));
+    }
+
+    #[test]
+    fn clean_catalog_parses() {
+        let catalog = clean_catalog();
+        assert!(catalog.use_case(BASELINE).is_some());
+    }
+
+    #[test]
+    fn legacy_adapter_catalog_shapes_are_rejected() {
+        let mut registry = clean_value();
+        registry["adapter_registry_path"] = json!(".config/mozak/adapters.json");
+        assert!(parse_err(&registry).contains("adapter_registry_path"));
+
+        let mut kind = clean_value();
+        kind["tools"][0]["kind"] = json!("legacy_adapter");
+        assert!(parse_err(&kind).contains("kind"));
+
+        let mut field = clean_value();
+        field["tools"][0]["adapter"] = json!("arxiv");
+        assert!(parse_err(&field).contains("adapter"));
+
+        let mut bindings = clean_value();
+        bindings["tools"][0]["detection"]["adapter_bindings"] = json!(["arxiv"]);
+        assert!(parse_err(&bindings).contains("adapter_bindings"));
+
+        let mut requirement = clean_value();
+        requirement["use_cases"][0]["tools"][0]["requirement"] = json!("legacy_alternative");
+        assert!(parse_err(&requirement).contains("invalid requirement"));
+    }
+
+    #[test]
+    fn mcp_tool_ids_must_be_exact_distinct_mcp_servers() {
+        let catalog = clean_catalog();
+        let ids = |v: &[&str]| v.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>();
+        assert!(validate_mcp_tool_ids_in(&catalog, &ids(&["arxiv-mcp"])).is_ok());
+        assert!(validate_mcp_tool_ids_in(&catalog, &ids(&["arxiv-mcp", "zotero-mcp"])).is_ok());
+        assert!(validate_mcp_tool_ids_in(&catalog, &[]).is_err());
+        let many = vec!["arxiv-mcp".to_owned(); MAX_MCP_TOOL_IDS + 1];
+        assert!(
+            validate_mcp_tool_ids_in(&catalog, &many)
+                .unwrap_err()
+                .contains("at most")
+        );
+        let dup = validate_mcp_tool_ids_in(&catalog, &ids(&["arxiv-mcp", "arxiv-mcp"]));
+        assert!(dup.unwrap_err().contains("duplicate"));
+        let skill = validate_mcp_tool_ids_in(&catalog, &ids(&["adhd-skill"]));
+        assert!(skill.unwrap_err().contains("not an MCP server"));
+        let exe = validate_mcp_tool_ids_in(&catalog, &ids(&["termaid"]));
+        assert!(exe.unwrap_err().contains("not an MCP server"));
+        for bad in ["", "ARXIV-MCP", "arxiv", "arxiv-mcp ", "adapter-arxiv"] {
+            assert!(
+                validate_mcp_tool_ids_in(&catalog, &ids(&[bad])).is_err(),
+                "{bad:?} accepted"
+            );
+        }
+    }
+
+    #[test]
+    fn gating_never_duplicates_baseline() {
+        assert_eq!(gating_use_cases(None), [BASELINE]);
+        assert_eq!(gating_use_cases(Some(BASELINE)), [BASELINE]);
+        assert_eq!(
+            gating_use_cases(Some("literature")),
+            [BASELINE, "literature"]
+        );
     }
 
     #[test]

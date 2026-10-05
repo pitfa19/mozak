@@ -22,8 +22,9 @@ imported becomes true, and no proposal becomes permission.
 
 ## Adjacent tools
 
-Named as intended integrations, not competitors. MOZAK consumes them as
-adapters and keeps the acceptance boundary.
+Named as intended integrations, not competitors. When one ships an MCP server,
+the agent host calls it and MOZAK records the result as tool evidence while
+keeping the acceptance boundary.
 
 | Tool | What it does | How MOZAK uses it |
 |---|---|---|
@@ -33,10 +34,9 @@ adapters and keeps the acceptance boundary.
 | [OpenSpec](https://github.com/Fission-AI/OpenSpec) | Proposal, spec, design, task workflows | Candidate plan exchange, acceptance stays explicit |
 | [MDKG](https://github.com/nickreames/mdkg) | Git-native project memory, Plan → Work → Evidence | Closest analogue; see the two claims above |
 
-An adapter receives an explicit Scope and pinned inputs, performs one bounded
-capability, and returns normalized artifacts with provider version, hashes,
-source locators, limitations, and a receipt. It stays proposal-only until you
-accept it.
+A recorded tool call pins an explicit Scope, the catalog tool id and exact
+version, canonical arguments, declared effects, the response hash, and source
+locators for each excerpt. It stays proposal-only until you accept it.
 
 ## What ships today
 
@@ -47,14 +47,16 @@ package import, agent-facing project context, reviewed discovery, pinned case
 records with reproduction packets, Concepts and Translations, and Linux
 distribution with update and rollback.
 
-Four adapters are callable through owner-configured bindings: arXiv, DAIR.AI,
-the MCP registry, and GitHub tooling in discover and watch modes. Networking
-happens outside MOZAK and their output is proposal-only.
+New retrieval runs only through catalog MCP tools that your agent host calls:
+arXiv for literature, Zotero for references, Overleaf for manuscripts, and
+GitHub, Fetch, and Firecrawl MCP servers for tooling watch and deep research.
+Networking happens outside MOZAK and the recorded output is proposal-only. The
+former live adapters are retired; their recorded runs stay readable as history.
 
 The Improve Lab is implemented and has been run end to end against MOZAK
 itself.
 
-**Not implemented:** a generic adapter SDK, registry networking, hosted
+**Not implemented:** networking inside MOZAK, a live tool runtime, hosted
 discovery, automatic trust, vault archival, automatic self-improvement, and a
 web dashboard.
 

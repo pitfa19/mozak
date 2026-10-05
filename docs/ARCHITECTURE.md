@@ -28,8 +28,10 @@ carries a contract, a plan, and executions. Reusable insight is captured as a
 **Concept**, and a Concept can only cross into another Scope through a
 **Translation** that re-derives its assumptions. Finished work can be sealed
 into an immutable **knowledge package**, and packages compose into a **Meta
-KB**. Everything the outside world touches, such as research providers, arrives
-through an **adapter**, whose output is proposal-only until you accept it.
+KB**. Everything the outside world touches, such as papers, repositories, and
+web pages, arrives through an **MCP tool call made by your agent host**. MOZAK
+records the exact bytes as tool evidence, which stays proposal-only until you
+accept it.
 
 ## Layer diagram
 
@@ -45,7 +47,7 @@ through an **adapter**, whose output is proposal-only until you accept it.
 ├─────────────────────────────────────────────────────────────────┤
 │  WORKFLOWS                                                      │
 │  project · scope · kb · meta · package · concept · case         │
-│  adapter · lab · distribution                                   │
+│  stack · lab · distribution                                     │
 ├─────────────────────────────────────────────────────────────────┤
 │  CONTRACTS                mozak-core                            │
 │  scope · kb · research · planning · execution · concept         │
@@ -66,16 +68,19 @@ through an **adapter**, whose output is proposal-only until you accept it.
 │  DELIVERY (optional, outside the offline core)                   │
 │  GitHub launcher · stable/main channels · update · rollback      │
 ├─────────────────────────────────────────────────────────────────┤
-│  ADAPTERS (optional, outside MOZAK)                              │
-│  DAIR.AI · arXiv · MCP registry · GitHub tooling                │
-│  they do research networking; MOZAK validates recorded snapshots│
+│  MCP TOOLS (agent host, outside MOZAK)                          │
+│  arXiv · Zotero · Overleaf · GitHub · Fetch · Firecrawl         │
+│  the host makes the call; MOZAK validates recorded tool evidence│
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-The MOZAK core performs no networking. Optional adapters own research network
-access. The installed delivery launcher separately owns authenticated GitHub
-release checks and can modify only MOZAK installation state. Neither boundary
-can accept knowledge or mutate Project, Scope, or KB state.
+The MOZAK core performs no networking. New retrieval happens only through MCP
+servers that the agent host calls. MOZAK no longer ships or runs live source
+adapters. Already-recorded adapter runs stay readable as historical evidence,
+but nothing can launch an adapter again. The installed delivery launcher
+separately owns authenticated GitHub release checks and can modify only MOZAK
+installation state. Neither boundary can accept knowledge or mutate Project,
+Scope, or KB state.
 
 ## Modules
 
@@ -87,7 +92,7 @@ one. [MODULES.md](MODULES.md) explains each one and where its design came from.
 | Module | `mozak-core` files | Key guarantee |
 |---|---|---|
 | **Scope** | `scope` `project_contract` `project_context` | Inputs are immutable and content-addressed; a project states its own identity |
-| **Research** | `research` `adapter_workflow` `landmark` `case_study` | Untrusted external data can never authorize an action; a summary stays addressable or fails closed |
+| **Research** | `research` `tool_evidence` `adapter` (historical readers) `landmark` `case_study` | Untrusted external data can never authorize an action; a summary stays addressable or fails closed |
 | **Plans** | `planning` `execution` `project_release` `knowledge_package` `attestation` | A plan derives only from accepted inputs; claims must match the observed revision; every byte is pinned |
 | **Meta KB** | `kb` `meta_kb` `concept` `meta_transfer` `package_import` | A registry records but never confers trust; reuse requires re-deriving every assumption |
 | **Improve Lab** | `lab` | Planning-only; stops at owner review |
@@ -116,7 +121,7 @@ No module may mutate accepted state without an approval that pins exact hashes.
 | `package_workflow` | `package validate/list/attest/history` |
 | `concept_workflow` | `concept validate/list/translation` |
 | `case_workflow` | `case validate/list/reproduce-packet` |
-| `adapter_workflow` | `adapter catalog/setup/list/show/run/recheck` |
+| `stack_workflow` | `stack catalog/recommend/check` |
 | `lab_workflow` | `lab modules/start/refresh/select/read/mechanisms/plans/review/status` |
 | `lifecycle` | `research`, `planning`, `execution` |
 | `distribution` | `setup`, `doctor`; launcher: `delivery status`, `update`, `rollback` |
@@ -187,7 +192,7 @@ otherwise:
 - **Concepts sit under Meta KB**, not under Scope, because translation is a cross-project act. A Concept only earns its keep once a second target re-derives its assumptions.
 - **Cases sit under Research**, not under Plans, because a case is an observation, held to the same evidence discipline as a paper.
 - **Packages sit under Plans**, not under Meta KB, because a package is what finished work is sealed into, and the Meta KB merely composes it afterwards.
-- **Adapters are not a module.** They are the network boundary Research owns. A boundary and a module are different things, and splitting them would reopen the question of which module a research run belongs to.
+- **MCP tools are not a module.** They are the network boundary Research owns, and the agent host, not MOZAK, crosses it. A boundary and a module are different things, and splitting them would reopen the question of which module a research run belongs to.
 
 Cross-project reuse begins with `kb concept candidates`, which reads only the
 configured, hash-pinned registry and returns a deterministic inventory rather
@@ -204,8 +209,8 @@ Translation.
 question cannot silently span unrelated contracts. That is the mechanism that
 keeps MOZAK current:
 
-1. An adapter records new literature or a tool release. Output is proposal-only.
-2. `mozak lab start` opens a run against one module with a scoped question.
+1. The agent host calls an MCP tool for new literature or a tool release, and `mozak research record-tool` records the exact bytes. Output is proposal-only.
+2. `mozak lab start` opens a run against one module with a scoped question and the catalog MCP tool ids it will read from.
 3. The ordered steps refresh, select, read, mechanisms, plans, review each record an immutable transition. A mechanism must cite a real source claim, and each plan card carries at least two acceptance checks.
 4. The run stops at `owner_reviewed`. Implementation is a separate decision.
 5. Accepted work lands as a new plan version, and the module's section here changes with it.
@@ -248,9 +253,9 @@ standards a MOZAK module should adopt* as completed goals.
 
 ```
  external source
-       │  adapter fetches (outside MOZAK, networked)
+       │  agent host calls an MCP tool (outside MOZAK, networked)
        ▼
- recorded snapshot ──► research run ──► MOZAK validates the contract
+ recorded tool evidence ──► research run ──► MOZAK validates the contract
        │                                        │
        │                              proposal-only evidence
        │                                        │
@@ -282,13 +287,14 @@ No arrow is automatic.
 
 There are exactly four, and each one fails closed.
 
-1. **Network boundary.** MOZAK never fetches. Adapters fetch; MOZAK validates
-   what they recorded. External content enters as `recorded`, immutable, and
-   `untrusted_data`, and it can never authorize an action.
+1. **Network boundary.** MOZAK never fetches. The agent host calls MCP tools;
+   MOZAK validates the bytes it recorded. External content enters as
+   `recorded`, immutable, and `untrusted_data`, and it can never authorize an
+   action.
 2. **Acceptance boundary.** Discovery, research, cases, and Lab runs all produce
    proposals. Only an owner approval pinned to exact hashes converts a proposal
    into accepted state.
-3. **Drift boundary.** Bindings, packages, skills, and Scopes pin SHA-256
+3. **Drift boundary.** Tool evidence, packages, skills, and Scopes pin SHA-256
    hashes. A changed byte makes the thing unusable rather than silently
    different.
 4. **Authority boundary.** Concepts, Meta Goals, cases, and Meta KBs are
@@ -311,6 +317,5 @@ crates/mozak-core/    contracts, validators, deterministic replay
 crates/mozak-cli/     command surface, single `mozak` binary
 skills/mozak/         portable agent skill, embedded into the binary
 spec/                 executable specifications and schemas
-scripts/adapters/     optional external adapters (networked, outside MOZAK)
 docs/                 architecture, quickstart, distribution guides
 ```

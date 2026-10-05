@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "catalog_id": "mozak-tool-stack",
-  "catalog_version": "2026-10-05.1",
+  "catalog_version": "2026-10-05.2",
   "policy": {
     "selection": "Tools are selected explicitly per named use case. A use case returns only the tools that apply to it, plus the baseline that applies to every use case.",
     "installation": "MOZAK never installs, registers, launches, or updates third-party tools. Install and registration steps are reported text for the owner or agent host to run deliberately.",
@@ -9,7 +9,10 @@
     "credentials": "Credential values are never read into reports. Only environment variable names and their presence are reported.",
     "readiness": "stack check observes at most `configured` from explicit host files. Handshake, service usability, and write grants require a separate agent-host probe and are never inferred.",
     "shipping": "Third-party tools are not shipped in the MOZAK payload unless `shipped_by_mozak` is true. Pins record the version observed in primary docs on `verified_at`; they are not a claim that MOZAK tested every host combination.",
-    "evidence": "Anything a tool retrieves is proposal-only research evidence until the owner separately accepts an input."
+    "evidence": "Anything a tool retrieves is proposal-only research evidence until the owner separately accepts an input.",
+    "workflows": "Every research route is an MCP server driven by the agent host. MOZAK ships no runtime research adapter and no adapter fallback. Former source-specific batch automation (weekly arXiv and DAIR.AI digests, MCP registry and GitHub watches, HyperResearch and MONOKL vault snapshots) is replaced by explicit agent-host workflows: the agent issues bounded calls, pages explicitly, and pins exact versions, commits, or URLs. Batch parity with the retired adapters is not claimed.",
+    "history": "Historical adapter runs, bindings, and recorded evidence remain readable through MOZAK's existing evidence readers. The catalog no longer offers adapters as a route.",
+    "spend": "A tool that consumes paid credits, for example Firecrawl, is never called for network or credit use without explicit owner consent for that purpose."
   },
   "readiness_ladder": [
     {"id": "missing", "observed_by": "stack check", "meaning": "No declared executable, skill directory, or host registration was found."},
@@ -26,7 +29,6 @@
     {"id": "claude-desktop", "config_path": ".config/Claude/claude_desktop_config.json", "format": "json", "servers_key": "mcpServers"},
     {"id": "codex", "config_path": ".codex/config.toml", "format": "toml", "servers_key": "mcp_servers"}
   ],
-  "adapter_registry_path": ".config/mozak/adapters.json",
   "use_cases": [
     {
       "id": "baseline",
@@ -44,11 +46,11 @@
     {
       "id": "literature",
       "title": "Literature search and section-level paper reading",
-      "summary": "Search arXiv, read one LaTeX section at a time, export BibTeX, and keep topic watches through the arXiv MCP server. The legacy hash-pinned arXiv and DAIR.AI adapters remain available for recorded batch snapshots.",
+      "summary": "Search arXiv, read one LaTeX section at a time, export BibTeX, and keep topic watches through the arXiv MCP server. Optionally read the curated DAIR.AI AI-Papers-of-the-Week repository at an exact commit through the GitHub or Fetch MCP server. Weekly digests are explicit agent-host workflows, not automatic.",
       "tools": [
         {"tool_id": "arxiv-mcp", "requirement": "required"},
-        {"tool_id": "adapter-arxiv", "requirement": "legacy_alternative"},
-        {"tool_id": "adapter-dair-ai", "requirement": "optional"}
+        {"tool_id": "github-mcp", "requirement": "optional"},
+        {"tool_id": "fetch-mcp", "requirement": "optional"}
       ]
     },
     {
@@ -71,19 +73,19 @@
     {
       "id": "tooling-watch",
       "title": "Released tooling watch",
-      "summary": "Track MCP server releases and GitHub repositories through the existing hash-pinned adapters. No MCP replacement is selected yet, so these remain the supported route.",
+      "summary": "Track MCP server releases through exact URLs on the official MCP registry v0 API and public GitHub API pages with the Fetch MCP server (required). The read-only GitHub MCP server optionally adds authenticated repository search, releases, tags, and commit heads. The agent pages explicitly and pins exact versions and commits; unauthenticated GitHub API requests are rate limited. No automatic batch watch.",
       "tools": [
-        {"tool_id": "adapter-mcp-registry", "requirement": "any_of", "group": "tooling-source"},
-        {"tool_id": "adapter-github-tooling", "requirement": "any_of", "group": "tooling-source"}
+        {"tool_id": "fetch-mcp", "requirement": "required"},
+        {"tool_id": "github-mcp", "requirement": "optional"}
       ]
     },
     {
       "id": "deep-research",
-      "title": "External deep-research vault snapshots",
-      "summary": "Normalize a HyperResearch or MONOKL vault snapshot into proposal-only MOZAK evidence through the existing adapters.",
+      "title": "Bounded multi-source deep research",
+      "summary": "Search and scrape a bounded set of web sources to markdown with the Firecrawl MCP server, which needs FIRECRAWL_API_KEY and consumes credits only with explicit owner consent. The Fetch MCP server optionally snapshots exact URLs. Replaces HyperResearch and MONOKL vault adapters with an explicit agent-host workflow; results are proposal-only evidence.",
       "tools": [
-        {"tool_id": "adapter-hyperresearch", "requirement": "any_of", "group": "research-vault"},
-        {"tool_id": "adapter-monokl", "requirement": "any_of", "group": "research-vault"}
+        {"tool_id": "firecrawl-mcp", "requirement": "required"},
+        {"tool_id": "fetch-mcp", "requirement": "optional"}
       ]
     }
   ],
@@ -319,82 +321,147 @@
       "notes": "Optional. Never part of the default stack."
     },
     {
-      "id": "adapter-arxiv",
-      "name": "MOZAK arXiv adapter (legacy batch snapshots)",
-      "kind": "legacy_adapter",
-      "adapter": "arxiv",
-      "shipped_by_mozak": true,
+      "id": "fetch-mcp",
+      "name": "Fetch MCP server (MCP reference server)",
+      "kind": "mcp_server",
+      "shipped_by_mozak": false,
       "ready_at": "configured",
-      "detection": {"executables": ["python3"], "adapter_bindings": ["arxiv"]},
-      "prerequisites": [],
+      "upstream": {
+        "repository": "https://github.com/modelcontextprotocol/servers",
+        "docs_url": "https://github.com/modelcontextprotocol/servers/tree/main/src/fetch#readme",
+        "registry": "pypi",
+        "package": "mcp-server-fetch",
+        "pinned_version": "2026.8.18",
+        "release_url": "https://pypi.org/project/mcp-server-fetch/2026.8.18/",
+        "released_at": "2026-08-18",
+        "requires_python": ">=3.10",
+        "license": "MIT",
+        "verified_at": "2026-10-05",
+        "warning": "Upstream cautions that this server can reach local and internal IP addresses. Point it only at the exact public URLs a workflow names."
+      },
+      "detection": {
+        "executables": ["mcp-server-fetch"],
+        "launcher_executables": ["uvx"],
+        "host_server_names": ["fetch"],
+        "command_markers": ["mcp-server-fetch"]
+      },
+      "prerequisites": [
+        {"id": "uv", "kind": "executable_any", "executables": ["uvx", "mcp-server-fetch"], "message": "Install uv (provides uvx) or `uv tool install mcp-server-fetch==2026.8.18`."}
+      ],
       "credentials": {"required_env": [], "optional_env": []},
-      "install": ["mozak adapter setup arxiv BINDING_ID SCOPE_ID REQUEST_JSON scripts/adapters/weekly.sh RUNS_DIR (after owner accepts the request)"],
-      "notes": "Recorded hash-pinned catch-up and query snapshots. Existing runs and bindings stay valid; normalize with `mozak research normalize arxiv`."
+      "effects": {"network": "only the exact URLs the agent passes, for example the official MCP registry v0 API, public GitHub API and raw content URLs pinned to a commit, and named source pages; obeys robots.txt for model-initiated requests", "local_writes": "none", "external_writes": false},
+      "install": [
+        "uv tool install mcp-server-fetch==2026.8.18",
+        "or run without installing: uvx mcp-server-fetch@2026.8.18"
+      ],
+      "registration": {
+        "jcode": {"path": ".jcode/mcp.json", "snippet": {"servers": {"fetch": {"command": "uvx", "args": ["mcp-server-fetch@2026.8.18"]}}}},
+        "claude-code": {"command": "claude mcp add --transport stdio --scope user fetch -- uvx mcp-server-fetch@2026.8.18", "verify": "claude mcp get fetch"},
+        "codex": {"command": "codex mcp add fetch -- uvx mcp-server-fetch@2026.8.18", "verify": "codex mcp get fetch"},
+        "claude-desktop": {"path": ".config/Claude/claude_desktop_config.json", "snippet": {"mcpServers": {"fetch": {"type": "stdio", "command": "uvx", "args": ["mcp-server-fetch@2026.8.18"]}}}}
+      },
+      "probes": {
+        "handshake": "From the agent host, list tools on server `fetch` and confirm `fetch` is present.",
+        "usable": "Call `fetch` with url `https://registry.modelcontextprotocol.io/v0/servers?limit=1` and raw true, and confirm a JSON body with a `servers` array is returned.",
+        "write": "None. The server only reads URLs."
+      },
+      "notes": "Exact-URL retrieval for tooling-watch (MCP registry v0 pages, public GitHub API release and commit endpoints) and for DAIR.AI or source snapshots at an exact commit. Responses are truncated to max_length; the agent continues with start_index and pages registry results explicitly with the API cursor. Unauthenticated GitHub API requests are rate limited. The agent records the exact URL, version, or commit it read. No automatic weekly batch; results are proposal-only evidence."
     },
     {
-      "id": "adapter-dair-ai",
-      "name": "MOZAK DAIR.AI adapter",
-      "kind": "legacy_adapter",
-      "adapter": "dair-ai",
-      "shipped_by_mozak": true,
+      "id": "github-mcp",
+      "name": "GitHub MCP server (official, read-only)",
+      "kind": "mcp_server",
+      "shipped_by_mozak": false,
       "ready_at": "configured",
-      "detection": {"executables": ["python3"], "adapter_bindings": ["dair-ai"]},
-      "prerequisites": [],
-      "credentials": {"required_env": [], "optional_env": []},
-      "install": ["mozak adapter setup dair-ai BINDING_ID SCOPE_ID REQUEST_JSON scripts/adapters/dair_weekly.sh RUNS_DIR (after owner accepts the request)"],
-      "notes": "Curated complement to arXiv, not a complete search. Normalize with `mozak research normalize dair-ai`."
+      "upstream": {
+        "repository": "https://github.com/github/github-mcp-server",
+        "docs_url": "https://github.com/github/github-mcp-server/blob/v1.14.0/README.md",
+        "registry": "ghcr.io",
+        "package": "ghcr.io/github/github-mcp-server",
+        "pinned_version": "v1.14.0",
+        "image_digest": "sha256:7aaeeec9ae4fe9a736d100c1ff0798f3c219b5009e05f5d3945fcacb13cc196b",
+        "release_url": "https://github.com/github/github-mcp-server/releases/tag/v1.14.0",
+        "released_at": "2026-10-02",
+        "license": "MIT",
+        "verified_at": "2026-10-05",
+        "warning": "Always run with read-only mode and only the `repos` toolset. Grant the token only public or explicitly chosen repository read scope."
+      },
+      "detection": {
+        "executables": ["github-mcp-server"],
+        "launcher_executables": ["docker"],
+        "host_server_names": ["github"],
+        "command_markers": ["github-mcp-server"]
+      },
+      "prerequisites": [
+        {"id": "github-runtime", "kind": "executable_any", "executables": ["docker", "github-mcp-server"], "message": "Install Docker, or download the v1.14.0 `github-mcp-server` release binary for this platform and verify it against `github-mcp-server_1.14.0_checksums.txt`."},
+        {"id": "github-token", "kind": "credential_env", "env": "GITHUB_PERSONAL_ACCESS_TOKEN", "message": "Declare GITHUB_PERSONAL_ACCESS_TOKEN in the host server env from an owner-created read-only token. MOZAK never reads or stores it. Without it the use case stays incomplete."}
+      ],
+      "credentials": {"required_env": ["GITHUB_PERSONAL_ACCESS_TOKEN"], "optional_env": []},
+      "effects": {"network": "api.github.com with the owner's token", "local_writes": "none", "external_writes": false},
+      "install": [
+        "docker pull ghcr.io/github/github-mcp-server:v1.14.0@sha256:7aaeeec9ae4fe9a736d100c1ff0798f3c219b5009e05f5d3945fcacb13cc196b",
+        "or download the v1.14.0 release binary from https://github.com/github/github-mcp-server/releases/tag/v1.14.0 and run `github-mcp-server stdio --read-only --toolsets repos`"
+      ],
+      "registration": {
+        "jcode": {"path": ".jcode/mcp.json", "snippet": {"servers": {"github": {"command": "docker", "args": ["run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN", "-e", "GITHUB_READ_ONLY=1", "-e", "GITHUB_TOOLSETS=repos", "ghcr.io/github/github-mcp-server:v1.14.0@sha256:7aaeeec9ae4fe9a736d100c1ff0798f3c219b5009e05f5d3945fcacb13cc196b"], "env": {"GITHUB_PERSONAL_ACCESS_TOKEN": "<owner supplies>"}}}}},
+        "claude-code": {"command": "claude mcp add --transport stdio --scope user -e GITHUB_PERSONAL_ACCESS_TOKEN=<owner supplies> github -- docker run -i --rm -e GITHUB_PERSONAL_ACCESS_TOKEN -e GITHUB_READ_ONLY=1 -e GITHUB_TOOLSETS=repos ghcr.io/github/github-mcp-server:v1.14.0@sha256:7aaeeec9ae4fe9a736d100c1ff0798f3c219b5009e05f5d3945fcacb13cc196b", "verify": "claude mcp get github"},
+        "codex": {"command": "codex mcp add github --env GITHUB_PERSONAL_ACCESS_TOKEN=<owner supplies> -- docker run -i --rm -e GITHUB_PERSONAL_ACCESS_TOKEN -e GITHUB_READ_ONLY=1 -e GITHUB_TOOLSETS=repos ghcr.io/github/github-mcp-server:v1.14.0@sha256:7aaeeec9ae4fe9a736d100c1ff0798f3c219b5009e05f5d3945fcacb13cc196b", "verify": "codex mcp get github"},
+        "claude-desktop": {"path": ".config/Claude/claude_desktop_config.json", "snippet": {"mcpServers": {"github": {"type": "stdio", "command": "docker", "args": ["run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN", "-e", "GITHUB_READ_ONLY=1", "-e", "GITHUB_TOOLSETS=repos", "ghcr.io/github/github-mcp-server:v1.14.0@sha256:7aaeeec9ae4fe9a736d100c1ff0798f3c219b5009e05f5d3945fcacb13cc196b"], "env": {"GITHUB_PERSONAL_ACCESS_TOKEN": "<owner supplies>"}}}}}
+      },
+      "probes": {
+        "handshake": "From the agent host, list tools on server `github` and confirm `search_repositories`, `list_releases`, and `get_file_contents` are present and no create, update, push, or delete tool is listed.",
+        "usable": "Call `get_latest_release` with owner `github` and repo `github-mcp-server` and confirm a real release is returned. An auth error means the token is missing or invalid.",
+        "write": "None. Read-only mode is required; no write grant is ever requested through this route."
+      },
+      "notes": "Authenticated specialist route: repository search by topic or keyword, releases, tags, commit heads, and file contents at an exact ref, including DAIR.AI AI-Papers-of-the-Week at a pinned commit. It cannot read the MCP registry, so it never satisfies tooling-watch alone. Stars and pushes measure attention, not quality. The agent pages explicitly and records exact commits; results are proposal-only evidence."
     },
     {
-      "id": "adapter-mcp-registry",
-      "name": "MOZAK MCP registry adapter",
-      "kind": "legacy_adapter",
-      "adapter": "mcp-registry",
-      "shipped_by_mozak": true,
+      "id": "firecrawl-mcp",
+      "name": "Firecrawl MCP server (official)",
+      "kind": "mcp_server",
+      "shipped_by_mozak": false,
       "ready_at": "configured",
-      "detection": {"executables": ["python3"], "adapter_bindings": ["mcp-registry"]},
-      "prerequisites": [],
-      "credentials": {"required_env": [], "optional_env": []},
-      "install": ["mozak adapter setup mcp-registry BINDING_ID SCOPE_ID REQUEST_JSON scripts/adapters/mcp_registry_weekly.sh RUNS_DIR (after owner accepts the request)"],
-      "notes": "Self-published registry entries record publication, not assessed quality."
-    },
-    {
-      "id": "adapter-github-tooling",
-      "name": "MOZAK GitHub tooling adapter",
-      "kind": "legacy_adapter",
-      "adapter": "github-tooling",
-      "shipped_by_mozak": true,
-      "ready_at": "configured",
-      "detection": {"executables": ["python3"], "adapter_bindings": ["github-tooling"]},
-      "prerequisites": [],
-      "credentials": {"required_env": [], "optional_env": ["GITHUB_TOKEN"]},
-      "install": ["mozak adapter setup github-tooling BINDING_ID SCOPE_ID REQUEST_JSON scripts/adapters/github_tooling_run.sh RUNS_DIR (after owner accepts the request)"],
-      "notes": "Discover and watch modes. Stars and pushes measure attention, not quality."
-    },
-    {
-      "id": "adapter-hyperresearch",
-      "name": "MOZAK HyperResearch adapter",
-      "kind": "legacy_adapter",
-      "adapter": "hyperresearch",
-      "shipped_by_mozak": true,
-      "ready_at": "configured",
-      "detection": {"executables": ["hyperresearch"], "adapter_bindings": ["hyperresearch"]},
-      "prerequisites": [],
-      "credentials": {"required_env": [], "optional_env": []},
-      "install": ["pipx install hyperresearch", "See docs/HYPERRESEARCH.md, then mozak adapter setup hyperresearch ... after owner acceptance"],
-      "notes": "Vault snapshot normalized as proposal-only evidence."
-    },
-    {
-      "id": "adapter-monokl",
-      "name": "MOZAK MONOKL adapter",
-      "kind": "legacy_adapter",
-      "adapter": "monokl",
-      "shipped_by_mozak": true,
-      "ready_at": "configured",
-      "detection": {"executables": ["monokl"], "adapter_bindings": ["monokl"]},
-      "prerequisites": [],
-      "credentials": {"required_env": [], "optional_env": []},
-      "install": ["pipx install monokl", "See docs/MONOKL.md, then mozak adapter setup monokl ... after owner acceptance"],
-      "notes": "Vault snapshot normalized as proposal-only evidence."
+      "upstream": {
+        "repository": "https://github.com/firecrawl/firecrawl-mcp-server",
+        "docs_url": "https://github.com/firecrawl/firecrawl-mcp-server#readme",
+        "registry": "npm",
+        "package": "firecrawl-mcp",
+        "pinned_version": "3.27.3",
+        "source_commit": "af5c378915280a87628a07cbc1b6041e7e8694cb",
+        "release_url": "https://www.npmjs.com/package/firecrawl-mcp/v/3.27.3",
+        "released_at": "2026-10-02",
+        "requires_node": ">=22.0.0",
+        "license": "MIT",
+        "verified_at": "2026-10-05",
+        "warning": "Search, scrape, crawl, and agent calls spend Firecrawl credits. Disable the feedback tools and get explicit owner consent before any network or credit use."
+      },
+      "detection": {
+        "executables": ["firecrawl-mcp"],
+        "launcher_executables": ["npx"],
+        "host_server_names": ["firecrawl"],
+        "command_markers": ["firecrawl-mcp"]
+      },
+      "prerequisites": [
+        {"id": "node", "kind": "executable_any", "executables": ["npx", "firecrawl-mcp"], "message": "Install Node.js 22 or newer (provides npx)."},
+        {"id": "firecrawl-key", "kind": "credential_env", "env": "FIRECRAWL_API_KEY", "message": "Declare FIRECRAWL_API_KEY in the host server env from the owner's Firecrawl account. MOZAK never reads or stores it. Without it deep-research stays incomplete."}
+      ],
+      "credentials": {"required_env": ["FIRECRAWL_API_KEY"], "optional_env": ["FIRECRAWL_API_URL"]},
+      "effects": {"network": "api.firecrawl.dev (or FIRECRAWL_API_URL) plus the pages it searches and scrapes", "credit_use": "every search, scrape, crawl, and agent call consumes credits on the owner's account and needs explicit owner consent", "local_writes": "none", "external_writes": "account-side crawl, agent, and monitor jobs only if those tools are called; this route uses search and scrape only"},
+      "install": [
+        "Run pinned without a global install: npx -y firecrawl-mcp@3.27.3 (with FIRECRAWL_API_KEY, FIRECRAWL_NO_SEARCH_FEEDBACK=1, FIRECRAWL_NO_ENDPOINT_FEEDBACK=1 in the host server env)"
+      ],
+      "registration": {
+        "jcode": {"path": ".jcode/mcp.json", "snippet": {"servers": {"firecrawl": {"command": "npx", "args": ["-y", "firecrawl-mcp@3.27.3"], "env": {"FIRECRAWL_API_KEY": "<owner supplies>", "FIRECRAWL_NO_SEARCH_FEEDBACK": "1", "FIRECRAWL_NO_ENDPOINT_FEEDBACK": "1"}}}}},
+        "claude-code": {"command": "claude mcp add --transport stdio --scope user -e FIRECRAWL_API_KEY=<owner supplies> -e FIRECRAWL_NO_SEARCH_FEEDBACK=1 -e FIRECRAWL_NO_ENDPOINT_FEEDBACK=1 firecrawl -- npx -y firecrawl-mcp@3.27.3", "verify": "claude mcp get firecrawl"},
+        "codex": {"command": "codex mcp add firecrawl --env FIRECRAWL_API_KEY=<owner supplies> --env FIRECRAWL_NO_SEARCH_FEEDBACK=1 --env FIRECRAWL_NO_ENDPOINT_FEEDBACK=1 -- npx -y firecrawl-mcp@3.27.3", "verify": "codex mcp get firecrawl"},
+        "claude-desktop": {"path": ".config/Claude/claude_desktop_config.json", "snippet": {"mcpServers": {"firecrawl": {"type": "stdio", "command": "npx", "args": ["-y", "firecrawl-mcp@3.27.3"], "env": {"FIRECRAWL_API_KEY": "<owner supplies>", "FIRECRAWL_NO_SEARCH_FEEDBACK": "1", "FIRECRAWL_NO_ENDPOINT_FEEDBACK": "1"}}}}}
+      },
+      "probes": {
+        "handshake": "From the agent host, list tools on server `firecrawl` and confirm `firecrawl_search` and `firecrawl_scrape` are present. Listing tools spends no credits.",
+        "usable": "Only after explicit owner consent to spend credits: call `firecrawl_search` with one owner-chosen query and a small limit, and confirm real results. An auth error means the key is missing or invalid.",
+        "write": "None. Crawl, agent, interact, and monitor tools are out of scope for this route."
+      },
+      "notes": "Bounded multi-source research: a few owner-approved searches with explicit limits, then scrape of chosen URLs to markdown. Replaces HyperResearch and MONOKL vault adapters with an explicit agent-host workflow, not an automatic vault run. Results are proposal-only evidence with each source URL recorded."
     }
   ]
 }
