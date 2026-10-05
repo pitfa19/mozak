@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "id": "explicit-tool-stack-requirements-002",
+  "kind": "observed_behavioral_acceptance",
+  "observed_at": "2026-10-05T20:22:01Z",
+  "before_build": "0.7.1-6c8077ec8f9f",
+  "after_build": "0.7.1-main-eceddef3b7c0",
+  "checks_passed": 5,
+  "requirements": [
+    {
+      "requirement": "Explicit applicable MCP onboarding rather than an absent route",
+      "command": "stack recommend references",
+      "before_exit": 1,
+      "before_stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "before_stderr_sha256": "e11ad12349460bb3e26cd98382bf0e476726b8e3ad6459ca897aecb3e2c4778d",
+      "after_exit": 0,
+      "after_stdout_sha256": "7da982e015943e8e2d7d4fcb2fd674f24f1f8464353532da60aa935032d3fff3",
+      "observed": "New output includes Zotero installation steps and baseline skills, excludes unrelated Overleaf. Old installed binary rejects this command.",
+      "passed": true
+    },
+    {
+      "requirement": "Installed configured tools must not imply usable services",
+      "command": "stack check /home/pitfa literature",
+      "exit": 0,
+      "stdout_sha256": "c78244b58e802c95f9fb16b012b4fd4688424fdc0a8cbd79b5afe1f41bff3f15",
+      "observed": "arxiv-mcp state configured, handshake not_observed, usable unknown. Real separate arXiv metadata probe is recorded in evidence 001.",
+      "passed": true
+    },
+    {
+      "requirement": "Explain unmet owner-service prerequisites honestly",
+      "command": "stack check /home/pitfa references",
+      "exit": 2,
+      "stdout_sha256": "31b3f106b848a7232e46fd7761f2f6a5e60a2a1c307b7dab2edaabbb89c00d37",
+      "observed": "zotero-mcp is prerequisite_missing, write_grant not_observed, with an actionable next_step. Successful server initialization alone is not treated as usable.",
+      "passed": true
+    },
+    {
+      "requirement": "Recommend only applicable tools without unrelated global blocking",
+      "command": "stack check /home/pitfa",
+      "exit": 0,
+      "stdout_sha256": "b8664103a56d1006aaeb512c5f76318b2eacd662ab73ddb135dee3cfacf6609d",
+      "observed": "gating_use_cases contains baseline only despite missing Zotero library and other optional services.",
+      "passed": true
+    },
+    {
+      "requirement": "Fresh MOZAK use explicitly detects required skills and onboarding makes baseline ready",
+      "disposable_home": "/home/pitfa/.jcode/scratch/mozak-onboarding-acceptance-00ax9p5j",
+      "observed_sequence": [
+        {"command": "stack check HOME literature", "exit": 2, "adhd_state": "missing", "stdout_sha256": "0d2473182925bccdc5b10d2ad0966725320721131c08cfee0606b75e52861000"},
+        {"command": "setup install HOME", "exit": 0, "stdout_sha256": "aeb1c9a82c643b2e2bc092f93d35dcff6d6ce0f8017560d845ac5412c18d23c2"},
+        {"command": "setup check HOME", "exit": 0, "stdout_sha256": "6367c1a461dd4e4ff40dd7008d815aa66f87fe7191b53be3f9352d1d8e510748"},
+        {"command": "stack check HOME baseline", "exit": 0, "adhd_state": "installed", "stdout_sha256": "17cfefc1762c8aa095ca91dfca10596c5db1fdceab6faff5da877a9cf5a416cc"}
+      ],
+      "passed": true
+    }
+  ],
+  "conclusion": "The requested local onboarding behavior improves from unavailable to applicable, actionable tool guidance, with observed missing-to-installed progression and conservative readiness on actual installed binaries.",
+  "observation_boundary": "Real installed old/new CLI binaries, actual owner host config, and a disposable fresh local home. Fresh home was removed after the run. No fake Zotero library, credential entry, external writes or subjective paper-quality claim. This closes the software-onboarding feedback loop, not the blocked Zotero library-reading workflow."
+}
