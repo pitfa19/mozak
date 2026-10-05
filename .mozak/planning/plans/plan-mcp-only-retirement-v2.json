@@ -1,0 +1,43 @@
+{
+  "contract_version": 1,
+  "id": "plan-mcp-only-retirement",
+  "version": 2,
+  "input_set_id": "inputs-mcp-only-retirement-001",
+  "supersedes": {"id": "plan-mcp-only-retirement", "version": 1},
+  "goals": [{
+    "id": "mcp-only-retirement",
+    "version": 2,
+    "supersedes_version": 1,
+    "title": "Retire live adapters and use explicit MCP-only retrieval with historical evidence compatibility",
+    "status": "completed",
+    "priority": 1,
+    "input_ids": ["input-mcp-only-owner-approval", "input-mcp-only-baseline", "input-mcp-only-acceptance"],
+    "recovery_attempts": 0,
+    "evidence": [
+      {"path": ".mozak/evidence/mcp-only-retirement/closure.md", "sha256": "27f69b2dc6e50b7889bc2f656882118321ebb7e4cc50e6e24656b774b4d4d609"},
+      {"path": ".mozak/evidence/mcp-only-retirement/live-acceptance.json", "sha256": "b278fa8adddff1ea3506114b894fe7aeb14ebb937f5ca359aa1e2cad9e772e3a"},
+      {"path": ".mozak/evidence/mcp-only-retirement/live-fixture.json", "sha256": "cbff5239c10f83da0dcd3fcc7f39df50092f6042309dfcddffecd802d3f2063e"},
+      {"path": ".mozak/evidence/mcp-only-retirement/live-response.json", "sha256": "1b3f8571155e8091a649f1e35a27ce55db6b6667c6d59e42392674cc5de900bf"},
+      {"path": ".mozak/evidence/mcp-only-retirement/live-run.json", "sha256": "e7921bd0711b69aa10f6ddb782302d4057257e4795211a6d78deff71ca78df5c"},
+      {"path": ".mozak/evidence/mcp-only-retirement/installed-observations.json", "sha256": "4ea0f4245e2facc5c6ed2644673c6f36b770bd9f19f8d1685234a16d4447feaf"},
+      {"path": ".mozak/evidence/mcp-only-retirement/before-current.json", "sha256": "d7718f3c1339e4db8f8d3b32591c27e796d1edb2a7719405bcdf52b476a88b5d"},
+      {"path": ".mozak/evidence/mcp-only-retirement/after-current.json", "sha256": "3e6e875f9419fe687c14efe2c70b51298e0daa5d4aec486a6fd7a10cbbf94f65"},
+      {"path": ".mozak/evidence/mcp-only-retirement/preserved-history.sha256", "sha256": "0c776dacd041008cd1515590a050ac660e9157b2c2e77b9a174ff249e9193f36"},
+      {"path": ".mozak/evidence/mcp-only-retirement/independent-review-v2.md", "sha256": "fd776514ba9b788b5d72283cf082a9cb4d1b649fe48853f3d7196dd69823c9de"},
+      {"path": ".mozak/evidence/mcp-only-retirement/workspace-tests.log", "sha256": "fd1f34fce476e5170536a1ff3f273678b8c90677a5206c792cda5f3b1dc8ddd5"},
+      {"path": ".mozak/evidence/mcp-only-retirement/strict-clippy.log", "sha256": "b7f6516cafcf818f1a9b60b9fc08352f59ec7d37dcb69b27310ed8eb8c01a6cb"},
+      {"path": ".mozak/evidence/mcp-only-retirement/skill-tests.log", "sha256": "05c120f042062b1bba577441982577418c045f96c63b79b01a9c8ae2b9c432aa"},
+      {"path": ".mozak/evidence/mcp-only-retirement/installed-skill-tests.log", "sha256": "33a432c5e0151a6aa907658683ab94cf6ed6f69d72b1ce03f122733bbf590ef9"},
+      {"path": ".mozak/evidence/mcp-only-retirement/python-tests.log", "sha256": "1b3fd1365ad4c51413b00050518f55156e79f2525e66a7e8a62110753e48258c"},
+      {"path": ".mozak/evidence/mcp-only-retirement/fresh-release.log", "sha256": "35adf6bfff7d4ae7da1107e2fb26bcfd5ab52552013f96001d554f2069cd429b"},
+      {"path": ".mozak/evidence/mcp-only-retirement/delivery-update.log", "sha256": "4b0f1c4d7a7e25235fd19a1138902c08e337f72fa2d7dd2d8622083c802e02ed"},
+      {"path": ".mozak/evidence/mcp-only-retirement/bootstrap.log", "sha256": "364d4e86579869387655049fdd8637e11469f263c06920577f142aa9ba5e07d5"},
+      {"path": ".mozak/evidence/mcp-only-retirement/install.log", "sha256": "e5ecac4c0ca87b46f72e286ba1f681f480a9fffd31ebc60422a1f40bab20fd02"},
+      {"path": ".mozak/evidence/mcp-only-retirement/release-manifest.json", "sha256": "d11a66a3f0e17e5fdedfc57489c44e6d3b31c483e2e405d522b1fc7ca23fe076"},
+      {"path": ".mozak/evidence/mcp-only-retirement/release-SHA256SUMS", "sha256": "18d3f3f4165c1b227434f44cb2805d2b8939e825e3a1853259e7e1139a3dfd25"},
+      {"path": ".mozak/evidence/mcp-only-retirement/diagrams.log", "sha256": "3f46e9f4742ec04ef607dafd15371ed10af68c8b6724fcea5b6c067766ca00d2"}
+    ]
+  }],
+  "dependencies": [],
+  "recovery": {"max_attempts_per_goal": 2, "allowed_failed_transition": "blocked"}
+}
