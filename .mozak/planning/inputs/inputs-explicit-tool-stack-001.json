@@ -1,0 +1,22 @@
+{
+  "contract_version": 1,
+  "id": "inputs-explicit-tool-stack-001",
+  "accepted_at": "2026-10-05T18:18:33Z",
+  "inputs": [
+    {
+      "id": "input-tool-stack-owner-approval",
+      "text": "Owner approved the whole explicit MOZAK tool-stack proposal at 2026-10-05T18:18:33.585Z and instructed implementation through completion. Implement a shipped versioned catalog, use-case-specific MCP and skill activation, setup/readiness recommendations, source-neutral research evidence recording, tests, commits and local installation. This approval does not authorize automatic acceptance of external research, deletion of historical artifacts, publishing remote releases, or blanket third-party credential/write grants.",
+      "provenance": {"kind": "human_decision", "decision_id": "decision-tool-stack-2026-10-05T181833Z", "actor": "pitfa"}
+    },
+    {
+      "id": "input-tool-stack-current-state",
+      "text": "At revision 6b7102e905c1955289f127753b874a366500ade6, MOZAK uses source-specific hash-pinned request/runner bindings and a hard-coded companion readiness implementation. Existing adapters include arxiv, dair-ai, mcp-registry, github-tooling, hyperresearch and monokl. A managed companion catalog already ships ADHD and Notes. The new stack should replace adapter orchestration as the default while preserving legacy validation and recorded provenance.",
+      "provenance": {"kind": "codebase_observation", "observation_id": "obs-tool-stack-baseline-2026-10-05", "repository_revision": "6b7102e905c1955289f127753b874a366500ade6", "paths": ["crates/mozak-cli/src/adapter_workflow.rs", "crates/mozak-cli/src/distribution.rs", "skills/mozak/companion-recommendations.json", "skills/mozak/SKILL.md"]}
+    },
+    {
+      "id": "input-tool-stack-contract",
+      "text": "Catalog and host-facing skill rules must make tool selection explicit per use case, distinguish missing packages from configured/connected/usable tools and write grants, report installation steps without silent execution, preserve immutable proposal-only evidence and separate acceptance, and preserve existing adapter artifacts. Test fresh onboarding, missing prerequisites, tool routing, evidence tamper refusal, and historical compatibility. Actual Zotero library access is externally blocked: local MCP handshake succeeds but no database at the configured/default path exists.",
+      "provenance": {"kind": "human_decision", "decision_id": "decision-tool-stack-approved-proposal-2026-10-05", "actor": "pitfa"}
+    }
+  ]
+}
