@@ -1,0 +1,15 @@
+......   Compiling mozak-core v0.8.0 (/home/pitfa/Documents/mozak/crates/mozak-core)
+   Compiling mozak-mcp v0.8.0 (/home/pitfa/Documents/mozak/crates/mozak-mcp)
+   Compiling mozak-cli v0.8.0 (/home/pitfa/Documents/mozak/crates/mozak-cli)
+    Finished `release` profile [optimized] target(s) in 3m 18s
+{"archive":"mozak-0.8.0-b8c421c3c03d-linux-x86_64.tar.gz","build_id":"0.8.0-b8c421c3c03d","channel":"stable","checksums":"SHA256SUMS","manifest":"release-manifest.json","schema_version":1,"version":"0.8.0"}
+.{"archive":"mozak-0.8.0-b8c421c3c03d-linux-x86_64.tar.gz","build_id":"0.8.0-b8c421c3c03d","channel":"stable","checksums":"SHA256SUMS","manifest":"release-manifest.json","schema_version":1,"version":"0.8.0"}
+.{"archive":"mozak-0.8.0-b8c421c3c03d-linux-x86_64.tar.gz","build_id":"0.8.0-b8c421c3c03d","channel":"stable","checksums":"SHA256SUMS","manifest":"release-manifest.json","schema_version":1,"version":"0.8.0"}
+.mozak-0.8.0-b8c421c3c03d-linux-x86_64.tar.gz: OK
+mozak-0.8.0-b8c421c3c03d-linux-x86_64.tar.gz: OK
+............................
+----------------------------------------------------------------------
+Ran 37 tests in 232.650s
+
+OK
+restored old payload
