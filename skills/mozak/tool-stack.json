@@ -17,7 +17,7 @@
   "readiness_ladder": [
     {"id": "missing", "observed_by": "stack check", "meaning": "No declared executable, skill directory, or host registration was found."},
     {"id": "installed", "observed_by": "stack check", "meaning": "A declared executable is on PATH or a declared skill directory exists under HOME."},
-    {"id": "configured", "observed_by": "stack check", "meaning": "An explicit host MCP config or MOZAK adapter binding names the tool."},
+    {"id": "configured", "observed_by": "stack check", "meaning": "An enabled, matching explicit host MCP registration names the tool. Declared prerequisites are checked separately."},
     {"id": "handshake_ok", "observed_by": "agent host", "meaning": "The agent host completed an MCP initialize and tools/list against the server. Not observable by stack check."},
     {"id": "usable", "observed_by": "agent host", "meaning": "A read-only probe call returned real data, for example a library or search result. Not observable by stack check."},
     {"id": "write_granted", "observed_by": "owner", "meaning": "The owner explicitly granted write access for a specific purpose. Never inferred and never blanket."}
