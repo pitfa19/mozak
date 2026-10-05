@@ -24,6 +24,24 @@ fn tool(name: &str, description: &str, properties: &Value, required: &[&str]) ->
 fn tools() -> Vec<Value> {
     vec![
         tool(
+            "stack_catalog",
+            "Read the shipped MOZAK use-case tool and skill catalog. Installs and invokes no external tool.",
+            &json!({}),
+            &[],
+        ),
+        tool(
+            "stack_recommend",
+            "List explicitly declared tools and setup steps for one use case. Recommendations grant no installation, write, or acceptance authority.",
+            &json!({"use_case":{"type":"string","minLength":1}}),
+            &["use_case"],
+        ),
+        tool(
+            "stack_check",
+            "Inspect local tool-stack prerequisites under an explicit home. MCP connection and service usability require separate agent-host probes, not inferred readiness.",
+            &json!({"home":{"type":"string","minLength":1},"use_case":{"type":"string","minLength":1}}),
+            &["home"],
+        ),
+        tool(
             "project_context",
             "Resolve one exact registered project ID to validated bounded context.",
             &json!({"project_id":{"type":"string","minLength":1}}),
@@ -130,6 +148,23 @@ fn optional_string_array(arguments: &Value, key: &str) -> Result<Vec<String>, St
 
 fn argv(name: &str, arguments: &Value) -> Result<Vec<String>, String> {
     let value = match name {
+        "stack_catalog" => vec!["stack".into(), "catalog".into()],
+        "stack_recommend" => vec![
+            "stack".into(),
+            "recommend".into(),
+            string_arg(arguments, "use_case")?.into(),
+        ],
+        "stack_check" => {
+            let mut args = vec![
+                "stack".into(),
+                "check".into(),
+                string_arg(arguments, "home")?.into(),
+            ];
+            if arguments.get("use_case").is_some() {
+                args.push(string_arg(arguments, "use_case")?.into());
+            }
+            args
+        }
         "project_context" => vec![
             "project".into(),
             "context".into(),
@@ -203,6 +238,22 @@ fn call_tool(params: &Value) -> Result<Value, String> {
         .unwrap_or_else(|| json!({}));
     if !arguments.is_object() {
         return Err("tool arguments must be an object".into());
+    }
+    let definition = tools()
+        .into_iter()
+        .find(|definition| definition["name"] == name)
+        .ok_or_else(|| format!("unknown tool: {name}"))?;
+    let properties = definition["inputSchema"]["properties"]
+        .as_object()
+        .ok_or("tool definition has invalid properties")?;
+    for key in arguments
+        .as_object()
+        .ok_or("tool arguments must be an object")?
+        .keys()
+    {
+        if !properties.contains_key(key) {
+            return Err(format!("unknown argument for {name}: {key}"));
+        }
     }
     let args = argv(name, &arguments)?;
     let output = Command::new(mozak_binary())
