@@ -1,7 +1,8 @@
 //! `mozak research record-tool` and `mozak research verify-tool`.
 //!
-//! Records one read-only MCP, CLI, skill, or API tool call as a proposal-only
-//! research run through the source-neutral `mozak.tool-evidence.v1` contract.
+//! Records one read-only catalog MCP call as a proposal-only research run.
+//! The source-neutral contract and verification readers retain compatibility
+//! with historical CLI, skill, and API recordings, but new retrieval is MCP-only.
 //! MOZAK performs no networking here: the tool already ran, and this route
 //! validates the recorded fixture against the exact response bytes it names.
 //! Output is create-only, and symlinked inputs, outputs, or ancestors are
@@ -9,7 +10,7 @@
 
 use mozak_core::research::{OverallClaim, validate_run_json};
 use mozak_core::tool_evidence::{
-    TOOL_EVIDENCE_ADAPTER_ID, TOOL_EVIDENCE_SCHEMA, parse_fixture, record_tool_evidence,
+    TOOL_EVIDENCE_ADAPTER_ID, TOOL_EVIDENCE_SCHEMA, ToolKind, parse_fixture, record_tool_evidence,
     verify_tool_evidence,
 };
 use serde_json::json;
@@ -30,9 +31,13 @@ const MAX_INPUT_BYTES: u64 = 16 * 1024 * 1024;
 pub fn record_tool(fixture: &Path, response: &Path, output: &Path) -> Result<(), String> {
     ensure_safe_output(output)?;
     let fixture_text = read_text(fixture, "fixture")?;
+    let parsed = parse_fixture(&fixture_text).map_err(|e| e.to_string())?;
+    if parsed.tool.kind != ToolKind::Mcp {
+        return Err("new research recording is MCP-only; historical non-MCP runs remain readable with research verify-tool and research validate".to_owned());
+    }
+    crate::stack_workflow::validate_mcp_tool_ids(std::slice::from_ref(&parsed.tool.tool_id))?;
     let response_bytes = read_bytes(response, "response")?;
     let run = record_tool_evidence(&fixture_text, &response_bytes).map_err(|e| e.to_string())?;
-    let parsed = parse_fixture(&fixture_text).map_err(|e| e.to_string())?;
     let serialized = serde_json::to_string_pretty(&run).map_err(|e| e.to_string())? + "\n";
     // Re-validate the exact bytes about to be written, so what lands on disk
     // is what `research validate` will accept.

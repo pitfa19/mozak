@@ -39,7 +39,7 @@ fn fixture() -> Value {
         "schema": "mozak.tool-evidence.v1",
         "scope_id": "topic-agentic-systems",
         "question": "Which recent papers discuss agent memory?",
-        "tool": {"tool_id": "arxiv-mcp-server", "kind": "mcp", "version": "0.8.1",
+        "tool": {"tool_id": "arxiv-mcp", "kind": "mcp", "version": "0.8.1",
                  "operation": "search_papers", "server": "arxiv"},
         "call": {"arguments": {"query": "agent memory"},
                  "started_at": "2026-10-05T18:00:00Z", "finished_at": "2026-10-05T18:00:02Z"},
@@ -96,6 +96,70 @@ fn assert_refused(output: &Output, needle: &str) {
 }
 
 #[test]
+fn new_recordings_refuse_non_mcp_but_historical_runs_remain_readable() {
+    for kind in ["cli", "api", "skill", "other"] {
+        let temp = Temp::new();
+        let mut value = fixture();
+        value["tool"]["kind"] = json!(kind);
+        value["tool"].as_object_mut().unwrap().remove("server");
+        let (fixture_path, response_path) = inputs(&temp, &value);
+        let new_path = temp.path("new-run.json");
+        assert_refused(
+            &record(&fixture_path, &response_path, &new_path),
+            "MCP-only",
+        );
+        assert!(!new_path.exists());
+
+        // Reconstruct a prior-schema artifact using the compatibility reader.
+        // This is a fixture, not a claim that a real non-MCP tool was invoked.
+        let old =
+            mozak_core::tool_evidence::record_tool_evidence(&value.to_string(), RESPONSE).unwrap();
+        let old_path = temp.path("historical-run.json");
+        fs::write(&old_path, serde_json::to_string_pretty(&old).unwrap()).unwrap();
+        let before = fs::read(&old_path).unwrap();
+        assert!(
+            verify(&fixture_path, &response_path, &old_path)
+                .status
+                .success()
+        );
+        assert!(
+            mozak(&[s("research"), s("validate"), &old_path])
+                .status
+                .success()
+        );
+        assert_eq!(fs::read(&old_path).unwrap(), before);
+    }
+}
+
+#[test]
+fn new_recordings_require_a_catalog_mcp_id_without_restricting_old_verification() {
+    for id in [
+        "unknown-mcp",
+        "adhd-skill",
+        "adapter-arxiv",
+        "arxiv-mcp-server",
+    ] {
+        let temp = Temp::new();
+        let mut value = fixture();
+        value["tool"]["tool_id"] = json!(id);
+        let (fixture_path, response_path) = inputs(&temp, &value);
+        let new_path = temp.path("new-run.json");
+        assert_refused(&record(&fixture_path, &response_path, &new_path), "");
+        assert!(!new_path.exists());
+
+        let old =
+            mozak_core::tool_evidence::record_tool_evidence(&value.to_string(), RESPONSE).unwrap();
+        let old_path = temp.path("historical-run.json");
+        fs::write(&old_path, serde_json::to_string_pretty(&old).unwrap()).unwrap();
+        assert!(
+            verify(&fixture_path, &response_path, &old_path)
+                .status
+                .success()
+        );
+    }
+}
+
+#[test]
 fn record_validate_landmarks_and_verify_round_trip() {
     let temp = Temp::new();
     let (fixture_path, response_path) = inputs(&temp, &fixture());
@@ -111,7 +175,7 @@ fn record_validate_landmarks_and_verify_round_trip() {
     assert_eq!(receipt["accepted"], false);
     assert_eq!(receipt["authority"], "proposal_only");
     assert_eq!(receipt["overall_claim"], "qualified");
-    assert_eq!(receipt["tool_id"], "arxiv-mcp-server");
+    assert_eq!(receipt["tool_id"], "arxiv-mcp");
 
     let validated = mozak(&[s("research"), s("validate"), &run_path]);
     assert!(validated.status.success());
