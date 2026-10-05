@@ -1,0 +1,12 @@
+......    Finished `release` profile [optimized] target(s) in 0.02s
+{"archive":"mozak-0.7.1-9dd5c0c5a952-linux-x86_64.tar.gz","build_id":"0.7.1-9dd5c0c5a952","channel":"stable","checksums":"SHA256SUMS","manifest":"release-manifest.json","schema_version":1,"version":"0.7.1"}
+.{"archive":"mozak-0.7.1-9dd5c0c5a952-linux-x86_64.tar.gz","build_id":"0.7.1-9dd5c0c5a952","channel":"stable","checksums":"SHA256SUMS","manifest":"release-manifest.json","schema_version":1,"version":"0.7.1"}
+.{"archive":"mozak-0.7.1-9dd5c0c5a952-linux-x86_64.tar.gz","build_id":"0.7.1-9dd5c0c5a952","channel":"stable","checksums":"SHA256SUMS","manifest":"release-manifest.json","schema_version":1,"version":"0.7.1"}
+.mozak-0.7.1-9dd5c0c5a952-linux-x86_64.tar.gz: OK
+mozak-0.7.1-9dd5c0c5a952-linux-x86_64.tar.gz: OK
+............................
+----------------------------------------------------------------------
+Ran 37 tests in 10.978s
+
+OK
+restored old payload

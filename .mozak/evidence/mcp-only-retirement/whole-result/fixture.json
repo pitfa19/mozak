@@ -1,0 +1,46 @@
+{
+  "schema": "mozak.tool-evidence.v1",
+  "scope_id": "mozak",
+  "question": "Can a new MCP-only Lab ingest verified paper metadata without any adapter registry?",
+  "tool": {
+    "tool_id": "arxiv-mcp",
+    "kind": "mcp",
+    "version": "0.8.1",
+    "operation": "get_abstract",
+    "server": "arxiv"
+  },
+  "call": {
+    "arguments": {
+      "paper_id": "1706.03762"
+    },
+    "started_at": "2026-10-05T21:03:11Z",
+    "finished_at": "2026-10-05T21:03:12Z"
+  },
+  "effects": {
+    "network_used": true,
+    "external_writes": [],
+    "mutations_performed": "none",
+    "irreversible_effects": [],
+    "dry_run_available": false,
+    "owner_approval_required": false
+  },
+  "response": {
+    "sha256": "1b3f8571155e8091a649f1e35a27ce55db6b6667c6d59e42392674cc5de900bf",
+    "byte_length": 335,
+    "media_type": "application/json"
+  },
+  "selections": [
+    {
+      "id": "sel-title",
+      "locator": "arxiv:1706.03762",
+      "response_byte_start": 308,
+      "response_byte_end": 333,
+      "excerpt": "Attention Is All You Need"
+    }
+  ],
+  "total_results": 1,
+  "truncated": false,
+  "gaps": [],
+  "accepted": false,
+  "authority": "proposal_only"
+}

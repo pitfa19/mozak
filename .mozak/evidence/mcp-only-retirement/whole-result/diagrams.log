@@ -1,0 +1,22 @@
+== committed sources pass the showcase gate
+  ok      mozak-modules.architecture.json
+  ok      mozak-improve-lab.workflow.json
+  ok      mozak-kb-and-meta.dataflow.json
+== delivery reproduces the committed artifact byte for byte
+  ok      mozak-modules.html
+  ok      mozak-improve-lab.html
+  ok      mozak-kb-and-meta.html
+== motion is present exactly where it was authored
+  ok       mozak-modules.html motion=none
+  ok       mozak-improve-lab.html motion=trace
+  ok       mozak-kb-and-meta.html motion=trace
+== the gate refuses injected defects
+  refused  two components at one position [clean-flow/edge-through-node]
+  refused  edge to an unknown component [layout/constraint]
+  refused  guided view focusing an unknown id [guided-view/invalid]
+  refused  two nodes in one lane cell [workflow/node-overlap]
+  refused  main path moving backward [workflow/node-overlap]
+  refused  viewBox too small to contain the scene [schema/minimum]
+  refused  node text unreadable at a 1440px desktop [composition/desktop-readability]
+  7 of 7 injected defects refused
+all diagram checks passed

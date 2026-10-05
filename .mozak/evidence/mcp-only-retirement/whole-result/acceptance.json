@@ -1,0 +1,135 @@
+{
+  "state": "passed",
+  "recorded_at": "2026-10-05T21:03:12Z",
+  "real_mcp_title": "Attention Is All You Need",
+  "before": "Old installed Lab refuses MCP tool ID without an adapter registry.",
+  "after": "New Lab starts and refreshes real MCP evidence with no adapter registry.",
+  "observed_checks": [
+    "real MCP initialize and read-only metadata call",
+    "catalog-ID evidence recording and replay",
+    "old-to-new fresh Lab behavior",
+    "one selected excerpt labeled untrusted, not embedded fixture JSON",
+    "source-neutral MCP provenance",
+    "no adapter registry created",
+    "legacy adapter invocation refused"
+  ],
+  "accepted": false,
+  "authority": "proposal_only",
+  "receipts": [
+    {
+      "binary": "/home/pitfa/Documents/mozak/target/debug/mozak",
+      "args": [
+        "research",
+        "record-tool",
+        "/home/pitfa/.jcode/scratch/mozak-mcp-only-whole-result/live/fixture.json",
+        "/home/pitfa/.jcode/scratch/mozak-mcp-only-whole-result/live/response.json",
+        "/home/pitfa/.jcode/scratch/mozak-mcp-only-whole-result/live/run.json"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "69fee034b20f809eda54393e732499fde9761254aae34c5252aa42a0c9f0b87e",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "binary": "/home/pitfa/Documents/mozak/target/debug/mozak",
+      "args": [
+        "research",
+        "verify-tool",
+        "/home/pitfa/.jcode/scratch/mozak-mcp-only-whole-result/live/fixture.json",
+        "/home/pitfa/.jcode/scratch/mozak-mcp-only-whole-result/live/response.json",
+        "/home/pitfa/.jcode/scratch/mozak-mcp-only-whole-result/live/run.json"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "954e8f69f314c75015b1a7d18e01d8ff1dcf655cb458bbc10893139d3fea89dc",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "binary": "/home/pitfa/Documents/mozak/target/debug/mozak",
+      "args": [
+        "research",
+        "validate",
+        "/home/pitfa/.jcode/scratch/mozak-mcp-only-whole-result/live/run.json"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "4c397fd6a6e7d8a24bf8173669aa8853445ab30e782515f99b0696aa9f0eed53",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "binary": "/home/pitfa/.local/lib/mozak/versions/0.7.1-main-eceddef3b7c0/mozak",
+      "args": [
+        "lab",
+        "start",
+        "/home/pitfa/.jcode/scratch/mozak-mcp-only-whole-result/live/old-lab",
+        "mozak",
+        "research",
+        "Can a new MCP-only Lab ingest verified paper metadata without any adapter registry?",
+        "arxiv-mcp"
+      ],
+      "exit_code": 1,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "7e93409f6a04014eadb5223058d5c6a566d7bec9cda29f22290f75d1dae1a11a"
+    },
+    {
+      "binary": "/home/pitfa/Documents/mozak/target/debug/mozak",
+      "args": [
+        "lab",
+        "start",
+        "/home/pitfa/.jcode/scratch/mozak-mcp-only-whole-result/live/new-lab",
+        "mozak",
+        "research",
+        "Can a new MCP-only Lab ingest verified paper metadata without any adapter registry?",
+        "arxiv-mcp"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "d676614374a82ce7b00147fbd25a3cf364c61787df30c48a1caff22c2303a646",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "binary": "/home/pitfa/Documents/mozak/target/debug/mozak",
+      "args": [
+        "lab",
+        "refresh",
+        "/home/pitfa/.jcode/scratch/mozak-mcp-only-whole-result/live/new-lab",
+        "/home/pitfa/.jcode/scratch/mozak-mcp-only-whole-result/live/run.json"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "1272fd456466d13e13e6f2c73973cd15506fe4302b01fa5e5bcfd5e8d3dd1d80",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "binary": "/home/pitfa/Documents/mozak/target/debug/mozak",
+      "args": [
+        "lab",
+        "status",
+        "/home/pitfa/.jcode/scratch/mozak-mcp-only-whole-result/live/new-lab"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "1d4f440be19f232a78e476590f7918bc368c11a0b0d95f625fe520f0d14a66af",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "binary": "/home/pitfa/Documents/mozak/target/debug/mozak",
+      "args": [
+        "stack",
+        "catalog"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "e6d98d2d2b48e642f2a1337dbc5e29c90f22a77fd03c9815ace25eb38ee061a3",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "binary": "/home/pitfa/Documents/mozak/target/debug/mozak",
+      "args": [
+        "adapter",
+        "run",
+        "any-old-binding"
+      ],
+      "exit_code": 1,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "5ff75e4ddb55343ff5ed718994504535bad09eaeddc3d86e39c821d642d19e22"
+    }
+  ],
+  "limitations": [
+    "Fetch/GitHub/Firecrawl new provider services are not exercised here; installation/credentials and any paid use require consent.",
+    "Paper-quality improvement and owner research acceptance are not claimed."
+  ]
+}

@@ -1,0 +1,926 @@
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.02s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.05s
+     Running unittests src/main.rs (target/debug/deps/mozak-87cbeb4ffc798613)
+
+running 12 tests
+test stack_workflow::tests::gating_never_duplicates_baseline ... ok
+test project_registry::tests::notes_committed_transaction_ignores_unlock_cleanup_failure ... ok
+test stack_workflow::tests::json_servers_require_object_with_command_or_url ... ok
+test stack_workflow::tests::toml_scanner_fails_closed_and_ignores_disabled_or_empty_servers ... ok
+test stack_workflow::tests::toml_scanner_keeps_only_command_and_env_names ... ok
+test stack_workflow::tests::embedded_catalog_is_valid ... ok
+test distribution::tests::legacy_companion_manifest_matches_catalog_projection ... ok
+test stack_workflow::tests::catalog_rejects_unpinned_mcp_server ... ok
+test stack_workflow::tests::clean_catalog_parses ... ok
+test stack_workflow::tests::catalog_rejects_unknown_tool_reference ... ok
+test stack_workflow::tests::mcp_tool_ids_must_be_exact_distinct_mcp_servers ... ok
+test stack_workflow::tests::legacy_adapter_catalog_shapes_are_rejected ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/adapter_commands.rs (target/debug/deps/adapter_commands-e68b80789098ea8b)
+
+running 4 tests
+test usage_no_longer_advertises_adapter_routes ... ok
+test a_malformed_historical_registry_is_neither_read_nor_repaired_by_adapter_routes ... ok
+test every_former_adapter_route_is_refused_without_execution_or_registry_mutation ... ok
+test retired_routes_never_create_a_registry_or_config_directory ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/agent_workflow.rs (target/debug/deps/agent_workflow-8d908d7089170c6d)
+
+running 14 tests
+test goal_evidence_outside_the_evidence_root_makes_the_plan_invalid ... ok
+test malformed_recognized_artifacts_are_explicit_and_non_success ... ok
+test mermaid_uses_distinct_nodes_for_textually_colliding_goal_ids ... ok
+test overview_discovers_two_canonical_input_sets_and_validates_each_bound_plan ... ok
+test overview_fails_closed_when_a_plan_names_a_missing_input_set ... ok
+test overview_preserves_legacy_accepted_inputs_project_compatibility ... ok
+test overview_fails_closed_when_context_note_is_tampered ... ok
+test overview_discovers_validated_project_context_and_lists_its_note ... ok
+test overview_rejects_duplicate_canonical_input_set_ids_and_their_plans ... ok
+test goal_evidence_is_pinned_verified_and_unpinned_records_are_reported ... ok
+test overview_has_closed_stable_shape_and_production_ready_order ... ok
+test overview_reports_a_malformed_canonical_input_set_as_invalid ... ok
+test forged_release_identity_version_and_hash_make_overview_invalid ... ok
+test framework_pf0008_layout_selects_root_v5_and_validates_accepted_state_and_export ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/case_commands.rs (target/debug/deps/case_commands-3748c818823dbd68)
+
+running 4 tests
+test the_reproduction_packet_carries_evidence_and_leaves_the_case_untouched ... ok
+test a_promotional_case_without_limitations_fails_closed_with_no_stdout ... ok
+test case_routes_report_proposal_only_authority_and_separate_judgement_from_measurement ... ok
+test every_receipt_states_what_validation_did_not_measure ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/cli.rs (target/debug/deps/cli-2c17b50f16df50d6)
+
+running 5 tests
+test invalid_usage_and_invalid_json_fail ... ok
+test validate_and_replay_commands_work_end_to_end ... ok
+test planning_compact_apply_prunes_duplicates_and_fails_closed_on_corruption ... ok
+test planning_compact_cli_roundtrips_dynamic_scratch_fixture ... ok
+test drifted_setup_install_with_config_inputs_does_not_create_config ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running tests/concept_commands.rs (target/debug/deps/concept_commands-4aebf5793d2abbab)
+
+running 3 tests
+test a_translation_whose_concept_drifted_fails_closed_with_no_stdout ... ok
+test concept_and_translation_routes_report_advisory_authority_only ... ok
+test project_overview_discovers_owned_concepts_and_reports_external_pins_honestly ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/distribution_commands.rs (target/debug/deps/distribution_commands-64960bb280956f89)
+
+running 10 tests
+test symlink_hazards_fail_closed ... ok
+test usage_documents_delivery_routes ... ok
+test version_is_stable ... ok
+test unmanaged_binary_reports_honest_delivery_state_and_refuses_launcher_routes ... ok
+test companion_recommendations_detect_installed_skills_without_installing_missing_tools ... ok
+test non_exact_adhd_aliases_and_external_targets_fail_closed ... ok
+test doctor_reports_honest_incomplete_and_invalid_states ... ok
+test missing_is_incomplete_and_drift_is_refused_without_overwrite ... ok
+test install_and_check_are_embedded_idempotent_and_deterministic ... ok
+test exact_legacy_adhd_alias_inside_home_is_allowed_without_rewriting_target ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.85s
+
+     Running tests/kb_commands.rs (target/debug/deps/kb_commands-ced9d9110025e01c)
+
+running 13 tests
+test kb_register_refuses_an_invalid_scope_without_touching_the_registry ... ok
+test graph_sends_exact_source_to_termaid_stdin ... ok
+test invalid_registered_hash_fails_without_success_stdout ... ok
+test kb_repin_recovers_a_registration_after_a_legitimate_scope_edit ... ok
+test parity_reports_every_gate_and_exits_nonzero_without_claiming_parity ... ok
+test kb_repin_refuses_unknown_current_mismatched_and_invalid_inputs ... ok
+test kb_views_show_scope_owned_concepts ... ok
+test kb_register_indexes_a_valid_scope_and_stays_create_only ... ok
+test rootless_routes_fail_closed_on_missing_config_or_kb_drift ... ok
+test public_routes_are_exact_deterministic_read_only_and_ignore_unregistered_roots ... ok
+test kb_tree_filters_are_combinable_rootless_and_fail_closed ... ok
+test rootless_routes_resolve_the_exact_configured_kb_without_searching ... ok
+test setup_install_can_create_default_kb_config_for_rootless_tree ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.55s
+
+     Running tests/lab_commands.rs (target/debug/deps/lab_commands-86b769b9df3f49e9)
+
+running 29 tests
+test a_fresh_start_needs_no_adapter_registry_and_records_tool_ids ... ok
+test a_first_run_reports_no_inherited_evidence ... ok
+test an_objective_without_a_completion_condition_is_refused ... ok
+test every_core_source_file_has_exactly_one_module ... ok
+test lists_the_improvement_modules ... ok
+test a_skipped_step_reports_the_ordering_rule_not_a_missing_file ... ok
+test naming_a_second_reviewer_makes_the_run_independent ... ok
+test candidates_come_from_selected_excerpts_not_the_fixture ... ok
+test historical_adapter_runs_stay_readable_but_cannot_ingest ... ok
+test an_objective_must_be_declared_before_selection ... ok
+test an_abstract_only_run_is_refused_at_the_mechanism_step ... ok
+test a_run_records_self_review_by_default_and_says_so_in_the_packet ... ok
+test a_second_run_inherits_what_the_first_established ... ok
+test refuses_to_overwrite_an_existing_run ... ok
+test mechanism_evidence_is_recorded_and_gaps_are_named ... ok
+test rejects_an_unknown_module ... ok
+test refresh_refuses_legacy_adapter_research ... ok
+test only_source_claims_are_carried_forward ... ok
+test rejects_an_out_of_order_step ... ok
+test refresh_refuses_evidence_from_an_unselected_tool ... ok
+test refresh_is_the_first_step_after_start ... ok
+test refresh_refuses_evidence_recorded_for_another_scope ... ok
+test refresh_refuses_tampered_evidence_and_a_swapped_request ... ok
+test start_refuses_legacy_binding_and_non_mcp_ids_even_when_registered ... ok
+test rejects_readings_that_retain_full_text ... ok
+test second_refresh_marks_sources_unchanged ... ok
+test the_cli_refuses_an_uncontrolled_pair ... ok
+test the_second_packet_shows_what_it_inherited ... ok
+test runs_the_planning_pipeline_and_stops_at_review ... ok
+
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+
+     Running tests/lifecycle_commands.rs (target/debug/deps/lifecycle_commands-d0cfeadc9f6a0567)
+
+running 5 tests
+test planning_next_validates_both_contracts_and_orders_ready_goals ... ok
+test planning_next_refuses_a_superseded_plan_and_names_its_successor ... ok
+test research_validation_matches_production_contract ... ok
+test execution_validation_covers_valid_stale_and_independently_invalid_bundles ... ok
+test dair_ai_normalization_is_create_only_and_proposal_only ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/meta_commands.rs (target/debug/deps/meta_commands-b989125b13179ac0)
+
+running 2 tests
+test contract_errors_are_nonzero_and_have_no_stdout ... ok
+test meta_outputs_are_stable_and_graph_uses_exact_source ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/meta_transfer_commands.rs (target/debug/deps/meta_transfer_commands-ba4d7e7c8ad253ef)
+
+running 3 tests
+test translation_packet_is_hash_pinned_and_not_a_translation ... ok
+test candidates_are_deterministic_advisory_and_keep_research_proposal_only ... ok
+test transfer_routes_fail_closed_on_unknown_target_invalid_research_and_self_translation ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/package_commands.rs (target/debug/deps/package_commands-61e48ca76568d2e2)
+
+running 6 tests
+test public_cli_rejects_symlinks_and_unsafe_manifest_paths ... ok
+test public_cli_rejects_unlisted_symlink_entries ... ok
+test contract_failures_are_nonzero_with_no_success_stdout_and_no_mutation ... ok
+test public_cli_rejects_unlisted_small_large_and_nested_files ... ok
+test validate_list_and_history_are_exact_deterministic_and_read_only ... ok
+test public_history_rejects_cross_project_tuple_hash_and_no_op_restore ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/package_import_commands.rs (target/debug/deps/package_import_commands-981e23862ff37f4a)
+
+running 3 tests
+test stale_approval_exits_nonzero_without_output ... ok
+test malformed_approval_timestamp_exits_nonzero_without_output ... ok
+test public_import_emits_exact_receipt_and_views_include_package ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/project_commands.rs (target/debug/deps/project_commands-a7c2dfbd6cda3fdc)
+
+running 5 tests
+test clean_init_creates_only_the_golden_layout ... ok
+test explicit_and_current_directory_paths_are_supported ... ok
+test repeated_init_preserves_edits_and_fills_a_partial_layout ... ok
+test status_and_validate_report_valid_incomplete_and_invalid ... ok
+test legacy_validate_replay_and_usage_behavior_remain_available ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/project_registry_commands.rs (target/debug/deps/project_registry_commands-b0553ccda0e2cda9)
+
+running 45 tests
+test discovery_scans_duplicate_and_overlapping_roots_once ... ok
+test discovery_rejects_duplicates_invalid_projects_and_symlink_roots ... ok
+test context_rejects_project_map_key_and_record_id_mismatch ... ok
+test discover_register_context_happy_path_is_bounded_and_reports_no_ready_goal ... ok
+test context_reconciles_valid_idea_drift_and_still_fails_closed_for_invalid_files ... ok
+{"additions":1,"auto_discovery":false,"changed_pins":0,"command":"project refresh","config_path":"/home/pitfa/.jcode/scratch/mozak-registry-refresh-concurrent-147902-0/xdg/mozak/config.json","config_sha256":"56b67d7a42541c2e193fcd38200b93aaed25f5475afdf45c2536be25fc3ea6cf","previous_config_sha256":"5619fbf1b34313220b7be81162962945482418435760375839e23b2d6ee92598","project_count":2,"proposal_digest":"42333da7b4289b71c45773feb258bbbf73f8f63d6c68e92b610fafe5f4f84e51","refreshed":true,"removals":0,"schema_version":1,"trust_transfer":false}
+error: stale config base during atomic refresh
+test concurrent_owner_refreshes_have_one_winner_and_no_lost_update ... ok
+test notes_check_reports_absent_states_and_validates_mapping_existence ... ok
+test context_refresh_history_and_rollback_are_atomic_bounded_and_concurrent ... ok
+test notes_inputs_reject_symlinked_ancestors_and_proposal_or_approval_paths ... ok
+test deleted_runner_and_request_keep_history_readable_in_current_browse_and_why ... ok
+test lab_evaluation_outputs_refuse_symlink_ancestors ... ok
+test notes_onboard_apply_has_one_concurrent_winner_and_refuses_stale_absent_base ... ok
+test notes_onboard_apply_is_owner_pinned_atomic_and_refuses_stale_or_malformed_inputs ... ok
+test notes_onboard_proposal_matches_project_and_topic_deterministically_without_leaks ... ok
+test notes_scope_reads_exact_project_or_topic_mapping_without_body_or_root_leakage ... ok
+test notes_onboard_validates_profile_controls_and_skips_excluded_trees ... ok
+test project_browse_rejects_symlinked_adapter_runs_dir_children_without_records ... ok
+test project_context_caps_many_linked_scopes_and_detail_pages_reach_all_records ... ok
+test project_context_fails_closed_for_drifted_configured_kb_links ... ok
+test project_context_reports_empty_linked_scopes_when_kb_has_no_links ... ok
+test project_context_reports_linked_scopes_for_shared_meta_goal_and_promotion ... ok
+test project_current_keeps_runs_visible_when_adapter_pins_drift ... ok
+test project_current_reports_bounded_state_and_marks_older_adapter_runs_stale ... ok
+test notes_onboard_and_check_reject_symlinks_traversal_vault_outputs_and_scan_ceiling ... ok
+test lab_evaluation_failure_refuses_current_or_non_dair_records ... ok
+test project_current_without_adapters_or_research_is_valid_and_bounded ... ok
+test project_notes_missing_and_malformed_files_fail_as_required ... ok
+test project_notes_rejects_symlinked_note_paths ... ok
+test project_browse_resolve_why_are_bounded_and_provenance_aware ... ok
+test project_notes_uses_two_file_schema_and_related_scopes_without_body_leak ... ok
+test refresh_fails_closed_for_missing_intent_stale_base_and_live_drift ... ok
+test refresh_applies_only_reviewed_additions_removals_and_changed_pins ... ok
+test refresh_rejects_symlinked_paths_in_existing_config_without_overwrite ... ok
+test register_rejects_bad_digest_stale_base_and_output_symlink_without_overwrite ... ok
+test registrations_lists_exact_configured_ids_even_when_the_live_kb_drifted ... ok
+test registration_refuses_to_replace_an_unchanged_existing_config ... ok
+test review_fails_closed_with_zero_stdout_for_malformed_stale_and_drifted_inputs ... ok
+test validate_and_discover_agree_about_a_hard_wrapped_idea_intent ... ok
+test refresh_rejects_semantically_malformed_existing_config_without_output_or_overwrite ... ok
+test review_reports_exact_register_and_refresh_deltas_without_mutation ... ok
+test lab_evaluation_fail_inconclusive_tamper_and_multiple_layer_refusals ... ok
+test project_resolve_uses_full_projection_for_real_dair_composite_record ... ok
+test notes_onboard_apply_revalidates_every_live_pin_after_acquiring_the_lock ... ok
+test lab_evaluation_reproduces_stale_dair_and_keeps_review_non_authoritative ... ok
+test notes_detail_streams_large_markdown_hash_exactly ... ok
+
+test result: ok. 45 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.60s
+
+     Running tests/scope_commands.rs (target/debug/deps/scope_commands-1b4eb3397600090b)
+
+running 16 tests
+test authoring_receipts_name_the_command_that_actually_recovers_a_registration ... ok
+test project_binding_supports_a_project_scoped_manifest_path ... ok
+test public_ingest_links_treats_dangling_output_paths_as_existing ... ok
+test public_ingest_links_route_reconstructs_scope_and_prints_authority_receipt ... ok
+test scope_init_creates_a_valid_topic_and_never_overwrites ... ok
+test scope_authoring_rolls_back_when_core_validation_rejects_the_result ... ok
+test scope_init_rolls_back_and_leaves_no_file_when_validation_fails ... ok
+test public_ingest_links_rejects_hold_findings_without_writes ... ok
+test public_routes_validate_snapshot_export_safely_and_check_freshness ... ok
+test scope_init_rejects_invalid_identity_and_text ... ok
+test failed_add_project_leaves_no_copied_manifest_or_empty_directories ... ok
+test scope_views_report_owned_concepts ... ok
+test scope_authoring_fails_closed_without_partial_state ... ok
+test source_check_rejects_unsafe_source_and_revision_drift ... ok
+test scope_authoring_builds_a_multi_scope_root_with_a_meta_goal ... ok
+test adversarial_contracts_fail_closed ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/terminal_views.rs (target/debug/deps/terminal_views-a3d9d0fec18167f2)
+
+running 2 tests
+test list_output_is_stable_for_complete_and_incomplete_projects ... ok
+test graph_source_is_exact_termaid_stdin_and_missing_or_failed_tools_are_errors ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/tool_evidence_commands.rs (target/debug/deps/tool_evidence_commands-75e9a7b6c26a1a58)
+
+running 8 tests
+test legacy_adapter_runs_still_validate ... ok
+test overwrite_is_refused_and_existing_output_is_untouched ... ok
+test symlinked_inputs_outputs_and_ancestors_are_refused ... ok
+test unsafe_effects_false_acceptance_and_bad_timestamps_are_refused_by_the_cli ... ok
+test response_drift_and_run_tampering_are_refused ... ok
+test record_validate_landmarks_and_verify_round_trip ... ok
+test new_recordings_require_a_catalog_mcp_id_without_restricting_old_verification ... ok
+test new_recordings_refuse_non_mcp_but_historical_runs_remain_readable ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+     Running tests/tool_stack.rs (target/debug/deps/tool_stack-0c6ab75ced558321)
+
+running 17 tests
+test configured_arxiv_is_ready_at_configured_and_probed_executables_are_never_run ... ok
+test check_rejects_unsafe_home ... ok
+test catalog_lists_every_named_use_case_and_declares_no_effects ... ok
+test configured_zotero_without_database_is_prerequisite_missing_not_ready ... ok
+test fresh_home_reports_missing_dependencies_with_install_steps_and_installs_nothing ... ok
+test explicit_baseline_check_gates_baseline_once ... ok
+test disabled_null_and_malformed_host_entries_never_count_as_configured ... ok
+test symlinked_host_configs_and_ancestors_are_refused_not_followed ... ok
+test unknown_use_case_is_invalid_and_lists_valid_ids ... ok
+test overleaf_without_session_name_is_prerequisite_missing_and_value_never_leaks ... ok
+test zotero_web_mode_counts_declared_names_and_never_reports_values ... ok
+test deep_research_requires_configured_firecrawl_with_credential_name ... ok
+test symlinked_zotero_database_does_not_satisfy_the_prerequisite ... ok
+test tooling_watch_is_ready_through_a_configured_mcp_server_only ... ok
+test zotero_alternative_names_are_never_unioned_across_sources ... ok
+test recommend_returns_only_applicable_tools_plus_baseline ... ok
+test existing_adapter_bindings_never_satisfy_mcp_readiness_and_are_never_read ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running unittests src/lib.rs (target/debug/deps/mozak_core-1661b749dd8e3922)
+
+running 1 test
+test scope::ingest_transaction_tests::rename_failure_removes_staging_root ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/attestation_projection.rs (target/debug/deps/attestation_projection-be3c5951cfcf6263)
+
+running 7 tests
+test a_package_with_no_artifacts_has_nothing_to_attest ... ok
+test every_subject_digest_matches_the_real_artifact_bytes ... ok
+test a_sealed_package_projects_a_spec_shaped_statement ... ok
+test the_serialized_statement_is_valid_json_with_the_spec_field_names ... ok
+test the_statement_carries_release_identity_and_refuses_to_claim_more ... ok
+test projection_is_deterministic_and_subject_order_is_stable ... ok
+test a_malformed_digest_produces_no_statement_rather_than_a_wrong_one ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/case_record_mutations.rs (target/debug/deps/case_record_mutations-cc324b2ff952a9f1)
+
+running 11 tests
+test a_dropped_condition_is_refused_in_the_real_record ... ok
+test an_asserted_condition_value_is_refused_in_the_real_record ... ok
+test a_comparative_verdict_without_dimensions_is_refused ... ok
+test an_empty_baseline_control_is_refused_in_the_real_record ... ok
+test an_unnamed_performer_is_refused_in_the_real_record ... ok
+test a_missing_variance_statement_is_refused_in_the_real_record ... ok
+test an_inconclusive_claim_without_missing_evidence_is_refused ... ok
+test variance_pointing_at_nothing_is_refused_in_the_real_record ... ok
+test the_real_record_yields_a_usable_reproduction_packet ... ok
+test the_real_self_review_cannot_be_relabelled_independent ... ok
+test the_real_records_validate_at_their_own_versions ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/case_study.rs (target/debug/deps/case_study-bbf3d21878eb7200)
+
+running 20 tests
+test a_case_must_record_its_own_limitations ... ok
+test a_case_with_no_measurement_yields_a_refusal_not_an_empty_packet ... ok
+test a_qualitative_case_cannot_stand_on_judgement_alone ... ok
+test a_comparative_case_must_report_dimensions_and_a_real_control ... ok
+test contracts_are_closed_shape ... ok
+test a_derived_proposal_must_cite_the_observations_that_motivate_it ... ok
+test a_resolved_finding_must_record_how_it_was_resolved ... ok
+test a_condition_value_must_say_how_it_was_observed ... ok
+test a_v2_case_must_name_both_actors ... ok
+test an_inconclusive_claim_must_say_what_was_missing ... ok
+test a_v2_case_must_account_for_every_condition ... ok
+test mutation_counts_must_be_internally_consistent ... ok
+test an_author_cannot_call_their_own_review_independent ... ok
+test open_findings_stay_visible ... ok
+test one_case_cannot_report_a_comparative_result ... ok
+test the_recorded_proposals_match_the_work_they_later_drove ... ok
+test the_retrofitted_first_real_case_validates ... ok
+test version_one_records_stay_readable ... ok
+test the_reproduction_packet_withholds_every_conclusion ... ok
+test residual_variance_must_be_named_and_point_at_real_observations ... ok
+
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/check_outcome.rs (target/debug/deps/check_outcome-ec323b8990e680a9)
+
+running 7 tests
+test unproven_is_counted_separately_from_passed_and_failed ... ok
+test recorded_bundle_has_no_unproven_checks_and_still_validates ... ok
+test an_unproven_check_is_a_disclosed_limitation_for_a_qualified_claim ... ok
+test an_unproven_check_cannot_support_a_clean_pass_claim ... ok
+test a_check_that_could_not_observe_its_subject_cannot_be_recorded_as_passed ... ok
+test could_not_check_requires_a_non_empty_reason ... ok
+test an_unexercised_acceptance_condition_cannot_be_recorded_as_passed ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/concept_translation.rs (target/debug/deps/concept_translation-6425a447998c51c1)
+
+running 10 tests
+test a_concept_must_carry_evidence_and_state_its_assumptions ... ok
+test contracts_are_closed_shape ... ok
+test the_recorded_real_transfer_validates_as_qualified_adoption ... ok
+test a_concept_never_translates_into_its_own_origin ... ok
+test a_rejected_load_bearing_assumption_cannot_be_qualified_adoption ... ok
+test a_holding_assumption_requires_evidence_observed_in_the_target ... ok
+test a_translation_cannot_claim_adoption_while_weakening_the_mechanism ... ok
+test a_translation_must_re_derive_every_source_assumption ... ok
+test an_unchecked_assumption_is_neither_holding_nor_failing ... ok
+test a_translation_is_pinned_to_the_exact_concept_it_re_derived ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/current_state.rs (target/debug/deps/current_state-7a67ab0fb443b876)
+
+running 9 tests
+test invalid_domain_artifacts_cannot_become_sources ... ok
+test relationship_constructors_enforce_semantic_endpoints_and_provenance ... ok
+test unsafe_paths_and_duplicate_inputs_fail_closed ... ok
+test adapter_targets_are_derived_from_validated_binding_target_scope_id ... ok
+test mutated_kb_and_adapter_target_objects_cannot_forge_edges ... ok
+test knowledge_base_source_must_load_registry_from_root_path ... ok
+test mutated_public_domain_objects_cannot_rebind_sealed_sources ... ok
+test authority_is_derived_and_serialized_without_a_promotion_path ... ok
+test real_validators_produce_a_deterministic_read_only_projection ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/execution_packet.rs (target/debug/deps/execution_packet-2c63027529a1a63b)
+
+running 9 tests
+test contracts_are_closed_shape_and_stale_packets_are_rejected ... ok
+test evaluator_must_be_independent_and_trace_every_condition ... ok
+test claimed_pass_with_failed_gate_is_rejected_but_qualified_claim_is_allowed ... ok
+test recorded_fresh_agent_bundle_is_sufficient_without_project_history ... ok
+test executor_without_any_independent_evaluation_is_rejected_in_history ... ok
+test failed_execution_remains_explicit_and_cannot_claim_pass ... ok
+test released_versions_are_immutable_and_supersession_links_are_exact ... ok
+test retry_attempts_increment_once_and_address_a_failed_gate ... ok
+test oversized_context_is_rejected_even_when_hashes_are_valid ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/fixtures.rs (target/debug/deps/fixtures-ff874479fe0ff2a1)
+
+running 6 tests
+test canonical_json_is_compact_unicode_and_key_sorted ... ok
+test unknown_event_type_and_unknown_fields_are_rejected ... ok
+test non_increasing_generation_fails_closed ... ok
+test duplicate_event_id_fails_closed ... ok
+test stale_non_rejection_fails_closed ... ok
+test all_twelve_fixtures_match_expected_projection_and_hash ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/github_tooling_adapter.rs (target/debug/deps/github_tooling_adapter-1ddad3a653d42364)
+
+running 8 tests
+test repository_prose_must_not_be_retained ... ok
+test watch_cannot_claim_discovery_queries ... ok
+test a_repository_without_releases_is_tracked_by_its_head_commit ... ok
+test popularity_must_not_read_as_an_assessment ... ok
+test each_mode_must_disclose_what_it_cannot_see ... ok
+test both_modes_normalize_into_valid_runs ... ok
+test discovery_cannot_promote_or_claim_watch_authority ... ok
+test dishonest_counts_truncation_and_effects_fail_closed ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/hyperresearch_adapter.rs (target/debug/deps/hyperresearch_adapter-67a1f1ef6cb103fb)
+
+running 13 tests
+test a_capped_retrieval_cannot_hide_its_truncation ... ok
+test a_record_retaining_note_prose_is_rejected ... ok
+test a_record_without_its_declared_retention_line_is_rejected ... ok
+test a_record_without_a_valid_body_hash_is_rejected ... ok
+test claiming_the_vault_read_used_the_network_is_rejected ... ok
+test an_adapter_declaring_writes_or_mutations_is_rejected ... ok
+test a_real_vault_snapshot_normalizes_into_a_valid_run ... ok
+test omitting_the_agent_selected_corpus_disclosure_is_rejected ... ok
+test record_fields_out_of_contract_order_are_rejected ... ok
+test an_unpinned_or_mismatched_snapshot_is_rejected ... ok
+test dishonest_counts_are_rejected ... ok
+test omitting_the_retention_or_untrusted_disclosure_is_rejected ... ok
+test the_run_remains_proposal_only ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/kb.rs (target/debug/deps/kb-ee6af5a8b6983d92)
+
+running 4 tests
+test registry_rejects_relative_paths_unknown_fields_and_duplicate_roots ... ok
+test registry_loads_only_explicit_hashed_roots_and_renders_nested_tree ... ok
+test parity_observes_real_links_embeds_attachments_and_never_infers_full_parity ... ok
+test parity_marks_observed_source_drift_failed_and_rejects_unpinned_receipts ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/knowledge_package.rs (target/debug/deps/knowledge_package-45cbfd2c324cba8f)
+
+running 10 tests
+test canonical_package_validates_and_identity_is_deterministic ... ok
+test planning_archive_artifact_is_included_and_schema_validated ... ok
+test history_rejects_cross_project_exact_reference_mismatches_cycles_and_self_restore ... ok
+test rejects_symlink_artifact_and_casefold_collision ... ok
+test rejects_unlisted_symlink_entry_anywhere_in_package ... ok
+test validates_linear_branch_and_rollback_without_selecting_a_head ... ok
+test rejects_unlisted_small_large_nested_and_empty_directory_entries ... ok
+test history_rejects_missing_links_cross_project_cycles_duplicates_gaps_regressions_and_bad_restore ... ok
+test rejects_unknowns_identity_hash_media_binary_paths_duplicates_and_bounds ... ok
+test rejects_declared_files_exceeding_manifest_inclusive_package_limit ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.56s
+
+     Running tests/lab.rs (target/debug/deps/lab-8368be6871fc762a)
+
+running 54 tests
+test a_retired_id_is_not_silently_mapped_onto_a_current_module ... ok
+test a_legacy_reading_without_depth_is_abstract_only ... ok
+test a_retired_module_describes_itself_as_retired_rather_than_as_a_current_boundary ... ok
+test a_retired_module_id_still_deserializes ... ok
+test a_retired_module_is_not_addressable_by_a_new_run ... ok
+test a_whole_ledger_written_under_a_retired_id_still_loads ... ok
+test acceptance::a_legacy_run_without_actors_reports_no_acceptance ... ok
+test acceptance::a_run_cannot_claim_independence_it_does_not_have ... ok
+test acceptance::a_run_cannot_understate_a_real_independent_review ... ok
+test acceptance::acceptance_cannot_be_claimed_without_actors ... ok
+test acceptance::an_honest_claim_is_accepted ... ok
+test acceptance::one_actor_is_self_review_and_two_are_independent ... ok
+test acceptance::surrounding_whitespace_does_not_create_independence ... ok
+test acceptance::recording_one_actor_without_the_other_is_refused ... ok
+test authoring_a_request_under_a_retired_module_is_refused ... ok
+test accepts_group_synthesis_workflow_contracts ... ok
+test dedup_marks_repeat_sources_unchanged ... ok
+test accepts_a_complete_planning_run ... ok
+test lab_and_case_records_use_one_acceptance_vocabulary ... ok
+test mcp_only::a_request_names_exactly_one_kind_of_source ... ok
+test module_identifiers_round_trip ... ok
+test objective::a_run_without_an_objective_remains_valid ... ok
+test objective::an_objective_with_an_empty_condition_is_rejected ... ok
+test objective::an_objective_with_an_observable_condition_is_accepted ... ok
+test mcp_only::historical_request_bytes_and_hash_are_unchanged ... ok
+test objective::an_objective_without_completion_conditions_is_rejected ... ok
+test packet_disclosure::a_self_reviewed_run_says_so_prominently ... ok
+test objective::the_packet_shows_the_objective_and_its_exclusions ... ok
+test one_full_text_source_claim_carries_the_mechanism ... ok
+test packet_disclosure::acceptance_appears_before_the_mechanisms_it_qualifies ... ok
+test packet_disclosure::an_independent_run_names_both_actors ... ok
+test packet_disclosure::an_unrecorded_acceptance_is_not_silently_a_self_review ... ok
+test packet_disclosure::the_packet_states_that_validity_is_structural_only ... ok
+test rejects_a_mechanism_resting_only_on_an_abstract ... ok
+test rejects_group_skill_that_accepts_concept_candidate ... ok
+test reading_the_full_text_is_not_retaining_it ... ok
+test rejects_group_synthesis_without_comparison ... ok
+test rejects_mechanism_citing_unknown_claim ... ok
+test rejects_mechanism_resting_only_on_lab_inference ... ok
+test rejects_plan_referencing_unknown_mechanism ... ok
+test rejects_plan_with_too_few_acceptance_checks ... ok
+test rejects_retained_full_text ... ok
+test rejects_request_that_plans_to_run_past_review ... ok
+test rejects_selection_without_reasons_for_every_candidate ... ok
+test rejects_unbalanced_dedup_accounting ... ok
+test rejects_unselected_paper_reading ... ok
+test state_machine_rejects_skipped_steps ... ok
+test the_meta_boundary_is_terminal_and_its_rationale_is_recorded ... ok
+test transitions_record_actor_and_input_hash ... ok
+test state_machine_stops_after_owner_review ... ok
+test mcp_only::fresh_literature_cites_selected_records_with_exact_hashes ... ok
+test mcp_only::literature_cannot_mix_or_forge_provenance ... ok
+test mcp_only::historical_requests_and_tampered_evidence_cannot_ingest ... ok
+test mcp_only::unselected_tool_wrong_scope_and_non_mcp_are_refused_without_touching_the_ledger ... ok
+
+test result: ok. 54 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/lab_evaluation.rs (target/debug/deps/lab_evaluation-3238171ad6b6dba8)
+
+running 12 tests
+test a_condition_that_did_not_stay_fixed_is_rejected ... ok
+test a_gate_declaring_no_criteria_is_rejected ... ok
+test a_gate_whose_implementation_moved_is_reported_as_drift ... ok
+test a_mechanism_cannot_be_both_measured_and_excused ... ok
+test a_pair_declaring_no_fixed_conditions_is_rejected ... ok
+test a_mechanism_without_a_pair_must_carry_a_recorded_reason ... ok
+test a_pair_must_record_what_it_cannot_establish ... ok
+test an_uninspected_gate_is_not_reported_as_drift ... ok
+test mechanisms_with_neither_a_pair_nor_a_reason_are_reported ... ok
+test surrounding_whitespace_does_not_break_a_held_condition ... ok
+test evidence_round_trips_and_refuses_unknown_fields ... ok
+test the_contract_records_a_difference_under_conditions_not_a_quality_claim ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/lab_evidence.rs (target/debug/deps/lab_evidence-29278f4a2cf576e3)
+
+running 13 tests
+test a_contradicting_later_claim_is_recorded_not_overwritten ... ok
+test a_contradiction_between_two_identical_standings_is_refused ... ok
+test a_later_run_reads_what_an_earlier_run_established ... ok
+test a_malformed_entry_is_refused ... ok
+test a_manufactured_contradiction_is_refused ... ok
+test a_standing_change_without_a_recorded_contradiction_is_refused ... ok
+test an_empty_scope_starts_with_nothing_and_is_valid ... ok
+test carried_evidence_states_that_it_authorizes_nothing ... ok
+test evidence_from_another_scope_is_refused ... ok
+test only_held_claims_become_preservation_requirements ... ok
+test re_recording_the_same_standing_is_not_a_contradiction ... ok
+test unknown_fields_are_refused ... ok
+test the_state_round_trips_and_hashes_deterministically ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/lab_justification.rs (target/debug/deps/lab_justification-977245001b5d5ada)
+
+running 2 tests
+test the_planning_only_boundary_names_its_source_and_claims ... ok
+test the_justification_records_its_own_limitations ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/landmark_index.rs (target/debug/deps/landmark_index-a62a4bf1fbf898a0)
+
+running 6 tests
+test a_landmark_index_drawn_from_the_run_validates ... ok
+test altered_evidence_bytes_invalidate_the_landmark_instead_of_repointing_it ... ok
+test a_landmark_citing_absent_evidence_is_rejected_by_name ... ok
+test a_landmark_must_name_the_raw_record_its_evidence_actually_quotes ... ok
+test an_unsupported_contract_version_and_malformed_json_fail_closed ... ok
+test an_index_for_a_different_run_or_with_no_statements_is_rejected ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/mcp_registry_adapter.rs (target/debug/deps/mcp_registry_adapter-8935e9f7f85da5bc)
+
+running 8 tests
+test an_empty_interest_cluster_must_record_a_gap ... ok
+test publisher_prose_must_not_be_retained ... ok
+test a_real_registry_retrieval_normalizes_into_a_valid_run ... ok
+test dishonest_counts_are_rejected ... ok
+test every_response_body_must_be_pinned_by_hash ... ok
+test a_capped_retrieval_cannot_hide_its_truncation_or_claim_full_support ... ok
+test the_retrieval_must_disclose_what_the_registry_cannot_see ... ok
+test unsafe_effects_and_a_foreign_registry_fail_closed ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/meta_kb.rs (target/debug/deps/meta_kb-4a77ff26c1e51431)
+
+running 5 tests
+test meta_identifiers_are_terminal_and_graph_safe ... ok
+test relationship_vocabulary_is_closed_and_canonical ... ok
+test rejects_unsafe_identifiers_inside_loaded_releases ... ok
+test rejects_tampering_and_release_identity_or_contract_mismatch ... ok
+test accepts_real_shaped_releases_and_rejects_adversarial_manifests ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/monokl_adapter.rs (target/debug/deps/monokl_adapter-6028c69d8d0acff7)
+
+running 13 tests
+test a_capped_retrieval_cannot_hide_its_truncation ... ok
+test a_record_retaining_note_prose_is_rejected ... ok
+test a_record_without_its_declared_retention_line_is_rejected ... ok
+test a_record_without_a_valid_body_hash_is_rejected ... ok
+test claiming_the_vault_read_used_the_network_is_rejected ... ok
+test an_adapter_declaring_writes_or_mutations_is_rejected ... ok
+test a_real_vault_snapshot_normalizes_into_a_valid_run ... ok
+test record_fields_out_of_contract_order_are_rejected ... ok
+test omitting_the_agent_selected_corpus_disclosure_is_rejected ... ok
+test omitting_the_retention_or_untrusted_disclosure_is_rejected ... ok
+test the_run_remains_proposal_only ... ok
+test dishonest_counts_are_rejected ... ok
+test an_unpinned_or_mismatched_snapshot_is_rejected ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/package_import.rs (target/debug/deps/package_import-cf106ed289e9975d)
+
+running 4 tests
+test symlink_approval_and_tampered_package_are_rejected_without_output ... ok
+test approved_import_reconstructs_owned_bytes_and_all_views ... ok
+test malformed_or_noncanonical_approval_timestamps_are_rejected_before_writes ... ok
+test every_rejection_is_prewrite_and_duplicate_is_explicit ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/planning_archive.rs (target/debug/deps/planning_archive-486b01f89b6ad062)
+
+running 7 tests
+test stale_lock_blocks_before_source_verification ... ok
+test stale_staging_is_refused_before_apply ... ok
+test incomplete_supersession_history_keeps_observed_tip_active ... ok
+test compaction_archives_losslessly_and_restores_from_deterministic_index ... ok
+test stale_approval_changed_artifact_and_corrupt_archive_fail_closed ... ok
+test support_artifacts_survive_apply_and_multicycle_restore_handles_active_index ... ok
+test compaction_keeps_inputs_for_active_plan_families_only ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/planning_dag.rs (target/debug/deps/planning_dag-dec1de30fd440f82)
+
+running 10 tests
+test goal_evidence_pins_are_confined_to_the_evidence_root_and_hash_shaped ... ok
+test input_sets_and_plan_json_are_closed_shape_contracts ... ok
+test fixture_names_are_stable_for_recorded_adversarial_cases ... ok
+test valid_shared_dag_preserves_one_dependency_and_selects_ready_goals_deterministically ... ok
+test plans_without_goal_evidence_keep_their_exact_serialized_bytes ... ok
+test cycles_missing_dependencies_duplicates_and_inferred_fact_fail_closed ... ok
+test missing_or_invalid_edge_provenance_and_duplicate_goals_fail_closed ... ok
+test plan_history_supports_explicit_immutable_input_set_changes ... ok
+test recorded_supersession_and_bounded_recovery_are_valid_and_tampering_is_rejected ... ok
+test pf0004_proposals_require_explicit_acceptance_and_retain_provenance ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/planning_retention.rs (target/debug/deps/planning_retention-7893f4f593137a60)
+
+running 4 tests
+test an_observation_may_be_condensed_but_a_legacy_input_may_not ... ok
+test condensation_must_preserve_constraint_text_verbatim ... ok
+test v1_input_sets_remain_readable_so_sealed_releases_stay_valid ... ok
+test v2_requires_retention_and_names_the_offending_input ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/project_context.rs (target/debug/deps/project_context-74f4e53058fcaa1c)
+
+running 5 tests
+test accepts_strict_context_manifest ... ok
+test rejects_duplicate_sources ... ok
+test rejects_path_traversal ... ok
+test rejects_invalid_hashes_and_revisions ... ok
+test rejects_unknown_fields ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/project_contract.rs (target/debug/deps/project_contract-abf51b5b4b5233d5)
+
+running 3 tests
+test bootstrap_migration_is_non_destructive_and_preserves_references ... ok
+test valid_project_and_idea_examples_pass_deterministically ... ok
+test adversarial_fixtures_fail_closed_with_stable_semantics ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/project_release.rs (target/debug/deps/project_release-6298f773e1727a5d)
+
+running 6 tests
+test deserialized_release_requires_semantic_identity_hashes_and_item_integrity ... ok
+test invalid_supersession_fails_closed ... ok
+test complete_release_has_required_sections_provenance_scopes_and_supersession ... ok
+test generation_uses_the_supplied_timestamp_and_never_overwrites ... ok
+test missing_provenance_and_embedded_raw_or_transcript_fields_fail_closed ... ok
+test ordering_is_canonical_and_repeated_generation_has_identical_bytes_and_hash ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/provider_arxiv.rs (target/debug/deps/provider_arxiv-e83dff7b568bf93f)
+
+running 11 tests
+test contracts_are_closed_shape ... ok
+test a_cluster_matching_nothing_must_record_a_gap ... ok
+test a_real_arxiv_retrieval_normalizes_into_a_validated_run ... ok
+test duplicate_cluster_names_are_refused ... ok
+test cluster_reports_must_be_internally_honest ... ok
+test the_adapter_identity_must_match_the_run_receipt ... ok
+test a_network_adapter_must_admit_its_network_use_and_offer_a_dry_run ... ok
+test a_truncated_retrieval_cannot_claim_full_support ... ok
+test the_exact_request_and_response_bodies_are_pinned ... ok
+test declared_counts_must_agree_with_the_recorded_records ... ok
+test an_adapter_declaring_an_external_effect_is_refused ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/provider_dair_ai.rs (target/debug/deps/provider_dair_ai-1c3052a7f408755d)
+
+running 4 tests
+test copied_summary_or_unknown_contract_field_is_rejected ... ok
+test real_curated_retrieval_normalizes_without_copying_curator_prose ... ok
+test effects_counts_and_truncation_fail_closed ... ok
+test source_identity_revision_and_response_bytes_are_pinned ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/research_contract.rs (target/debug/deps/research_contract-17e14dcfd62eddd8)
+
+running 5 tests
+test run_ids_and_hashes_are_deterministic ... ok
+test source_instructions_remain_immutable_untrusted_data_without_control_authority ... ok
+test complete_golden_run_preserves_every_artifact_and_exports_bounded_proposals ... ok
+test broken_evidence_spans_and_raw_mutation_fail_closed ... ok
+test unsupported_and_broken_claims_are_explicitly_failed_and_lower_the_run ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/research_provider_equivalence.rs (target/debug/deps/research_provider_equivalence-fcd450971cf3e138)
+
+running 2 tests
+test adapters_are_strict_about_recorded_envelopes ... ok
+test recorded_provider_adapters_normalize_to_contract_equivalent_artifacts ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/scope.rs (target/debug/deps/scope-64e8f880ebde382b)
+
+running 3 tests
+test direct_core_accepts_a_minimal_topic_snapshot ... ok
+test direct_core_rejects_empty_and_noncanonical_history ... ok
+test scope_owned_concepts_are_pinned_and_must_be_valid_concepts ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/scope_ingest_links.rs (target/debug/deps/scope_ingest_links-cd0a9a8688d07845)
+
+running 7 tests
+test scope_validation_rejects_casefold_source_path_collisions ... ok
+test rejects_symlinked_source_path_chain_before_writing ... ok
+test rejects_output_and_staging_locations_within_input_roots ... ok
+test rejects_dangling_output_and_staging_symlinks_as_existing ... ok
+test ingests_only_declared_links_and_emits_deterministic_receipt ... ok
+test rejects_non_ascii_source_paths_and_empty_wikilinks_before_writes ... ok
+test rejects_pin_drift_changed_bytes_unsafe_or_unsupported_references_and_existing_output ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/tool_evidence.rs (target/debug/deps/tool_evidence-38db261638f8f7f8)
+
+running 13 tests
+test false_acceptance_claims_are_refused ... ok
+test credentials_in_call_arguments_are_refused ... ok
+test declared_writes_mutations_and_irreversible_effects_are_refused ... ok
+test existing_historical_runs_remain_valid ... ok
+test bad_schemas_and_unknown_fields_are_refused ... ok
+test malformed_timestamps_are_refused ... ok
+test excerpts_must_match_their_exact_response_range_and_stay_bounded ... ok
+test tool_identity_and_version_must_be_exact ... ok
+test reserved_gaps_and_truncation_are_disclosed_by_mozak ... ok
+test a_recorded_call_validates_as_a_qualified_proposal_only_run ... ok
+test recording_is_deterministic_and_independent_of_fixture_formatting ... ok
+test a_tampered_run_fails_standalone_validation_even_with_a_fresh_artifact_hash ... ok
+test verification_detects_response_and_run_drift ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running unittests src/main.rs (target/debug/deps/mozak_mcp-158221e700454b5a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/mcp_stdio.rs (target/debug/deps/mcp_stdio-14d8a6948cb3934b)
+
+running 7 tests
+test malformed_and_unknown_requests_fail_without_stopping_server ... ok
+test stack_tools_reject_unknown_and_malformed_arguments ... ok
+test initializes_lists_closed_tools_and_ignores_notifications ... ok
+test project_context_uses_the_exact_cli_behavior ... ok
+test meta_transfer_tools_delegate_exact_read_only_cli_arguments ... ok
+test stack_tools_delegate_exact_read_only_cli_arguments ... ok
+test project_validate_matches_cli_output ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+   Doc-tests mozak_core
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+    Finished `release` profile [optimized] target(s) in 0.03s
+validated 12 fixtures
+ok: release CLI reproduced all 12 expected projections and hashes
+ok: release CLI rejects missing commands and invalid JSON
+ok: fx_01_original_source_correction d6c62e3365cc27225ad3c49744a4bc43f2db9f1d9ae1aa3eb6e34c580679b93a
+ok: fx_02_independent_source_conflict 15137542fd256be457ff48dfafa29a4b34ed443caf2157e328ab47427dae45bd
+ok: fx_03_repeated_upstream_report def0876be51751816d7aa3fd48b39d13027e4c4edd8b7e3edec4b58ee0257f24
+ok: fx_04_paper_retraction 7d5caf1403467972fdfd3b17d6edae63b9590a5ed1d18a7dfac3d8e21459e868
+ok: fx_05_validity_interval d56f9eb53d3dbd9734fc7f83e0aa98c38ef007e675efc2b0bd4ef378ace34656
+ok: fx_06_project_and_global_scope 4e497c03b62e73509d11e7ddb1b27714f7bbc06f17948f6fc0dcb478f2940613
+ok: fx_07_nary_experiment 98afeded13e49894a12cc8968e399485746f2cba4aa36d630ac0d8e6d35ab052
+ok: fx_08_same_url_changed_content 4df2b4c940327c67085ce0bd8db224f7035313120808c464da4d18bcf3900935
+ok: fx_09_decision_dependency_change 1753c3948070ae7835ac779ce40af69fe11045e34bad07aad2f192539b0ac67f
+ok: fx_10_stale_worker_update 91eef154723805611fce3f1be62bc4e0289d6c0bc99ba3f57ba16eb6367bae40
+ok: fx_11_embedded_malicious_instruction 7e8b3c8bbdc4aa6c63be06328235089dd3334164291fe8619eda8e25c205e424
+ok: fx_12_deleted_or_unreachable_source 597d22b01980486321164818fe9f6963f5c28cd69d5424f6d1a67ed5cf2f2488
+ok: held-out and checkpoint tamper boundaries
+scenario adapter equivalence passed: 12 fixtures
+ok: recorded M0 baseline matches deterministic metrics and hashes
+ok: validate_docs
+ok: validate_schemas
+ok: validate_fixtures
+ok: validate_scenario_adapter
+ok: validate_evaluation
+M0 draft validation passed
+ok: fx_01_original_source_correction d6c62e3365cc27225ad3c49744a4bc43f2db9f1d9ae1aa3eb6e34c580679b93a
+ok: fx_02_independent_source_conflict 15137542fd256be457ff48dfafa29a4b34ed443caf2157e328ab47427dae45bd
+ok: fx_03_repeated_upstream_report def0876be51751816d7aa3fd48b39d13027e4c4edd8b7e3edec4b58ee0257f24
+ok: fx_04_paper_retraction 7d5caf1403467972fdfd3b17d6edae63b9590a5ed1d18a7dfac3d8e21459e868
+ok: fx_05_validity_interval d56f9eb53d3dbd9734fc7f83e0aa98c38ef007e675efc2b0bd4ef378ace34656
+ok: fx_06_project_and_global_scope 4e497c03b62e73509d11e7ddb1b27714f7bbc06f17948f6fc0dcb478f2940613
+ok: fx_07_nary_experiment 98afeded13e49894a12cc8968e399485746f2cba4aa36d630ac0d8e6d35ab052
+ok: fx_08_same_url_changed_content 4df2b4c940327c67085ce0bd8db224f7035313120808c464da4d18bcf3900935
+ok: fx_09_decision_dependency_change 1753c3948070ae7835ac779ce40af69fe11045e34bad07aad2f192539b0ac67f
+ok: fx_10_stale_worker_update 91eef154723805611fce3f1be62bc4e0289d6c0bc99ba3f57ba16eb6367bae40
+ok: fx_11_embedded_malicious_instruction 7e8b3c8bbdc4aa6c63be06328235089dd3334164291fe8619eda8e25c205e424
+ok: fx_12_deleted_or_unreachable_source 597d22b01980486321164818fe9f6963f5c28cd69d5424f6d1a67ed5cf2f2488
+ok: held-out and checkpoint tamper boundaries
+scenario adapter equivalence passed: 12 fixtures
+ok: recorded M0 baseline matches deterministic metrics and hashes
+ok: required M0 artifacts and public contracts are present
+ok: 12 public fixture histories reproduce expected state and hashes
+ok: negative replay boundary rejects duplicate event id
+ok: negative replay boundary rejects non-increasing generation
+ok: negative replay boundary rejects unrejected stale accepted event
+ok: negative replay boundary rejects immutable snapshot mutation
+ok: negative replay boundary rejects unknown event type
+M0 whole-result requirement verification passed
+Phase 1 first-slice verification passed
