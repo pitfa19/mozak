@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "id": "explicit-tool-stack-001",
+  "project_id": "mozak",
+  "goal_id": "explicit-tool-stack-migration",
+  "recorded_at": "2026-10-05T20:18:40Z",
+  "implementation_revision": "eceddef3b7c025fdbaf2c38a1ef3e2811c0ba310",
+  "delivery": {
+    "state": "locally_installed_and_verified",
+    "active_build": "0.7.1-main-eceddef3b7c0",
+    "previous_build": "0.7.1-6c8077ec8f9f",
+    "tracking_channel_preserved": "stable",
+    "auto_update_preserved": false,
+    "remote_published": false,
+    "archive_sha256_check": "passed",
+    "managed_setup_parity": "ready",
+    "doctor_with_real_configured_kb": "ready",
+    "adapter_registry_and_kb_bytes": "unchanged_verified_by_sha256",
+    "mcp": {
+      "server": "mozak",
+      "initialize_and_tools_list": "passed",
+      "tools_count": 10,
+      "live_calls": ["stack_check(literature): ready", "stack_recommend(references): passed"],
+      "persistent_host_registration": ".jcode/mcp.json"
+    }
+  },
+  "checks": [
+    {"command": "cargo fmt --all -- --check", "result": "passed"},
+    {"command": "cargo test --workspace --locked", "result": "passed", "scratch_log": "mozak-final-workspace.log", "log_sha256": "9b4965b2f7869fec3380c1a68d09857237f9305031ed5ed83c8765b8dd43fbae"},
+    {"command": "cargo clippy --workspace --all-targets --locked -- -D warnings", "result": "passed", "scratch_log": "mozak-final-clippy.log", "log_sha256": "7f0f98c8faa33884ca63ec1f6a696961e67f1fa4a791a73cadd94a7ae77ff701"},
+    {"command": "python3 scripts/validate_m0.py", "result": "passed"},
+    {"command": "python3 scripts/check_docs_match_binary.py", "result": "passed"},
+    {"command": "scripts/verify_phase1_slice.sh", "result": "passed"},
+    {"command": "python3 -m unittest discover -s skills/mozak/tests -v", "result": "passed", "tests": 33, "scratch_log": "mozak-final-skills.log", "log_sha256": "16a71c303bb7b93236891783f33a91b47b744adbd3aa78ed81be9c9f80e85702"},
+    {"command": "python3 -m unittest discover -s scripts -p 'test_*.py'", "result": "passed", "tests": 37, "scratch_log": "mozak-final-python.log", "log_sha256": "2d1ea38d735b0a63a9435c5cd7530f731435a564fcf8b9caf9d77a2ab1e83e43"},
+    {"command": "python3 scripts/test_fresh_machine_release.py target/release/mozak", "result": "passed", "scratch_log": "mozak-final-fresh-machine.log", "log_sha256": "35adf6bfff7d4ae7da1107e2fb26bcfd5ab52552013f96001d554f2069cd429b"},
+    {"command": "python3 scripts/test_delivery_update.py target/release/mozak", "result": "passed", "scratch_log": "mozak-final-update.log", "log_sha256": "4b0f1c4d7a7e25235fd19a1138902c08e337f72fa2d7dd2d8622083c802e02ed"},
+    {"command": "python3 scripts/test_github_bootstrap.py target/release/mozak", "result": "passed", "scratch_log": "mozak-final-bootstrap.log", "log_sha256": "364d4e86579869387655049fdd8637e11469f263c06920577f142aa9ba5e07d5"}
+  ],
+  "independent_review": {
+    "verdict": "passed",
+    "verified_fixes": ["strict adapter registry and pin/Scope readiness", "credential alternatives require a single source", "file prerequisites refuse symlink chains", "installed-skill tests do not require source-only fixtures"]
+  },
+  "tool_observations": {
+    "arxiv": {
+      "installed_version": "0.8.1",
+      "host_handshake": "passed",
+      "readonly_real_probe": "get_abstract(1706.03762): Attention Is All You Need",
+      "sanitized_metadata_record_verify_validate": "passed_against_installed_binary",
+      "accepted": false,
+      "authority": "proposal_only"
+    },
+    "zotero": {
+      "installed_version": "0.13.2",
+      "host_handshake": "passed",
+      "library_read": "blocked_missing_real_database_or_web_credentials",
+      "references_stack_check_exit": 2,
+      "write_access": "not_granted"
+    }
+  },
+  "limitations": [
+    "Zotero is installed and connected, but a real owner library or web-mode credentials are still needed before reference search is usable.",
+    "Overleaf and optional tools are catalog recommendations, not claims of installed or usable services.",
+    "CLI checks never claim MCP handshakes, service usability, network success or write grants. Host probes are separate observations.",
+    "Legacy adapters and historical evidence are intentionally retained for compatibility, not deleted.",
+    "Stack adapter inspection uses HOME/.config/mozak; legacy adapter commands can honor XDG_CONFIG_HOME. A custom XDG override can therefore produce different views.",
+    "Scratch logs are hash-identified local verification receipts, not shipped artifacts or permanent source evidence. The recorded observations above are the durable closure summary."
+  ]
+}
