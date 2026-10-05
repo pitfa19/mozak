@@ -1,0 +1,10 @@
+{
+  "contract_version": 1,
+  "id": "plan-auto-update-defaults",
+  "version": 2,
+  "input_set_id": "inputs-auto-update-defaults-001",
+  "supersedes": {"id": "plan-auto-update-defaults", "version": 1},
+  "goals": [{"id": "auto-update-defaults", "version": 2, "supersedes_version": 1, "title": "Enable stable automatic updates locally and default future fresh installs to on while preserving opt-outs", "status": "in_progress", "priority": 1, "input_ids": ["input-auto-owner", "input-auto-baseline"], "recovery_attempts": 0, "evidence": [{"path": ".mozak/evidence/auto-update-defaults/acceptance-before-publication.md", "sha256": "aa2ad9e870014b06e7cbbecd918c2f5a4f4703ccca4aff105cddeab5cf2ed25d"}]}],
+  "dependencies": [],
+  "recovery": {"max_attempts_per_goal": 2, "allowed_failed_transition": "blocked"}
+}

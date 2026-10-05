@@ -96,6 +96,59 @@ def main() -> int:
         release2 = build(binary, root, "stable", REV2)
         release3 = build(binary, root, "main", REV3)
         bundle1 = extract(release1, root / "extract-1")
+
+        # Fresh archive installation needs no opt-in flag. All automatic
+        # checks resolve a local release fixture, never the real repository.
+        fresh_home, fresh_prefix, fresh_xdg = root / "default-home", root / "default-prefix", root / "default-xdg"
+        fresh_home.mkdir(); fresh_prefix.mkdir(); fresh_xdg.mkdir()
+        fresh_env = {**env, "HOME": str(fresh_home), "MOZAK_PREFIX": str(fresh_prefix),
+                     "XDG_CONFIG_HOME": str(fresh_xdg),
+                     "MOZAK_RELEASE_FIXTURE": str(fixture(release2, root / "default-release.json"))}
+        fresh_install = subprocess.run(
+            [sys.executable, str(bundle1 / "install.py"), "--prefix", str(fresh_prefix), "--home", str(fresh_home)],
+            env=fresh_env, capture_output=True, text=True,
+        )
+        assert fresh_install.returncode == 0, fresh_install.stderr
+        fresh_launcher = fresh_prefix / "bin/mozak"
+        fresh_status = json.loads(run(fresh_launcher, fresh_env, "delivery", "status").stdout)
+        assert fresh_status["auto_update"] is True and fresh_status["channel"] == "stable"
+        assert fresh_status["check_interval_seconds"] == 86400
+        assert fresh_status["active_build"].endswith(REV1[:12])
+        mcp = subprocess.run(
+            [str(fresh_prefix / "bin/mozak-mcp")], env=fresh_env, capture_output=True, text=True,
+            input=json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {
+                "protocolVersion": "2024-11-05", "capabilities": {},
+                "clientInfo": {"name": "default-on-acceptance", "version": "1"},
+            }}) + "\n",
+        )
+        assert mcp.returncode == 0 and "result" in json.loads(mcp.stdout), mcp.stderr
+        after_mcp = json.loads(run(fresh_launcher, fresh_env, "delivery", "status").stdout)
+        assert after_mcp["active_build"] == fresh_status["active_build"]
+        assert after_mcp["last_checked_at"] == fresh_status["last_checked_at"] == 0
+        fresh_start = run(fresh_launcher, fresh_env, "--version")
+        assert fresh_start.stdout.startswith("mozak ")
+        fresh_after = json.loads(run(fresh_launcher, fresh_env, "delivery", "status").stdout)
+        assert fresh_after["active_build"].endswith(REV2[:12])
+        assert fresh_after["auto_update"] is True and fresh_after["last_checked_at"] > 0
+        assert fresh_after["previous_build"].endswith(REV1[:12])
+
+        # Explicit archive opt-out must survive an ordinary reinstall.
+        opt_out = subprocess.run(
+            [sys.executable, str(bundle1 / "install.py"), "--prefix", str(fresh_prefix), "--home", str(fresh_home), "--disable-auto"],
+            env=fresh_env, capture_output=True, text=True,
+        )
+        assert opt_out.returncode == 0, opt_out.stderr
+        reinstall = subprocess.run(
+            [sys.executable, str(bundle1 / "install.py"), "--prefix", str(fresh_prefix), "--home", str(fresh_home)],
+            env=fresh_env, capture_output=True, text=True,
+        )
+        assert reinstall.returncode == 0, reinstall.stderr
+        run(fresh_launcher, fresh_env, "--version")
+        opted_status = json.loads(run(fresh_launcher, fresh_env, "delivery", "status").stdout)
+        assert opted_status["auto_update"] is False
+        assert opted_status["active_build"].endswith(REV1[:12])
+        assert not (fresh_xdg / "mozak/config.json").exists()
+
         install = subprocess.run(
             [sys.executable, str(bundle1 / "install.py"), "--prefix", str(prefix), "--home", str(home), "--channel", "stable", "--disable-auto"],
             env=env,

@@ -84,7 +84,7 @@ def default_config(build: dict[str, Any]) -> dict[str, Any]:
         "schema_version": 1,
         "repository": build.get("repository", DEFAULT_REPOSITORY),
         "channel": "stable",
-        "auto_update": False,
+        "auto_update": True,
         "check_interval_seconds": DEFAULT_INTERVAL_SECONDS,
         "last_checked_at": 0,
     }

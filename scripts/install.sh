@@ -11,7 +11,7 @@ repository=${MOZAK_REPOSITORY:-pitfa19/mozak}
 channel=stable
 prefix=${HOME:-}/.local
 home=${HOME:-}
-auto=1
+auto=default
 owner=${MOZAK_OWNER:-}
 kb_root=${MOZAK_KB_ROOT:-}
 while [[ $# -gt 0 ]]; do
@@ -134,7 +134,12 @@ with tarfile.open(archive, "r:gz") as bundle:
 PY
 bundle=$(find "$scratch/extract" -mindepth 1 -maxdepth 1 -type d -print -quit)
 args=(--prefix "$prefix" --home "$home" --expected-build-id "$build_id" --channel "$channel")
-if [[ "$auto" == 1 ]]; then args+=(--enable-auto); else args+=(--disable-auto); fi
+config_home=${XDG_CONFIG_HOME:-$home/.config}
+if [[ "$auto" == 0 ]]; then
+  args+=(--disable-auto)
+elif [[ ! -e "$config_home/mozak/delivery.json" ]]; then
+  args+=(--enable-auto)
+fi
 if [[ -n "$owner" ]]; then args+=(--owner "$owner" --kb-root "$kb_root"); fi
 python3 "$bundle/install.py" "${args[@]}"
 "$prefix/bin/mozak" delivery status
@@ -142,7 +147,6 @@ python3 "$bundle/install.py" "${args[@]}"
 # A tool-only install is valid, but it is not enough for `project context` or
 # rootless KB commands.  A piped bootstrap has no interactive stdin, so do not
 # silently leave a new teammate at the first-use failure with no recovery path.
-config_home=${XDG_CONFIG_HOME:-$home/.config}
 if [[ -z "$owner" && ! -f "$config_home/mozak/config.json" ]]; then
   cat >&2 <<EOF
 MOZAK is installed, including mozak-mcp and the agent skill.

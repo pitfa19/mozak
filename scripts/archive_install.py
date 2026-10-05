@@ -353,7 +353,7 @@ def configure_delivery(home: Path, build: dict[str, Any], channel: str | None, a
             "schema_version": 1,
             "repository": build["repository"],
             "channel": "stable",
-            "auto_update": False,
+            "auto_update": True,
             "check_interval_seconds": 86400,
             "last_checked_at": 0,
         }
