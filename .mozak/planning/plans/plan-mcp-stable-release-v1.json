@@ -1,0 +1,9 @@
+{
+  "contract_version": 1,
+  "id": "plan-mcp-stable-release",
+  "version": 1,
+  "input_set_id": "inputs-mcp-stable-release-001",
+  "goals": [{"id": "mcp-stable-release", "version": 1, "title": "Publish MCP-only MOZAK v0.8.0 as latest stable and verify the published installation locally", "status": "ready", "priority": 1, "input_ids": ["input-stable-owner-approval", "input-stable-release-baseline"], "recovery_attempts": 0}],
+  "dependencies": [],
+  "recovery": {"max_attempts_per_goal": 2, "allowed_failed_transition": "blocked"}
+}
