@@ -14,7 +14,7 @@ archive_install = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
 SPEC.loader.exec_module(archive_install)
 
-MOZAK_FILES = ["SKILL.md", "install.py", "mcp.json", "tests/test_skill.py", "evals/evals.json", "companion-recommendations.json"]
+MOZAK_FILES = ["SKILL.md", "install.py", "mcp.json", "tests/test_skill.py", "evals/evals.json", "companion-recommendations.json", "tool-stack.json"]
 ROOTS = [".agents", ".jcode", ".claude", ".codex"]
 
 
