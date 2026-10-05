@@ -1,0 +1,17 @@
+{
+  "contract_version": 1,
+  "id": "plan-mcp-only-retirement",
+  "version": 1,
+  "input_set_id": "inputs-mcp-only-retirement-001",
+  "goals": [{
+    "id": "mcp-only-retirement",
+    "version": 1,
+    "title": "Retire live adapters and use explicit MCP-only retrieval with historical evidence compatibility",
+    "status": "in_progress",
+    "priority": 1,
+    "input_ids": ["input-mcp-only-owner-approval", "input-mcp-only-baseline", "input-mcp-only-acceptance"],
+    "recovery_attempts": 0
+  }],
+  "dependencies": [],
+  "recovery": {"max_attempts_per_goal": 2, "allowed_failed_transition": "blocked"}
+}

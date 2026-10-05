@@ -1,0 +1,22 @@
+{
+  "contract_version": 1,
+  "id": "inputs-mcp-only-retirement-001",
+  "accepted_at": "2026-10-05T20:32:30Z",
+  "inputs": [
+    {
+      "id": "input-mcp-only-owner-approval",
+      "text": "Owner asked to remove old adapters and use only MCPs from now on, then approved the presented retirement proposal with 'do it' at 2026-10-05T20:32:30.691Z. Replace remaining adapter-dependent tooling-watch, deep-research and Lab workflows with explicit tested MCP paths, remove live adapter runners/setup/run commands/catalog entries/fallback instructions, and preserve historical evidence with read-only validators plus generic record-tool. This approval is not permission to delete historical artifacts or credentials, perform external writes, publish remote releases, or accept retrieved research as knowledge.",
+      "provenance": {"kind": "human_decision", "decision_id": "decision-mcp-only-retirement-2026-10-05T203230Z", "actor": "pitfa"}
+    },
+    {
+      "id": "input-mcp-only-baseline",
+      "text": "At revision 18c6fafc5df9438fa76984c5eded7c4ff31640a0 the explicit tool stack is installed, but six legacy adapters remain live. tooling-watch and deep-research still use legacy adapters. Lab start requires registry binding IDs and Lab refresh serializes adapter provenance. There are 17 existing callable configured bindings across other scopes. Preserve their files and recorded history while making the successor executable unable to launch them.",
+      "provenance": {"kind": "codebase_observation", "observation_id": "obs-mcp-only-baseline-2026-10-05", "repository_revision": "18c6fafc5df9438fa76984c5eded7c4ff31640a0", "paths": ["crates/mozak-cli/src/adapter_workflow.rs", "crates/mozak-cli/src/lab_workflow.rs", "crates/mozak-core/src/lab.rs", "skills/mozak/tool-stack.json", "skills/mozak/SKILL.md"]}
+    },
+    {
+      "id": "input-mcp-only-acceptance",
+      "text": "New retrieval is exclusively performed by agent-host MCP tools, not native subprocess adapters. New Lab requests select catalog MCP tool IDs and ingest matching validated proposal-only MCP evidence. New stack catalog, onboarding and skill rules contain no legacy adapter option. Existing historical research/Lab artifacts remain verifiable without rewriting their hashes or claiming active runtime readiness. Missing MCP configuration/credentials must report incomplete, not silently use an adapter. Validate replacement capability boundaries, tamper refusals, full regressions, real CLI before/after behavior, managed local install and offline rollback. Do not duplicate research notes/Zotero work still active in the original session.",
+      "provenance": {"kind": "human_decision", "decision_id": "decision-mcp-only-approved-contract-2026-10-05", "actor": "pitfa"}
+    }
+  ]
+}
