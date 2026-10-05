@@ -1,0 +1,15 @@
+{
+  "contract_version": 1,
+  "id": "plan-auto-update-defaults",
+  "version": 3,
+  "input_set_id": "inputs-auto-update-defaults-001",
+  "supersedes": {"id": "plan-auto-update-defaults", "version": 2},
+  "goals": [{"id": "auto-update-defaults", "version": 3, "supersedes_version": 2, "title": "Enable stable automatic updates locally and default future fresh installs to on while preserving opt-outs", "status": "completed", "priority": 1, "input_ids": ["input-auto-owner", "input-auto-baseline"], "recovery_attempts": 0, "evidence": [
+    {"path": ".mozak/evidence/auto-update-defaults/closure.md", "sha256": "24a10774758ed23c87d91d04972f03d7dd2c22137b47ec011d52410fbc363f83"},
+    {"path": ".mozak/evidence/auto-update-defaults/publication-081.json", "sha256": "e1b9e93726c6ae91b674c481e462e8185e36106b586f8b94e222bfc6753c298a"},
+    {"path": ".mozak/evidence/auto-update-defaults/fresh-status.json", "sha256": "120571a17f3738b4100958ce1d7bd0d9c3cece8225454db465a71cacd9785133"},
+    {"path": ".mozak/evidence/auto-update-defaults/owner-status.json", "sha256": "4ff7fbc2925f3fa18809bd8538c2001257e39608484a2444182511df98ff9461"}
+  ]}],
+  "dependencies": [],
+  "recovery": {"max_attempts_per_goal": 2, "allowed_failed_transition": "blocked"}
+}
