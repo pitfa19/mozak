@@ -166,6 +166,8 @@ fn register_initial(kb: &Path, ws: &Path, xdg: &Path, base: &Path) -> Value {
     proposal
 }
 
+// Test helper with many inline `json!` callers; owning the value keeps them terse.
+#[allow(clippy::needless_pass_by_value)]
 fn write_notes_profile(xdg: &Path, destinations: Value) -> PathBuf {
     let notes = xdg.join("notes");
     fs::create_dir_all(&notes).unwrap();
@@ -2465,6 +2467,8 @@ fn validate_and_discover_agree_about_a_hard_wrapped_idea_intent() {
 }
 
 #[test]
+// End-to-end scenario: one fixture exercised across sequential CLI calls.
+#[allow(clippy::too_many_lines)]
 fn project_notes_uses_two_file_schema_and_related_scopes_without_body_leak() {
     let t = Temp::new("notes-two-file-related");
     let kb = linked_scope_kb(&t.0);
@@ -2749,6 +2753,8 @@ fn notes_onboard_proposal_matches_project_and_topic_deterministically_without_le
 }
 
 #[test]
+// End-to-end scenario: one fixture exercised across sequential CLI calls.
+#[allow(clippy::too_many_lines)]
 fn notes_onboard_validates_profile_controls_and_skips_excluded_trees() {
     let t = Temp::new("notes-profile-controls");
     let kb = valid_kb(&t.0);
@@ -2957,6 +2963,8 @@ fn notes_scope_reads_exact_project_or_topic_mapping_without_body_or_root_leakage
 }
 
 #[test]
+// End-to-end scenario: one fixture exercised across sequential CLI calls.
+#[allow(clippy::too_many_lines)]
 fn notes_onboard_apply_is_owner_pinned_atomic_and_refuses_stale_or_malformed_inputs() {
     let t = Temp::new("notes-onboard-apply");
     let kb = valid_kb(&t.0);
@@ -3244,6 +3252,8 @@ fn notes_onboard_apply_revalidates_every_live_pin_after_acquiring_the_lock() {
 
 #[test]
 #[cfg(unix)]
+// End-to-end scenario: one fixture exercised across sequential CLI calls.
+#[allow(clippy::too_many_lines)]
 fn notes_onboard_and_check_reject_symlinks_traversal_vault_outputs_and_scan_ceiling() {
     use std::os::unix::fs::symlink;
 

@@ -1365,6 +1365,9 @@ pub fn notes_scope(id: &str, args: &[String]) -> Result<ExitCode, String> {
     )
 }
 
+// Proposal assembly is a single read-validate-write workflow; splitting it would
+// scatter the drift checks from the bytes they pin.
+#[allow(clippy::too_many_lines)]
 pub fn notes_onboard_propose(output: &Path) -> Result<ExitCode, String> {
     let (_config, config_sha256, kb, kb_drift) = load_drift_free_kb()?;
     if kb_drift {
@@ -1771,16 +1774,15 @@ fn validate_notes_onboard_approval(
     Ok(())
 }
 
+type NotesOnboardLiveState = (
+    BTreeMap<String, PathBuf>,
+    BTreeMap<String, RegisteredNoteScope>,
+);
+
 fn validate_notes_onboard_live_state(
     proposal: &NotesOnboardProposal,
     approval: &NotesOnboardApproval,
-) -> Result<
-    (
-        BTreeMap<String, PathBuf>,
-        BTreeMap<String, RegisteredNoteScope>,
-    ),
-    String,
-> {
+) -> Result<NotesOnboardLiveState, String> {
     let (config, config_sha256, kb, kb_drift) = load_drift_free_kb()?;
     let configured_owner = config
         .configured_owner
@@ -1998,7 +2000,7 @@ fn scan_onboard_directory(
         .map_err(|error| format!("cannot read notes directory: {error}"))?
         .collect::<Result<Vec<_>, _>>()
         .map_err(|error| format!("cannot inspect notes entry: {error}"))?;
-    entries.sort_by_key(|entry| entry.file_name());
+    entries.sort_by_key(fs::DirEntry::file_name);
     for entry in entries {
         let file_name = entry.file_name();
         if file_name.to_string_lossy().starts_with('.') {
@@ -2365,7 +2367,7 @@ pub fn project_notes(id: &str, args: &[String]) -> Result<ExitCode, String> {
     notes_for_scopes(
         "project notes",
         Some(
-            serde_json::json!({"id": configured.id, "name": configured.name, "root": configured.root}),
+            &serde_json::json!({"id": configured.id, "name": configured.name, "root": configured.root}),
         ),
         None,
         &config,
@@ -2402,7 +2404,7 @@ pub fn meta_goal_notes(id: &str, args: &[String]) -> Result<ExitCode, String> {
     notes_for_scopes(
         "notes meta-goal",
         None,
-        Some(serde_json::json!({"id": id})),
+        Some(&serde_json::json!({"id": id})),
         &config,
         &config_sha256,
         &kb.registry_sha256,
@@ -2427,11 +2429,12 @@ fn load_drift_free_kb() -> Result<(LocalConfig, String, mozak_core::kb::Validate
     Ok((config, hash(&bytes), kb, drift))
 }
 
-#[allow(clippy::too_many_arguments)]
+// One bounded read-validate-scan-page workflow shared by three entry points.
+#[allow(clippy::too_many_arguments, clippy::too_many_lines)]
 fn notes_for_scopes(
     command: &str,
-    project: Option<Value>,
-    meta_goal: Option<Value>,
+    project: Option<&Value>,
+    meta_goal: Option<&Value>,
     config: &LocalConfig,
     config_sha256: &str,
     current_kb_sha256: &str,
@@ -2498,7 +2501,7 @@ fn notes_for_scopes(
                     let prefix_path = safe_note_relative(prefix)?;
                     let start = root.join(&prefix_path);
                     scan_notes(
-                        &root,
+                        root,
                         &start,
                         &scope_id,
                         &relationship,
@@ -2604,7 +2607,7 @@ fn notes_inline_count(
                 for prefix in &link.safe_relative_path_prefixes {
                     let start = root.join(safe_note_relative(prefix)?);
                     scan_notes(
-                        &root,
+                        root,
                         &start,
                         &scope_id,
                         "summary_count",
@@ -2766,6 +2769,8 @@ fn safe_note_relative(value: &str) -> Result<PathBuf, String> {
     Ok(out)
 }
 
+// Recursive scan threads its shared accumulators and scan ceiling explicitly.
+#[allow(clippy::too_many_arguments)]
 fn scan_notes(
     root: &Path,
     start: &Path,
@@ -2889,7 +2894,7 @@ fn maybe_add_note(
 fn streaming_sha256_file(path: &Path) -> Result<String, String> {
     let mut file = fs::File::open(path).map_err(|e| format!("cannot open mapped note: {e}"))?;
     let mut digest = Sha256::new();
-    let mut buffer = [0u8; 64 * 1024];
+    let mut buffer = vec![0u8; 64 * 1024].into_boxed_slice();
     loop {
         let read = file
             .read(&mut buffer)
@@ -3644,6 +3649,8 @@ fn knowledge_matches(
     Ok((scopes, packages))
 }
 
+// Linked-scope resolution walks project, meta-goal, and scope links in one pass.
+#[allow(clippy::too_many_lines)]
 fn knowledge_linked_scopes(
     kb: &mozak_core::kb::ValidatedKb,
     project_id: &str,
@@ -4661,6 +4668,14 @@ fn path_text(path: &Path) -> Result<String, String> {
     Ok(value.to_owned())
 }
 
+fn shell_path(path: &Path) -> String {
+    shell_arg(&path.to_string_lossy())
+}
+
+fn shell_arg(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "'\\''"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -4688,11 +4703,4 @@ mod tests {
         assert!(finish_notes_lock(Ok(()), lock_file, &lock).is_ok());
         fs::remove_dir_all(root).unwrap();
     }
-}
-fn shell_path(path: &Path) -> String {
-    shell_arg(&path.to_string_lossy())
-}
-
-fn shell_arg(value: &str) -> String {
-    format!("'{}'", value.replace('\'', "'\\''"))
 }
