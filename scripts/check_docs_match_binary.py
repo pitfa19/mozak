@@ -135,6 +135,9 @@ def main() -> int:
     current_commands = {
         "mozak setup install": "mozak setup <install|check>",
         "mozak setup check": "mozak setup <install|check>",
+        "mozak setup jcode plan": "mozak setup jcode <plan|install|check>",
+        "mozak setup jcode install": "mozak setup jcode <plan|install|check>",
+        "mozak setup jcode check": "mozak setup jcode <plan|install|check>",
         "mozak project discover": "mozak project discover",
         "mozak project review": "mozak project review",
         "mozak project registrations": "mozak project registrations",

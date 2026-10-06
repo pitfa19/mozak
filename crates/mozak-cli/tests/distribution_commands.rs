@@ -61,7 +61,7 @@ fn install_and_check_are_embedded_idempotent_and_deterministic() {
     assert_eq!(report["state"], "ready");
     assert_eq!(report["parity"], true);
     assert_eq!(report["embedded"], true);
-    assert_eq!(report["checks"].as_array().unwrap().len(), 132);
+    assert_eq!(report["checks"].as_array().unwrap().len(), 136);
     let catalog_bytes = fs::read(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../skills/mozak/tool-stack.json"),
     )

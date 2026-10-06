@@ -119,6 +119,23 @@ def main() -> int:
         assert installed["parity"] is True and checked["parity"] is True
         assert installed["local_config"]["owner"] == "packaged-acceptance-owner"
         assert installed["local_config"]["kb_root"] == str(kb)
+        # Actual archive launcher path, not a copied installer or synthetic CLI.
+        jcode_root = home / ".jcode"
+        assert not (jcode_root / "config.toml").exists()
+        config_before = b"# packaged owner\n[other]\nkeep = 17\n"
+        (jcode_root / "config.toml").write_bytes(config_before)
+        credential = jcode_root / "credentials.json"
+        credential.write_bytes(b"acceptance-sentinel-not-a-real-secret")
+        plan = run(binary, env, "setup", "jcode", "plan", str(home))
+        assert plan["state"] == "planned" and plan["effects"]["mutation"] is False
+        assert (jcode_root / "config.toml").read_bytes() == config_before
+        opted_in = run(binary, env, "setup", "jcode", "install", str(home))
+        assert opted_in["state"] == "ready" and opted_in["teacher_default"] == "off"
+        assert run(binary, env, "setup", "jcode", "check", str(home))["state"] == "ready"
+        assert run(binary, env, "setup", "jcode", "install", str(home))["changes"] == []
+        assert credential.read_bytes() == b"acceptance-sentinel-not-a-real-secret"
+        assert b"keep = 17" in (jcode_root / "config.toml").read_bytes()
+        assert run(binary, env, "setup", "check", str(home))["parity"] is True
         tree = subprocess.run([binary, "kb", "tree"], env=env, capture_output=True, text=True)
         assert tree.returncode == 0 and "Knowledge Base" in tree.stdout
         different = subprocess.run([binary, "setup", "install", str(home), "--owner", "other", "--kb-root", str(kb)], env=env, capture_output=True, text=True)
