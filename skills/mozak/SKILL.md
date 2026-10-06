@@ -5,6 +5,10 @@ description: Operate MOZAK projects, Scopes, explicit KB registries, and local M
 
 # MOZAK
 
+## Owner-approved sequence completion
+
+When the owner authorizes a sequence, plan, batch, phases, checklist or synonymous work commitment, load `mozak-sequence-commitment` and retain the complete original scope across delegation and resume. A passing candidate or milestone is not completion. Never silently cancel, defer or narrow agreed requirements. Continue every safe authorized unblocked branch, even when another branch needs approval. Finish only after every original requirement has direct, current acceptance evidence, or the owner explicitly changes the scope. A forced interruption must be reported as incomplete with open todos and a resume path. These core rules apply even if the companion is unavailable, in which case record the same whole-scope audit manually. The companion is shipped by `mozak setup install`; it does not grant approvals or guarantee agent obedience.
+
 Natural language is the user interface. Translate the request into the smallest current MOZAK command, inspect its result, and answer with terminal bullet lists or a `Termaid` diagram. Never direct the user to a web dashboard.
 
 ## MCP transport

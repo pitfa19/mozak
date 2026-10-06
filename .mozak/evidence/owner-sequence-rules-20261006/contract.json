@@ -1,0 +1,11 @@
+{
+  "sequence_id": "owner-sequence-rules-20261006",
+  "owner_request": "Harden MOZAK rules so agreed sequences or synonymous work commitments do not stop too early.",
+  "requirements": [
+    {"id": "persistent-policy", "checks": [{"id": "installed-load", "real_required": true}, {"id": "general-routing-preserved", "real_required": true}]},
+    {"id": "scope-stop-regressions", "checks": [{"id": "five-step-partial-refused", "real_required": false}, {"id": "cancel-drift-synthetic-refused", "real_required": false}]},
+    {"id": "distribution-preservation", "checks": [{"id": "real-source-setup", "real_required": true}, {"id": "installed-081-parity", "real_required": true}, {"id": "whole-source-tests", "real_required": true}]},
+    {"id": "durable-delivery", "checks": [{"id": "source-commit", "real_required": true}, {"id": "honest-limits", "real_required": false}]}
+  ],
+  "excluded_work": ["No Genome implementation in this rules task", "No release, push or installed binary downgrade", "No claim of guaranteed future agent compliance"]
+}

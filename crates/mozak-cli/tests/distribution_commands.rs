@@ -51,7 +51,7 @@ fn install_and_check_are_embedded_idempotent_and_deterministic() {
     assert_eq!(report["state"], "ready");
     assert_eq!(report["parity"], true);
     assert_eq!(report["embedded"], true);
-    assert_eq!(report["checks"].as_array().unwrap().len(), 116);
+    assert_eq!(report["checks"].as_array().unwrap().len(), 128);
     for root in [".agents", ".jcode", ".claude", ".codex"] {
         assert!(
             home.join(root)
@@ -62,6 +62,37 @@ fn install_and_check_are_embedded_idempotent_and_deterministic() {
             home.join(root)
                 .join("skills/i-have-adhd/SKILL.md")
                 .is_file()
+        );
+        let companion = home.join(root).join("skills/mozak-sequence-commitment");
+        for (path, expected) in [
+            (
+                "SKILL.md",
+                include_bytes!("../../../skills/mozak-sequence-commitment/SKILL.md").as_slice(),
+            ),
+            (
+                "scripts/check_sequence.py",
+                include_bytes!(
+                    "../../../skills/mozak-sequence-commitment/scripts/check_sequence.py"
+                )
+                .as_slice(),
+            ),
+            (
+                "tests/test_sequence.py",
+                include_bytes!("../../../skills/mozak-sequence-commitment/tests/test_sequence.py")
+                    .as_slice(),
+            ),
+        ] {
+            assert_eq!(fs::read(companion.join(path)).unwrap(), expected);
+        }
+        let audit_tests = Command::new("python3")
+            .arg(companion.join("tests/test_sequence.py"))
+            .env("PYTHONDONTWRITEBYTECODE", "1")
+            .output()
+            .unwrap();
+        assert!(
+            audit_tests.status.success(),
+            "{}",
+            String::from_utf8_lossy(&audit_tests.stderr)
         );
         for skill in ["note", "note-healthcheck", "note-voice-census"] {
             assert!(
@@ -104,6 +135,14 @@ fn install_and_check_are_embedded_idempotent_and_deterministic() {
     assert_eq!(
         report["companion_recommendations"]["recommended"][0]["id"],
         "mmdr"
+    );
+    assert_eq!(
+        report["companion_recommendations"]["managed"][2]["id"],
+        "sequence-commitment"
+    );
+    assert_eq!(
+        report["companion_recommendations"]["managed"][2]["status"],
+        "present"
     );
     let check = run(&["setup", "check", home_arg]);
     assert!(check.status.success());
