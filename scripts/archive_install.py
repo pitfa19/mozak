@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+import base64
+import hashlib
 import json
 import os
 import re
@@ -325,6 +327,69 @@ def migrate_skills(old_binary: Path | None, new_binary: Path, home: Path, owner:
     return backup
 
 
+def jcode_custody_paths(report: dict[str, Any], home: Path) -> set[Path]:
+    return {path for path in report_paths(report, home)
+            if path.relative_to(home).parts[:2] == (".jcode", "skills")
+            and path.relative_to(home).parts[2] in JCODE_MANAGED_SKILLS}
+
+
+def custody_record(old: Path, target: Path, home: Path, paths: set[Path]) -> bytes:
+    records = []
+    for path in sorted(paths):
+        if path.exists() or path.is_symlink():
+            kind, data, mode = snapshot_managed_path(home, path)
+            if kind != "file":
+                raise RuntimeError("new Jcode custody requires a regular skill file")
+            records.append({"path": str(path.relative_to(home)), "kind": "file",
+                            "data": base64.b64encode(data).decode("ascii"),
+                            "sha256": hashlib.sha256(data).hexdigest(), "mode": mode})
+        else:
+            records.append({"path": str(path.relative_to(home)), "kind": "absent"})
+    return (json.dumps({"schema_version": 1, "from": old.name, "to": target.name,
+                       "home_sha256": hashlib.sha256(str(home).encode()).hexdigest(),
+                       "files": records}, sort_keys=True, separators=(",", ":")) + "\n").encode()
+
+
+def load_custody(path: Path, old: Path, target: Path, home: Path, expected: set[Path]) -> dict[Path, tuple[str, bytes, int]] | None:
+    if not path.exists() and not path.is_symlink():
+        return None
+    raw = regular_bytes(path, "Jcode custody record")
+    if len(raw) > 2 * 1024 * 1024:
+        raise RuntimeError("Jcode custody record exceeds bounded size")
+    record = json.loads(raw)
+    if (not isinstance(record, dict) or set(record) != {"schema_version", "from", "to", "home_sha256", "files"}
+            or record["schema_version"] != 1 or record["from"] != target.name
+            or record["to"] != old.name
+            or record["home_sha256"] != hashlib.sha256(str(home).encode()).hexdigest()
+            or not isinstance(record["files"], list)):
+        raise RuntimeError("Jcode custody identity mismatch")
+    restored = {}
+    for item in record["files"]:
+        if not isinstance(item, dict) or not isinstance(item.get("path"), str):
+            raise RuntimeError("invalid Jcode custody entry")
+        relative = Path(item["path"])
+        candidate = home / relative
+        if (relative.is_absolute() or ".." in relative.parts or candidate not in expected
+                or candidate in restored or not allowed_managed_report_path(relative)):
+            raise RuntimeError("unsafe or repeated Jcode custody path")
+        if item.get("kind") == "absent" and set(item) == {"path", "kind"}:
+            restored[candidate] = ("absent", b"", 0o600)
+        elif item.get("kind") == "file" and set(item) == {"path", "kind", "data", "sha256", "mode"}:
+            try:
+                data = base64.b64decode(item["data"], validate=True)
+            except (ValueError, TypeError):
+                raise RuntimeError("invalid Jcode custody bytes") from None
+            if (hashlib.sha256(data).hexdigest() != item["sha256"]
+                    or type(item["mode"]) is not int or not 0 <= item["mode"] <= 0o777):
+                raise RuntimeError("Jcode custody hash or mode mismatch")
+            restored[candidate] = ("file", data, item["mode"])
+        else:
+            raise RuntimeError("invalid Jcode custody entry")
+    if set(restored) != expected:
+        raise RuntimeError("Jcode custody coverage mismatch")
+    return restored
+
+
 def publish_version(source: Path, versions: Path, build: dict[str, Any]) -> Path:
     target = versions / build["build_id"]
     names = ("mozak", "mozak-mcp", "build.json", "install.py", "launcher.py")
@@ -401,8 +466,29 @@ def activate(source: Path, prefix: Path, home: Path, expected_build_id: str | No
         return build
 
     old_binary = old / "mozak" if old is not None else None
-    skill_backup = migrate_skills(old_binary, target / "mozak", home, owner, kb_root)
-
+    custody_path = None
+    custody_before = None
+    custody_bytes = None
+    custody_restore = None
+    dropped_backup = {}
+    if old is not None:
+        old_check, old_report = setup_report(old_binary, "check", home)
+        if old_check.returncode != 0 or not old_report or old_report.get("state") != "ready":
+            raise RuntimeError("installed managed skills drifted; refusing automatic migration")
+        _, new_report = setup_report(target / "mozak", "check", home)
+        old_jcode = jcode_custody_paths(old_report, home)
+        new_jcode = jcode_custody_paths(new_report, home)
+        gained, dropped = new_jcode - old_jcode, old_jcode - new_jcode
+        if gained:
+            custody_path = target / f"jcode-custody-{old.name}.json"
+            if custody_path.exists() or custody_path.is_symlink():
+                custody_before = regular_bytes(custody_path, "previous Jcode custody")
+            custody_bytes = custody_record(old, target, home, gained)
+        if dropped:
+            custody_restore = load_custody(old / f"jcode-custody-{target.name}.json", old, target, home, dropped)
+            if custody_restore is None:
+                raise RuntimeError("missing Jcode custody for downgrade; refusing to erase owner skill files")
+            dropped_backup = {path: snapshot_managed_path(home, path) for path in dropped}
     launchers = [bin_directory / name for name in ("mozak", "mozak-mcp")]
     old_launchers: dict[Path, bytes] = {}
     for launcher in launchers:
@@ -413,7 +499,17 @@ def activate(source: Path, prefix: Path, home: Path, expected_build_id: str | No
             if LAUNCHER_MARKER not in old_launchers[launcher]:
                 raise RuntimeError("refusing to replace a non-MOZAK launcher")
 
+    skill_backup = migrate_skills(old_binary, target / "mozak", home, owner, kb_root)
+    skill_backup.update(dropped_backup)
     try:
+        if custody_restore is not None:
+            for path, (kind, data, mode) in custody_restore.items():
+                if kind == "file":
+                    atomic_regular_file(path, data, mode)
+                elif path.exists():
+                    path.unlink()
+        if custody_path is not None:
+            atomic_regular_file(custody_path, custody_bytes, 0o600)
         if old is not None:
             atomic_link(root / "previous", f"versions/{old.name}")
         atomic_link(root / "current", f"versions/{target.name}")
@@ -423,6 +519,11 @@ def activate(source: Path, prefix: Path, home: Path, expected_build_id: str | No
         if check.returncode != 0 or not report or report.get("state") != "ready":
             raise RuntimeError("activated build failed final managed-skill verification")
     except Exception:
+        if custody_path is not None:
+            if custody_before is None:
+                custody_path.unlink(missing_ok=True)
+            else:
+                atomic_regular_file(custody_path, custody_before, 0o600)
         if old is not None:
             atomic_link(root / "current", f"versions/{old.name}")
             if skill_backup:

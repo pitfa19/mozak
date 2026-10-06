@@ -36,6 +36,9 @@ skills or swarm policy, malformed/ambiguous owned TOML, symlinks, occupied locks
 and concurrent changes are refused. Inspect/reconcile those owner files before
 retrying. There is no force-overwrite switch. Delivery rollback restores managed
 skills only, not your opt-in global Jcode configuration.
+Updates preserve pre-existing invocation files for later rollback using private,
+home-pinned custody records. Missing or corrupt custody refuses the downgrade
+instead of erasing owner files.
 
 Ready means installed file/settings parity, not a live model/account or nested
 hierarchy test. Existing sessions retain their old captured prompt. Compatible

@@ -27,6 +27,12 @@ Missing accounts and authentication failures must not be called quota evidence.
 Ordinary setup embeds four Jcode-only SKILL.md files: swarm-low, swarm-normal,
 teacher and mozak-jcode. Its exact generation contains 136 managed files.
 Ordinary setup/update/rollback do not opt in or own Jcode global policy/config.
+An update that newly acquires invocation files records their original bytes or
+absence in a private build-pair and home-pinned custody record. Downgrading the
+managed generation restores pre-existing files and removes only newly installed
+ones. Missing, altered, unsafe or wrong-home custody fails closed before skill
+migration. This custody applies only to the four Jcode invocation files, never
+config, global policy or credentials.
 The separate opt-in route manages those four invocation files, swarm-prompt.md,
 the agent-work overlay content, and only ten declared fields in config.toml.
 It preserves unrelated TOML semantics and comments. Unsupported inline/dotted

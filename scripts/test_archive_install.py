@@ -272,5 +272,41 @@ class ArchiveInstallRegressionTests(unittest.TestCase):
                         archive_install.migrate_skills(old / "mozak", new / "mozak", home)
 
 
+class JcodeCustodyTests(unittest.TestCase):
+    def test_custody_roundtrip_and_invalid_records_fail_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            old, new = home / "old-build", home / "new-build"
+            skill = home / ".jcode/skills/swarm-low/SKILL.md"
+            skill.parent.mkdir(parents=True)
+            skill.write_bytes(b"owner profile")
+            missing = home / ".jcode/skills/teacher/SKILL.md"
+            expected = {skill, missing}
+            raw = archive_install.custody_record(old, new, home, expected)
+            receipt = home / "custody.json"
+            receipt.write_bytes(raw)
+            restored = archive_install.load_custody(receipt, new, old, home, expected)
+            self.assertEqual(restored[skill][1], b"owner profile")
+            self.assertEqual(restored[missing][0], "absent")
+            for mutation in ("home", "hash", "duplicate", "escape", "coverage", "type"):
+                record = json.loads(raw)
+                if mutation == "home":
+                    record["home_sha256"] = "0" * 64
+                elif mutation == "hash":
+                    next(item for item in record["files"] if item["kind"] == "file")["sha256"] = "0" * 64
+                elif mutation == "duplicate":
+                    record["files"].append(record["files"][0])
+                elif mutation == "escape":
+                    record["files"][0]["path"] = "../outside"
+                elif mutation == "coverage":
+                    record["files"].pop()
+                else:
+                    record = []
+                receipt.write_text(json.dumps(record))
+                with self.assertRaises(RuntimeError):
+                    archive_install.load_custody(receipt, new, old, home, expected)
+            self.assertEqual(skill.read_bytes(), b"owner profile")
+
+
 if __name__ == "__main__":
     unittest.main()
