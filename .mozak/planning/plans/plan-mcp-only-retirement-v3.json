@@ -1,0 +1,28 @@
+{
+  "contract_version": 1,
+  "id": "plan-mcp-only-retirement",
+  "version": 3,
+  "input_set_id": "inputs-mcp-only-retirement-001",
+  "supersedes": {"id": "plan-mcp-only-retirement", "version": 2},
+  "goals": [{
+    "id": "mcp-only-retirement",
+    "version": 3,
+    "supersedes_version": 2,
+    "title": "Retire live adapters and verify whole-result MCP-only retrieval, historical compatibility and local delivery",
+    "status": "completed",
+    "priority": 1,
+    "input_ids": ["input-mcp-only-owner-approval", "input-mcp-only-baseline", "input-mcp-only-acceptance"],
+    "recovery_attempts": 0,
+    "evidence": [
+      {"path": ".mozak/evidence/mcp-only-retirement/whole-result/observation.md", "sha256": "fa59ca974ffc2be8ea638fe83e3767a96a0ea1590a90847c467440c432776490"},
+      {"path": ".mozak/evidence/mcp-only-retirement/whole-result/SHA256SUMS", "sha256": "18f46803cf8cdb87988f1839dd377cb7908452640feae36fd2120f3fefc3c160"},
+      {"path": ".mozak/evidence/mcp-only-retirement/whole-result/acceptance.json", "sha256": "887725e78b726c75a583a242cad618bd2a9611854d2edc6afbae31445e74ca0b"},
+      {"path": ".mozak/evidence/mcp-only-retirement/whole-result/history-parity-v2.json", "sha256": "f956a5b48dcc781577ea8324f00be2e4e0fdada7fe67543c055e7331315fc5a0"},
+      {"path": ".mozak/evidence/mcp-only-retirement/whole-result/exact-archive-acceptance.json", "sha256": "08ea7cb6a4a455bc7bf9ca575381c291e6ab3d02b93cafb635bf18bfbfea6aa2"},
+      {"path": ".mozak/evidence/mcp-only-retirement/whole-result/installed.json", "sha256": "3afbf5b49c8d12eb284811c1dc43b22c8b3cbf420b72a2d5559dd76e96fd0269"},
+      {"path": ".mozak/evidence/mcp-only-retirement/whole-result/workspace.log", "sha256": "362c39e0f5afc303291a7ea436d1cea1491faf056b93c44c9f1355ea4f2ebf92"}
+    ]
+  }],
+  "dependencies": [],
+  "recovery": {"max_attempts_per_goal": 2, "allowed_failed_transition": "blocked"}
+}

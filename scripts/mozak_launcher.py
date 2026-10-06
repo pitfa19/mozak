@@ -84,7 +84,7 @@ def default_config(build: dict[str, Any]) -> dict[str, Any]:
         "schema_version": 1,
         "repository": build.get("repository", DEFAULT_REPOSITORY),
         "channel": "stable",
-        "auto_update": False,
+        "auto_update": True,
         "check_interval_seconds": DEFAULT_INTERVAL_SECONDS,
         "last_checked_at": 0,
     }
@@ -314,7 +314,10 @@ def rollback(prefix: Path, home: Path) -> int:
     if target.parent != versions:
         raise RuntimeError("previous build link escapes the versions directory")
     build = load_build(target)
-    installer = target / "install.py"
+    # The active installer understands the active managed-file generation.
+    # A predecessor's installer may predate newly shipped files and reject
+    # the active setup report before it can restore the predecessor payload.
+    installer = current_build(prefix) / "install.py"
     result = subprocess.run(
         [sys.executable, str(installer), "--prefix", str(prefix), "--home", str(home), "--activate-existing", build["build_id"]],
         capture_output=True,

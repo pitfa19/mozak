@@ -3,7 +3,7 @@ use mozak_core::{
     concept::{Adoption, Concept, Translation, validate_concept_json, validate_translation},
     execution::{ExecutionBundle, validate_bundle_json},
     planning::{
-        GoalStatus, Plan, PlanningInputSet, next_ready_goals, superseded_by,
+        GOAL_EVIDENCE_ROOT, GoalStatus, Plan, PlanningInputSet, next_ready_goals, superseded_by,
         validate_input_set_json, validate_plan_json,
     },
     planning_archive::{
@@ -69,6 +69,8 @@ pub struct GoalView {
     pub title: String,
     pub status: String,
     pub priority: u32,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub evidence: Vec<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -224,6 +226,7 @@ pub fn snapshot(root: &Path) -> Result<WorkflowSnapshot, String> {
         ("execution".into(), empty_counts()),
         ("release".into(), empty_counts()),
         ("concept".into(), empty_counts()),
+        ("evidence".into(), empty_counts()),
     ]);
 
     let (manifest_valid, idea_valid, revision, mut input_sets) =
@@ -281,6 +284,7 @@ pub fn snapshot(root: &Path) -> Result<WorkflowSnapshot, String> {
                 .get(&plan.input_set_id)
                 .expect("validated plan input set");
             let ready = next_ready_goals(&plan, inputs).map_err(|error| error.to_string())?;
+            verify_goal_evidence(&root, &plan, &mut counts, &mut findings)?;
             (
                 Some(PlanView {
                     path: relative(&root, &path),
@@ -940,8 +944,100 @@ fn goal_views(goals: &[mozak_core::planning::Goal]) -> Vec<GoalView> {
             title: g.title.clone(),
             status: status(g.status).into(),
             priority: g.priority,
+            evidence: g
+                .evidence
+                .iter()
+                .map(|record| record.path.clone())
+                .collect(),
         })
         .collect()
+}
+
+/// Verifies every evidence pin in the latest plan against current bytes, and reports
+/// evidence files that no goal in that plan pins.
+///
+/// A missing or drifted pinned record is invalid: the goal's recorded reason for its
+/// status no longer matches what is on disk. An unpinned file is only `unknown`, so
+/// adopting goal evidence never breaks an existing project; it tells the owner which
+/// records have not been attached to a goal yet.
+fn verify_goal_evidence(
+    root: &Path,
+    plan: &Plan,
+    counts: &mut BTreeMap<String, ArtifactCounts>,
+    findings: &mut Vec<Finding>,
+) -> Result<(), String> {
+    let mut pinned = BTreeSet::new();
+    for goal in &plan.goals {
+        for record in &goal.evidence {
+            recognized(counts, "evidence");
+            let path = root.join(&record.path);
+            pinned.insert(path.clone());
+            let message = match fs::symlink_metadata(&path) {
+                Ok(meta) if meta.file_type().is_file() => match fs::read(&path) {
+                    Ok(bytes) if format!("{:x}", Sha256::digest(&bytes)) == record.sha256 => None,
+                    Ok(_) => Some(format!(
+                        "goal {} evidence digest drifted from its pinned sha256",
+                        goal.id
+                    )),
+                    Err(error) => Some(format!("goal {} evidence unreadable: {error}", goal.id)),
+                },
+                Ok(_) => Some(format!(
+                    "goal {} evidence must be a regular file, not a symlink or directory",
+                    goal.id
+                )),
+                Err(_) => Some(format!("goal {} evidence is missing", goal.id)),
+            };
+            match message {
+                None => valid(counts, "evidence"),
+                Some(message) => {
+                    invalid(counts, "evidence");
+                    evidence_finding(root, &path, "invalid", message, findings);
+                }
+            }
+        }
+    }
+    // One summary finding, not one per file, so a project adopting goal evidence
+    // with many historical records cannot crowd real findings out of the cap.
+    let evidence_root = root.join(GOAL_EVIDENCE_ROOT.trim_end_matches('/'));
+    let unpinned: Vec<PathBuf> = files_under(&evidence_root)?
+        .into_iter()
+        .filter(|path| {
+            let name = path.file_name().and_then(|v| v.to_str()).unwrap_or("");
+            !pinned.contains(path) && !name.eq_ignore_ascii_case("README.md")
+        })
+        .collect();
+    if let Some(first) = unpinned.first() {
+        counts.get_mut("evidence").expect("category").unknown += unpinned.len();
+        evidence_finding(
+            root,
+            &evidence_root,
+            "unknown",
+            format!(
+                "{} evidence record(s) are not pinned by any goal in the latest plan, first: {}",
+                unpinned.len(),
+                relative(root, first)
+            ),
+            findings,
+        );
+    }
+    Ok(())
+}
+
+/// Evidence findings bypass `MAX_FINDINGS`, like superseded-plan findings, so a
+/// drifted closure record is never hidden behind unrelated noise. The count is
+/// bounded by the plan goal limit times `MAX_GOAL_EVIDENCE`, plus one summary.
+fn evidence_finding(
+    root: &Path,
+    path: &Path,
+    status: &str,
+    message: String,
+    findings: &mut Vec<Finding>,
+) {
+    findings.push(Finding {
+        path: relative(root, path),
+        status: status.into(),
+        message,
+    });
 }
 fn status(value: GoalStatus) -> &'static str {
     match value {

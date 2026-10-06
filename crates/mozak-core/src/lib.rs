@@ -22,6 +22,7 @@ pub mod project_contract;
 pub mod project_release;
 pub mod research;
 pub mod scope;
+pub mod tool_evidence;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

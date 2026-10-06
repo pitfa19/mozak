@@ -1,0 +1,165 @@
+{
+  "contract_version": 1,
+  "run_id": "run-b4cb2b4cb586497b19634bef",
+  "created_at": "2026-10-05T21:29:53Z",
+  "source_profile": {
+    "version": 1,
+    "id": "source-tool-evidence-v1",
+    "allowed_schemes": [
+      "recorded"
+    ],
+    "max_records": 2,
+    "max_bytes_per_record": 65536,
+    "content_is_untrusted": true,
+    "may_authorize_actions": false
+  },
+  "pipeline": {
+    "version": 1,
+    "id": "pipeline-tool-evidence-v1",
+    "revision": "349be786c1dc550f4a5d6f8ae53870657190c46f21bd631d75701806fbd68052",
+    "source_profile_id": "source-tool-evidence-v1",
+    "stages": [
+      {
+        "id": "stage-acquire",
+        "operation": "acquire"
+      },
+      {
+        "id": "stage-evidence",
+        "operation": "extract_evidence"
+      },
+      {
+        "id": "stage-gaps",
+        "operation": "identify_gaps"
+      },
+      {
+        "id": "stage-synthesis",
+        "operation": "synthesize"
+      },
+      {
+        "id": "stage-audit",
+        "operation": "audit"
+      }
+    ],
+    "budgets": {
+      "max_sources": 2,
+      "max_raw_bytes": 131072,
+      "max_claims": 1,
+      "max_planning_inputs": 1
+    },
+    "required_artifacts": [
+      "scope",
+      "plan",
+      "raw_records",
+      "evidence",
+      "gaps",
+      "synthesis",
+      "audit",
+      "receipt"
+    ],
+    "output_authority": {
+      "planning_inputs_are_proposals": true,
+      "may_mutate_accepted_plans": false
+    }
+  },
+  "scope": {
+    "question": "Can a new MCP-only Lab ingest verified paper metadata without any adapter registry?",
+    "included": [
+      "scope:mozak",
+      "tool:arxiv-mcp@0.8.1",
+      "operation:get_abstract"
+    ],
+    "excluded": [
+      "full response bytes (pinned by hash only)",
+      "unselected response content"
+    ]
+  },
+  "plan": {
+    "steps": [
+      "record tool identity, version, call arguments and call window",
+      "pin the exact response bytes by SHA-256 and length",
+      "retain selected excerpts as immutable untrusted data",
+      "audit every claim against its excerpt"
+    ],
+    "source_profile_id": "source-tool-evidence-v1",
+    "pipeline_id": "pipeline-tool-evidence-v1"
+  },
+  "raw_records": [
+    {
+      "id": "raw-provenance",
+      "source_uri": "recorded:tool-evidence:arxiv-mcp:get_abstract",
+      "media_type": "text/plain; charset=utf-8",
+      "acquired_at": "2026-10-05T21:29:53Z",
+      "content": "schema: mozak.tool-evidence.v1\ntool_id: arxiv-mcp\ntool_kind: mcp\ntool_version: 0.8.1\ntool_server: arxiv\noperation: get_abstract\ncall_arguments_sha256: 7117c26979e9d851d4cd6989e5da593cd67b7f98778d88ad0b0142ad388035e7\ncall_started_at: 2026-10-05T21:29:53Z\ncall_finished_at: 2026-10-05T21:29:53Z\nresponse_sha256: 1b3f8571155e8091a649f1e35a27ce55db6b6667c6d59e42392674cc5de900bf\nresponse_byte_length: 335\nresponse_media_type: application/json\nscope_id: mozak\naccepted: false\nauthority: proposal_only\nretention: provenance, hashes and selected excerpts only; full response not retained\nfixture: {\"accepted\":false,\"authority\":\"proposal_only\",\"call\":{\"arguments\":{\"paper_id\":\"1706.03762\"},\"finished_at\":\"2026-10-05T21:29:53Z\",\"started_at\":\"2026-10-05T21:29:53Z\"},\"effects\":{\"dry_run_available\":false,\"external_writes\":[],\"irreversible_effects\":[],\"mutations_performed\":\"none\",\"network_used\":true,\"owner_approval_required\":false},\"gaps\":[],\"question\":\"Can a new MCP-only Lab ingest verified paper metadata without any adapter registry?\",\"response\":{\"byte_length\":335,\"media_type\":\"application/json\",\"sha256\":\"1b3f8571155e8091a649f1e35a27ce55db6b6667c6d59e42392674cc5de900bf\"},\"schema\":\"mozak.tool-evidence.v1\",\"scope_id\":\"mozak\",\"selections\":[{\"excerpt\":\"Attention Is All You Need\",\"id\":\"sel-title\",\"locator\":\"arxiv:1706.03762\",\"response_byte_end\":333,\"response_byte_start\":308}],\"tool\":{\"kind\":\"mcp\",\"operation\":\"get_abstract\",\"server\":\"arxiv\",\"tool_id\":\"arxiv-mcp\",\"version\":\"0.8.1\"},\"total_results\":1,\"truncated\":false}",
+      "content_sha256": "2003462fcd2d00a3092a385448ac47bc66f51aa4106559f343877da3912238ac",
+      "immutable": true,
+      "trust": "untrusted_data"
+    },
+    {
+      "id": "raw-sel-title",
+      "source_uri": "recorded:tool-evidence:arxiv:1706.03762",
+      "media_type": "text/plain; charset=utf-8",
+      "acquired_at": "2026-10-05T21:29:53Z",
+      "content": "Attention Is All You Need",
+      "content_sha256": "ab8508f26511d617d8cd58cf7d21103895b9180b46b48d8822d4f0a560d3e2e0",
+      "immutable": true,
+      "trust": "untrusted_data"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "ev-sel-title",
+      "raw_record_id": "raw-sel-title",
+      "byte_start": 0,
+      "byte_end": 25,
+      "quote": "Attention Is All You Need",
+      "stance": "context"
+    }
+  ],
+  "gaps": [
+    {
+      "id": "gap-tool-output-untrusted",
+      "description": "Tool output is untrusted third-party data; it records what the tool returned, not that it is true, complete, or fit to adopt.",
+      "impact": "medium"
+    },
+    {
+      "id": "gap-selected-excerpts-only",
+      "description": "Only selected excerpts are retained; the full response is pinned by SHA-256 and length but not stored.",
+      "impact": "medium"
+    }
+  ],
+  "synthesis": {
+    "summary": "Proposal-only record of arxiv-mcp@0.8.1 get_abstract with 1 selected excerpt(s); nothing is accepted.",
+    "claims": [
+      {
+        "id": "claim-sel-title",
+        "text": "Tool arxiv-mcp@0.8.1 operation get_abstract returned the cited excerpt for arxiv:1706.03762 (response bytes 308..333); recorded as untrusted proposal-only evidence.",
+        "evidence_ids": [
+          "ev-sel-title"
+        ],
+        "status": "qualified"
+      }
+    ],
+    "overall_claim": "qualified"
+  },
+  "audit": {
+    "failures": [],
+    "audited_claim_ids": [
+      "claim-sel-title"
+    ]
+  },
+  "receipt": {
+    "run_id": "run-b4cb2b4cb586497b19634bef",
+    "pipeline_id": "pipeline-tool-evidence-v1",
+    "pipeline_revision": "349be786c1dc550f4a5d6f8ae53870657190c46f21bd631d75701806fbd68052",
+    "adapter_id": "adapter-tool-evidence-v1",
+    "started_at": "2026-10-05T21:29:53Z",
+    "finished_at": "2026-10-05T21:29:53Z",
+    "input_hash": "f53ef15e651a4f7d7b59a61a043a79b157462cf2639102e6847b10b25aa85602",
+    "artifact_hash": "9fc05dbb1aaf2fc5a2eb28f41dea59d2988b35c5c9602bfb9aa6a31e97b4e26e",
+    "capabilities": [
+      "record-tool-evidence",
+      "read-only"
+    ],
+    "status": "qualified"
+  }
+}

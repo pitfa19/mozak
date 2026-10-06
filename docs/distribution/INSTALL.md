@@ -34,8 +34,11 @@ tar -xzf mozak-<build-id>-linux-x86_64.tar.gz
 mozak setup check "$HOME"
 ```
 
-This leaves automatic updates disabled unless you pass
-`--enable-auto --channel stable|main`.
+Fresh installs enable automatic stable updates by default. Pass `--disable-auto`
+to the archive installer or `--no-auto-update` to the GitHub bootstrap to opt out.
+Archive updates and bootstrap reinstalls preserve an existing preference unless
+you explicitly override it.
+Checks run on CLI startup at most once every 24 hours; MCP startup does not check.
 
 `mozak doctor "$HOME"` additionally checks the external `termaid` graph
 renderer. It exits `2` when Termaid is absent even though the installed CLI,

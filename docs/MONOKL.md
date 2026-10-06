@@ -1,74 +1,30 @@
-# MONOKL research adapter
+# MONOKL adapter (retired, historical)
 
-MONOKL performs research through its Jcode-native workflow. MOZAK records a bounded snapshot of the finished local vault as proposal-only evidence.
+MOZAK no longer runs a MONOKL adapter. New deep research goes through the
+`deep-research` use case: your agent host calls `firecrawl-mcp` (and
+optionally `fetch-mcp` or `arxiv-mcp`), and MOZAK records each call with
+`mozak research record-tool`. See the
+[tool-stack guide](TOOL-STACK.md#deep-research-deep-research).
 
-## Boundary
+That MCP path is not the MONOKL workflow and does not reproduce its vault or
+pipeline. Report which steps you actually ran.
 
-The adapter:
+MONOKL remains its own Jcode workflow and can still be used on its own. MOZAK
+no longer binds it or snapshots its vault.
 
-- reads an initialized local MONOKL vault only
-- performs no network access
-- retains note identity, source, provenance, metadata, and content hashes
-- does not retain note bodies
-- treats every vault note as untrusted external data
-- never accepts or promotes evidence automatically
+## Already-recorded MONOKL runs
 
-MONOKL preserves the HyperResearch-compatible vault layout, including `.hyperresearch/` and `research/` directories. The adapter uses the distinct identities `adapter-monokl-v1`, `pipeline-monokl-v1`, and `source-monokl-v1`.
+Runs recorded before the retirement keep their identities
+(`adapter-monokl-v1`, `pipeline-monokl-v1`, `source-monokl-v1`) and stay valid:
 
-## Initialize a vault
+- `mozak research validate RUN_JSON` validates a recorded run.
+- `mozak research normalize monokl FIXTURE_JSON RUN_JSON` re-derives a run from
+  an already-recorded fixture, offline. It is for historical fixtures only and
+  retrieves nothing.
+- `project current`, `project browse`, and `project why` show these runs with
+  `historical` freshness and `callable: false`.
 
-```bash
-monokl init ~/Documents/research-vaults/monokl \
-  --name "MONOKL Research Vault" --json
-```
-
-Run MONOKL research from that vault using the `/monokl` Jcode workflow. The vault must contain at least one matching note before it can produce a MOZAK run.
-
-## Request
-
-```json
-{
-  "schema_version": 1,
-  "scope_id": "monokl",
-  "vault_root": "/home/pitfa/Documents/research-vaults/monokl",
-  "select": {
-    "note_ids": [],
-    "tags": []
-  },
-  "max_records": 50,
-  "question": "Which sources did MONOKL gather for owner review?"
-}
-```
-
-An empty selector snapshots the bounded vault contents. `note_ids` and `tags` can narrow the selection. Truncation is recorded as a high-impact gap.
-
-## Register a binding
-
-Use a MOZAK build whose adapter catalog includes `monokl`:
-
-```bash
-mozak adapter setup monokl monokl-research monokl \
-  .mozak/adapters/requests/monokl-research.json \
-  scripts/adapters/monokl_run.sh \
-  ~/Documents/mozak-kb/runs/monokl-research
-```
-
-Setup pins the request and runner hashes. Editing either moves the binding to `needs_recheck`. Retargeting the Scope requires a new binding rather than recheck.
-
-## Run and validate
-
-```bash
-mozak adapter run monokl-research
-mozak research validate \
-  ~/Documents/mozak-kb/runs/monokl-research/<date>/run.json
-```
-
-The runner refuses to overwrite an existing date. An empty vault produces no run. A successful run contains immutable recorded data and remains `proposal_only` until the owner separately accepts an input.
-
-## Health check
-
-```bash
-scripts/adapters/monokl_check.sh
-```
-
-This checks the MONOKL CLI, vault configuration, and MOZAK adapter support separately so failures remain attributable.
+Those runs retained note identity, source, provenance, metadata, and content
+hashes, never note bodies, and treated every vault note as untrusted external
+data. Do not delete, rewrite, or re-pin them. They remain proposal-only until
+the owner accepts an input.

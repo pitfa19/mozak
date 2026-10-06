@@ -564,10 +564,10 @@ fn current_document_with_full_state(id: &str) -> Result<CurrentDocument, String>
 
     let mut research_views = Vec::new();
     if let Some((registry, _)) = &adapter_registry {
+        // Adapter execution is retired. A binding is now only a historical
+        // pointer to where its recorded runs live, so pin drift or a deleted
+        // runner must never hide evidence that was already recorded.
         for binding in &registry.bindings {
-            if !adapter_binding_callable(binding) {
-                continue;
-            }
             for (path, run, stale) in validated_runs_in(Path::new(&binding.runs_dir))? {
                 let bytes = fs::read(&path).map_err(|e| format!("cannot read run: {e}"))?;
                 let freshness = if stale {
@@ -1365,6 +1365,9 @@ pub fn notes_scope(id: &str, args: &[String]) -> Result<ExitCode, String> {
     )
 }
 
+// Proposal assembly is a single read-validate-write workflow; splitting it would
+// scatter the drift checks from the bytes they pin.
+#[allow(clippy::too_many_lines)]
 pub fn notes_onboard_propose(output: &Path) -> Result<ExitCode, String> {
     let (_config, config_sha256, kb, kb_drift) = load_drift_free_kb()?;
     if kb_drift {
@@ -1771,16 +1774,15 @@ fn validate_notes_onboard_approval(
     Ok(())
 }
 
+type NotesOnboardLiveState = (
+    BTreeMap<String, PathBuf>,
+    BTreeMap<String, RegisteredNoteScope>,
+);
+
 fn validate_notes_onboard_live_state(
     proposal: &NotesOnboardProposal,
     approval: &NotesOnboardApproval,
-) -> Result<
-    (
-        BTreeMap<String, PathBuf>,
-        BTreeMap<String, RegisteredNoteScope>,
-    ),
-    String,
-> {
+) -> Result<NotesOnboardLiveState, String> {
     let (config, config_sha256, kb, kb_drift) = load_drift_free_kb()?;
     let configured_owner = config
         .configured_owner
@@ -1998,7 +2000,7 @@ fn scan_onboard_directory(
         .map_err(|error| format!("cannot read notes directory: {error}"))?
         .collect::<Result<Vec<_>, _>>()
         .map_err(|error| format!("cannot inspect notes entry: {error}"))?;
-    entries.sort_by_key(|entry| entry.file_name());
+    entries.sort_by_key(fs::DirEntry::file_name);
     for entry in entries {
         let file_name = entry.file_name();
         if file_name.to_string_lossy().starts_with('.') {
@@ -2365,7 +2367,7 @@ pub fn project_notes(id: &str, args: &[String]) -> Result<ExitCode, String> {
     notes_for_scopes(
         "project notes",
         Some(
-            serde_json::json!({"id": configured.id, "name": configured.name, "root": configured.root}),
+            &serde_json::json!({"id": configured.id, "name": configured.name, "root": configured.root}),
         ),
         None,
         &config,
@@ -2402,7 +2404,7 @@ pub fn meta_goal_notes(id: &str, args: &[String]) -> Result<ExitCode, String> {
     notes_for_scopes(
         "notes meta-goal",
         None,
-        Some(serde_json::json!({"id": id})),
+        Some(&serde_json::json!({"id": id})),
         &config,
         &config_sha256,
         &kb.registry_sha256,
@@ -2427,11 +2429,12 @@ fn load_drift_free_kb() -> Result<(LocalConfig, String, mozak_core::kb::Validate
     Ok((config, hash(&bytes), kb, drift))
 }
 
-#[allow(clippy::too_many_arguments)]
+// One bounded read-validate-scan-page workflow shared by three entry points.
+#[allow(clippy::too_many_arguments, clippy::too_many_lines)]
 fn notes_for_scopes(
     command: &str,
-    project: Option<Value>,
-    meta_goal: Option<Value>,
+    project: Option<&Value>,
+    meta_goal: Option<&Value>,
     config: &LocalConfig,
     config_sha256: &str,
     current_kb_sha256: &str,
@@ -2498,7 +2501,7 @@ fn notes_for_scopes(
                     let prefix_path = safe_note_relative(prefix)?;
                     let start = root.join(&prefix_path);
                     scan_notes(
-                        &root,
+                        root,
                         &start,
                         &scope_id,
                         &relationship,
@@ -2604,7 +2607,7 @@ fn notes_inline_count(
                 for prefix in &link.safe_relative_path_prefixes {
                     let start = root.join(safe_note_relative(prefix)?);
                     scan_notes(
-                        &root,
+                        root,
                         &start,
                         &scope_id,
                         "summary_count",
@@ -2766,6 +2769,8 @@ fn safe_note_relative(value: &str) -> Result<PathBuf, String> {
     Ok(out)
 }
 
+// Recursive scan threads its shared accumulators and scan ceiling explicitly.
+#[allow(clippy::too_many_arguments)]
 fn scan_notes(
     root: &Path,
     start: &Path,
@@ -2889,7 +2894,7 @@ fn maybe_add_note(
 fn streaming_sha256_file(path: &Path) -> Result<String, String> {
     let mut file = fs::File::open(path).map_err(|e| format!("cannot open mapped note: {e}"))?;
     let mut digest = Sha256::new();
-    let mut buffer = [0u8; 64 * 1024];
+    let mut buffer = vec![0u8; 64 * 1024].into_boxed_slice();
     loop {
         let read = file
             .read(&mut buffer)
@@ -2947,26 +2952,13 @@ fn adapter_registry_path() -> Result<PathBuf, String> {
     Ok(base.join("mozak/adapters.json"))
 }
 
+/// Historical view of one configured adapter binding.
+///
+/// Retrieval is MCP-only, so no binding is callable. The view reports where the
+/// binding's recorded runs live and how fresh they are. Pin drift, including a
+/// deleted runner or request, is reported as information and never hides runs.
 fn binding_current_view(binding: &mozak_core::adapter::AdapterBinding) -> Result<Value, String> {
-    let drifted = drifted_adapter_pins(binding);
-    let callable = drifted.is_empty();
-    if !callable {
-        return Ok(serde_json::json!({
-            "binding_id": binding.id,
-            "adapter": binding.adapter,
-            "target_scope_id": binding.target_scope_id,
-            "runs_dir": binding.runs_dir,
-            "latest_recorded": Value::Null,
-            "latest_observed": Value::Null,
-            "accepted": false,
-            "freshness": "needs_recheck",
-            "state": "needs_recheck",
-            "callable": false,
-            "drifted": drifted,
-            "stale_run_count": 0,
-            "authority": "owner_configured_needs_recheck"
-        }));
-    }
+    let pin_drift = drifted_adapter_pins(binding);
     let runs = validated_runs_in(Path::new(&binding.runs_dir))?;
     let newest = runs.iter().find(|(_, _, stale)| !*stale);
     Ok(serde_json::json!({
@@ -2978,16 +2970,12 @@ fn binding_current_view(binding: &mozak_core::adapter::AdapterBinding) -> Result
         "latest_observed": newest.and_then(|(path, _, _)| path.metadata().ok()).and_then(|m| m.modified().ok()).and_then(system_time_text),
         "accepted": false,
         "freshness": if newest.is_some() {"current"} else {"not_observed"},
-        "state": "ready",
-        "callable": true,
-        "drifted": [],
+        "state": "historical",
+        "callable": false,
+        "pin_drift": pin_drift,
         "stale_run_count": runs.iter().filter(|(_, _, stale)| *stale).count(),
-        "authority": "owner_configured_callable"
+        "authority": "historical_record"
     }))
-}
-
-fn adapter_binding_callable(binding: &mozak_core::adapter::AdapterBinding) -> bool {
-    drifted_adapter_pins(binding).is_empty()
 }
 
 fn drifted_adapter_pins(binding: &mozak_core::adapter::AdapterBinding) -> Vec<Value> {
@@ -3644,6 +3632,8 @@ fn knowledge_matches(
     Ok((scopes, packages))
 }
 
+// Linked-scope resolution walks project, meta-goal, and scope links in one pass.
+#[allow(clippy::too_many_lines)]
 fn knowledge_linked_scopes(
     kb: &mozak_core::kb::ValidatedKb,
     project_id: &str,
@@ -4661,6 +4651,14 @@ fn path_text(path: &Path) -> Result<String, String> {
     Ok(value.to_owned())
 }
 
+fn shell_path(path: &Path) -> String {
+    shell_arg(&path.to_string_lossy())
+}
+
+fn shell_arg(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "'\\''"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -4688,11 +4686,4 @@ mod tests {
         assert!(finish_notes_lock(Ok(()), lock_file, &lock).is_ok());
         fs::remove_dir_all(root).unwrap();
     }
-}
-fn shell_path(path: &Path) -> String {
-    shell_arg(&path.to_string_lossy())
-}
-
-fn shell_arg(value: &str) -> String {
-    format!("'{}'", value.replace('\'', "'\\''"))
 }

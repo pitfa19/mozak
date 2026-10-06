@@ -1,15 +1,19 @@
 //! Planning-only Self Improvement Lab commands.
 //!
-//! The Lab reads MOZAK's adapter registry, records an auditable improvement
-//! run, and stops at owner review. It never edits MOZAK during a run; a separate
+//! A new Lab run selects shipped-catalog MCP tool ids and ingests only
+//! validated, proposal-only MCP tool evidence recorded by
+//! `mozak research record-tool`. No adapter registry is read and no adapter is
+//! launched. Runs recorded before adapters were retired stay readable, but
+//! cannot ingest new literature. The Lab records an auditable improvement run
+//! and stops at owner review. It never edits MOZAK during a run; a separate
 //! strict owner approval can materialize a versioned explanatory skill directory.
 
 use mozak_core::lab::{
-    CONTRACT_VERSION, Candidate, GroupDefinition, GroupSkill, GroupSkillApproval,
-    GroupSkillManifest, GroupSynthesis, ImplementationPlans, ImproveRequest, LiteratureRun,
-    MechanismMap, Module, Readings, RunLedger, RunState, Selection, SourceInventory, advance,
-    classify_candidates, render_review, validate_group_definition, validate_group_skill,
-    validate_group_skill_approval, validate_group_synthesis, validate_literature,
+    CONTRACT_VERSION, GroupDefinition, GroupSkill, GroupSkillApproval, GroupSkillManifest,
+    GroupSynthesis, ImplementationPlans, ImproveRequest, LiteratureRun, MechanismMap, Module,
+    Readings, RunLedger, RunState, Selection, SourceInventory, advance,
+    literature_from_tool_evidence, render_review, validate_group_definition, validate_group_skill,
+    validate_group_skill_approval, validate_group_synthesis, validate_literature_for_request,
     validate_mechanisms, validate_plans, validate_readings, validate_request, validate_selection,
     validate_source_inventory,
 };
@@ -77,16 +81,19 @@ pub fn run(args: &[String]) -> Result<ExitCode, String> {
         .as_slice()
     {
         ["modules"] => modules(),
-        ["start", run_dir, scope_id, module, question, bindings @ ..] if !bindings.is_empty() => {
+        ["start", run_dir, scope_id, module, question, tool_ids @ ..] if !tool_ids.is_empty() => {
             start(
                 Path::new(run_dir),
                 scope_id,
                 module,
                 question,
-                &bindings.iter().map(|b| (*b).to_owned()).collect::<Vec<_>>(),
+                &tool_ids.iter().map(|b| (*b).to_owned()).collect::<Vec<_>>(),
             )
         }
-        ["refresh", run_dir, adapter_run] => refresh(Path::new(run_dir), Path::new(adapter_run)),
+        ["refresh", run_dir, evidence_runs @ ..] if !evidence_runs.is_empty() => refresh(
+            Path::new(run_dir),
+            &evidence_runs.iter().map(Path::new).collect::<Vec<_>>(),
+        ),
         ["select", run_dir, selection] => select(Path::new(run_dir), Path::new(selection)),
         ["read", run_dir, readings] => read_papers(Path::new(run_dir), Path::new(readings)),
         ["mechanisms", run_dir, map] => mechanisms(Path::new(run_dir), Path::new(map)),
@@ -1092,7 +1099,7 @@ fn start(
     scope_id: &str,
     module: &str,
     question: &str,
-    bindings: &[String],
+    tool_ids: &[String],
 ) -> Result<ExitCode, String> {
     let module = Module::parse(module).map_err(|error| error.to_string())?;
     if run_dir.join(LEDGER_FILE).exists() {
@@ -1101,14 +1108,10 @@ fn start(
             display(run_dir)
         ));
     }
-    let registry = registry_bindings()?;
-    for binding in bindings {
-        if !registry.contains(binding) {
-            return Err(format!(
-                "unknown adapter binding '{binding}'; run `mozak adapter list`"
-            ));
-        }
-    }
+    // Catalog-only: legacy adapter binding ids are not MCP catalog ids, so
+    // they are refused here, and no adapter registry is consulted.
+    crate::stack_workflow::validate_mcp_tool_ids(tool_ids)
+        .map_err(|error| format!("{error}; `mozak lab start` takes shipped-catalog MCP tool ids (see `mozak stack catalog`)"))?;
     let created_at = timestamp();
     let run_id = run_id(scope_id, module.as_str(), question, &created_at);
     let request = ImproveRequest {
@@ -1121,7 +1124,8 @@ fn start(
             "planning only; no MOZAK code changes".to_owned(),
             "full text is temporary; retain hashes and claims only".to_owned(),
         ],
-        adapter_bindings: bindings.to_vec(),
+        adapter_bindings: Vec::new(),
+        tool_ids: tool_ids.to_vec(),
         stop_at: RunState::OwnerReviewed,
         created_at: created_at.clone(),
         // The actor that runs the CLI authors the run. Absent a second actor,
@@ -1190,7 +1194,7 @@ fn start(
         "module": module.as_str(),
         "state": ledger.state.as_str(),
         "stop_at": ledger.stop_at.as_str(),
-        "adapter_bindings": bindings,
+        "tool_ids": tool_ids,
         "performed_by": request.performed_by,
         "evaluated_by": request.evaluated_by,
         "acceptance": request.acceptance.map(mozak_core::lab::AcceptanceKind::as_str),
@@ -1233,48 +1237,33 @@ fn set_objective(run_dir: &Path, objective_path: &Path) -> Result<ExitCode, Stri
     }))
 }
 
-/// Ingests a validated adapter run as this run's literature refresh.
-fn refresh(run_dir: &Path, adapter_run: &Path) -> Result<ExitCode, String> {
+/// Ingests validated MCP tool-evidence runs as this run's literature refresh.
+///
+/// Only runs written by `mozak research record-tool` for an MCP tool this run
+/// declared, on this run's Scope, are accepted. Legacy adapter research runs
+/// are refused, and a historical adapter-bound run cannot refresh at all.
+fn refresh(run_dir: &Path, evidence_runs: &[&Path]) -> Result<ExitCode, String> {
     let mut ledger: RunLedger = read_json(&run_dir.join(LEDGER_FILE))?;
     require_state(&ledger, RunState::LiteratureRefreshed)?;
     let request: ImproveRequest = read_json(&run_dir.join(REQUEST_FILE))?;
-    let raw = read(adapter_run)?;
-    let research = mozak_core::research::validate_run_json(&raw)
-        .map_err(|error| format!("adapter run is not a valid research run: {error}"))?;
-
-    let candidates = research
-        .raw_records
-        .iter()
-        .enumerate()
-        .map(|(index, record)| Candidate {
-            paper_id: format!("paper-{index:04}"),
-            title: first_line(&record.content),
-            source_uri: record.source_uri.clone(),
-            content_sha256: record.content_sha256.clone(),
-            clusters: field(&record.content, "clusters"),
-        })
-        .collect::<Vec<_>>();
-
-    let (new_candidates, unchanged_candidates) = classify_candidates(&mut ledger, &candidates);
-    let literature = LiteratureRun {
-        contract_version: CONTRACT_VERSION,
-        run_id: request.run_id.clone(),
-        adapter_runs: vec![mozak_core::lab::AdapterRunRef {
-            binding_id: request
-                .adapter_bindings
-                .first()
-                .cloned()
-                .unwrap_or_default(),
-            adapter_id: research.receipt.adapter_id.clone(),
-            adapter_run_id: research.run_id.clone(),
-            artifact_hash: research.receipt.artifact_hash.clone(),
-            source_revision: source_revision(&research),
-        }],
-        candidates,
-        new_candidates,
-        unchanged_candidates,
-    };
-    validate_literature(&literature).map_err(|error| error.to_string())?;
+    require_request_matches_ledger(&request, &ledger)?;
+    if request.is_historical_adapter_run() {
+        return Err(
+            "this run predates MCP-only retrieval and names adapter bindings; it stays readable but cannot ingest new literature. Start a new run with catalog MCP tool ids".to_owned(),
+        );
+    }
+    // The catalog may have changed since start; a tool no longer shipped as
+    // an MCP server cannot feed a fresh refresh.
+    crate::stack_workflow::validate_mcp_tool_ids(&request.tool_ids)?;
+    let mut runs = Vec::new();
+    for path in evidence_runs {
+        let raw = read(path)?;
+        let research = mozak_core::research::validate_run_json(&raw)
+            .map_err(|error| format!("{} is not a valid research run: {error}", path.display()))?;
+        runs.push(research);
+    }
+    let literature = literature_from_tool_evidence(&request, &mut ledger, &runs)
+        .map_err(|error| error.to_string())?;
     advance(
         &mut ledger,
         RunState::LiteratureRefreshed,
@@ -1297,11 +1286,47 @@ fn refresh(run_dir: &Path, adapter_run: &Path) -> Result<ExitCode, String> {
     }))
 }
 
+/// Refuses a request that does not belong to this ledger, so a swapped
+/// request file cannot redirect which tools or Scope a refresh accepts.
+fn require_request_matches_ledger(
+    request: &ImproveRequest,
+    ledger: &RunLedger,
+) -> Result<(), String> {
+    validate_request(request).map_err(|error| error.to_string())?;
+    let expected = mozak_core::canonical_hash(request).map_err(|error| error.to_string())?;
+    let recorded = ledger
+        .transitions
+        .first()
+        .filter(|transition| transition.state == RunState::Requested)
+        .map(|transition| transition.input_hash.as_str());
+    if request.run_id != ledger.run_id
+        || request.scope_id != ledger.scope_id
+        || request.module != ledger.module
+    {
+        return Err("improve request does not match this run's ledger".to_owned());
+    }
+    // An objective may be added after start, which changes the request hash;
+    // compare the request as recorded at start, without that boundary.
+    let at_start = ImproveRequest {
+        scope_boundary: None,
+        ..request.clone()
+    };
+    let at_start_hash = mozak_core::canonical_hash(&at_start).map_err(|error| error.to_string())?;
+    if recorded != Some(expected.as_str()) && recorded != Some(at_start_hash.as_str()) {
+        return Err(
+            "improve request hash does not match the hash recorded when the run started".to_owned(),
+        );
+    }
+    Ok(())
+}
+
 /// Records which candidates will be read, with reasons for both sides.
 fn select(run_dir: &Path, selection_path: &Path) -> Result<ExitCode, String> {
     let mut ledger: RunLedger = read_json(&run_dir.join(LEDGER_FILE))?;
     require_state(&ledger, RunState::PapersSelected)?;
     let literature: LiteratureRun = read_json(&run_dir.join(LITERATURE_FILE))?;
+    let request: ImproveRequest = read_json(&run_dir.join(REQUEST_FILE))?;
+    validate_literature_for_request(&literature, &request).map_err(|error| error.to_string())?;
     let selection: Selection = read_json(selection_path)?;
     validate_selection(&selection, &literature).map_err(|error| error.to_string())?;
     advance(
@@ -1635,61 +1660,6 @@ fn status(run_dir: &Path) -> Result<ExitCode, String> {
         "tracked_sources": ledger.seen_sources.len(),
         "acceptance": acceptance.map(mozak_core::lab::AcceptanceKind::as_str),
     }))
-}
-
-fn registry_bindings() -> Result<Vec<String>, String> {
-    let path = registry_path()?;
-    let Ok(raw) = fs::read_to_string(&path) else {
-        return Ok(Vec::new());
-    };
-    let value: serde_json::Value =
-        serde_json::from_str(&raw).map_err(|error| format!("invalid adapter registry: {error}"))?;
-    Ok(value
-        .get("bindings")
-        .and_then(serde_json::Value::as_array)
-        .map(|bindings| {
-            bindings
-                .iter()
-                .filter_map(|binding| {
-                    binding
-                        .get("id")
-                        .and_then(serde_json::Value::as_str)
-                        .map(ToOwned::to_owned)
-                })
-                .collect()
-        })
-        .unwrap_or_default())
-}
-
-fn registry_path() -> Result<PathBuf, String> {
-    let home = env::var("HOME").map_err(|_| "HOME is not set".to_owned())?;
-    Ok(PathBuf::from(home).join(".config/mozak/adapters.json"))
-}
-
-fn source_revision(run: &mozak_core::research::ResearchRun) -> String {
-    run.raw_records
-        .first()
-        .and_then(|record| field(&record.content, "source_revision").first().cloned())
-        .unwrap_or_else(|| "unrecorded".to_owned())
-}
-
-fn first_line(content: &str) -> String {
-    content.lines().next().unwrap_or_default().trim().to_owned()
-}
-
-fn field(content: &str, key: &str) -> Vec<String> {
-    let prefix = format!("{key}:");
-    content
-        .lines()
-        .find(|line| line.starts_with(&prefix))
-        .map(|line| {
-            line[prefix.len()..]
-                .split(',')
-                .map(|value| value.trim().to_owned())
-                .filter(|value| !value.is_empty())
-                .collect()
-        })
-        .unwrap_or_default()
 }
 
 fn run_id(scope_id: &str, module: &str, question: &str, created_at: &str) -> String {

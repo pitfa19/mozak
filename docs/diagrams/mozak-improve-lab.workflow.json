@@ -181,12 +181,12 @@
       "width": 190
     },
     {
-      "id": "adapter",
+      "id": "mcp-evidence",
       "lane": "evidence",
       "col": 0,
       "type": "cloud",
-      "label": "Adapter run",
-      "sublabel": "network outside MOZAK",
+      "label": "MCP evidence",
+      "sublabel": "host call, recorded",
       "width": 132
     },
     {
@@ -257,7 +257,7 @@
     },
     {
       "id": "ingest",
-      "from": "adapter",
+      "from": "mcp-evidence",
       "to": "refresh",
       "label": "recorded run",
       "variant": "default"

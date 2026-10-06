@@ -155,6 +155,25 @@ pub struct Goal {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub supersedes_version: Option<u64>,
     pub recovery_attempts: u32,
+    /// Hash-pinned records explaining why this goal version reached its status.
+    ///
+    /// Closure, acceptance, audit, and handoff records belong to the goal, not to the
+    /// project's user documentation. Each path is relative to the project root and must
+    /// live under [`GOAL_EVIDENCE_ROOT`], so evidence never leaks into product docs.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub evidence: Vec<GoalEvidence>,
+}
+
+/// Project-relative directory that owns goal evidence records.
+pub const GOAL_EVIDENCE_ROOT: &str = ".mozak/evidence/";
+pub const MAX_GOAL_EVIDENCE: usize = 32;
+
+/// One hash-pinned evidence record attached to a goal version.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct GoalEvidence {
+    pub path: String,
+    pub sha256: String,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -469,6 +488,7 @@ pub fn validate_plan(plan: &Plan, inputs: &PlanningInputSet) -> Result<(), Plann
                 "goal versions must be consecutive",
             )?,
         }
+        validate_goal_evidence(&goal.evidence)?;
     }
 
     let mut edge_keys = BTreeSet::new();
@@ -757,6 +777,51 @@ fn reject_cycles<'a>(
     let mut visited = BTreeSet::new();
     for goal in goals {
         visit(goal, adjacency, &mut visiting, &mut visited)?;
+    }
+    Ok(())
+}
+
+/// Validates the shape of goal evidence pins without touching the filesystem.
+///
+/// Byte-level digest verification needs the project root and happens in the
+/// read-only overview, which fails closed on a missing or drifted record.
+///
+/// # Errors
+/// Returns an error for too many records, unsafe or misplaced paths, duplicate
+/// paths, or a digest that is not lowercase hexadecimal SHA-256.
+pub fn validate_goal_evidence(evidence: &[GoalEvidence]) -> Result<(), PlanningError> {
+    require(
+        evidence.len() <= MAX_GOAL_EVIDENCE,
+        "too many goal evidence records",
+    )?;
+    let mut seen = BTreeSet::new();
+    for record in evidence {
+        nonempty(&record.path, "goal evidence path")?;
+        require(
+            record.path.starts_with(GOAL_EVIDENCE_ROOT)
+                && record.path.len() > GOAL_EVIDENCE_ROOT.len(),
+            "goal evidence must live under .mozak/evidence/",
+        )?;
+        require(
+            !record.path.contains('\\')
+                && record
+                    .path
+                    .split('/')
+                    .all(|part| !part.is_empty() && part != "." && part != ".."),
+            "goal evidence path contains unsafe components",
+        )?;
+        require(
+            record.sha256.len() == 64
+                && record
+                    .sha256
+                    .bytes()
+                    .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)),
+            "goal evidence sha256 must be 64 lowercase hex characters",
+        )?;
+        require(
+            seen.insert(record.path.as_str()),
+            "duplicate goal evidence path",
+        )?;
     }
     Ok(())
 }

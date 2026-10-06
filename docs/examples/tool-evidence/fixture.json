@@ -1,0 +1,44 @@
+{
+  "schema": "mozak.tool-evidence.v1",
+  "scope_id": "topic-agentic-systems",
+  "question": "Which recent papers discuss agent memory?",
+  "tool": {
+    "tool_id": "arxiv-mcp",
+    "kind": "mcp",
+    "version": "0.8.1",
+    "operation": "search_papers",
+    "server": "arxiv"
+  },
+  "call": {
+    "arguments": {"query": "agent memory", "max_results": 1},
+    "started_at": "2026-10-05T18:00:00Z",
+    "finished_at": "2026-10-05T18:00:02Z"
+  },
+  "effects": {
+    "network_used": true,
+    "external_writes": [],
+    "mutations_performed": "none",
+    "irreversible_effects": [],
+    "dry_run_available": true,
+    "owner_approval_required": false
+  },
+  "response": {
+    "sha256": "043a056ec4f82cadc12195b3490ef3b79852ce2c8b0e9e7bca2ed786f596f2e3",
+    "byte_length": 63,
+    "media_type": "application/json"
+  },
+  "selections": [
+    {
+      "id": "sel-0001",
+      "locator": "arxiv:2501.00001",
+      "response_byte_start": 39,
+      "response_byte_end": 58,
+      "excerpt": "Example paper title"
+    }
+  ],
+  "total_results": 1,
+  "truncated": false,
+  "gaps": [],
+  "accepted": false,
+  "authority": "proposal_only"
+}

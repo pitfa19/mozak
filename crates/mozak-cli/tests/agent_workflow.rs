@@ -512,3 +512,92 @@ fn mermaid_uses_distinct_nodes_for_textually_colliding_goal_ids() {
     assert_eq!(graph.matches("[\"a-b:").count(), 1);
     assert_eq!(graph.matches("[\"a_b:").count(), 1);
 }
+
+#[test]
+fn goal_evidence_is_pinned_verified_and_unpinned_records_are_reported() {
+    let root = setup();
+    let evidence_dir = root.0.join(".mozak/evidence/foundation");
+    fs::create_dir_all(&evidence_dir).unwrap();
+    let record = b"# Foundation closure\n\nObserved: shared DAG validates.\n";
+    fs::write(evidence_dir.join("closure.md"), record).unwrap();
+    fs::write(evidence_dir.join("stray.md"), b"not pinned\n").unwrap();
+    fs::write(root.0.join(".mozak/evidence/README.md"), b"index\n").unwrap();
+    let plan_path = root.0.join(".mozak/planning/plans/plan-v1.json");
+    let mut plan = read_json(&plan_path);
+    plan["goals"][0]["evidence"] = serde_json::json!([{
+        "path": ".mozak/evidence/foundation/closure.md",
+        "sha256": format!("{:x}", Sha256::digest(record)),
+    }]);
+    write_json(&plan_path, &plan);
+
+    let overview: Value = serde_json::from_slice(&run(&root.0).stdout).unwrap();
+    assert_eq!(overview["state"], "valid", "{overview}");
+    assert_eq!(overview["goals"][0]["id"], "foundation");
+    assert_eq!(
+        overview["goals"][0]["evidence"],
+        serde_json::json!([".mozak/evidence/foundation/closure.md"])
+    );
+    assert_eq!(overview["artifact_counts"]["evidence"]["valid"], 1);
+    assert_eq!(overview["artifact_counts"]["evidence"]["unknown"], 1);
+    let unpinned: Vec<_> = overview["findings"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|f| f["path"] == ".mozak/evidence")
+        .collect();
+    assert_eq!(unpinned.len(), 1);
+    assert!(
+        unpinned[0]["message"]
+            .as_str()
+            .unwrap()
+            .starts_with("1 evidence record(s) are not pinned")
+    );
+
+    fs::write(
+        evidence_dir.join("closure.md"),
+        b"rewritten after closure\n",
+    )
+    .unwrap();
+    let drifted = run(&root.0);
+    assert!(!drifted.status.success());
+    let overview: Value = serde_json::from_slice(&drifted.stdout).unwrap();
+    assert_eq!(overview["state"], "invalid");
+    assert_eq!(overview["artifact_counts"]["evidence"]["invalid"], 1);
+    assert!(overview["findings"].as_array().unwrap().iter().any(|f| {
+        f["path"] == ".mozak/evidence/foundation/closure.md"
+            && f["message"]
+                .as_str()
+                .unwrap()
+                .contains("goal foundation evidence digest drifted")
+    }));
+
+    fs::remove_file(evidence_dir.join("closure.md")).unwrap();
+    let overview: Value = serde_json::from_slice(&run(&root.0).stdout).unwrap();
+    assert!(
+        overview["findings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|f| f["message"] == "goal foundation evidence is missing")
+    );
+}
+
+#[test]
+fn goal_evidence_outside_the_evidence_root_makes_the_plan_invalid() {
+    let root = setup();
+    let plan_path = root.0.join(".mozak/planning/plans/plan-v1.json");
+    let mut plan = read_json(&plan_path);
+    plan["goals"][0]["evidence"] = serde_json::json!([{
+        "path": "docs/ACCEPTANCE.md",
+        "sha256": "0".repeat(64),
+    }]);
+    write_json(&plan_path, &plan);
+    let overview: Value = serde_json::from_slice(&run(&root.0).stdout).unwrap();
+    assert!(overview["findings"].as_array().unwrap().iter().any(|f| {
+        f["message"]
+            .as_str()
+            .unwrap()
+            .contains("goal evidence must live under .mozak/evidence/")
+    }));
+    assert!(overview["latest_valid_plan"].is_null());
+}

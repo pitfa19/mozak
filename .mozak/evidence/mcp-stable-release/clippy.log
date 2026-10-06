@@ -1,0 +1,4 @@
+    Checking mozak-core v0.8.0 (/home/pitfa/Documents/mozak/crates/mozak-core)
+    Checking mozak-mcp v0.8.0 (/home/pitfa/Documents/mozak/crates/mozak-mcp)
+    Checking mozak-cli v0.8.0 (/home/pitfa/Documents/mozak/crates/mozak-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 42.38s

@@ -1,0 +1,199 @@
+{
+  "state": "passed",
+  "delivery": {
+    "active_build": "0.7.1-main-3de281a0ba98",
+    "auto_update": false,
+    "channel": "stable",
+    "check_interval_seconds": 86400,
+    "command": "delivery status",
+    "last_checked_at": 1790188731,
+    "previous_build": "0.7.1-main-eceddef3b7c0",
+    "schema_version": 1,
+    "state_boundary": "projects, registries, scopes, adapters, and KB roots are not delivery state"
+  },
+  "setup_state": "ready",
+  "doctor_state": "ready",
+  "catalog_version": "2026-10-05.2",
+  "historical_total_before": 40,
+  "historical_total_after": 40,
+  "returned_historical_records_equal": 12,
+  "history_comparison_limit": 12,
+  "local_readiness": {
+    "literature": "ready",
+    "tooling-watch": "incomplete",
+    "deep-research": "incomplete",
+    "references": "incomplete"
+  },
+  "installed_mcp": {
+    "name": "mozak-mcp",
+    "title": null,
+    "version": "0.7.1",
+    "websiteUrl": null,
+    "icons": null
+  },
+  "retired_route_exit": 1,
+  "preserved_registry_and_kb_bytes": true,
+  "observations": [
+    {
+      "args": [
+        "delivery",
+        "status"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "9fdcb29d62089b995398e8336bb65faf33b80c6eb7c83463fe06fa7d96b45120",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "args": [
+        "setup",
+        "check",
+        "/home/pitfa"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "c1361c88f926dbe99e81d5f7113b5f1e922d949ef87088b71d6bf4e3b2811660",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "args": [
+        "doctor",
+        "/home/pitfa",
+        "/home/pitfa/Documents/mozak-kb"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "7bde05d745261b619fcca528a227a851b5fe70b9005b1d70eca4041c2a125c5c",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "args": [
+        "stack",
+        "catalog"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "e6d98d2d2b48e642f2a1337dbc5e29c90f22a77fd03c9815ace25eb38ee061a3",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "args": [
+        "stack",
+        "check",
+        "/home/pitfa",
+        "literature"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "814486d6f603c2a0282d8aaba2efabed7148de361ce155028f0fc5b75fdc5146",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "args": [
+        "stack",
+        "check",
+        "/home/pitfa",
+        "tooling-watch"
+      ],
+      "exit_code": 2,
+      "stdout_sha256": "bae379ac0b9542ebd77f9996c615c11522b082ef91dfd08f3432e6843232f924",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "args": [
+        "stack",
+        "check",
+        "/home/pitfa",
+        "deep-research"
+      ],
+      "exit_code": 2,
+      "stdout_sha256": "1e72dfa4bb3fc4cff8d58632af9a7e36da5a71803a031e6c9991fd8634859b47",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "args": [
+        "stack",
+        "check",
+        "/home/pitfa",
+        "references"
+      ],
+      "exit_code": 2,
+      "stdout_sha256": "10ac3b1529dbb94cce4f717fb5b753e3265383adf8605a080130d346c9f03234",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "args": [
+        "research",
+        "verify-tool",
+        "/home/pitfa/.jcode/scratch/mozak-mcp-only-live-probe-v3/fixture.json",
+        "/home/pitfa/.jcode/scratch/mozak-mcp-only-live-probe-v3/response.json",
+        "/home/pitfa/.jcode/scratch/mozak-mcp-only-live-probe-v3/run.json"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "e5ae6589fbf7c3e5d2d1a159195688ad1544e5bc67b29c87cb9abd8fd3b2d409",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "args": [
+        "research",
+        "validate",
+        "/home/pitfa/.jcode/scratch/mozak-mcp-only-live-probe-v3/run.json"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "6786f740fa2f332caeaf87a004ec8678051110fae95a086238587a11516f9f27",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "args": [
+        "lab",
+        "status",
+        "/home/pitfa/.jcode/scratch/mozak-mcp-only-live-probe-v3/new-lab"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "fa2479fdaa2cbb031a327f7cde472927e5eb281701880e6dc18754662ab434b8",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "args": [
+        "project",
+        "context",
+        "mozak"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "e22f4573c0dc6e2316162f93c25a08a9c4a48dd161e88192aeef94cb4f537403",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "args": [
+        "project",
+        "current",
+        "mozak"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "3e6e875f9419fe687c14efe2c70b51298e0daa5d4aec486a6fd7a10cbbf94f65",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "args": [
+        "project",
+        "browse",
+        "mozak"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "9485b64e5a57d9b68a7bce7b41d1c9290a9eeb51867071333c8f90de8c3c628e",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "args": [
+        "project",
+        "why",
+        "mozak",
+        "research-run:run-ede5d18fa2ab86483ec0a9ec:2bd79c96ee0a1ccc6160937d179d5caff5c1f6eb1fad9deb14ca0099b2bcd87c:0534d88c2b53f51e8804a97cb6e796d04dc87fc2c3421732f6fae54c0d1ea2e3"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "33e6a96c4bb32cc2976e831e9d0322ede9572907e33d72145ac5611db148c1a3",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "limitations": [
+    "Fetch, GitHub and Firecrawl services were not installed or called. Their readiness is incomplete rather than a legacy fallback.",
+    "Zotero was removed by the original session at owner request. This migration does not reinstall or re-register it.",
+    "History comparison checks total count and the returned bounded records, not an unbounded dump.",
+    "Recorded research is proposal-only. No content acceptance or paper-quality claim."
+  ]
+}

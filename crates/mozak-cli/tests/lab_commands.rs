@@ -60,10 +60,69 @@ impl Drop for Workspace {
     }
 }
 
-/// The real DAIR.AI adapter run: 20 curated records with authentic hashes.
+/// Response bytes an MCP `search_papers` call returned. Two papers, so a run
+/// has something to exclude as well as include.
+const RESPONSE: &str = "{\"papers\":[{\"id\":\"2501.00001\",\"title\":\"Budgeted planning for agents\"},{\"id\":\"2501.00002\",\"title\":\"Adaptive rollout budgets\"}]}\n";
+/// Candidate id the Lab derives from the first selection locator.
+const FIRST_PAPER: &str = "paper-0eed5a521cab5abc";
+
+fn selection_json(id: &str, locator: &str, excerpt: &str) -> serde_json::Value {
+    let start = RESPONSE.find(excerpt).expect("excerpt in response");
+    serde_json::json!({"id": id, "locator": locator, "response_byte_start": start,
+        "response_byte_end": start + excerpt.len(), "excerpt": excerpt})
+}
+
+/// A tool-evidence fixture as `mozak research record-tool` accepts it.
+fn evidence_fixture(tool_id: &str, server: &str, scope_id: &str) -> serde_json::Value {
+    serde_json::json!({
+        "schema": "mozak.tool-evidence.v1",
+        "scope_id": scope_id,
+        "question": "Which papers discuss planning budgets?",
+        "tool": {"tool_id": tool_id, "kind": "mcp", "version": "0.8.1",
+                 "operation": "search_papers", "server": server},
+        "call": {"arguments": {"query": "planning budgets"},
+                 "started_at": "2026-10-05T18:00:00Z", "finished_at": "2026-10-05T18:00:02Z"},
+        "effects": {"network_used": true, "external_writes": [], "mutations_performed": "none",
+                    "irreversible_effects": [], "dry_run_available": false,
+                    "owner_approval_required": false},
+        "response": {"sha256": hash(RESPONSE.as_bytes()), "byte_length": RESPONSE.len(),
+                     "media_type": "application/json"},
+        "selections": [
+            selection_json("sel-0001", "arxiv:2501.00001", "Budgeted planning for agents"),
+            selection_json("sel-0002", "arxiv:2501.00002", "Adaptive rollout budgets"),
+        ],
+        "total_results": 2, "truncated": false, "gaps": [],
+        "accepted": false, "authority": "proposal_only"
+    })
+}
+
+/// Records MCP tool evidence through the real `research record-tool` route.
+fn record_evidence(workspace: &Workspace, name: &str, fixture: &serde_json::Value) -> PathBuf {
+    let fixture_path = workspace.write(&format!("{name}-fixture.json"), &fixture.to_string());
+    let response_path = workspace.write(&format!("{name}-response.json"), RESPONSE);
+    let run_path = workspace.path(&format!("{name}-run.json"));
+    let (ok, _, stderr) = workspace.run(&[
+        "research",
+        "record-tool",
+        fixture_path.to_str().expect("path"),
+        response_path.to_str().expect("path"),
+        run_path.to_str().expect("path"),
+    ]);
+    assert!(ok, "record-tool failed: {stderr}");
+    run_path
+}
+
+/// Validated arXiv MCP evidence for the default Scope.
 fn adapter_run(workspace: &Workspace) -> PathBuf {
-    let fixture = include_str!("fixtures/lab_adapter_run.json");
-    workspace.write("adapter-run.json", fixture)
+    let path = workspace.path("evidence-run.json");
+    if path.exists() {
+        return path;
+    }
+    record_evidence(
+        workspace,
+        "evidence",
+        &evidence_fixture("arxiv-mcp", "arxiv", "topic-agentic-systems"),
+    )
 }
 
 /// Builds a selection covering every refreshed candidate.
@@ -136,16 +195,6 @@ fn start_run_at_with_question(
     assert!(ok, "lab start failed: {stderr}");
     let value: serde_json::Value = serde_json::from_str(&stdout).expect("json");
     value["run_id"].as_str().expect("run_id").to_owned()
-}
-
-fn registry(workspace: &Workspace) {
-    let dir = workspace.path(".config/mozak");
-    fs::create_dir_all(&dir).expect("config dir");
-    fs::write(
-        dir.join("adapters.json"),
-        r#"{"schema_version":1,"bindings":[{"id":"topic-agentic-systems","adapter":"dair-ai","target_scope_id":"topic-agentic-systems","request_path":"/tmp/r.json","request_sha256":"x","runner_path":"/tmp/r.sh","runner_sha256":"y","runs_dir":"/tmp/runs"}]}"#,
-    )
-    .expect("registry");
 }
 
 #[test]
@@ -235,28 +284,345 @@ fn every_core_source_file_has_exactly_one_module() {
     );
 }
 
-#[test]
-fn rejects_an_unregistered_adapter_binding() {
-    let workspace = Workspace::new("binding");
-    registry(&workspace);
+fn write_registry(workspace: &Workspace) {
+    let dir = workspace.path(".config/mozak");
+    fs::create_dir_all(&dir).expect("config dir");
+    fs::write(
+        dir.join("adapters.json"),
+        r#"{"schema_version":1,"bindings":[{"id":"topic-agentic-systems","adapter":"dair-ai","target_scope_id":"topic-agentic-systems","request_path":"/tmp/r.json","request_sha256":"x","runner_path":"/tmp/r.sh","runner_sha256":"y","runs_dir":"/tmp/runs"}]}"#,
+    )
+    .expect("registry");
+}
+
+fn start_with(workspace: &Workspace, tool_id: &str) -> (bool, String, String) {
     let run_dir = workspace.path("run");
-    let (ok, _, stderr) = workspace.run(&[
+    workspace.run(&[
         "lab",
         "start",
         run_dir.to_str().expect("path"),
         "topic-agentic-systems",
         "plans",
         "question",
+        tool_id,
+    ])
+}
+
+#[test]
+fn a_fresh_start_needs_no_adapter_registry_and_records_tool_ids() {
+    let workspace = Workspace::new("fresh-no-registry");
+    assert!(!workspace.path(".config/mozak/adapters.json").exists());
+    let (ok, stdout, stderr) = start_with(&workspace, "arxiv-mcp");
+    assert!(ok, "{stderr}");
+    let receipt: serde_json::Value = serde_json::from_str(&stdout).expect("json");
+    assert_eq!(receipt["tool_ids"], serde_json::json!(["arxiv-mcp"]));
+    assert!(receipt.get("adapter_bindings").is_none());
+    let request: serde_json::Value = serde_json::from_str(
+        &fs::read_to_string(workspace.path("run/improve-request.json")).expect("request"),
+    )
+    .expect("json");
+    assert_eq!(request["tool_ids"], serde_json::json!(["arxiv-mcp"]));
+    assert!(
+        request.get("adapter_bindings").is_none(),
+        "new requests never write adapter bindings"
+    );
+}
+
+#[test]
+fn start_refuses_legacy_binding_and_non_mcp_ids_even_when_registered() {
+    let workspace = Workspace::new("binding");
+    write_registry(&workspace);
+    for id in [
+        "topic-agentic-systems",
+        "adapter-arxiv",
         "not-registered",
-    ]);
+        "adhd-skill",
+    ] {
+        let (ok, _, stderr) = start_with(&workspace, id);
+        assert!(!ok, "{id} must be refused");
+        assert!(
+            stderr.contains("shipped-catalog MCP tool ids"),
+            "{id}: {stderr}"
+        );
+        assert!(!workspace.path("run/ledger.json").exists());
+    }
+}
+
+fn refresh_with(workspace: &Workspace, evidence: &Path) -> (bool, String, String) {
+    let run_dir = workspace.path("run");
+    workspace.run(&[
+        "lab",
+        "refresh",
+        run_dir.to_str().expect("path"),
+        evidence.to_str().expect("path"),
+    ])
+}
+
+fn assert_still_requested(workspace: &Workspace) {
+    let ledger: serde_json::Value = serde_json::from_str(
+        &fs::read_to_string(workspace.path("run/ledger.json")).expect("ledger"),
+    )
+    .expect("json");
+    assert_eq!(ledger["state"], "requested");
+    assert!(
+        ledger["seen_sources"]
+            .as_object()
+            .is_none_or(serde_json::Map::is_empty)
+    );
+    assert!(!workspace.path("run/literature-run.json").exists());
+}
+
+#[test]
+fn refresh_refuses_evidence_from_an_unselected_tool() {
+    let workspace = Workspace::new("unselected-tool");
+    start_run(&workspace, "arxiv-mcp");
+    let evidence = record_evidence(
+        &workspace,
+        "zotero",
+        &evidence_fixture("zotero-mcp", "zotero", "topic-agentic-systems"),
+    );
+    let (ok, _, stderr) = refresh_with(&workspace, &evidence);
     assert!(!ok);
-    assert!(stderr.contains("unknown adapter binding"));
+    assert!(stderr.contains("was not selected for this run"), "{stderr}");
+    assert_still_requested(&workspace);
+}
+
+#[test]
+fn refresh_refuses_evidence_recorded_for_another_scope() {
+    let workspace = Workspace::new("wrong-scope");
+    start_run(&workspace, "arxiv-mcp");
+    let evidence = record_evidence(
+        &workspace,
+        "other",
+        &evidence_fixture("arxiv-mcp", "arxiv", "topic-other"),
+    );
+    let (ok, _, stderr) = refresh_with(&workspace, &evidence);
+    assert!(!ok);
+    assert!(
+        stderr.contains("recorded for scope topic-other"),
+        "{stderr}"
+    );
+    assert_still_requested(&workspace);
+}
+
+#[test]
+fn refresh_refuses_legacy_adapter_research() {
+    let workspace = Workspace::new("legacy-research");
+    start_run(&workspace, "arxiv-mcp");
+    let legacy = workspace.write(
+        "legacy-run.json",
+        include_str!("fixtures/lab_adapter_run.json"),
+    );
+    let (ok, _, stderr) = refresh_with(&workspace, &legacy);
+    assert!(!ok);
+    assert!(
+        stderr.contains("legacy adapter research is refused"),
+        "{stderr}"
+    );
+    assert_still_requested(&workspace);
+}
+
+#[test]
+fn refresh_refuses_tampered_evidence_and_a_swapped_request() {
+    let workspace = Workspace::new("tamper");
+    start_run(&workspace, "arxiv-mcp");
+    let evidence = adapter_run(&workspace);
+    let mut run: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&evidence).expect("run")).expect("json");
+    run["raw_records"][1]["content"] = serde_json::json!("Budgeted planning for agentz");
+    let tampered = workspace.write("tampered-run.json", &run.to_string());
+    let (ok, _, stderr) = refresh_with(&workspace, &tampered);
+    assert!(!ok);
+    assert!(stderr.contains("not a valid research run"), "{stderr}");
+    assert_still_requested(&workspace);
+
+    // Widening the declared tools after start must not let other evidence in.
+    let request_path = workspace.path("run/improve-request.json");
+    let mut request: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&request_path).expect("request")).expect("json");
+    request["tool_ids"] = serde_json::json!(["arxiv-mcp", "zotero-mcp"]);
+    fs::write(&request_path, request.to_string()).expect("swap");
+    let (ok, _, stderr) = refresh_with(&workspace, &evidence);
+    assert!(!ok);
+    assert!(stderr.contains("hash does not match"), "{stderr}");
+    assert_still_requested(&workspace);
+}
+
+#[test]
+fn candidates_come_from_selected_excerpts_not_the_fixture() {
+    let workspace = Workspace::new("candidates");
+    start_run(&workspace, "arxiv-mcp");
+    let evidence = adapter_run(&workspace);
+    let (ok, _, stderr) = refresh_with(&workspace, &evidence);
+    assert!(ok, "{stderr}");
+    let research: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&evidence).expect("run")).expect("json");
+    let literature: serde_json::Value = serde_json::from_str(
+        &fs::read_to_string(workspace.path("run/literature-run.json")).expect("literature"),
+    )
+    .expect("json");
+    assert!(literature.get("adapter_runs").is_none());
+    let reference = &literature["tool_evidence"][0];
+    assert_eq!(reference["tool_id"], "arxiv-mcp");
+    assert_eq!(reference["tool_kind"], "mcp");
+    assert_eq!(reference["server"], "arxiv");
+    assert_eq!(reference["scope_id"], "topic-agentic-systems");
+    assert_eq!(reference["research_run_id"], research["run_id"]);
+    assert_eq!(
+        reference["artifact_hash"],
+        research["receipt"]["artifact_hash"]
+    );
+    assert_eq!(reference["input_hash"], research["receipt"]["input_hash"]);
+    assert_eq!(reference["response_sha256"], hash(RESPONSE.as_bytes()));
+    assert_eq!(
+        reference["raw_record_ids"],
+        serde_json::json!(["raw-sel-0001", "raw-sel-0002"])
+    );
+    assert!(reference.get("binding_id").is_none());
+
+    let candidates = literature["candidates"].as_array().expect("candidates");
+    assert_eq!(
+        candidates.len(),
+        2,
+        "the provenance record is never a candidate"
+    );
+    for candidate in candidates {
+        let title = candidate["title"].as_str().expect("title");
+        assert!(!title.contains("schema:"), "{title}");
+        assert!(!title.contains("mozak.tool-evidence"), "{title}");
+        assert!(title.contains("not a verified title"), "{title}");
+        assert!(
+            candidate["source_uri"]
+                .as_str()
+                .expect("uri")
+                .starts_with("arxiv:2501.0000")
+        );
+    }
+    let first = candidates
+        .iter()
+        .find(|candidate| candidate["paper_id"] == FIRST_PAPER)
+        .expect("first paper");
+    assert_eq!(first["source_uri"], "arxiv:2501.00001");
+    assert!(
+        first["title"]
+            .as_str()
+            .expect("title")
+            .ends_with("Budgeted planning for agents")
+    );
+    assert_eq!(
+        first["content_sha256"],
+        hash(b"Budgeted planning for agents")
+    );
+    assert_eq!(
+        first["evidence_record_ids"],
+        serde_json::json!([format!(
+            "{}#raw-sel-0001",
+            research["run_id"].as_str().expect("id")
+        )])
+    );
+}
+
+/// Writes a run directory exactly as a pre-retirement Lab wrote it: a request
+/// naming an adapter binding, its ledger, and an adapter-derived literature run.
+fn historical_run(workspace: &Workspace) -> (String, String) {
+    let run_dir = workspace.path("run");
+    fs::create_dir_all(&run_dir).expect("run dir");
+    let run_id = "improve-0123456789abcdef01234567";
+    let request = format!(
+        r#"{{"contract_version":1,"run_id":"{run_id}","scope_id":"topic-agentic-systems","module":"plans","question":"How should planning represent budgets?","constraints":["planning only; no MOZAK code changes"],"adapter_bindings":["topic-agentic-systems"],"stop_at":"owner_reviewed","created_at":"2026-09-01T00:00:00Z","performed_by":"owner","evaluated_by":"owner","acceptance":"self_review"}}"#
+    );
+    fs::write(run_dir.join("improve-request.json"), &request).expect("request");
+    let literature = format!(
+        r#"{{"contract_version":1,"run_id":"{run_id}","adapter_runs":[{{"binding_id":"topic-agentic-systems","adapter_id":"adapter-dair-ai","adapter_run_id":"run-old","artifact_hash":"old-hash","source_revision":"rev"}}],"candidates":[{{"paper_id":"paper-0000","title":"Old paper","source_uri":"https://example.org/a","content_sha256":"hash-a","clusters":[]}},{{"paper_id":"paper-0001","title":"Other","source_uri":"https://example.org/b","content_sha256":"hash-b","clusters":[]}}],"new_candidates":["paper-0000","paper-0001"],"unchanged_candidates":[]}}"#
+    );
+    fs::write(run_dir.join("literature-run.json"), &literature).expect("literature");
+    let ledger = format!(
+        r#"{{"contract_version":1,"run_id":"{run_id}","scope_id":"topic-agentic-systems","module":"plans","state":"literature_refreshed","stop_at":"owner_reviewed","transitions":[{{"state":"requested","actor":"owner","at":"2026-09-01T00:00:00Z","input_hash":"h0"}},{{"state":"literature_refreshed","actor":"owner","at":"2026-09-01T00:00:01Z","input_hash":"h1"}}],"seen_sources":{{"paper-0000":"hash-a","paper-0001":"hash-b"}}}}"#
+    );
+    fs::write(run_dir.join("ledger.json"), &ledger).expect("ledger");
+    (run_id.to_owned(), request)
+}
+
+#[test]
+fn historical_adapter_runs_stay_readable_but_cannot_ingest() {
+    let workspace = Workspace::new("historical");
+    let (run_id, request) = historical_run(&workspace);
+    let run_dir = workspace.path("run");
+    let run_dir_str = run_dir.to_str().expect("path").to_owned();
+
+    let (ok, stdout, stderr) = workspace.run(&["lab", "status", &run_dir_str]);
+    assert!(ok, "{stderr}");
+    let status: serde_json::Value = serde_json::from_str(&stdout).expect("json");
+    assert_eq!(status["state"], "literature_refreshed");
+    assert_eq!(status["acceptance"], "self_review");
+
+    // Selection over historical literature still validates.
+    let selection = workspace.write(
+        "historical-selection.json",
+        &format!(
+            r#"{{"contract_version":1,"run_id":"{run_id}","included":[{{"paper_id":"paper-0000","reason":"on topic"}}],"excluded":[{{"paper_id":"paper-0001","reason":"off topic"}}]}}"#
+        ),
+    );
+    let (ok, _, stderr) = workspace.run(&[
+        "lab",
+        "select",
+        &run_dir_str,
+        selection.to_str().expect("path"),
+    ]);
+    assert!(ok, "{stderr}");
+    // Nothing rewrote the historical request.
+    assert_eq!(
+        fs::read_to_string(run_dir.join("improve-request.json")).expect("request"),
+        request
+    );
+
+    // A historical run rewound to requested still cannot ingest anything.
+    let ledger_path = run_dir.join("ledger.json");
+    let mut ledger: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&ledger_path).expect("ledger")).expect("json");
+    ledger["state"] = serde_json::json!("requested");
+    ledger["transitions"] = serde_json::Value::Array(vec![ledger["transitions"][0].clone()]);
+    let hash_of_request = {
+        let value: serde_json::Value = serde_json::from_str(&request).expect("json");
+        mozak_hash(&value)
+    };
+    ledger["transitions"][0]["input_hash"] = serde_json::json!(hash_of_request);
+    fs::write(&ledger_path, ledger.to_string()).expect("rewind");
+    let legacy = workspace.write(
+        "legacy-run.json",
+        include_str!("fixtures/lab_adapter_run.json"),
+    );
+    let evidence = adapter_run(&workspace);
+    for input in [&legacy, &evidence] {
+        let (ok, _, stderr) = refresh_with(&workspace, input);
+        assert!(!ok);
+        assert!(stderr.contains("cannot ingest new literature"), "{stderr}");
+    }
+}
+
+/// Canonical hash as `mozak_core::canonical_hash` computes it: SHA-256 of
+/// key-sorted compact JSON.
+fn mozak_hash(value: &serde_json::Value) -> String {
+    fn canonical(value: &serde_json::Value) -> serde_json::Value {
+        match value {
+            serde_json::Value::Object(map) => {
+                let sorted = map
+                    .iter()
+                    .map(|(key, nested)| (key.clone(), canonical(nested)))
+                    .collect::<std::collections::BTreeMap<_, _>>();
+                serde_json::to_value(sorted).expect("canonical")
+            }
+            serde_json::Value::Array(items) => {
+                serde_json::Value::Array(items.iter().map(canonical).collect())
+            }
+            other => other.clone(),
+        }
+    }
+    hash(canonical(value).to_string().as_bytes())
 }
 
 #[test]
 fn rejects_an_unknown_module() {
     let workspace = Workspace::new("module");
-    registry(&workspace);
     let run_dir = workspace.path("run");
     let (ok, _, stderr) = workspace.run(&[
         "lab",
@@ -265,7 +631,7 @@ fn rejects_an_unknown_module() {
         "topic-agentic-systems",
         "not-a-module",
         "question",
-        "topic-agentic-systems",
+        "arxiv-mcp",
     ]);
     assert!(!ok);
     assert!(stderr.contains("unknown module"));
@@ -274,8 +640,7 @@ fn rejects_an_unknown_module() {
 #[test]
 fn refuses_to_overwrite_an_existing_run() {
     let workspace = Workspace::new("overwrite");
-    registry(&workspace);
-    start_run(&workspace, "topic-agentic-systems");
+    start_run(&workspace, "arxiv-mcp");
     let run_dir = workspace.path("run");
     let (ok, _, stderr) = workspace.run(&[
         "lab",
@@ -284,7 +649,7 @@ fn refuses_to_overwrite_an_existing_run() {
         "topic-agentic-systems",
         "plans",
         "question",
-        "topic-agentic-systems",
+        "arxiv-mcp",
     ]);
     assert!(!ok);
     assert!(stderr.contains("refusing to overwrite"));
@@ -294,8 +659,7 @@ fn refuses_to_overwrite_an_existing_run() {
 #[allow(clippy::too_many_lines)]
 fn runs_the_planning_pipeline_and_stops_at_review() {
     let workspace = Workspace::new("pipeline");
-    registry(&workspace);
-    let run_id = start_run(&workspace, "topic-agentic-systems");
+    let run_id = start_run(&workspace, "arxiv-mcp");
     let run_dir = workspace.path("run");
     let run_dir_str = run_dir.to_str().expect("path").to_owned();
     let adapter = adapter_run(&workspace);
@@ -308,11 +672,11 @@ fn runs_the_planning_pipeline_and_stops_at_review() {
     ]);
     assert!(ok, "{stderr}");
     let value: serde_json::Value = serde_json::from_str(&stdout).expect("json");
-    assert_eq!(value["candidates"], 20);
-    assert_eq!(value["new"], 20);
+    assert_eq!(value["candidates"], 2);
+    assert_eq!(value["new"], 2);
     assert_eq!(value["unchanged"], 0);
 
-    let selection = selection_for(&workspace, &run_id, &["paper-0000"]);
+    let selection = selection_for(&workspace, &run_id, &[FIRST_PAPER]);
     let (ok, _, stderr) = workspace.run(&[
         "lab",
         "select",
@@ -324,7 +688,7 @@ fn runs_the_planning_pipeline_and_stops_at_review() {
     let readings = workspace.write(
         "readings.json",
         &format!(
-            r#"{{"contract_version":1,"run_id":"{run_id}","readings":[{{"paper_id":"paper-0000","source_class":"preprint","source_uri":"https://example.org/a","content_sha256":"hash-a","read_depth":"full_text","claims":[{{"id":"c1","text":"budgets help","origin":"source_claim","locator":"s4"}}],"limitations":["one benchmark"],"retained_full_text":false}}]}}"#
+            r#"{{"contract_version":1,"run_id":"{run_id}","readings":[{{"paper_id":"{FIRST_PAPER}","source_class":"preprint","source_uri":"https://example.org/a","content_sha256":"hash-a","read_depth":"full_text","claims":[{{"id":"c1","text":"budgets help","origin":"source_claim","locator":"s4"}}],"limitations":["one benchmark"],"retained_full_text":false}}]}}"#
         ),
     );
     let (ok, _, stderr) = workspace.run(&[
@@ -338,13 +702,13 @@ fn runs_the_planning_pipeline_and_stops_at_review() {
     let inventory = workspace.write(
         "source-inventory.json",
         &format!(
-            r#"{{"contract_version":1,"run_id":"{run_id}","sources":[{{"paper_id":"paper-0000","source_uri":"https://example.org/a","content_sha256":"hash-a","repository":{{"url":"https://github.com/example/repo","revision":"abc123","content_sha256":"repo-hash"}}}}]}}"#
+            r#"{{"contract_version":1,"run_id":"{run_id}","sources":[{{"paper_id":"{FIRST_PAPER}","source_uri":"https://example.org/a","content_sha256":"hash-a","repository":{{"url":"https://github.com/example/repo","revision":"abc123","content_sha256":"repo-hash"}}}}]}}"#
         ),
     );
     let groups = workspace.write(
         "groups.json",
         &format!(
-            r#"{{"contract_version":1,"run_id":"{run_id}","groups":[{{"id":"group-budget","title":"Budget approaches","purpose":"compare budget designs","paper_ids":["paper-0000"]}}]}}"#
+            r#"{{"contract_version":1,"run_id":"{run_id}","groups":[{{"id":"group-budget","title":"Budget approaches","purpose":"compare budget designs","paper_ids":["{FIRST_PAPER}"]}}]}}"#
         ),
     );
     let (ok, stdout, stderr) = workspace.run(&[
@@ -591,7 +955,7 @@ fn runs_the_planning_pipeline_and_stops_at_review() {
     let second_run_id = start_run_at_with_question(
         &workspace,
         &second_run_dir,
-        "topic-agentic-systems",
+        "arxiv-mcp",
         "How should planning represent budget skill revisions?",
     );
     let second_run_dir_str = second_run_dir.to_str().expect("path").to_owned();
@@ -603,7 +967,7 @@ fn runs_the_planning_pipeline_and_stops_at_review() {
         adapter.to_str().expect("path"),
     ]);
     assert!(ok, "{stderr}");
-    let selection = selection_for_dir(&workspace, &second_run_dir, &second_run_id, &["paper-0000"]);
+    let selection = selection_for_dir(&workspace, &second_run_dir, &second_run_id, &[FIRST_PAPER]);
     let (ok, _, stderr) = workspace.run(&[
         "lab",
         "select",
@@ -614,7 +978,7 @@ fn runs_the_planning_pipeline_and_stops_at_review() {
     let readings = workspace.write(
         "readings-r2.json",
         &format!(
-            r#"{{"contract_version":1,"run_id":"{second_run_id}","readings":[{{"paper_id":"paper-0000","source_class":"preprint","source_uri":"https://example.org/a","content_sha256":"hash-a","read_depth":"full_text","claims":[{{"id":"c1","text":"budgets help","origin":"source_claim","locator":"s4"}}],"limitations":["one benchmark"],"retained_full_text":false}}]}}"#
+            r#"{{"contract_version":1,"run_id":"{second_run_id}","readings":[{{"paper_id":"{FIRST_PAPER}","source_class":"preprint","source_uri":"https://example.org/a","content_sha256":"hash-a","read_depth":"full_text","claims":[{{"id":"c1","text":"budgets help","origin":"source_claim","locator":"s4"}}],"limitations":["one benchmark"],"retained_full_text":false}}]}}"#
         ),
     );
     let (ok, _, stderr) = workspace.run(&[
@@ -627,13 +991,13 @@ fn runs_the_planning_pipeline_and_stops_at_review() {
     let inventory = workspace.write(
         "source-inventory-r2.json",
         &format!(
-            r#"{{"contract_version":1,"run_id":"{second_run_id}","sources":[{{"paper_id":"paper-0000","source_uri":"https://example.org/a","content_sha256":"hash-a","repository":{{"url":"https://github.com/example/repo","revision":"abc123","content_sha256":"repo-hash"}}}}]}}"#
+            r#"{{"contract_version":1,"run_id":"{second_run_id}","sources":[{{"paper_id":"{FIRST_PAPER}","source_uri":"https://example.org/a","content_sha256":"hash-a","repository":{{"url":"https://github.com/example/repo","revision":"abc123","content_sha256":"repo-hash"}}}}]}}"#
         ),
     );
     let groups = workspace.write(
         "groups-r2.json",
         &format!(
-            r#"{{"contract_version":1,"run_id":"{second_run_id}","groups":[{{"id":"group-budget","title":"Budget approaches","purpose":"compare budget designs","paper_ids":["paper-0000"]}}]}}"#
+            r#"{{"contract_version":1,"run_id":"{second_run_id}","groups":[{{"id":"group-budget","title":"Budget approaches","purpose":"compare budget designs","paper_ids":["{FIRST_PAPER}"]}}]}}"#
         ),
     );
     let (ok, _, stderr) = workspace.run(&[
@@ -768,8 +1132,7 @@ fn runs_the_planning_pipeline_and_stops_at_review() {
 #[test]
 fn an_abstract_only_run_is_refused_at_the_mechanism_step() {
     let workspace = Workspace::new("shallow");
-    registry(&workspace);
-    let run_id = start_run(&workspace, "topic-agentic-systems");
+    let run_id = start_run(&workspace, "arxiv-mcp");
     let run_dir = workspace.path("run");
     let run_dir_str = run_dir.to_str().expect("path").to_owned();
     let adapter = adapter_run(&workspace);
@@ -781,7 +1144,7 @@ fn an_abstract_only_run_is_refused_at_the_mechanism_step() {
     ]);
     assert!(ok, "{stderr}");
 
-    let selection = selection_for(&workspace, &run_id, &["paper-0000"]);
+    let selection = selection_for(&workspace, &run_id, &[FIRST_PAPER]);
     let (ok, _, stderr) = workspace.run(&[
         "lab",
         "select",
@@ -793,7 +1156,7 @@ fn an_abstract_only_run_is_refused_at_the_mechanism_step() {
     let readings = workspace.write(
         "readings.json",
         &format!(
-            r#"{{"contract_version":1,"run_id":"{run_id}","readings":[{{"paper_id":"paper-0000","source_class":"preprint","source_uri":"https://example.org/a","content_sha256":"hash-a","read_depth":"abstract_only","claims":[{{"id":"c1","text":"budgets help","origin":"source_claim","locator":"abstract"}}],"limitations":["abstract only"],"retained_full_text":false}}]}}"#
+            r#"{{"contract_version":1,"run_id":"{run_id}","readings":[{{"paper_id":"{FIRST_PAPER}","source_class":"preprint","source_uri":"https://example.org/a","content_sha256":"hash-a","read_depth":"abstract_only","claims":[{{"id":"c1","text":"budgets help","origin":"source_claim","locator":"abstract"}}],"limitations":["abstract only"],"retained_full_text":false}}]}}"#
         ),
     );
     // Shallow reading is recorded honestly and is not itself an error.
@@ -838,8 +1201,7 @@ fn an_abstract_only_run_is_refused_at_the_mechanism_step() {
 #[test]
 fn second_refresh_marks_sources_unchanged() {
     let workspace = Workspace::new("dedup");
-    registry(&workspace);
-    start_run(&workspace, "topic-agentic-systems");
+    start_run(&workspace, "arxiv-mcp");
     let run_dir = workspace.path("run");
     let run_dir_str = run_dir.to_str().expect("path").to_owned();
     let adapter = adapter_run(&workspace);
@@ -869,14 +1231,13 @@ fn second_refresh_marks_sources_unchanged() {
     assert!(ok, "{stderr}");
     let value: serde_json::Value = serde_json::from_str(&stdout).expect("json");
     assert_eq!(value["new"], 0);
-    assert_eq!(value["unchanged"], 20);
+    assert_eq!(value["unchanged"], 2);
 }
 
 #[test]
 fn rejects_readings_that_retain_full_text() {
     let workspace = Workspace::new("fulltext");
-    registry(&workspace);
-    let run_id = start_run(&workspace, "topic-agentic-systems");
+    let run_id = start_run(&workspace, "arxiv-mcp");
     let run_dir_str = workspace.path("run").to_str().expect("path").to_owned();
     let adapter = adapter_run(&workspace);
     workspace.run(&[
@@ -885,7 +1246,7 @@ fn rejects_readings_that_retain_full_text() {
         &run_dir_str,
         adapter.to_str().expect("path"),
     ]);
-    let selection = selection_for(&workspace, &run_id, &["paper-0000"]);
+    let selection = selection_for(&workspace, &run_id, &[FIRST_PAPER]);
     workspace.run(&[
         "lab",
         "select",
@@ -895,7 +1256,7 @@ fn rejects_readings_that_retain_full_text() {
     let readings = workspace.write(
         "readings.json",
         &format!(
-            r#"{{"contract_version":1,"run_id":"{run_id}","readings":[{{"paper_id":"paper-0000","source_class":"preprint","source_uri":"https://example.org/a","content_sha256":"hash-a","claims":[{{"id":"c1","text":"t","origin":"source_claim","locator":"s4"}}],"limitations":[],"retained_full_text":true}}]}}"#
+            r#"{{"contract_version":1,"run_id":"{run_id}","readings":[{{"paper_id":"{FIRST_PAPER}","source_class":"preprint","source_uri":"https://example.org/a","content_sha256":"hash-a","claims":[{{"id":"c1","text":"t","origin":"source_claim","locator":"s4"}}],"limitations":[],"retained_full_text":true}}]}}"#
         ),
     );
     let (ok, _, stderr) = workspace.run(&[
@@ -911,13 +1272,12 @@ fn rejects_readings_that_retain_full_text() {
 #[test]
 fn rejects_an_out_of_order_step() {
     let workspace = Workspace::new("order");
-    registry(&workspace);
-    let run_id = start_run(&workspace, "topic-agentic-systems");
+    let run_id = start_run(&workspace, "arxiv-mcp");
     let run_dir_str = workspace.path("run").to_str().expect("path").to_owned();
     let selection = workspace.write(
         "selection.json",
         &format!(
-            r#"{{"contract_version":1,"run_id":"{run_id}","included":[{{"paper_id":"paper-0000","reason":"on topic"}}],"excluded":[]}}"#
+            r#"{{"contract_version":1,"run_id":"{run_id}","included":[{{"paper_id":"{FIRST_PAPER}","reason":"on topic"}}],"excluded":[]}}"#
         ),
     );
     let (ok, _, stderr) = workspace.run(&[
@@ -939,9 +1299,8 @@ fn rejects_an_out_of_order_step() {
 #[test]
 fn a_skipped_step_reports_the_ordering_rule_not_a_missing_file() {
     let workspace = Workspace::new("lab-ordering");
-    registry(&workspace);
     let run_dir = workspace.path("run");
-    start_run(&workspace, "topic-agentic-systems");
+    start_run(&workspace, "arxiv-mcp");
     let run = run_dir.to_str().expect("path");
 
     // Every step that depends on a predecessor must name the ordering rule
@@ -984,9 +1343,8 @@ fn a_skipped_step_reports_the_ordering_rule_not_a_missing_file() {
 #[test]
 fn refresh_is_the_first_step_after_start() {
     let workspace = Workspace::new("lab-refresh-first");
-    registry(&workspace);
     let run_dir = workspace.path("run");
-    start_run(&workspace, "topic-agentic-systems");
+    start_run(&workspace, "arxiv-mcp");
     let adapter = adapter_run(&workspace);
     let (ok, stdout, stderr) = workspace.run(&[
         "lab",
@@ -1007,8 +1365,7 @@ fn refresh_is_the_first_step_after_start() {
 #[test]
 fn a_run_records_self_review_by_default_and_says_so_in_the_packet() {
     let workspace = Workspace::new("acceptance-default");
-    registry(&workspace);
-    let run_id = start_run(&workspace, "topic-agentic-systems");
+    let run_id = start_run(&workspace, "arxiv-mcp");
     let run_dir = workspace.path("run");
     let run_dir_str = run_dir.to_str().expect("path").to_owned();
 
@@ -1029,7 +1386,7 @@ fn a_run_records_self_review_by_default_and_says_so_in_the_packet() {
         &run_dir_str,
         adapter.to_str().expect("path"),
     ]);
-    let selection = selection_for(&workspace, &run_id, &["paper-0000"]);
+    let selection = selection_for(&workspace, &run_id, &[FIRST_PAPER]);
     workspace.run(&[
         "lab",
         "select",
@@ -1039,7 +1396,7 @@ fn a_run_records_self_review_by_default_and_says_so_in_the_packet() {
     let readings = workspace.write(
         "readings.json",
         &format!(
-            r#"{{"contract_version":1,"run_id":"{run_id}","readings":[{{"paper_id":"paper-0000","source_class":"preprint","source_uri":"https://example.org/a","content_sha256":"hash-a","read_depth":"full_text","claims":[{{"id":"c1","text":"budgets help","origin":"source_claim","locator":"s4"}}],"limitations":["one benchmark"],"retained_full_text":false}}]}}"#
+            r#"{{"contract_version":1,"run_id":"{run_id}","readings":[{{"paper_id":"{FIRST_PAPER}","source_class":"preprint","source_uri":"https://example.org/a","content_sha256":"hash-a","read_depth":"full_text","claims":[{{"id":"c1","text":"budgets help","origin":"source_claim","locator":"s4"}}],"limitations":["one benchmark"],"retained_full_text":false}}]}}"#
         ),
     );
     workspace.run(&[
@@ -1093,7 +1450,6 @@ fn a_run_records_self_review_by_default_and_says_so_in_the_packet() {
 #[test]
 fn naming_a_second_reviewer_makes_the_run_independent() {
     let workspace = Workspace::new("acceptance-independent");
-    registry(&workspace);
     let run_dir = workspace.path("run");
     let output = std::process::Command::new(binary())
         .args([
@@ -1103,7 +1459,7 @@ fn naming_a_second_reviewer_makes_the_run_independent() {
             "topic-agentic-systems",
             "plans",
             "How should planning represent budgets?",
-            "topic-agentic-systems",
+            "arxiv-mcp",
         ])
         .env("HOME", &workspace.root)
         .env("MOZAK_EVALUATED_BY", "an independent reviewer")
@@ -1129,7 +1485,7 @@ fn complete_run(workspace: &Workspace, dir: &str, claim_text: &str) -> String {
         "topic-agentic-systems",
         "improve-lab",
         "carry evidence forward",
-        "topic-agentic-systems",
+        "arxiv-mcp",
     ]);
     assert!(ok, "lab start failed: {stderr}");
     let run_id = serde_json::from_str::<serde_json::Value>(&stdout).expect("json")["run_id"]
@@ -1153,7 +1509,7 @@ fn complete_run(workspace: &Workspace, dir: &str, claim_text: &str) -> String {
     let mut exclude = Vec::new();
     for candidate in literature["candidates"].as_array().expect("candidates") {
         let id = candidate["paper_id"].as_str().expect("paper_id");
-        if id == "paper-0000" {
+        if id == FIRST_PAPER {
             include.push(format!(r#"{{"paper_id":"{id}","reason":"on topic"}}"#));
         } else {
             exclude.push(format!(
@@ -1179,7 +1535,7 @@ fn complete_run(workspace: &Workspace, dir: &str, claim_text: &str) -> String {
     let readings = workspace.write(
         &format!("{dir}-readings.json"),
         &format!(
-            r#"{{"contract_version":1,"run_id":"{run_id}","readings":[{{"paper_id":"paper-0000","source_class":"preprint","source_uri":"https://example.org/a","content_sha256":"{}","read_depth":"full_text","claims":[{{"id":"c1","text":"{claim_text}","origin":"source_claim","locator":"s4"}},{{"id":"c2","text":"this probably transfers","origin":"lab_inference","locator":"lab reasoning"}}],"limitations":["one benchmark"],"retained_full_text":false}}]}}"#,
+            r#"{{"contract_version":1,"run_id":"{run_id}","readings":[{{"paper_id":"{FIRST_PAPER}","source_class":"preprint","source_uri":"https://example.org/a","content_sha256":"{}","read_depth":"full_text","claims":[{{"id":"c1","text":"{claim_text}","origin":"source_claim","locator":"s4"}},{{"id":"c2","text":"this probably transfers","origin":"lab_inference","locator":"lab reasoning"}}],"limitations":["one benchmark"],"retained_full_text":false}}]}}"#,
             "a".repeat(64)
         ),
     );
@@ -1220,7 +1576,6 @@ fn complete_run(workspace: &Workspace, dir: &str, claim_text: &str) -> String {
 #[test]
 fn a_second_run_inherits_what_the_first_established() {
     let workspace = Workspace::new("evidence-carry");
-    registry(&workspace);
     complete_run(&workspace, "run-one", "budgets reduce wasted rollouts");
 
     let second = workspace.path("run-two");
@@ -1231,7 +1586,7 @@ fn a_second_run_inherits_what_the_first_established() {
         "topic-agentic-systems",
         "improve-lab",
         "a later question",
-        "topic-agentic-systems",
+        "arxiv-mcp",
     ]);
     assert!(ok, "{stderr}");
     let receipt: serde_json::Value = serde_json::from_str(&stdout).expect("json");
@@ -1244,7 +1599,7 @@ fn a_second_run_inherits_what_the_first_established() {
         .as_array()
         .expect("requirements");
     assert_eq!(requirements.len(), 1);
-    assert_eq!(requirements[0]["claim_id"], "paper-0000::c1");
+    assert_eq!(requirements[0]["claim_id"], format!("{FIRST_PAPER}::c1"));
     assert!(
         receipt["evidence_authority"]
             .as_str()
@@ -1258,7 +1613,6 @@ fn a_second_run_inherits_what_the_first_established() {
 #[test]
 fn only_source_claims_are_carried_forward() {
     let workspace = Workspace::new("evidence-origin");
-    registry(&workspace);
     complete_run(&workspace, "run-one", "a source said this");
 
     let evidence: serde_json::Value = serde_json::from_str(
@@ -1272,7 +1626,7 @@ fn only_source_claims_are_carried_forward() {
     .expect("json");
     let entries = evidence["entries"].as_array().expect("entries");
     assert_eq!(entries.len(), 1, "the lab inference must not be carried");
-    assert_eq!(entries[0]["claim_id"], "paper-0000::c1");
+    assert_eq!(entries[0]["claim_id"], format!("{FIRST_PAPER}::c1"));
     assert_eq!(entries[0]["standing"], "held");
 }
 
@@ -1280,14 +1634,13 @@ fn only_source_claims_are_carried_forward() {
 #[test]
 fn the_second_packet_shows_what_it_inherited() {
     let workspace = Workspace::new("evidence-packet");
-    registry(&workspace);
     complete_run(&workspace, "run-one", "budgets reduce wasted rollouts");
     complete_run(&workspace, "run-two", "budgets reduce wasted rollouts");
 
     let packet = fs::read_to_string(workspace.path("run-two").join("review.md")).expect("review");
     assert!(packet.contains("## Carried from earlier runs"), "{packet}");
     assert!(packet.contains("Preservation requirements"));
-    assert!(packet.contains("paper-0000::c1"));
+    assert!(packet.contains(&format!("{FIRST_PAPER}::c1")));
     assert!(
         packet.contains("proposal_only"),
         "the packet must carry the authority boundary"
@@ -1305,7 +1658,6 @@ fn the_second_packet_shows_what_it_inherited() {
 #[test]
 fn a_first_run_reports_no_inherited_evidence() {
     let workspace = Workspace::new("evidence-first");
-    registry(&workspace);
     let run_dir = workspace.path("run");
     let (ok, stdout, stderr) = workspace.run(&[
         "lab",
@@ -1314,7 +1666,7 @@ fn a_first_run_reports_no_inherited_evidence() {
         "topic-agentic-systems",
         "improve-lab",
         "the first question",
-        "topic-agentic-systems",
+        "arxiv-mcp",
     ]);
     assert!(ok, "{stderr}");
     let receipt: serde_json::Value = serde_json::from_str(&stdout).expect("json");
@@ -1335,8 +1687,7 @@ fn a_first_run_reports_no_inherited_evidence() {
 #[test]
 fn an_objective_must_be_declared_before_selection() {
     let workspace = Workspace::new("objective-order");
-    registry(&workspace);
-    let run_id = start_run(&workspace, "topic-agentic-systems");
+    let run_id = start_run(&workspace, "arxiv-mcp");
     let run_dir = workspace.path("run");
     let run_dir_str = run_dir.to_str().expect("path").to_owned();
 
@@ -1363,7 +1714,7 @@ fn an_objective_must_be_declared_before_selection() {
         &run_dir_str,
         adapter.to_str().expect("path"),
     ]);
-    let selection = selection_for(&workspace, &run_id, &["paper-0000"]);
+    let selection = selection_for(&workspace, &run_id, &[FIRST_PAPER]);
     workspace.run(&[
         "lab",
         "select",
@@ -1384,8 +1735,7 @@ fn an_objective_must_be_declared_before_selection() {
 #[test]
 fn an_objective_without_a_completion_condition_is_refused() {
     let workspace = Workspace::new("objective-unbounded");
-    registry(&workspace);
-    start_run(&workspace, "topic-agentic-systems");
+    start_run(&workspace, "arxiv-mcp");
     let run_dir = workspace.path("run");
     let unbounded = workspace.write(
         "unbounded.json",
@@ -1405,8 +1755,7 @@ fn an_objective_without_a_completion_condition_is_refused() {
 #[test]
 fn mechanism_evidence_is_recorded_and_gaps_are_named() {
     let workspace = Workspace::new("mechanism-evidence");
-    registry(&workspace);
-    let run_id = start_run(&workspace, "topic-agentic-systems");
+    let run_id = start_run(&workspace, "arxiv-mcp");
     let run_dir = workspace.path("run");
     let run_dir_str = run_dir.to_str().expect("path").to_owned();
 
@@ -1417,7 +1766,7 @@ fn mechanism_evidence_is_recorded_and_gaps_are_named() {
         &run_dir_str,
         adapter.to_str().expect("path"),
     ]);
-    let selection = selection_for(&workspace, &run_id, &["paper-0000"]);
+    let selection = selection_for(&workspace, &run_id, &[FIRST_PAPER]);
     workspace.run(&[
         "lab",
         "select",
@@ -1427,7 +1776,7 @@ fn mechanism_evidence_is_recorded_and_gaps_are_named() {
     let readings = workspace.write(
         "readings.json",
         &format!(
-            r#"{{"contract_version":1,"run_id":"{run_id}","readings":[{{"paper_id":"paper-0000","source_class":"preprint","source_uri":"https://example.org/a","content_sha256":"hash-a","read_depth":"full_text","claims":[{{"id":"c1","text":"budgets help","origin":"source_claim","locator":"s4"}}],"limitations":["one benchmark"],"retained_full_text":false}}]}}"#
+            r#"{{"contract_version":1,"run_id":"{run_id}","readings":[{{"paper_id":"{FIRST_PAPER}","source_class":"preprint","source_uri":"https://example.org/a","content_sha256":"hash-a","read_depth":"full_text","claims":[{{"id":"c1","text":"budgets help","origin":"source_claim","locator":"s4"}}],"limitations":["one benchmark"],"retained_full_text":false}}]}}"#
         ),
     );
     workspace.run(&[
@@ -1503,8 +1852,7 @@ fn mechanism_evidence_is_recorded_and_gaps_are_named() {
 #[test]
 fn the_cli_refuses_an_uncontrolled_pair() {
     let workspace = Workspace::new("uncontrolled-pair");
-    registry(&workspace);
-    let run_id = start_run(&workspace, "topic-agentic-systems");
+    let run_id = start_run(&workspace, "arxiv-mcp");
     let run_dir = workspace.path("run");
     let run_dir_str = run_dir.to_str().expect("path").to_owned();
 
@@ -1515,7 +1863,7 @@ fn the_cli_refuses_an_uncontrolled_pair() {
         &run_dir_str,
         adapter.to_str().expect("path"),
     ]);
-    let selection = selection_for(&workspace, &run_id, &["paper-0000"]);
+    let selection = selection_for(&workspace, &run_id, &[FIRST_PAPER]);
     workspace.run(&[
         "lab",
         "select",
@@ -1525,7 +1873,7 @@ fn the_cli_refuses_an_uncontrolled_pair() {
     let readings = workspace.write(
         "readings.json",
         &format!(
-            r#"{{"contract_version":1,"run_id":"{run_id}","readings":[{{"paper_id":"paper-0000","source_class":"preprint","source_uri":"https://example.org/a","content_sha256":"hash-a","read_depth":"full_text","claims":[{{"id":"c1","text":"budgets help","origin":"source_claim","locator":"s4"}}],"limitations":["one benchmark"],"retained_full_text":false}}]}}"#
+            r#"{{"contract_version":1,"run_id":"{run_id}","readings":[{{"paper_id":"{FIRST_PAPER}","source_class":"preprint","source_uri":"https://example.org/a","content_sha256":"hash-a","read_depth":"full_text","claims":[{{"id":"c1","text":"budgets help","origin":"source_claim","locator":"s4"}}],"limitations":["one benchmark"],"retained_full_text":false}}]}}"#
         ),
     );
     workspace.run(&[

@@ -14,7 +14,7 @@ archive_install = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
 SPEC.loader.exec_module(archive_install)
 
-MOZAK_FILES = ["SKILL.md", "install.py", "mcp.json", "tests/test_skill.py", "evals/evals.json", "companion-recommendations.json"]
+MOZAK_FILES = ["SKILL.md", "install.py", "mcp.json", "tests/test_skill.py", "evals/evals.json", "companion-recommendations.json", "tool-stack.json"]
 ROOTS = [".agents", ".jcode", ".claude", ".codex"]
 
 
@@ -26,9 +26,10 @@ def managed_paths(home: Path) -> list[Path]:
     return paths
 
 
-def write_binary(path: Path, mode: str, payload: bytes = b"new", roots: list[str] | None = None) -> None:
+def write_binary(path: Path, mode: str, payload: bytes = b"new", roots: list[str] | None = None, mozak_files: list[str] | None = None) -> None:
     roots = roots or ROOTS
-    rels = [f"{root}/skills/mozak/{name}" for root in ROOTS for name in MOZAK_FILES]
+    mozak_files = MOZAK_FILES if mozak_files is None else mozak_files
+    rels = [f"{root}/skills/mozak/{name}" for root in ROOTS for name in mozak_files]
     rels += [f"{root}/skills/i-have-adhd/SKILL.md" for root in roots]
     script = f"""#!/usr/bin/env python3
 import json, pathlib, sys
@@ -58,6 +59,28 @@ print(json.dumps({{'state':'ready','checks':checks}})); sys.exit(0)
 
 
 class ArchiveInstallRegressionTests(unittest.TestCase):
+    def test_catalog_upgrade_and_offline_rollback_preserve_payload_generations(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            home = root / "home"
+            home.mkdir()
+            old = root / "old"
+            new = root / "new"
+            old.mkdir()
+            new.mkdir()
+            legacy_files = [name for name in MOZAK_FILES if name != "tool-stack.json"]
+            write_binary(old / "mozak", "old", b"old-bytes", mozak_files=legacy_files)
+            write_binary(new / "mozak", "new", b"new-bytes")
+            old_paths = [path for path in managed_paths(home) if path.name != "tool-stack.json"]
+            for path in old_paths:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(b"old-bytes")
+            backup = archive_install.migrate_skills(old / "mozak", new / "mozak", home)
+            self.assertTrue(all(path.read_bytes() == b"new-bytes" for path in managed_paths(home)))
+            archive_install.restore_files(backup, managed_paths(home))
+            self.assertTrue(all(path.read_bytes() == b"old-bytes" for path in old_paths))
+            self.assertTrue(all(not (home / host / "skills/mozak/tool-stack.json").exists() for host in ROOTS))
+
     def test_migration_accepts_real_adhd_skill_directories(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory); home = root / "home"; home.mkdir()

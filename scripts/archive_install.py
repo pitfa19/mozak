@@ -17,7 +17,7 @@ from typing import Any
 
 LAUNCHER_MARKER = b"MOZAK_MANAGED_LAUNCHER_V1"
 BUILD_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+-]{0,127}$")
-MOZAK_MANAGED_FILENAMES = {"SKILL.md", "install.py", "mcp.json", "tests/test_skill.py", "evals/evals.json", "companion-recommendations.json"}
+MOZAK_MANAGED_FILENAMES = {"SKILL.md", "install.py", "mcp.json", "tests/test_skill.py", "evals/evals.json", "companion-recommendations.json", "tool-stack.json"}
 ADHD_MANAGED_FILENAMES = {"SKILL.md"}
 NOTE_MANAGED_FILENAMES = {
     "SKILL.md",
@@ -223,7 +223,9 @@ def report_paths(report: dict[str, Any] | None, home: Path) -> list[Path]:
         if target in paths:
             raise RuntimeError("setup report repeats a managed path")
         paths.append(target)
-    if len(paths) not in {16, 20, 24, 28, 116}:
+    # Legacy generations remain supported for offline rollback. The stack
+    # catalog adds one managed file per host root to the previous generations.
+    if len(paths) not in {16, 20, 24, 28, 32, 116, 120}:
         raise RuntimeError("setup report must declare a recognized managed file generation")
     return paths
 
@@ -351,7 +353,7 @@ def configure_delivery(home: Path, build: dict[str, Any], channel: str | None, a
             "schema_version": 1,
             "repository": build["repository"],
             "channel": "stable",
-            "auto_update": False,
+            "auto_update": True,
             "check_interval_seconds": 86400,
             "last_checked_at": 0,
         }

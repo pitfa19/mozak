@@ -1,0 +1,1 @@
+{"active_build":"0.8.1-71d2f0abb01a","auto_update":true,"channel":"stable","check_interval_seconds":86400,"command":"delivery status","last_checked_at":1791236442,"previous_build":"0.8.0-5f30e565d29c","schema_version":1,"state_boundary":"projects, registries, scopes, adapters, and KB roots are not delivery state"}

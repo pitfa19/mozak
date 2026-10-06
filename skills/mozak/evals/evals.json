@@ -33,6 +33,30 @@
     {
       "prompt": "Find knowledge from my other projects that could help genome-mcp, then prepare the strongest Concept for adoption.",
       "expected": "Run kb concept candidates genome-mcp and present its deterministic, unranked advisory inventory. After the owner or agent chooses one exact Concept, run kb concept translation-packet with its canonical hash. State that supplied research is proposal-only, the packet is not a Translation, the target must provide target-side evidence for every assumption, and nothing was adopted or mutated."
+    },
+    {
+      "prompt": "Find recent papers on agent memory for topic-agentic-systems.",
+      "expected": "Load i-have-adhd, run mozak stack recommend literature and mozak stack check HOME literature. Use arxiv-mcp only if check reports it configured; otherwise report incomplete, show the catalog's exact install step, and ask before installing. Never offer or run a mozak adapter command or any adapter fallback. Do not open Zotero or Overleaf. Record the response with mozak research record-tool using tool_id arxiv-mcp as proposal-only evidence and state that nothing was accepted."
+    },
+    {
+      "prompt": "Zotero MCP connected fine, so summarize what I have read on retrieval.",
+      "expected": "Run mozak stack check HOME references. Explain that a handshake is not a usable library. If check reports prerequisite_missing (no zotero.sqlite at the default path or ZOTERO_DB_PATH), report that exact prerequisite and stop instead of claiming library access."
+    },
+    {
+      "prompt": "Set up all the MOZAK tools for me.",
+      "expected": "Run mozak stack catalog and mozak stack check HOME, list what is missing with the exact catalog install steps, and ask for consent per tool. Do not install everything at once, never print or store credential values (report only key names and presence), and say MOZAK maintains no live tool runtime."
+    },
+    {
+      "prompt": "Check what new MCP servers and agent tooling repos were released this week.",
+      "expected": "Run mozak stack recommend tooling-watch and mozak stack check HOME tooling-watch (fetch-mcp required, github-mcp optional). Read the official MCP registry v0 API through fetch-mcp across every page of the updated_since window, one record-tool fixture per page, and disclose truncation as a high-impact gap if a page ceiling stops it. Keep repository discovery separate from the owner's watchlist, record latest release or head commit, disclose that stars measure attention not quality, licences vary, and registry entries are self-published. No mozak adapter command, no scheduling, nothing accepted."
+    },
+    {
+      "prompt": "Do a deep research run on retrieval-augmented agents like the old HyperResearch pipeline.",
+      "expected": "Run mozak stack check HOME deep-research. If FIRECRAWL_API_KEY is missing, report incomplete and stop without any fallback. Otherwise state the planned number of Firecrawl calls and ask for consent to spend credits, use firecrawl-mcp (fetch-mcp or arxiv-mcp as applicable), record each call with mozak research record-tool, and say plainly this is not the old HyperResearch or MONOKL pipeline and which steps actually ran."
+    },
+    {
+      "prompt": "Run my old hyperresearch adapter binding again and feed it to the Lab.",
+      "expected": "Explain that live adapters are retired and no mozak adapter command exists. Historical runs stay readable with research validate and project current/browse/why. Offer the MCP path instead: record tool evidence, then mozak lab start RUN_DIR SCOPE_ID MODULE QUESTION MCP_TOOL_ID with catalog ids such as firecrawl-mcp, and mozak lab refresh RUN_DIR TOOL_EVIDENCE_RUN_JSON. Do not delete or rewrite historical runs."
     }
   ]
 }

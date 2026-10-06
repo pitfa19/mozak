@@ -1,0 +1,9 @@
+{
+  "contract_version": 1,
+  "id": "inputs-mcp-stable-release-001",
+  "accepted_at": "2026-10-05T21:12:47Z",
+  "inputs": [
+    {"id": "input-stable-owner-approval", "text": "Owner explicitly requested 'push as latest stable' at 2026-10-05T21:12:47.072Z after being told MCP-only migration was locally committed and installed but not published. Publish the verified migration to pitfa19/mozak as a new stable version, without replacing old stable tags, then install and verify that published stable locally. This authorizes repository push and stable publication, not deletion of historical evidence, external provider installation, credentials changes or knowledge acceptance.", "provenance": {"kind": "human_decision", "decision_id": "decision-mcp-stable-release-20261005T211247Z", "actor": "pitfa"}},
+    {"id": "input-stable-release-baseline", "text": "Fresh authenticated remote inspection reports latest stable v0.7.1 at 6c8077ec8f9f; local main at 022e40a is 19 commits ahead with MCP-only migration and whole-result acceptance. Three crates remain 0.7.1. Tag-triggered release workflow validates matching Cargo version, builds static Linux x86_64 assets and publishes --latest. Use v0.8.0 for the deliberate removal of live adapter interfaces and new MCP-only workflow. Runtime acceptance, history parity and packaging are recorded under mcp-only-retirement/whole-result.", "provenance": {"kind": "codebase_observation", "observation_id": "obs-stable-publication-baseline-20261005", "repository_revision": "022e40a2de3505e9efac4fcc9e8a483bdf48a73a", "paths": [".github/workflows/release.yml", "crates/mozak-cli/Cargo.toml", "crates/mozak-core/Cargo.toml", "crates/mozak-mcp/Cargo.toml", ".mozak/evidence/mcp-only-retirement/whole-result/observation.md"]}}
+  ]
+}

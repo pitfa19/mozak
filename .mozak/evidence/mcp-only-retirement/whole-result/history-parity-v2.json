@@ -1,0 +1,227 @@
+{
+  "schema_version": 1,
+  "checks": [
+    {
+      "fixture": "_home_pitfa_Documents_mozak-kb_lab_jepa-rna_jepa-methods-2026-09-21",
+      "operation": "status",
+      "old_exit": 0,
+      "new_exit": 0,
+      "equal": true,
+      "stdout_sha256": "522c94154010621acdede6f29c7148f5fa493d807b63dbf7440ed714e70d9517",
+      "stderr": ""
+    },
+    {
+      "fixture": "_home_pitfa_Documents_mozak-kb_lab_jepa-rna_jepa-methods-2026-09-21",
+      "operation": "review",
+      "old_exit": 1,
+      "new_exit": 1,
+      "equal": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "error: cannot move to owner_reviewed from papers_read; expected implementation_plans_proposed first\n"
+    },
+    {
+      "fixture": "_home_pitfa_Documents_mozak-kb_lab_jepa-rna_long-sequence-2026-09-21",
+      "operation": "status",
+      "old_exit": 0,
+      "new_exit": 0,
+      "equal": true,
+      "stdout_sha256": "b9c8f641da110ad7ef083ed2744c22ad888a312be62c3c53a5632920adff9f3a",
+      "stderr": ""
+    },
+    {
+      "fixture": "_home_pitfa_Documents_mozak-kb_lab_jepa-rna_long-sequence-2026-09-21",
+      "operation": "review",
+      "old_exit": 1,
+      "new_exit": 1,
+      "equal": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "error: cannot move to owner_reviewed from papers_read; expected implementation_plans_proposed first\n"
+    },
+    {
+      "fixture": "_home_pitfa_Documents_mozak-kb_lab_jepa-rna_peft-adapters-2026-09-21",
+      "operation": "status",
+      "old_exit": 0,
+      "new_exit": 0,
+      "equal": true,
+      "stdout_sha256": "2484b689412f4d8c466d68f3ac7fc6615621f8788c4072c92323beed380c3aa2",
+      "stderr": ""
+    },
+    {
+      "fixture": "_home_pitfa_Documents_mozak-kb_lab_jepa-rna_peft-adapters-2026-09-21",
+      "operation": "review",
+      "old_exit": 1,
+      "new_exit": 1,
+      "equal": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "error: cannot move to owner_reviewed from papers_read; expected implementation_plans_proposed first\n"
+    },
+    {
+      "fixture": "_home_pitfa_Documents_mozak-kb_lab_jepa-rna_rna-structure-2026-09-21",
+      "operation": "status",
+      "old_exit": 0,
+      "new_exit": 0,
+      "equal": true,
+      "stdout_sha256": "19b706e87efc5c2e3f66dae8591354652fb305050c7b84ee62c47d3c5ebb8684",
+      "stderr": ""
+    },
+    {
+      "fixture": "_home_pitfa_Documents_mozak-kb_lab_jepa-rna_rna-structure-2026-09-21",
+      "operation": "review",
+      "old_exit": 1,
+      "new_exit": 1,
+      "equal": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "error: cannot move to owner_reviewed from papers_read; expected implementation_plans_proposed first\n"
+    },
+    {
+      "fixture": "_home_pitfa_Documents_mozak-kb_labs_agentic-systems-skill-2026-09-21-r1",
+      "operation": "status",
+      "old_exit": 0,
+      "new_exit": 0,
+      "equal": true,
+      "stdout_sha256": "3849ce9d5c171a4d0e3643955a28791d742e33d01d85b5b1f32506ea001878dc",
+      "stderr": ""
+    },
+    {
+      "fixture": "_home_pitfa_Documents_mozak-kb_labs_agentic-systems-skill-2026-09-21-r1",
+      "operation": "review",
+      "old_exit": 1,
+      "new_exit": 1,
+      "equal": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "error: cannot move to owner_reviewed from literature_refreshed; expected implementation_plans_proposed first\n"
+    },
+    {
+      "fixture": "_home_pitfa_Documents_mozak-kb_labs_agentic-systems-skill-current-2026-09-21-r1",
+      "operation": "status",
+      "old_exit": 0,
+      "new_exit": 0,
+      "equal": true,
+      "stdout_sha256": "1b36c0a7c8fd66eacd0ddf8521cf1561ed6e356265388c61d3314524373d0050",
+      "stderr": ""
+    },
+    {
+      "fixture": "_home_pitfa_Documents_mozak-kb_labs_agentic-systems-skill-current-2026-09-21-r1",
+      "operation": "review",
+      "old_exit": 1,
+      "new_exit": 1,
+      "equal": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "error: run reached owner_reviewed; implementation requires a separately authorized phase\n"
+    },
+    {
+      "fixture": "_home_pitfa_Documents_mozak-kb_runs_self-improvement-lab_2026-09-06-contract-run",
+      "operation": "status",
+      "old_exit": 0,
+      "new_exit": 0,
+      "equal": true,
+      "stdout_sha256": "7a5a20dfc1343ff07f42c9ffecd1e666090bce11415b1ac5a7a6cb3851933621",
+      "stderr": ""
+    },
+    {
+      "fixture": "_home_pitfa_Documents_mozak-kb_runs_self-improvement-lab_2026-09-06-contract-run",
+      "operation": "review",
+      "old_exit": 1,
+      "new_exit": 1,
+      "equal": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "error: run reached owner_reviewed; implementation requires a separately authorized phase\n"
+    },
+    {
+      "fixture": "_home_pitfa_Documents_mozak-kb_runs_self-improvement-lab_2026-09-07-tooling-standards",
+      "operation": "status",
+      "old_exit": 0,
+      "new_exit": 0,
+      "equal": true,
+      "stdout_sha256": "36b7afb883b22299317fe081a5580132160ded4aee3b771a9364893251da3e7f",
+      "stderr": ""
+    },
+    {
+      "fixture": "_home_pitfa_Documents_mozak-kb_runs_self-improvement-lab_2026-09-07-tooling-standards",
+      "operation": "review",
+      "old_exit": 1,
+      "new_exit": 1,
+      "equal": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "error: run reached owner_reviewed; implementation requires a separately authorized phase\n"
+    },
+    {
+      "fixture": "_home_pitfa_Documents_mozak-kb_runs_self-improvement-lab_2026-09-08-case-reproducibility",
+      "operation": "status",
+      "old_exit": 0,
+      "new_exit": 0,
+      "equal": true,
+      "stdout_sha256": "421013f7d7719646b3466b55ba72603344e9238f9ff5c59b3e2a1a30f373609e",
+      "stderr": ""
+    },
+    {
+      "fixture": "_home_pitfa_Documents_mozak-kb_runs_self-improvement-lab_2026-09-08-case-reproducibility",
+      "operation": "review",
+      "old_exit": 1,
+      "new_exit": 1,
+      "equal": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "error: run reached owner_reviewed; implementation requires a separately authorized phase\n"
+    },
+    {
+      "fixture": "_home_pitfa_Documents_mozak-kb_runs_self-improvement-lab_2026-09-08-case-reproducibility-fulltext",
+      "operation": "status",
+      "old_exit": 0,
+      "new_exit": 0,
+      "equal": true,
+      "stdout_sha256": "93867103aa6bb24f7d5b1760d23f503c5b6928e256fe4904670fd26c1e075536",
+      "stderr": ""
+    },
+    {
+      "fixture": "_home_pitfa_Documents_mozak-kb_runs_self-improvement-lab_2026-09-08-case-reproducibility-fulltext",
+      "operation": "review",
+      "old_exit": 1,
+      "new_exit": 1,
+      "equal": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "error: run reached owner_reviewed; implementation requires a separately authorized phase\n"
+    },
+    {
+      "fixture": "_home_pitfa_Documents_mozak-kb_runs_self-improvement-lab_2026-09-08-concept-transfer",
+      "operation": "status",
+      "old_exit": 0,
+      "new_exit": 0,
+      "equal": true,
+      "stdout_sha256": "bd561dd4057e3e1cb79e31dc3df1b67be73240cda8ac631088a9e7074d759f41",
+      "stderr": ""
+    },
+    {
+      "fixture": "_home_pitfa_Documents_mozak-kb_runs_self-improvement-lab_2026-09-08-concept-transfer",
+      "operation": "review",
+      "old_exit": 1,
+      "new_exit": 1,
+      "equal": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "error: run reached owner_reviewed; implementation requires a separately authorized phase\n"
+    },
+    {
+      "fixture": "_home_pitfa_Documents_mozak-kb_runs_self-improvement-lab_2026-09-14-ocr-hybrid-determinism",
+      "operation": "status",
+      "old_exit": 0,
+      "new_exit": 0,
+      "equal": true,
+      "stdout_sha256": "26872a39e860f616cb840219b1f6b9f8b98b6e8ce0f1e41c6b0c068170d57600",
+      "stderr": ""
+    },
+    {
+      "fixture": "_home_pitfa_Documents_mozak-kb_runs_self-improvement-lab_2026-09-14-ocr-hybrid-determinism",
+      "operation": "review",
+      "old_exit": 1,
+      "new_exit": 1,
+      "equal": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "error: run reached owner_reviewed; implementation requires a separately authorized phase\n"
+    }
+  ],
+  "checks_count": 24,
+  "matched": 24,
+  "successful": 12,
+  "matching_refusals": 12,
+  "passed": true,
+  "boundary": "Disposable twin copies only. Rejection is compared as well as success."
+}

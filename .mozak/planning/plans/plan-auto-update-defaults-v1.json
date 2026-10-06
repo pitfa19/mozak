@@ -1,0 +1,9 @@
+{
+  "contract_version": 1,
+  "id": "plan-auto-update-defaults",
+  "version": 1,
+  "input_set_id": "inputs-auto-update-defaults-001",
+  "goals": [{"id": "auto-update-defaults", "version": 1, "title": "Enable stable automatic updates locally and default future fresh installs to on while preserving opt-outs", "status": "ready", "priority": 1, "input_ids": ["input-auto-owner", "input-auto-baseline"], "recovery_attempts": 0}],
+  "dependencies": [],
+  "recovery": {"max_attempts_per_goal": 2, "allowed_failed_transition": "blocked"}
+}

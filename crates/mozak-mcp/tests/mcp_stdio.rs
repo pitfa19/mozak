@@ -48,6 +48,9 @@ fn initializes_lists_closed_tools_and_ignores_notifications() {
     assert_eq!(
         names,
         [
+            "stack_catalog",
+            "stack_recommend",
+            "stack_check",
             "project_context",
             "project_overview",
             "project_validate",
@@ -69,6 +72,78 @@ fn initializes_lists_closed_tools_and_ignores_notifications() {
             "boolean"
         );
     }
+}
+
+#[test]
+fn stack_tools_reject_unknown_and_malformed_arguments() {
+    let values = run(&[
+        json!({"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"stack_catalog","arguments":{"install":true}}}),
+        json!({"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"stack_recommend","arguments":{"use_case":42}}}),
+        json!({"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"stack_check","arguments":{"home":"/home/example","use_case":""}}}),
+        json!({"jsonrpc":"2.0","id":4,"method":"ping"}),
+    ]);
+    for value in &values[..3] {
+        assert_eq!(value["error"]["code"], -32602);
+    }
+    assert_eq!(
+        values[0]["error"]["message"],
+        "unknown argument for stack_catalog: install"
+    );
+    assert_eq!(values[3]["result"], json!({}));
+}
+
+#[test]
+fn stack_tools_delegate_exact_read_only_cli_arguments() {
+    let temp = std::env::temp_dir().join(format!(
+        "mozak-mcp-stack-parity-{}-{}",
+        std::process::id(),
+        NEXT.fetch_add(1, Ordering::Relaxed)
+    ));
+    fs::create_dir_all(&temp).unwrap();
+    let cli = temp.join("mozak");
+    let argv = temp.join("argv");
+    fs::write(&cli, format!(
+        "#!/bin/sh\nprintf '%s\\n' \"$*\" >> '{}'\nprintf '%s\\n' '{{\"mutation\":false,\"network_access\":false}}'\n",
+        argv.display()
+    )).unwrap();
+    let mut permissions = fs::metadata(&cli).unwrap().permissions();
+    permissions.set_mode(0o755);
+    fs::set_permissions(&cli, permissions).unwrap();
+    let mut child = Command::new(env!("CARGO_BIN_EXE_mozak-mcp"))
+        .env("MOZAK_CLI", &cli)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    for (id, name, arguments) in [
+        (1, "stack_catalog", json!({})),
+        (2, "stack_recommend", json!({"use_case":"literature"})),
+        (
+            3,
+            "stack_check",
+            json!({"home":"/home/example","use_case":"references"}),
+        ),
+        (4, "stack_check", json!({"home":"/home/example"})),
+    ] {
+        writeln!(child.stdin.as_mut().unwrap(), "{}", json!({"jsonrpc":"2.0","id":id,"method":"tools/call","params":{"name":name,"arguments":arguments}})).unwrap();
+    }
+    drop(child.stdin.take());
+    let output = child.wait_with_output().unwrap();
+    assert!(output.status.success());
+    assert_eq!(
+        fs::read_to_string(&argv).unwrap(),
+        "stack catalog\nstack recommend literature\nstack check /home/example references\nstack check /home/example\n"
+    );
+    let values: Vec<Value> = String::from_utf8(output.stdout)
+        .unwrap()
+        .lines()
+        .map(|line| serde_json::from_str(line).unwrap())
+        .collect();
+    assert_eq!(values.len(), 4);
+    for value in values {
+        assert_eq!(value["result"]["isError"], false);
+    }
+    fs::remove_dir_all(temp).unwrap();
 }
 
 #[test]

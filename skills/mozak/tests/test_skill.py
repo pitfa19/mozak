@@ -324,5 +324,268 @@ class InstallerTests(unittest.TestCase):
                 self.assertEqual(hashlib.sha256((ROOT / name).read_bytes()).hexdigest(), expected)
 
 
+class ToolStackSkillContractTests(unittest.TestCase):
+    def test_every_use_loads_adhd_context_and_applicable_stack(self) -> None:
+        rule = TEXT.split("## Every MOZAK use starts the same way", 1)[1].split("## Explicit tool stack", 1)[0]
+        for phrase in (
+            "`i-have-adhd`", "mozak project context PROJECT_ID",
+            "mozak stack recommend USE_CASE", "mozak stack check HOME USE_CASE",
+            "do not activate every tool",
+        ):
+            self.assertIn(phrase, rule)
+        self.assertIn("cannot force an agent", rule)
+
+    def test_stack_routes_and_use_cases(self) -> None:
+        for route in ("mozak stack catalog", "mozak stack recommend USE_CASE", "mozak stack check HOME [USE_CASE]", "tool-stack.json"):
+            self.assertIn(route, TEXT)
+        for use_case in ("`baseline`", "`literature`", "`references`", "`manuscript`", "`tooling-watch`", "`deep-research`"):
+            self.assertIn(use_case, TEXT)
+        self.assertIn("arXiv for literature, Zotero for references and reading, Overleaf for manuscripts", TEXT)
+
+    def test_readiness_ladder_is_not_collapsed(self) -> None:
+        for state in ("`missing`", "`installed`", "`configured`", "`handshake_ok`", "`usable`", "`write_granted`", "`prerequisite_missing`"):
+            self.assertIn(state, TEXT)
+        for phrase in (
+            "An installed package is not a configured server",
+            "A successful handshake is not a usable library",
+            "Read access is not write permission",
+            'handshake: "not_observed"', 'usable: "unknown"',
+        ):
+            self.assertIn(phrase, TEXT)
+
+    def test_installation_is_catalog_sourced_and_consent_gated(self) -> None:
+        lower = TEXT.lower()
+        for phrase in (
+            "exact installation steps and prerequisites from the shipped catalog",
+            "never invent package names",
+            "separate owner decision per tool",
+            "never install every recommended tool at once",
+            "maintains no live tool runtime",
+            "never emits or stores credential values",
+            "declared key names and their presence",
+        ):
+            self.assertIn(phrase, lower)
+
+    def test_retrieval_is_mcp_only_with_no_live_adapter_guidance(self) -> None:
+        self.assertNotIn("## Legacy research adapters", TEXT)
+        self.assertNotIn("\n## Research adapters\n", TEXT)
+        import re
+        # Any `mozak adapter ...` is forbidden except inside the explicit refusal.
+        for match in re.finditer(r"mozak adapter\b[^`]*", TEXT):
+            self.assertEqual(match.group(0), "mozak adapter", match.group(0))
+        lower = TEXT.lower()
+        for retired in (
+            "scripts/adapters", "binding_id",
+            "legacy_alternative", "legacy adapter binding", "verified path",
+            "tested fallback",
+        ):
+            self.assertNotIn(retired, lower, retired)
+        for phrase in (
+            "new retrieval is mcp-only",
+            "there is no adapter fallback",
+            "never recommend a `mozak adapter` command",
+            "never fall back to one when an mcp tool is missing",
+            "never substitute another retrieval path",
+            "do not delete, rewrite, or re-pin historical adapter evidence",
+            "counts as tested only after a real recorded run",
+        ):
+            self.assertIn(phrase, lower)
+
+    def test_catalog_mcp_tool_ids_and_use_case_requirements(self) -> None:
+        stack = TEXT.split("## Explicit tool stack", 1)[1].split("## MCP transport", 1)[0]
+        for phrase in (
+            "`literature` (`arxiv-mcp` required; `fetch-mcp` and `github-mcp` optional",
+            "`tooling-watch` (`fetch-mcp` required; `github-mcp` optional)",
+            "`deep-research` (`firecrawl-mcp` required; `fetch-mcp` optional)",
+            "`references` (`zotero-mcp`)",
+            "`manuscript` (`overleaf-mcp`",
+            "`GITHUB_PERSONAL_ACCESS_TOKEN`", "`FIRECRAWL_API_KEY`",
+            "`mozak stack catalog` is authoritative",
+        ):
+            self.assertIn(phrase, stack)
+        for legacy_id in (
+            "adapter-arxiv", "adapter-dair-ai", "adapter-mcp-registry",
+            "adapter-github-tooling", "adapter-hyperresearch", "adapter-monokl",
+        ):
+            self.assertNotIn(legacy_id, TEXT)
+
+    def test_mcp_workflows_keep_source_safety_disclosures(self) -> None:
+        lower = TEXT.split("### MCP workflows", 1)[1].split("## MCP transport", 1)[0].lower()
+        for phrase in (
+            "one `mozak.tool-evidence.v1` fixture per call",
+            "exact commit of `dair-ai/ai-papers-of-the-week`",
+            "declares no license", "not a complete literature search",
+            "discovery proposes and never promotes",
+            "only when the owner adds it to the watchlist",
+            "otherwise the head commit",
+            "paginates by server name, not by date",
+            "every page of the `updated_since` window",
+            "`truncated: true`", "high-impact gap",
+            "never retain descriptions or readmes",
+            "stars and pushes measure attention",
+            "licences vary and some are undeclared",
+            "self-published", "rate limited", "mozak schedules nothing",
+            "spend credits", "explicit owner consent",
+            "not the old hyperresearch or monokl pipeline",
+            "say which steps actually ran",
+            "not every api is reachable",
+        ):
+            self.assertIn(phrase, lower, phrase)
+
+    def test_new_lab_routes_select_catalog_mcp_tool_ids(self) -> None:
+        self.assertIn(
+            "`mozak lab start RUN_DIR SCOPE_ID MODULE QUESTION MCP_TOOL_ID [MCP_TOOL_ID ...]`", TEXT,
+        )
+        self.assertIn("`mozak lab refresh RUN_DIR TOOL_EVIDENCE_RUN_JSON`", TEXT)
+        self.assertNotIn("BINDING_ID", TEXT)
+        lab = TEXT.split("## Self Improvement Lab", 1)[1].split("## Concepts, Translations", 1)[0].lower()
+        for phrase in (
+            "shipped catalog mcp tool id", "retired adapter or binding ids are refused",
+            "no adapter registry is read", "written by `research record-tool`",
+            "`tool.kind` `mcp`", "exactly equal to one id given at `lab start`",
+            "selected excerpt records", "historical adapter runs are refused",
+            "stay readable but cannot ingest new evidence",
+        ):
+            self.assertIn(phrase, lab, phrase)
+
+    def test_historical_evidence_readers_are_offline_only(self) -> None:
+        lower = TEXT.lower()
+        self.assertIn(
+            "historical fixture normalization (offline, already-recorded fixtures only, never retrieval)", lower,
+        )
+        self.assertIn("`historical` and `callable: false`", TEXT)
+        self.assertIn("describes artifact age, never runtime availability", lower)
+        self.assertIn("new recordings are mcp-only", lower)
+        self.assertIn("never a package name", lower)
+
+    def test_activation_routes_for_mcp_use_cases(self) -> None:
+        examples = TEXT.split("## Request routing examples", 1)[1].split(
+            "## Bounded external-agent workflow", 1
+        )[0]
+        for route in (
+            "`mozak stack check HOME literature`", "`mozak stack check HOME tooling-watch`",
+            "`mozak stack check HOME deep-research`", "`mozak stack check HOME references`",
+            "`mozak stack check HOME manuscript`",
+        ):
+            self.assertIn(route, examples)
+        self.assertIn("There is no adapter fallback", examples)
+        self.assertNotIn("legacy adapter", examples.lower())
+        self.assertNotIn("adapter binding", examples.lower())
+
+    def test_networking_claim_is_precise(self) -> None:
+        self.assertNotIn("- MOZAK performs no networking.", TEXT)
+        lower = TEXT.lower()
+        self.assertIn("project, stack, and validation routes perform no networking", lower)
+        self.assertIn("agent host calling an mcp server", lower)
+
+    def test_tool_evidence_is_proposal_only_with_separate_acceptance(self) -> None:
+        for route in (
+            "mozak research record-tool FIXTURE_JSON RESPONSE_BYTES RUN_JSON",
+            "mozak research verify-tool FIXTURE_JSON RESPONSE_BYTES RUN_JSON",
+            "mozak.tool-evidence.v1",
+        ):
+            self.assertIn(route, TEXT)
+        lower = TEXT.lower()
+        self.assertIn("immutable snapshot", lower)
+        self.assertIn("general approval of the migration is not that acceptance", lower)
+
+
+EXAMPLE_DIR = ROOT.parents[1] / "docs/examples/tool-evidence"
+
+
+@unittest.skipUnless(
+    (EXAMPLE_DIR / "fixture.json").is_file(),
+    "source-only: docs/examples is not part of the installed skill payload",
+)
+class ToolEvidenceExampleTests(unittest.TestCase):
+    def test_example_fixture_matches_response_bytes(self) -> None:
+        example = EXAMPLE_DIR
+        fixture = json.loads((example / "fixture.json").read_text())
+        response = (example / "response.json").read_bytes()
+        self.assertEqual(fixture["schema"], "mozak.tool-evidence.v1")
+        self.assertEqual(fixture["response"]["sha256"], hashlib.sha256(response).hexdigest())
+        self.assertEqual(fixture["response"]["byte_length"], len(response))
+        self.assertFalse(fixture["accepted"])
+        self.assertEqual(fixture["authority"], "proposal_only")
+        for selection in fixture["selections"]:
+            start, end = selection["response_byte_start"], selection["response_byte_end"]
+            self.assertEqual(response[start:end].decode(), selection["excerpt"])
+
+
+REPO_DOCS = ROOT.parents[1] / "docs"
+
+
+@unittest.skipUnless(
+    (REPO_DOCS / "TOOL-STACK.md").is_file(),
+    "source-only: repository docs are not part of the installed skill payload",
+)
+class PublicDocsMcpOnlyTests(unittest.TestCase):
+    def docs(self) -> dict[str, str]:
+        paths = [ROOT.parents[1] / "README.md", *REPO_DOCS.glob("*.md"), *REPO_DOCS.glob("examples/*.md")]
+        return {str(path.relative_to(ROOT.parents[1])): path.read_text() for path in paths}
+
+    def test_no_current_doc_recommends_adapter_commands(self) -> None:
+        import re
+        for name, text in self.docs().items():
+            self.assertIsNone(re.search(r"mozak adapter \w", text), name)
+            for retired in ("scripts/adapters/", "<binding-id>", "adapter_workflow"):
+                self.assertNotIn(retired, text, f"{name}: {retired}")
+
+    def test_tool_stack_guide_documents_mcp_workflows_and_lab(self) -> None:
+        text = (REPO_DOCS / "TOOL-STACK.md").read_text()
+        for phrase in (
+            "| `tooling-watch` | `fetch-mcp` | `github-mcp` |",
+            "| `deep-research` | `firecrawl-mcp` | `fetch-mcp` |",
+            "| `literature` | `arxiv-mcp` | `github-mcp`, `fetch-mcp` |",
+            "there is no adapter to fall back to",
+            "mozak lab start <run-dir> <scope-id> <module> \"<question>\" arxiv-mcp github-mcp",
+            "mozak lab refresh <run-dir> <mcp-research-run.json>",
+            "This is not the old HyperResearch or MONOKL pipeline",
+        ):
+            self.assertIn(phrase.lower(), text.lower(), phrase)
+        # Install commands and version pins stay in the catalog only.
+        for pin in ("pipx install", "npm install", "uvx ", "==", "@latest"):
+            self.assertNotIn(pin, text)
+
+    def test_reference_lab_syntax_uses_mcp_tool_ids(self) -> None:
+        text = (REPO_DOCS / "REFERENCE.md").read_text()
+        self.assertIn("mozak lab start <run-dir> <scope-id> <module> <question> <mcp-tool-id> [mcp-tool-id ...]", text)
+        self.assertIn("mozak lab refresh <run-dir> <mcp-research-run.json>", text)
+        self.assertIn("# historical fixtures, offline", text)
+
+
+class ToolStackPayloadTests(unittest.TestCase):
+    def test_evals_route_mcp_only(self) -> None:
+        evals = json.loads((ROOT / "evals/evals.json").read_text())["evals"]
+        expected = " ".join(item["expected"] for item in evals).lower()
+        self.assertNotIn("legacy arxiv adapter", expected)
+        self.assertNotIn("offer the legacy", expected)
+        for phrase in ("tooling-watch", "deep-research", "firecrawl_api_key", "mozak lab start"):
+            self.assertIn(phrase, expected)
+    def test_source_installer_ships_both_catalogs(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            environment = os.environ.copy()
+            environment["HOME"] = str(home)
+            result = subprocess.run(
+                [sys.executable, str(INSTALLER)], env=environment, capture_output=True, text=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            source = json.loads(result.stdout)["source"]
+            for name in ("tool-stack.json", "companion-recommendations.json"):
+                self.assertIn(name, source)
+                for destination in (".agents", ".jcode", ".claude", ".codex"):
+                    installed = home / destination / "skills/mozak" / name
+                    self.assertEqual(installed.read_bytes(), (ROOT / name).read_bytes())
+
+    def test_skill_rule_includes_baseline_and_ready_at(self) -> None:
+        rule = TEXT.split("## Every MOZAK use starts the same way", 1)[1].split("## Explicit tool stack", 1)[0]
+        self.assertIn("mozak stack check HOME baseline", rule)
+        self.assertNotIn("Skip this step", rule)
+        self.assertIn("`ready_at`", TEXT)
+        self.assertIn("`any_of`", TEXT)
+        self.assertIn("`dry_run_available` is recorded but not enforced", TEXT)
+
+
 if __name__ == "__main__":
     unittest.main()

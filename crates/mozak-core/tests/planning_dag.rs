@@ -222,3 +222,57 @@ fn fixture_names_are_stable_for_recorded_adversarial_cases() {
         ]
     );
 }
+
+#[test]
+fn goal_evidence_pins_are_confined_to_the_evidence_root_and_hash_shaped() {
+    use mozak_core::planning::{GoalEvidence, validate_goal_evidence};
+    let pin = |path: &str, sha: &str| GoalEvidence {
+        path: path.into(),
+        sha256: sha.into(),
+    };
+    let good = "a".repeat(64);
+    assert!(validate_goal_evidence(&[]).is_ok());
+    assert!(validate_goal_evidence(&[pin(".mozak/evidence/g/closure.md", &good)]).is_ok());
+    for (record, message) in [
+        (
+            pin("docs/closure.md", &good),
+            "goal evidence must live under .mozak/evidence/",
+        ),
+        (
+            pin(".mozak/evidence/", &good),
+            "goal evidence must live under .mozak/evidence/",
+        ),
+        (
+            pin(".mozak/evidence/../../docs/x.md", &good),
+            "goal evidence path contains unsafe components",
+        ),
+        (
+            pin(".mozak/evidence//x.md", &good),
+            "goal evidence path contains unsafe components",
+        ),
+        (
+            pin(".mozak/evidence/x.md", &"A".repeat(64)),
+            "goal evidence sha256 must be 64 lowercase hex characters",
+        ),
+        (
+            pin(".mozak/evidence/x.md", "abc"),
+            "goal evidence sha256 must be 64 lowercase hex characters",
+        ),
+    ] {
+        assert_eq!(validate_goal_evidence(&[record]).unwrap_err().0, message);
+    }
+    let dup = pin(".mozak/evidence/x.md", &good);
+    assert_eq!(
+        validate_goal_evidence(&[dup.clone(), dup]).unwrap_err().0,
+        "duplicate goal evidence path"
+    );
+}
+
+#[test]
+fn plans_without_goal_evidence_keep_their_exact_serialized_bytes() {
+    let inputs = validate_input_set_json(INPUTS).unwrap();
+    let plan = validate_plan_json(SHARED_DAG, &inputs).unwrap();
+    assert!(plan.goals.iter().all(|goal| goal.evidence.is_empty()));
+    let text = serde_json::to_string(&plan).unwrap();
+    assert!(!text.contains("\"evidence\""));
+}

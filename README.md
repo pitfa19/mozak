@@ -49,6 +49,24 @@ MOZAK keeps the durable parts in Git:
 MOZAK proposes. You approve. Pair it with an ambient agent to run the
 improvement cycle periodically.
 
+## Tools per use case
+
+```bash
+mozak stack recommend literature       # arXiv; references: Zotero; manuscript: Overleaf
+mozak stack check "$HOME" literature    # what is ready on this machine
+```
+
+MOZAK ships a catalog of MCP servers and skills per use case: arXiv for
+literature, Zotero for references, Overleaf for manuscripts, Fetch and GitHub
+for tooling watch, and Firecrawl for deep research. It shows exact install
+steps for what is missing and installs nothing without your consent.
+`stack check` reads local config only: an installed package is not a working
+connection, and a working connection is not write access. Your agent makes the
+MCP calls. MOZAK records the results as proposal-only evidence that you accept
+separately. New research is MCP-only; the old source adapters are retired, and
+their recorded runs stay readable as history. See the
+[tool-stack guide](docs/TOOL-STACK.md).
+
 ## Start
 
 ```bash
@@ -88,7 +106,7 @@ ships reliably, not the reason to use it.
 ## Read next
 
 [Teammate quickstart](docs/TEAMMATE-QUICKSTART.md) · [New-project quickstart](docs/QUICKSTART.md) · [How it works](docs/ARCHITECTURE.md) ·
-[Commands](docs/REFERENCE.md) · [Install and update](docs/distribution/INSTALL.md)
+[Commands](docs/REFERENCE.md) · [Tool stack](docs/TOOL-STACK.md) · [Install and update](docs/distribution/INSTALL.md)
 
 MIT licensed. Influences and prior work are listed in
 [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md).

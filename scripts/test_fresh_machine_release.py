@@ -111,7 +111,7 @@ def main() -> int:
 
         prefix = base / "prefix"
         prefix.mkdir()
-        installed_archive = subprocess.run([archive_installer, "--prefix", str(prefix), "--home", str(home), "--owner", "packaged-acceptance-owner", "--kb-root", str(kb)], env=env, capture_output=True, text=True)
+        installed_archive = subprocess.run([archive_installer, "--prefix", str(prefix), "--home", str(home), "--disable-auto", "--owner", "packaged-acceptance-owner", "--kb-root", str(kb)], env=env, capture_output=True, text=True)
         assert installed_archive.returncode == 0, installed_archive.stderr
         binary = prefix / "bin" / "mozak"
         installed = run(archive_binary, env, "setup", "install", str(home), "--owner", "packaged-acceptance-owner", "--kb-root", str(kb))

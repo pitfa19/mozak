@@ -94,6 +94,12 @@ def stub_dir(root: Path, *, with_gh: bool) -> Path:
 def environment(root: Path, release: Path, stubs: Path, home: Path, prefix: Path, *, require_auth: bool) -> dict[str, str]:
     log = root / f"curl-log-{stubs.name}-{prefix.name}.txt"
     log.write_text("", encoding="utf-8")
+    manifest = json.loads((release / "release-manifest.json").read_text())
+    local_fixture = root / f"launcher-fixture-{prefix.name}.json"
+    local_fixture.write_text(json.dumps({"assets": [
+        {"name": "release-manifest.json", "path": str(release / "release-manifest.json")},
+        {"name": manifest["archive"], "path": str(release / manifest["archive"])},
+    ]}))
     env = os.environ.copy()
     # Keep the stub ahead of any real curl/gh, and drop inherited credentials so
     # anonymous mode is genuinely anonymous.
@@ -103,6 +109,7 @@ def environment(root: Path, release: Path, stubs: Path, home: Path, prefix: Path
         "HOME": str(home),
         "XDG_CONFIG_HOME": str(root / f"xdg-{prefix.name}"),
         "MOZAK_PREFIX": str(prefix),
+        "MOZAK_RELEASE_FIXTURE": str(local_fixture),
         "PATH": f"{stubs}{os.pathsep}{env['PATH']}",
         "STUB_RELEASE_DIR": str(release),
         "STUB_LOG": str(log),
@@ -175,6 +182,9 @@ def main() -> int:
         private_status = json.loads(private.stdout.strip().splitlines()[-1])
         assert private_status["active_build"].endswith(REVISION[:12])
         assert private_status["auto_update"] is False
+        repeated = bootstrap(env, prefix, home)
+        assert repeated.returncode == 0, repeated.stderr
+        assert json.loads(repeated.stdout.strip().splitlines()[-1])["auto_update"] is False
         assert "Project context is not configured yet" in private.stderr
         requests = Path(env["STUB_LOG"]).read_text().split()
         assert requests and set(requests) == {"auth"}, requests

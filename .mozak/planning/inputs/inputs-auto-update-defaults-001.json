@@ -1,0 +1,9 @@
+{
+  "contract_version": 1,
+  "id": "inputs-auto-update-defaults-001",
+  "accepted_at": "2026-10-05T21:24:06Z",
+  "inputs": [
+    {"id": "input-auto-owner", "text": "Owner requests automatic stable updates enabled on their local installation and enabled by default on future installs. Preserve explicit disable and existing saved preferences. Keep the established 24-hour CLI startup interval, verified downloads, offline fallback and MCP startup exception unchanged. Coordinate with the separately running v0.8.0 publication and do not amend its frozen tag.", "provenance": {"kind": "human_decision", "decision_id": "decision-auto-defaults-20261005T212406Z", "actor": "pitfa"}},
+    {"id": "input-auto-baseline", "text": "At v0.8.0 revision 5f30e565d29c56904d333bd665fbfc72f3bb56e8 the archive installer configure_delivery and launcher default_config default auto_update false. The GitHub bootstrap already explicitly enables automatic updates on fresh installs and supports --no-auto-update. Existing delivery preference is preserved by archive install unless explicitly overridden. Change archive and missing-config defaults to true, test fresh installs plus explicit and persisted opt-outs, and enable owner config only after release agent completes verified stable installation.", "provenance": {"kind": "codebase_observation", "observation_id": "obs-auto-defaults-20261005", "repository_revision": "5f30e565d29c56904d333bd665fbfc72f3bb56e8", "paths": ["scripts/archive_install.py", "scripts/mozak_launcher.py", "scripts/install.sh", "scripts/test_delivery_update.py", "scripts/test_github_bootstrap.py"]}}
+  ]
+}

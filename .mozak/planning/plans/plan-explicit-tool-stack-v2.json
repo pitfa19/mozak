@@ -1,0 +1,18 @@
+{
+  "contract_version": 1,
+  "id": "plan-explicit-tool-stack",
+  "version": 2,
+  "input_set_id": "inputs-explicit-tool-stack-001",
+  "goals": [{
+    "id": "explicit-tool-stack-migration",
+    "version": 1,
+    "title": "Ship explicit use-case-driven MCP and skill stack with proposal-only evidence recording and legacy compatibility",
+    "status": "in_progress",
+    "priority": 1,
+    "input_ids": ["input-tool-stack-owner-approval", "input-tool-stack-current-state", "input-tool-stack-contract"],
+    "recovery_attempts": 0
+  }],
+  "dependencies": [],
+  "supersedes": {"id": "plan-explicit-tool-stack", "version": 1},
+  "recovery": {"max_attempts_per_goal": 2, "allowed_failed_transition": "blocked"}
+}

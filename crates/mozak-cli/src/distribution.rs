@@ -58,7 +58,7 @@ const NOTE_VOICE_CENSUS_DESTINATIONS: [&str; 4] = [
     ".claude/skills/note-voice-census",
     ".codex/skills/note-voice-census",
 ];
-const FILES: [(&str, &[u8]); 6] = [
+const FILES: [(&str, &[u8]); 7] = [
     ("SKILL.md", include_bytes!("../../../skills/mozak/SKILL.md")),
     (
         "install.py",
@@ -76,6 +76,10 @@ const FILES: [(&str, &[u8]); 6] = [
     (
         "companion-recommendations.json",
         include_bytes!("../../../skills/mozak/companion-recommendations.json"),
+    ),
+    (
+        crate::stack_workflow::CATALOG_FILE,
+        crate::stack_workflow::CATALOG_BYTES,
     ),
 ];
 const ADHD_FILES: [(&str, &[u8]); 1] = [(
@@ -174,13 +178,6 @@ const NOTE_VOICE_CENSUS_FILES: [(&str, &[u8]); 5] = [
         "scripts/voice_census.py",
         include_bytes!("../../../skills/note-voice-census/scripts/voice_census.py"),
     ),
-];
-
-const SKILL_ROOTS: [&str; 4] = [
-    ".agents/skills",
-    ".jcode/skills",
-    ".claude/skills",
-    ".codex/skills",
 ];
 
 #[derive(Default)]
@@ -292,6 +289,7 @@ fn setup_inner(command: &str, home: &Path, args: &[String]) -> Result<ExitCode, 
             "embedded": true,
             "local_config": configured,
             "companion_recommendations": companions,
+            "stack_onboarding": stack_onboarding(),
             "checks": checks
         }))
         .map_err(|error| error.to_string())?
@@ -352,6 +350,7 @@ fn doctor_inner(home: &Path, kb_root: Option<&Path>) -> Result<ExitCode, String>
         serde_json::to_string(&json!({
             "schema_version":1, "command":"doctor", "home":home.to_string_lossy(),
             "kb_validation_requested":kb_root.is_some(), "state":state, "checks":checks,
+            "stack_onboarding": stack_onboarding(),
             "trust":"no automatic trust, authority, or package selection is inferred"
         }))
         .map_err(|error| error.to_string())?
@@ -547,47 +546,72 @@ fn find_in_path(name: &str) -> Option<PathBuf> {
 }
 
 fn companion_checks(home: &Path) -> Value {
-    let manifest: Value = serde_json::from_slice(include_bytes!(
-        "../../../skills/mozak/companion-recommendations.json"
-    ))
-    .expect("embedded companion recommendations manifest must be valid JSON");
-    let manifest_companions = manifest
-        .get("companions")
-        .and_then(Value::as_array)
-        .expect("manifest companions array");
-    let manifest_ids: Vec<&str> = manifest_companions
-        .iter()
-        .filter_map(|v| v.get("id").and_then(Value::as_str))
-        .collect();
-    assert_eq!(
-        manifest_ids,
-        vec![
-            "termaid",
-            "mmdr",
-            "adhd-skill",
-            "notes-skills",
-            "sequence-commitment",
-            "caveman-skill",
-            "drawing-skills"
-        ]
-    );
+    // The tool-stack catalog is the single inventory. Companion output is a
+    // compatibility projection of catalog tools that carry a
+    // `companion_classification`, preserving the historical shape and order.
+    let catalog =
+        crate::stack_workflow::load_catalog().expect("embedded tool-stack catalog must be valid");
+    let mut managed = Vec::new();
+    let mut required = Vec::new();
+    let mut recommended = Vec::new();
+    for tool in &catalog.tools {
+        let Some(classification) = tool.companion_classification.as_deref() else {
+            continue;
+        };
+        let entry = if tool.kind == "executable" {
+            let executable = tool
+                .detection
+                .executables
+                .first()
+                .map_or("", String::as_str);
+            executable_companion(executable, &tool.name, classification)
+        } else {
+            skill_companion(
+                home,
+                &tool.id,
+                &tool.name,
+                classification,
+                &tool.detection.skill_dirs,
+            )
+        };
+        match classification {
+            "managed" => managed.push(entry),
+            "required" => required.push(entry),
+            _ => recommended.push(entry),
+        }
+    }
     json!({
         "schema_version": 1,
         "manifest_path": "companion-recommendations.json",
+        "catalog_path": crate::stack_workflow::CATALOG_FILE,
         "policy": "MOZAK-managed companions are version-matched embedded payloads; missing recommended companions are reported only and are never auto-installed",
-        "managed": [
-            skill_companion(home, "adhd-skill", "ADHD skill", "managed", &["i-have-adhd"]),
-            skill_companion(home, "notes-skills", "Notes skills", "managed", &["note", "note-healthcheck", "note-voice-census"]),
-            skill_companion(home, "sequence-commitment", "Owner-approved sequence completion", "managed", &["mozak-sequence-commitment"]),
+        "managed": managed,
+        "required": required,
+        "recommended": recommended,
+    })
+}
+
+/// Nonblocking pointer to explicit, use-case-driven stack onboarding. It never
+/// changes setup or doctor state.
+fn stack_onboarding() -> Value {
+    let catalog =
+        crate::stack_workflow::load_catalog().expect("embedded tool-stack catalog must be valid");
+    json!({
+        "blocking": false,
+        "catalog": {
+            "id": catalog.catalog_id,
+            "version": catalog.catalog_version,
+            "file": crate::stack_workflow::CATALOG_FILE,
+            "sha256": crate::stack_workflow::catalog_sha256(),
+        },
+        "use_cases": catalog.use_cases.iter().map(|u| u.id.as_str()).collect::<Vec<_>>(),
+        "next_steps": [
+            "mozak stack catalog",
+            "mozak stack recommend USE_CASE",
+            "mozak stack check HOME USE_CASE",
         ],
-        "required": [
-            executable_companion("termaid", "Termaid", "required"),
-        ],
-        "recommended": [
-            executable_companion("mmdr", "mmdr", "recommended"),
-            skill_companion(home, "caveman-skill", "Caveman skill", "recommended", &["caveman"]),
-            skill_companion(home, "drawing-skills", "Drawing skills", "recommended", &["archify", "excalidraw-skill"]),
-        ]
+        "recommended_mcp_servers": catalog.tools.iter().filter(|t| t.kind == "mcp_server").map(|t| t.id.as_str()).collect::<Vec<_>>(),
+        "policy": "Recommended MCP servers are optional per use case. MOZAK never installs or registers them; missing ones do not affect setup or doctor state.",
     })
 }
 
@@ -617,9 +641,9 @@ fn skill_companion(
     id: &str,
     name: &str,
     classification: &str,
-    skill_names: &[&str],
+    skill_names: &[String],
 ) -> Value {
-    let matches = find_exact_skills(home, skill_names);
+    let matches = crate::stack_workflow::find_exact_skills(home, skill_names);
     let status = if matches.is_empty() {
         "missing"
     } else {
@@ -633,19 +657,6 @@ fn skill_companion(
         "status": status,
         "matches": matches,
     })
-}
-
-fn find_exact_skills(home: &Path, skill_names: &[&str]) -> Vec<String> {
-    let mut matches = Vec::new();
-    for root in SKILL_ROOTS {
-        for name in skill_names {
-            let relative = Path::new(root).join(name);
-            if home.join(&relative).is_dir() {
-                matches.push(relative.to_string_lossy().into_owned());
-            }
-        }
-    }
-    matches
 }
 
 #[cfg(unix)]
@@ -729,4 +740,59 @@ fn managed_build() -> Option<(PathBuf, Value)> {
     let value: Value = serde_json::from_slice(&bytes).ok()?;
     value.get("build_id")?.as_str()?;
     Some((build_dir, value))
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::Value;
+
+    /// The legacy companion manifest stays shipped for compatibility, but the
+    /// catalog is authoritative. They must never diverge.
+    #[test]
+    fn legacy_companion_manifest_matches_catalog_projection() {
+        let manifest: Value = serde_json::from_slice(include_bytes!(
+            "../../../skills/mozak/companion-recommendations.json"
+        ))
+        .unwrap();
+        let catalog = crate::stack_workflow::load_catalog().unwrap();
+        let from_catalog: Vec<(String, String, Vec<String>)> = catalog
+            .tools
+            .iter()
+            .filter_map(|t| {
+                let class = t.companion_classification.clone()?;
+                let names = if t.kind == "executable" {
+                    t.detection.executables.clone()
+                } else {
+                    t.detection.skill_dirs.clone()
+                };
+                Some((t.id.clone(), class, names))
+            })
+            .collect();
+        let mut from_manifest: Vec<(String, String, Vec<String>)> = manifest["companions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|c| {
+                let names = if c["kind"] == "executable" {
+                    vec![c["executable"].as_str().unwrap().to_owned()]
+                } else {
+                    c["skill_names"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .map(|n| n.as_str().unwrap().to_owned())
+                        .collect()
+                };
+                (
+                    c["id"].as_str().unwrap().to_owned(),
+                    c["classification"].as_str().unwrap().to_owned(),
+                    names,
+                )
+            })
+            .collect();
+        let mut sorted_catalog = from_catalog;
+        sorted_catalog.sort();
+        from_manifest.sort();
+        assert_eq!(sorted_catalog, from_manifest);
+    }
 }

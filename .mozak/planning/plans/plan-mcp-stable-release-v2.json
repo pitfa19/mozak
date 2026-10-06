@@ -1,0 +1,37 @@
+{
+  "contract_version": 1,
+  "id": "plan-mcp-stable-release",
+  "version": 2,
+  "input_set_id": "inputs-mcp-stable-release-001",
+  "supersedes": {"id": "plan-mcp-stable-release", "version": 1},
+  "goals": [{
+    "id": "mcp-stable-release", "version": 2, "supersedes_version": 1,
+    "title": "Publish MCP-only MOZAK v0.8.0 as latest stable and verify the published installation locally",
+    "status": "completed", "priority": 1,
+    "input_ids": ["input-stable-owner-approval", "input-stable-release-baseline"],
+    "recovery_attempts": 0,
+    "evidence": [
+      {"path": ".mozak/evidence/mcp-stable-release/closure.md", "sha256": "4a8a1c7e43236f75df53b5b4623bdb053dfb287f1b978ca110d50a064e8409bb"},
+      {"path": ".mozak/evidence/mcp-stable-release/latest-stable.json", "sha256": "185ef8eefd61bbd5b9c57a5018b06c3b0020bf7fa8dd8958103edb9c1275a705"},
+      {"path": ".mozak/evidence/mcp-stable-release/stable-publication.json", "sha256": "f7fd289022266c1eb051c43c7ce6772ef623559c4e5dfe8ecdc945b0b29f2a4a"},
+      {"path": ".mozak/evidence/mcp-stable-release/repaired-ci.json", "sha256": "53e80a40a67a25b58fd1ef1714dc1fd0ca6fb19159fa6d7534024c6aada7905a"},
+      {"path": ".mozak/evidence/mcp-stable-release/repaired-main-publication.json", "sha256": "031246847852947635add0d4b7122bb9a70f1a02edf39e6313d7a4ad420ad631"},
+      {"path": ".mozak/evidence/mcp-stable-release/installed-acceptance.json", "sha256": "81ada389e60a1ff50be02c1405eade8855d3b832188c63d96621e46d928bcdac"},
+      {"path": ".mozak/evidence/mcp-stable-release/live-stable-acceptance.json", "sha256": "f4532d8470376fe6095260a57370861bfb0266f4457b358f24be08b4e8591a79"},
+      {"path": ".mozak/evidence/mcp-stable-release/published-release-manifest.json", "sha256": "b169187e99369d621253ae3514ab86dcd2727793bcb08599b18bff9efde99ff4"},
+      {"path": ".mozak/evidence/mcp-stable-release/published-SHA256SUMS", "sha256": "4780768829c7418da6c489d6de861bf1cb52c211fac504e1f517a2e619ffe309"},
+      {"path": ".mozak/evidence/mcp-stable-release/release-notes.md", "sha256": "4b0c9e1e43f2df6ef4de7273637ca2cb8e7d35cab35b9b9e07a23f2c7e33af01"},
+      {"path": ".mozak/evidence/mcp-stable-release/workspace.log", "sha256": "2fff3b8056e67565f5ffc58a18ac51541fc058b6d135360d39d235ed59040733"},
+      {"path": ".mozak/evidence/mcp-stable-release/clippy.log", "sha256": "344d8aca3761ccb5d2829c2b307bd057c6f7c91e35ba3a3a639f796dc8eec2ff"},
+      {"path": ".mozak/evidence/mcp-stable-release/python.log", "sha256": "5092e95bc7b75891e3f95fdbdd13b3fbc141084b1c244fb6ebdaa55db230cad8"},
+      {"path": ".mozak/evidence/mcp-stable-release/fresh-release.log", "sha256": "35adf6bfff7d4ae7da1107e2fb26bcfd5ab52552013f96001d554f2069cd429b"},
+      {"path": ".mozak/evidence/mcp-stable-release/update.log", "sha256": "4b0f1c4d7a7e25235fd19a1138902c08e337f72fa2d7dd2d8622083c802e02ed"},
+      {"path": ".mozak/evidence/mcp-stable-release/bootstrap.log", "sha256": "364d4e86579869387655049fdd8637e11469f263c06920577f142aa9ba5e07d5"},
+      {"path": ".mozak/evidence/mcp-stable-release/fixture.json", "sha256": "07d694749c798e7c69ecdb25fee446a9f8ad6db08bafaac3d373b5666e9aacc8"},
+      {"path": ".mozak/evidence/mcp-stable-release/response.json", "sha256": "1b3f8571155e8091a649f1e35a27ce55db6b6667c6d59e42392674cc5de900bf"},
+      {"path": ".mozak/evidence/mcp-stable-release/run.json", "sha256": "fd843015f6fee28be513d75507467c485f1dfc3e65a0acc25e24e95e3ae95c3e"}
+    ]
+  }],
+  "dependencies": [],
+  "recovery": {"max_attempts_per_goal": 2, "allowed_failed_transition": "blocked"}
+}

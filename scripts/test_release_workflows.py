@@ -22,6 +22,14 @@ def load(path: Path) -> dict:
 
 
 class WorkflowTests(unittest.TestCase):
+    def test_ci_and_release_pin_the_project_toolchain(self) -> None:
+        toolchain = (ROOT / "rust-toolchain.toml").read_text(encoding="utf-8")
+        match = re.search(r'^channel = "([0-9]+\.[0-9]+\.[0-9]+)"$', toolchain, re.MULTILINE)
+        self.assertIsNotNone(match, "strict gates must use a reproducible compiler version")
+        assert match is not None
+        for workflow in (CI, RELEASE):
+            self.assertIn(f"toolchain: {match.group(1)}", workflow.read_text(encoding="utf-8"))
+
     def test_workflows_exist_and_parse(self) -> None:
         for path in (CI, RELEASE):
             self.assertTrue(path.is_file(), path)
