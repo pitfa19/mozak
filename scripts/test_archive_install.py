@@ -61,6 +61,40 @@ print(json.dumps({{'state':'ready','checks':checks}})); sys.exit(0)
 
 
 class ArchiveInstallRegressionTests(unittest.TestCase):
+    def test_jcode_invocation_skills_are_managed_only_for_jcode(self) -> None:
+        for name in ("swarm-low", "swarm-normal", "teacher", "mozak-jcode"):
+            self.assertTrue(archive_install.allowed_managed_report_path(
+                Path(".jcode/skills") / name / "SKILL.md"))
+            for root in (".agents", ".claude", ".codex"):
+                self.assertFalse(archive_install.allowed_managed_report_path(
+                    Path(root) / "skills" / name / "SKILL.md"))
+            for suffix in ("setup_jcode.py", "auth.json", "../mozak/SKILL.md"):
+                self.assertFalse(archive_install.allowed_managed_report_path(
+                    Path(".jcode/skills") / name / suffix))
+        for path in (".jcode/config.toml", ".jcode/swarm-prompt.md", ".jcode/prompt-overlay.md", ".jcode/auth.json"):
+            self.assertFalse(archive_install.allowed_managed_report_path(Path(path)))
+
+    def test_jcode_generation_accepts_136_and_rejects_partial_or_repeated_paths(self) -> None:
+        paths = []
+        for root in ROOTS:
+            groups = {
+                "mozak": archive_install.MOZAK_MANAGED_FILENAMES,
+                "i-have-adhd": archive_install.ADHD_MANAGED_FILENAMES,
+                "note": archive_install.NOTE_MANAGED_FILENAMES,
+                "note-healthcheck": archive_install.NOTE_HEALTHCHECK_MANAGED_FILENAMES,
+                "note-voice-census": archive_install.NOTE_VOICE_CENSUS_MANAGED_FILENAMES,
+                "mozak-sequence-commitment": archive_install.SEQUENCE_MANAGED_FILENAMES,
+            }
+            for skill, names in groups.items():
+                paths.extend(str(Path(root) / "skills" / skill / name) for name in sorted(names))
+        paths.extend(f".jcode/skills/{skill}/SKILL.md" for skill in sorted(archive_install.JCODE_MANAGED_SKILLS))
+        report = {"checks": [{"path": path} for path in paths]}
+        self.assertEqual(len(archive_install.report_paths(report, Path("/owned/home"))), 136)
+        with self.assertRaises(RuntimeError):
+            archive_install.report_paths({"checks": report["checks"][:-1]}, Path("/owned/home"))
+        with self.assertRaises(RuntimeError):
+            archive_install.report_paths({"checks": report["checks"][:-1] + [report["checks"][0]]}, Path("/owned/home"))
+
     def test_sequence_companion_exact_paths_are_managed(self) -> None:
         for root in ROOTS:
             for name in ("SKILL.md", "scripts/check_sequence.py", "tests/test_sequence.py"):

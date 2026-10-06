@@ -48,6 +48,7 @@ NOTE_VOICE_CENSUS_MANAGED_FILENAMES = {
     "scripts/voice_census.py",
 }
 SEQUENCE_MANAGED_FILENAMES = {"SKILL.md", "scripts/check_sequence.py", "tests/test_sequence.py"}
+JCODE_MANAGED_SKILLS = {"swarm-low", "swarm-normal", "teacher", "mozak-jcode"}
 LEGACY_ALIAS = Path(".claude/skills/i-have-adhd")
 LEGACY_ALIAS_TARGET = Path(".agents/skills/i-have-adhd")
 
@@ -225,8 +226,9 @@ def report_paths(report: dict[str, Any] | None, home: Path) -> list[Path]:
             raise RuntimeError("setup report repeats a managed path")
         paths.append(target)
     # Legacy generations remain supported for offline rollback. The stack
-    # catalog adds four files; sequence commitment adds three files per host.
-    if len(paths) not in {16, 20, 24, 28, 32, 116, 120, 132}:
+    # catalog adds four files; sequence commitment adds three files per host;
+    # opt-in Jcode support adds four invocation skills only under .jcode.
+    if len(paths) not in {16, 20, 24, 28, 32, 116, 120, 132, 136}:
         raise RuntimeError("setup report must declare a recognized managed file generation")
     return paths
 
@@ -253,6 +255,8 @@ def allowed_managed_report_path(path: Path) -> bool:
         return suffix in NOTE_VOICE_CENSUS_MANAGED_FILENAMES
     if skill == "mozak-sequence-commitment":
         return suffix in SEQUENCE_MANAGED_FILENAMES
+    if skill in JCODE_MANAGED_SKILLS:
+        return parts[0] == ".jcode" and suffix == "SKILL.md"
     return False
 
 
