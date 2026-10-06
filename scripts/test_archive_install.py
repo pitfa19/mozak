@@ -7,6 +7,8 @@ import stat
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location("archive_install", ROOT / "scripts/archive_install.py")
@@ -59,6 +61,56 @@ print(json.dumps({{'state':'ready','checks':checks}})); sys.exit(0)
 
 
 class ArchiveInstallRegressionTests(unittest.TestCase):
+    def test_sequence_companion_exact_paths_are_managed(self) -> None:
+        for root in ROOTS:
+            for name in ("SKILL.md", "scripts/check_sequence.py", "tests/test_sequence.py"):
+                self.assertTrue(archive_install.allowed_managed_report_path(
+                    Path(root) / "skills/mozak-sequence-commitment" / name))
+            for name in ("secret.json", "scripts/other.py", "../mozak/SKILL.md"):
+                self.assertFalse(archive_install.allowed_managed_report_path(
+                    Path(root) / "skills/mozak-sequence-commitment" / name))
+        self.assertFalse(archive_install.allowed_managed_report_path(
+            Path("/tmp/.jcode/skills/mozak-sequence-commitment/SKILL.md")))
+
+    def test_sequence_generation_report_keeps_exact_scope(self) -> None:
+        paths = []
+        for root in ROOTS:
+            groups = {
+                "mozak": archive_install.MOZAK_MANAGED_FILENAMES,
+                "i-have-adhd": archive_install.ADHD_MANAGED_FILENAMES,
+                "note": archive_install.NOTE_MANAGED_FILENAMES,
+                "note-healthcheck": archive_install.NOTE_HEALTHCHECK_MANAGED_FILENAMES,
+                "note-voice-census": archive_install.NOTE_VOICE_CENSUS_MANAGED_FILENAMES,
+                "mozak-sequence-commitment": archive_install.SEQUENCE_MANAGED_FILENAMES,
+            }
+            for skill, names in groups.items():
+                paths.extend(str(Path(root) / "skills" / skill / name) for name in sorted(names))
+        report = {"checks": [{"path": path} for path in paths]}
+        self.assertEqual(len(archive_install.report_paths(report, Path("/owned/home"))), 132)
+        report["checks"].pop()
+        with self.assertRaises(RuntimeError):
+            archive_install.report_paths(report, Path("/owned/home"))
+
+    def test_failed_upgrade_preserves_preexisting_new_companion(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            old_path = home / ".jcode/skills/mozak/SKILL.md"
+            new_path = home / ".jcode/skills/mozak-sequence-commitment/SKILL.md"
+            for path, data in ((old_path, b"old managed bytes"), (new_path, b"owner companion bytes")):
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(data)
+            observations = [
+                (SimpleNamespace(returncode=2), {"state": "incomplete"}),
+                (SimpleNamespace(returncode=0), {"state": "ready"}),
+                (SimpleNamespace(returncode=3), {"state": "invalid"}),
+            ]
+            with mock.patch.object(archive_install, "setup_report", side_effect=observations), \
+                 mock.patch.object(archive_install, "report_paths", side_effect=[[old_path, new_path], [old_path]]):
+                with self.assertRaises(RuntimeError):
+                    archive_install.migrate_skills(Path("old-binary"), Path("new-binary"), home)
+            self.assertEqual(old_path.read_bytes(), b"old managed bytes")
+            self.assertEqual(new_path.read_bytes(), b"owner companion bytes")
+
     def test_catalog_upgrade_and_offline_rollback_preserve_payload_generations(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

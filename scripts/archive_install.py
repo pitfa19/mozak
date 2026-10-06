@@ -47,6 +47,7 @@ NOTE_VOICE_CENSUS_MANAGED_FILENAMES = {
     "references/privacy.md",
     "scripts/voice_census.py",
 }
+SEQUENCE_MANAGED_FILENAMES = {"SKILL.md", "scripts/check_sequence.py", "tests/test_sequence.py"}
 LEGACY_ALIAS = Path(".claude/skills/i-have-adhd")
 LEGACY_ALIAS_TARGET = Path(".agents/skills/i-have-adhd")
 
@@ -224,8 +225,8 @@ def report_paths(report: dict[str, Any] | None, home: Path) -> list[Path]:
             raise RuntimeError("setup report repeats a managed path")
         paths.append(target)
     # Legacy generations remain supported for offline rollback. The stack
-    # catalog adds one managed file per host root to the previous generations.
-    if len(paths) not in {16, 20, 24, 28, 32, 116, 120}:
+    # catalog adds four files; sequence commitment adds three files per host.
+    if len(paths) not in {16, 20, 24, 28, 32, 116, 120, 132}:
         raise RuntimeError("setup report must declare a recognized managed file generation")
     return paths
 
@@ -250,6 +251,8 @@ def allowed_managed_report_path(path: Path) -> bool:
         return suffix in NOTE_HEALTHCHECK_MANAGED_FILENAMES
     if skill == "note-voice-census":
         return suffix in NOTE_VOICE_CENSUS_MANAGED_FILENAMES
+    if skill == "mozak-sequence-commitment":
+        return suffix in SEQUENCE_MANAGED_FILENAMES
     return False
 
 
@@ -282,6 +285,13 @@ def migrate_skills(old_binary: Path | None, new_binary: Path, home: Path, owner:
         return {}
     new_paths = report_paths(new_report, home)
     backup: dict[Path, tuple[str, bytes | str, int]] = {}
+    # Newly managed paths can already contain an owner-installed companion.
+    # Preserve them too, even when the previous binary did not know their names.
+    for path in new_paths:
+        if path.exists() or path.is_symlink():
+            alias = home / LEGACY_ALIAS
+            backup_path = alias if alias.is_symlink() and (path == alias or alias in path.parents) else path
+            backup[backup_path] = snapshot_managed_path(home, backup_path)
     if old_binary is not None:
         old_check, old_report = setup_report(old_binary, "check", home)
         if old_check.returncode != 0 or not old_report or old_report.get("state") != "ready":
