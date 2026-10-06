@@ -3,7 +3,8 @@
   "id": "plan-jcode-agent-work",
   "version": 2,
   "input_set_id": "inputs-jcode-agent-work-001",
-  "goals": [{"id": "jcode-agent-work", "version": 2, "title": "Bundle safe opt-in Jcode Low/Normal profiles and teacher supervision, publish stable MOZAK and verify local installation", "status": "in_progress", "priority": 1, "input_ids": ["input-jcode-owner", "input-jcode-baseline"], "recovery_attempts": 0}],
+  "supersedes": {"id": "plan-jcode-agent-work", "version": 1},
+  "goals": [{"id": "jcode-agent-work", "version": 2, "supersedes_version": 1, "title": "Bundle safe opt-in Jcode Low/Normal profiles and teacher supervision, publish stable MOZAK and verify local installation", "status": "in_progress", "priority": 1, "input_ids": ["input-jcode-owner", "input-jcode-baseline"], "recovery_attempts": 0, "evidence": [{"path": ".mozak/evidence/jcode-agent-work/sequence-contract.md", "sha256": "1bd0c56917c264492113372558920edc9ba09d3897d3a171dc31d20bbe01bfde"}]}],
   "dependencies": [],
   "recovery": {"max_attempts_per_goal": 2, "allowed_failed_transition": "blocked"}
 }
