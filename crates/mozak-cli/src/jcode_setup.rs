@@ -67,7 +67,7 @@ pub fn setup(action: &str, home: &Path) -> ExitCode {
             if std::io::stdout().write_all(&output.stdout).is_err() {
                 return ExitCode::FAILURE;
             }
-            ExitCode::from(output.status.code().unwrap_or(3) as u8)
+            ExitCode::from(u8::try_from(output.status.code().unwrap_or(3)).unwrap_or(3))
         }
         _ => {
             eprintln!("Jcode setup requires Python 3.11+ on PATH and an accessible real HOME");
