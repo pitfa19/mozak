@@ -1,0 +1,19 @@
+{
+  "sequence_id": "owner-sequence-rules-20261006",
+  "contract_sha256": "07934e80c356d25501c1702b088b56efd6f31bfbcf045f4e50135cfba3680998",
+  "requirements": [
+    {"id":"persistent-policy","status":"verified","checks":[
+      {"id":"installed-load","passed":true,"observation":"real","evidence":"Actual skill_manage load returned installed .claude companion; all 12 host files match source, verification.md"},
+      {"id":"general-routing-preserved","passed":true,"observation":"real","evidence":"Root AGENTS modified and prior routing body compared to exact backup, verification.md"}]},
+    {"id":"scope-stop-regressions","status":"verified","checks":[
+      {"id":"five-step-partial-refused","passed":true,"observation":"synthetic","evidence":"12 companion tests, original five-step case retains three incomplete items, verification.md"},
+      {"id":"cancel-drift-synthetic-refused","passed":true,"observation":"synthetic","evidence":"Companion regression tests refuse dropped/cancelled/changed scope and indirect observation substitutions, verification.md"}]},
+    {"id":"distribution-preservation","status":"verified","checks":[
+      {"id":"real-source-setup","passed":true,"observation":"real","evidence":"Actual source CLI setup installs twice and compares 128 embedded files in fresh HOME; final-workspace-v2.log"},
+      {"id":"installed-081-parity","passed":true,"observation":"real","evidence":"Installed 0.8.1 setup ready/parity true and original binary/main skill SHA unchanged, installed-setup-check.json"},
+      {"id":"whole-source-tests","passed":true,"observation":"real","evidence":"Final source Cargo workspace 464 passed/0 failed across 55 suites; 23 existing skill tests; fmt/diff clean, verification.md"}]},
+    {"id":"durable-delivery","status":"verified","checks":[
+      {"id":"source-commit","passed":true,"observation":"real","evidence":"Source and verification committed as 70b3659af8ca97e84adc6d9a6f0fb8e7ff07998e; registered project validate valid"},
+      {"id":"honest-limits","passed":true,"observation":"inspection","evidence":"SKILL.md and verification.md explicitly distinguish declared audit, actual install tests and unguaranteed future model compliance; no Genome completion claim"}]}
+  ]
+}
