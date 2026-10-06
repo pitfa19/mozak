@@ -1,0 +1,10 @@
+{
+  "contract_version": 1,
+  "id": "plan-jcode-agent-work",
+  "version": 6,
+  "input_set_id": "inputs-jcode-agent-work-001",
+  "supersedes": {"id": "plan-jcode-agent-work", "version": 5},
+  "goals": [{"id": "jcode-agent-work", "version": 6, "supersedes_version": 5, "title": "Bundle safe opt-in Jcode Low/Normal profiles and teacher supervision, publish stable MOZAK and verify local installation", "status": "completed", "priority": 1, "input_ids": ["input-jcode-owner", "input-jcode-baseline"], "recovery_attempts": 0, "evidence": [{"path": ".mozak/evidence/jcode-agent-work/sequence-contract.md", "sha256": "1bd0c56917c264492113372558920edc9ba09d3897d3a171dc31d20bbe01bfde"}, {"path": ".mozak/evidence/jcode-agent-work/closure-v1.md", "sha256": "5b0d176cb49a9b37adc3a24fcc564c1d163171f7f8af2ca660c2fa2054f5fb5f"}, {"path": ".mozak/evidence/jcode-agent-work/postclosure-audit-v1.md", "sha256": "df90a885dbdacb04389f2462b2db569890b133eb071c4a38b8cf0e89a60876ee"}, {"path": ".mozak/evidence/jcode-agent-work/whole-result-recheck-v1.md", "sha256": "685a52bed9ca3e9f5edef07b564622ea17191e72fabc6c79835bdf976048463d"}]}],
+  "dependencies": [],
+  "recovery": {"max_attempts_per_goal": 2, "allowed_failed_transition": "blocked"}
+}
