@@ -1,0 +1,9 @@
+{
+  "contract_version": 1,
+  "id": "plan-jcode-agent-work",
+  "version": 1,
+  "input_set_id": "inputs-jcode-agent-work-001",
+  "goals": [{"id": "jcode-agent-work", "version": 1, "title": "Bundle safe opt-in Jcode Low/Normal profiles and teacher supervision, publish stable MOZAK and verify local installation", "status": "ready", "priority": 1, "input_ids": ["input-jcode-owner", "input-jcode-baseline"], "recovery_attempts": 0}],
+  "dependencies": [],
+  "recovery": {"max_attempts_per_goal": 2, "allowed_failed_transition": "blocked"}
+}

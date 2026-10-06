@@ -1,0 +1,17 @@
+{
+  "contract_version": 1,
+  "id": "inputs-jcode-agent-work-001",
+  "accepted_at": "2026-10-06T20:05:42Z",
+  "inputs": [
+    {
+      "id": "input-jcode-owner",
+      "text": "Owner explicitly approved adding the Low/Normal agent-work profiles and opt-in teacher hierarchy to MOZAK, publishing a new stable version, and installing it locally. LOW default: Sol 6.1 low coordinator, Sonnet 5.5 medium workers. NORMAL: Sol 6.1 medium coordinator, Opus 5.5 medium workers. Teacher is the current session and only user interface, briefs a development coordinator that manages workers, and audits work. Teacher stays off unless invoked. Claude quota fallback tries the other configured Claude OAuth account with the same worker model, then the Sol development coordinator performs the work. Ship versioned invocation skills and a safe opt-in Jcode settings installer, preserve unrelated existing config and credentials, keep native swarm-deep prerequisite explicit, and do not claim prompt guidance alone changes host runtime controls.",
+      "provenance": {"kind": "human_decision", "decision_id": "decision-jcode-agent-work-20261006T200542Z", "actor": "pitfa"}
+    },
+    {
+      "id": "input-jcode-baseline",
+      "text": "MOZAK repository at 7909d4ce0cb00f56ef4960d05f6ae337a46e473f is version 0.8.1 and has embedded version-matched skills, drift-refusing setup/check/doctor, a verified archive installer/updater with rollback, and stable release publishing on version tags through .github/workflows/release.yml. Jcode personal Low defaults and three skills exist locally and a fresh Jcode session loaded the global profile/teacher overlay. Full nested runtime and actual quota-exhaustion were not tested. Bundle implementation must add actual installer/CLI acceptance tests, drift and symlink safeguards, no credential copying, and tests for idempotency and existing configuration preservation. One unrelated untracked .mozak/adapters/requests/potjera-app-hyperresearch.json must remain untouched and uncommitted.",
+      "provenance": {"kind": "codebase_observation", "observation_id": "obs-jcode-agent-work-20261006", "repository_revision": "7909d4ce0cb00f56ef4960d05f6ae337a46e473f", "paths": ["crates/mozak-cli/src/distribution.rs", ".github/workflows/release.yml", "scripts/archive_install.py", "scripts/mozak_launcher.py", "skills/mozak/SKILL.md"]}
+    }
+  ]
+}
