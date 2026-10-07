@@ -152,7 +152,6 @@ fn catalog_lists_every_named_use_case_and_declares_no_effects() {
         [
             "arxiv-mcp",
             "fetch-mcp",
-            "firecrawl-mcp",
             "github-mcp",
             "overleaf-mcp",
             "zotero-mcp"
@@ -637,9 +636,19 @@ fn existing_adapter_bindings_never_satisfy_mcp_readiness_and_are_never_read() {
         legacy_binding(&home, adapter);
         for use_case in ["tooling-watch", "deep-research"] {
             let output = check_use_case(&home, &bin, use_case, &[]);
-            assert_eq!(output.status.code(), Some(2), "{adapter} {use_case}");
+            let expected_code = if use_case == "deep-research" { 0 } else { 2 };
+            let expected_state = if use_case == "deep-research" {
+                "ready"
+            } else {
+                "incomplete"
+            };
+            assert_eq!(
+                output.status.code(),
+                Some(expected_code),
+                "{adapter} {use_case}"
+            );
             let report = json_of(&output);
-            assert_eq!(report["state"], "incomplete");
+            assert_eq!(report["state"], expected_state);
             assert!(report.get("adapter_registry").is_none());
             let text = String::from_utf8_lossy(&output.stdout);
             assert!(!text.contains("adapters.json"), "{text}");
@@ -776,64 +785,52 @@ fn tooling_watch_is_ready_through_a_configured_mcp_server_only() {
 
 #[cfg(unix)]
 #[test]
-fn deep_research_requires_configured_firecrawl_with_credential_name() {
+fn deep_research_has_optional_fetch_not_a_search_readiness_claim() {
     let home = scratch("deep-research");
     install_baseline(&home);
     let bin = home.join("bin");
     fake_executable(&bin, "termaid");
     fake_executable(&bin, "uvx");
-    fake_executable(&bin, "npx");
-    fs::create_dir_all(home.join(".jcode")).unwrap();
 
-    // Optional fetch configured, required firecrawl absent: incomplete.
+    // No MCP search tool or credentials are required. This checks baseline only.
+    let output = check_use_case(&home, &bin, "deep-research", &[]);
+    assert_eq!(output.status.code(), Some(0));
+    let report = json_of(&output);
+    assert_eq!(
+        tool(&report, "deep-research", "fetch-mcp")["requirement"],
+        "optional"
+    );
+    assert_ne!(
+        tool(&report, "deep-research", "fetch-mcp")["state"],
+        "configured"
+    );
+    assert!(
+        !String::from_utf8_lossy(&output.stdout)
+            .to_lowercase()
+            .contains("firecrawl")
+    );
+
+    fs::create_dir_all(home.join(".jcode")).unwrap();
     fs::write(
         home.join(".jcode/mcp.json"),
         r#"{"servers":{"fetch":{"command":"uvx","args":["mcp-server-fetch"]}}}"#,
     )
     .unwrap();
     let output = check_use_case(&home, &bin, "deep-research", &[]);
-    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(output.status.code(), Some(0));
     let report = json_of(&output);
-    assert_eq!(report["state"], "incomplete");
-    let firecrawl = tool(&report, "deep-research", "firecrawl-mcp");
-    assert_eq!(firecrawl["requirement"], "required");
-    assert_ne!(firecrawl["state"], "configured");
-    assert!(
-        report["next_steps"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|s| s["tool_id"] == "firecrawl-mcp")
-    );
-
-    // Firecrawl configured without FIRECRAWL_API_KEY: still incomplete.
-    fs::write(
-        home.join(".jcode/mcp.json"),
-        r#"{"servers":{"firecrawl":{"command":"npx","args":["-y","firecrawl-mcp"]}}}"#,
-    )
-    .unwrap();
-    let output = check_use_case(&home, &bin, "deep-research", &[]);
-    assert_eq!(output.status.code(), Some(2));
     assert_eq!(
-        tool(&json_of(&output), "deep-research", "firecrawl-mcp")["state"],
-        "prerequisite_missing"
-    );
-
-    // The key name in the process env completes it; the value never leaks.
-    let output = check_use_case(
-        &home,
-        &bin,
-        "deep-research",
-        &[("FIRECRAWL_API_KEY", "sekret-key")],
-    );
-    assert!(!String::from_utf8_lossy(&output.stdout).contains("sekret"));
-    let report = json_of(&output);
-    assert_eq!(output.status.code(), Some(0), "{report}");
-    assert_eq!(
-        tool(&report, "deep-research", "firecrawl-mcp")["state"],
+        tool(&report, "deep-research", "fetch-mcp")["state"],
         "configured"
     );
-    assert!(!bin.join("npx.executed").exists());
+    assert!(!bin.join("uvx.executed").exists());
+
+    let recommendation = run_with(&["stack", "recommend", "deep-research"], "", &[]);
+    let text = String::from_utf8_lossy(&recommendation.stdout);
+    assert!(!text.to_lowercase().contains("firecrawl"));
+    assert!(text.contains("outside this MCP catalog"));
+    assert!(text.contains("cannot establish their availability or usability"));
+    assert!(text.contains("not search"));
     fs::remove_dir_all(home).unwrap();
 }
 

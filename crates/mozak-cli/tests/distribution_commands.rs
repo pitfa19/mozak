@@ -35,13 +35,12 @@ fn version_is_stable() {
 }
 
 /// Every MCP server in the MCP-only catalog, in catalog order.
-const CATALOG_MCP_SERVERS: [&str; 6] = [
+const CATALOG_MCP_SERVERS: [&str; 5] = [
     "arxiv-mcp",
     "zotero-mcp",
     "overleaf-mcp",
     "fetch-mcp",
     "github-mcp",
-    "firecrawl-mcp",
 ];
 
 #[test]

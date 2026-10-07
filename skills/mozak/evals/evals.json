@@ -52,11 +52,11 @@
     },
     {
       "prompt": "Do a deep research run on retrieval-augmented agents like the old HyperResearch pipeline.",
-      "expected": "Run mozak stack check HOME deep-research. If FIRECRAWL_API_KEY is missing, report incomplete and stop without any fallback. Otherwise state the planned number of Firecrawl calls and ask for consent to spend credits, use firecrawl-mcp (fetch-mcp or arxiv-mcp as applicable), record each call with mozak research record-tool, and say plainly this is not the old HyperResearch or MONOKL pipeline and which steps actually ran."
+      "expected": "Run mozak stack check HOME deep-research for baseline and optional Fetch, not proof of host search readiness. Use host built-in search and reading when available, or report missing search. Optional fetch-mcp reads exact URLs; arxiv-mcp applies only after literature checks ready. Record only actual MCP calls with mozak research record-tool, never fabricate MCP evidence from built-in results. Say plainly this is not the old HyperResearch or MONOKL pipeline and which steps actually ran."
     },
     {
       "prompt": "Run my old hyperresearch adapter binding again and feed it to the Lab.",
-      "expected": "Explain that live adapters are retired and no mozak adapter command exists. Historical runs stay readable with research validate and project current/browse/why. Offer the MCP path instead: record tool evidence, then mozak lab start RUN_DIR SCOPE_ID MODULE QUESTION MCP_TOOL_ID with catalog ids such as firecrawl-mcp, and mozak lab refresh RUN_DIR TOOL_EVIDENCE_RUN_JSON. Do not delete or rewrite historical runs."
+      "expected": "Explain that live adapters are retired and no mozak adapter command exists. Historical runs stay readable with research validate and project current/browse/why. Offer the MCP path instead: record tool evidence, then mozak lab start RUN_DIR SCOPE_ID MODULE QUESTION MCP_TOOL_ID with catalog ids such as fetch-mcp, and mozak lab refresh RUN_DIR TOOL_EVIDENCE_RUN_JSON. Do not delete or rewrite historical runs."
     }
   ]
 }

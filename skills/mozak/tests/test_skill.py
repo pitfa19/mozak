@@ -381,7 +381,7 @@ class ToolStackSkillContractTests(unittest.TestCase):
         ):
             self.assertNotIn(retired, lower, retired)
         for phrase in (
-            "new retrieval is mcp-only",
+            "new retrieval recorded through mozak is mcp-only",
             "there is no adapter fallback",
             "never recommend a `mozak adapter` command",
             "never fall back to one when an mcp tool is missing",
@@ -396,10 +396,10 @@ class ToolStackSkillContractTests(unittest.TestCase):
         for phrase in (
             "`literature` (`arxiv-mcp` required; `fetch-mcp` and `github-mcp` optional",
             "`tooling-watch` (`fetch-mcp` required; `github-mcp` optional)",
-            "`deep-research` (`firecrawl-mcp` required; `fetch-mcp` optional)",
+            "`deep-research` (`fetch-mcp` optional; host built-in search outside the catalog)",
             "`references` (`zotero-mcp`)",
             "`manuscript` (`overleaf-mcp`",
-            "`GITHUB_PERSONAL_ACCESS_TOKEN`", "`FIRECRAWL_API_KEY`",
+            "`GITHUB_PERSONAL_ACCESS_TOKEN`", "Never relabel built-in results as MCP evidence",
             "`mozak stack catalog` is authoritative",
         ):
             self.assertIn(phrase, stack)
@@ -535,7 +535,7 @@ class PublicDocsMcpOnlyTests(unittest.TestCase):
         text = (REPO_DOCS / "TOOL-STACK.md").read_text()
         for phrase in (
             "| `tooling-watch` | `fetch-mcp` | `github-mcp` |",
-            "| `deep-research` | `firecrawl-mcp` | `fetch-mcp` |",
+            "| `deep-research` | None beyond baseline | `fetch-mcp` |",
             "| `literature` | `arxiv-mcp` | `github-mcp`, `fetch-mcp` |",
             "there is no adapter to fall back to",
             "mozak lab start <run-dir> <scope-id> <module> \"<question>\" arxiv-mcp github-mcp",
@@ -560,7 +560,7 @@ class ToolStackPayloadTests(unittest.TestCase):
         expected = " ".join(item["expected"] for item in evals).lower()
         self.assertNotIn("legacy arxiv adapter", expected)
         self.assertNotIn("offer the legacy", expected)
-        for phrase in ("tooling-watch", "deep-research", "firecrawl_api_key", "mozak lab start"):
+        for phrase in ("tooling-watch", "deep-research", "built-in", "mozak lab start"):
             self.assertIn(phrase, expected)
     def test_source_installer_ships_both_catalogs(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

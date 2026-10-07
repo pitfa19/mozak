@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "catalog_id": "mozak-tool-stack",
-  "catalog_version": "2026-10-06.1",
+  "catalog_version": "2026-10-07.1",
   "policy": {
     "selection": "Tools are selected explicitly per named use case. A use case returns only the tools that apply to it, plus the baseline that applies to every use case.",
     "installation": "MOZAK never installs, registers, launches, or updates third-party tools. Install and registration steps are reported text for the owner or agent host to run deliberately.",
@@ -10,9 +10,9 @@
     "readiness": "stack check observes at most `configured` from explicit host files. Handshake, service usability, and write grants require a separate agent-host probe and are never inferred.",
     "shipping": "Third-party tools are not shipped in the MOZAK payload unless `shipped_by_mozak` is true. Pins record the version observed in primary docs on `verified_at`; they are not a claim that MOZAK tested every host combination.",
     "evidence": "Anything a tool retrieves is proposal-only research evidence until the owner separately accepts an input.",
-    "workflows": "Every research route is an MCP server driven by the agent host. MOZAK ships no runtime research adapter and no adapter fallback. Former source-specific batch automation (weekly arXiv and DAIR.AI digests, MCP registry and GitHub watches, HyperResearch and MONOKL vault snapshots) is replaced by explicit agent-host workflows: the agent issues bounded calls, pages explicitly, and pins exact versions, commits, or URLs. Batch parity with the retired adapters is not claimed.",
+    "workflows": "Catalog MCP research routes are driven by the agent host. Host built-in web search may support bounded deep research when available, but is not an MCP server and cannot be recorded as MCP tool evidence. MOZAK ships no runtime research adapter and no adapter fallback. Former source-specific batch automation (weekly arXiv and DAIR.AI digests, MCP registry and GitHub watches, HyperResearch and MONOKL vault snapshots) is replaced by explicit agent-host workflows: the agent issues bounded calls, pages explicitly, and pins exact versions, commits, or URLs. Batch parity with the retired adapters is not claimed.",
     "history": "Historical adapter runs, bindings, and recorded evidence remain readable through MOZAK's existing evidence readers. The catalog no longer offers adapters as a route.",
-    "spend": "A tool that consumes paid credits, for example Firecrawl, is never called for network or credit use without explicit owner consent for that purpose."
+    "spend": "A tool that consumes paid credits is never called for network or credit use without explicit owner consent for that purpose."
   },
   "readiness_ladder": [
     {"id": "missing", "observed_by": "stack check", "meaning": "No declared executable, skill directory, or host registration was found."},
@@ -83,9 +83,8 @@
     {
       "id": "deep-research",
       "title": "Bounded multi-source deep research",
-      "summary": "Search and scrape a bounded set of web sources to markdown with the Firecrawl MCP server, which needs FIRECRAWL_API_KEY and consumes credits only with explicit owner consent. The Fetch MCP server optionally snapshots exact URLs. Replaces HyperResearch and MONOKL vault adapters with an explicit agent-host workflow; results are proposal-only evidence.",
+      "summary": "Use the agent host's built-in web search and reading when available for bounded multi-source research. These capabilities are outside this MCP catalog: stack check cannot establish their availability or usability, and their results must not be fabricated as MCP tool evidence. Fetch MCP optionally reads exact known URLs and provides recordable MCP evidence, not search. If host search is unavailable, report that limitation. No automatic vault pipeline or batch parity is claimed; results remain proposal-only.",
       "tools": [
-        {"tool_id": "firecrawl-mcp", "requirement": "required"},
         {"tool_id": "fetch-mcp", "requirement": "optional"}
       ]
     }
@@ -426,54 +425,6 @@
         "write": "None. Read-only mode is required; no write grant is ever requested through this route."
       },
       "notes": "Authenticated specialist route: repository search by topic or keyword, releases, tags, commit heads, and file contents at an exact ref, including DAIR.AI AI-Papers-of-the-Week at a pinned commit. It cannot read the MCP registry, so it never satisfies tooling-watch alone. Stars and pushes measure attention, not quality. The agent pages explicitly and records exact commits; results are proposal-only evidence."
-    },
-    {
-      "id": "firecrawl-mcp",
-      "name": "Firecrawl MCP server (official)",
-      "kind": "mcp_server",
-      "shipped_by_mozak": false,
-      "ready_at": "configured",
-      "upstream": {
-        "repository": "https://github.com/firecrawl/firecrawl-mcp-server",
-        "docs_url": "https://github.com/firecrawl/firecrawl-mcp-server#readme",
-        "registry": "npm",
-        "package": "firecrawl-mcp",
-        "pinned_version": "3.27.3",
-        "source_commit": "af5c378915280a87628a07cbc1b6041e7e8694cb",
-        "release_url": "https://www.npmjs.com/package/firecrawl-mcp/v/3.27.3",
-        "released_at": "2026-10-02",
-        "requires_node": ">=22.0.0",
-        "license": "MIT",
-        "verified_at": "2026-10-05",
-        "warning": "Search, scrape, crawl, and agent calls spend Firecrawl credits. Disable the feedback tools and get explicit owner consent before any network or credit use."
-      },
-      "detection": {
-        "executables": ["firecrawl-mcp"],
-        "launcher_executables": ["npx"],
-        "host_server_names": ["firecrawl"],
-        "command_markers": ["firecrawl-mcp"]
-      },
-      "prerequisites": [
-        {"id": "node", "kind": "executable_any", "executables": ["npx", "firecrawl-mcp"], "message": "Install Node.js 22 or newer (provides npx)."},
-        {"id": "firecrawl-key", "kind": "credential_env", "env": "FIRECRAWL_API_KEY", "message": "Declare FIRECRAWL_API_KEY in the host server env from the owner's Firecrawl account. MOZAK never reads or stores it. Without it deep-research stays incomplete."}
-      ],
-      "credentials": {"required_env": ["FIRECRAWL_API_KEY"], "optional_env": ["FIRECRAWL_API_URL"]},
-      "effects": {"network": "api.firecrawl.dev (or FIRECRAWL_API_URL) plus the pages it searches and scrapes", "credit_use": "every search, scrape, crawl, and agent call consumes credits on the owner's account and needs explicit owner consent", "local_writes": "none", "external_writes": "account-side crawl, agent, and monitor jobs only if those tools are called; this route uses search and scrape only"},
-      "install": [
-        "Run pinned without a global install: npx -y firecrawl-mcp@3.27.3 (with FIRECRAWL_API_KEY, FIRECRAWL_NO_SEARCH_FEEDBACK=1, FIRECRAWL_NO_ENDPOINT_FEEDBACK=1 in the host server env)"
-      ],
-      "registration": {
-        "jcode": {"path": ".jcode/mcp.json", "snippet": {"servers": {"firecrawl": {"command": "npx", "args": ["-y", "firecrawl-mcp@3.27.3"], "env": {"FIRECRAWL_API_KEY": "<owner supplies>", "FIRECRAWL_NO_SEARCH_FEEDBACK": "1", "FIRECRAWL_NO_ENDPOINT_FEEDBACK": "1"}}}}},
-        "claude-code": {"command": "claude mcp add --transport stdio --scope user -e FIRECRAWL_API_KEY=<owner supplies> -e FIRECRAWL_NO_SEARCH_FEEDBACK=1 -e FIRECRAWL_NO_ENDPOINT_FEEDBACK=1 firecrawl -- npx -y firecrawl-mcp@3.27.3", "verify": "claude mcp get firecrawl"},
-        "codex": {"command": "codex mcp add firecrawl --env FIRECRAWL_API_KEY=<owner supplies> --env FIRECRAWL_NO_SEARCH_FEEDBACK=1 --env FIRECRAWL_NO_ENDPOINT_FEEDBACK=1 -- npx -y firecrawl-mcp@3.27.3", "verify": "codex mcp get firecrawl"},
-        "claude-desktop": {"path": ".config/Claude/claude_desktop_config.json", "snippet": {"mcpServers": {"firecrawl": {"type": "stdio", "command": "npx", "args": ["-y", "firecrawl-mcp@3.27.3"], "env": {"FIRECRAWL_API_KEY": "<owner supplies>", "FIRECRAWL_NO_SEARCH_FEEDBACK": "1", "FIRECRAWL_NO_ENDPOINT_FEEDBACK": "1"}}}}}
-      },
-      "probes": {
-        "handshake": "From the agent host, list tools on server `firecrawl` and confirm `firecrawl_search` and `firecrawl_scrape` are present. Listing tools spends no credits.",
-        "usable": "Only after explicit owner consent to spend credits: call `firecrawl_search` with one owner-chosen query and a small limit, and confirm real results. An auth error means the key is missing or invalid.",
-        "write": "None. Crawl, agent, interact, and monitor tools are out of scope for this route."
-      },
-      "notes": "Bounded multi-source research: a few owner-approved searches with explicit limits, then scrape of chosen URLs to markdown. Replaces HyperResearch and MONOKL vault adapters with an explicit agent-host workflow, not an automatic vault run. Results are proposal-only evidence with each source URL recorded."
     }
   ]
 }

@@ -1,9 +1,10 @@
 # Explicit tool stack contract
 
 Status: implemented in `mozak stack` (catalog `skills/mozak/tool-stack.json`, schema v1,
-catalog version `2026-10-05.2`).
+catalog version `2026-10-07.1`).
 Owner approval: decision `decision-tool-stack-2026-10-05T181833Z`; live adapter retirement
-approved by the owner on 2026-10-05.
+approved by the owner on 2026-10-05. The owner permanently prohibited Firecrawl
+on 2026-10-07 and authorized its removal from the active stack.
 
 ## Routes
 
@@ -46,7 +47,7 @@ invalid.
 | `references` | `zotero-mcp` | `zotero-cli-skill` (optional) |
 | `manuscript` (optional, never default) | `overleaf-mcp` | none |
 | `tooling-watch` | `fetch-mcp` | `github-mcp` (optional) |
-| `deep-research` | `firecrawl-mcp` | `fetch-mcp` (optional) |
+| `deep-research` | None beyond baseline | `fetch-mcp` (optional, exact URLs only) |
 
 ### Retired adapter replacement map
 
@@ -56,11 +57,15 @@ invalid.
 | `dair-ai` | `github-mcp` `get_file_contents` at an exact commit, or `fetch-mcp` on a commit-pinned raw URL | `literature` (optional) |
 | `mcp-registry` | `fetch-mcp` on exact `registry.modelcontextprotocol.io/v0/servers` URLs, paged explicitly with the API cursor | `tooling-watch` (required) |
 | `github-tooling` | `github-mcp` read-only `repos` toolset (`search_repositories`, `list_releases`, `get_latest_release`, `list_tags`, `list_commits`), or `fetch-mcp` on public GitHub API URLs | `tooling-watch` |
-| `hyperresearch`, `monokl` | `firecrawl-mcp` (`firecrawl_search`, `firecrawl_scrape`) plus optional `fetch-mcp` | `deep-research` |
+| `hyperresearch`, `monokl` | Host built-in search/reading when available, outside the MCP catalog; optional `fetch-mcp` for exact URLs | `deep-research` |
 
 `tooling-watch` requires `fetch-mcp` because only it can read the official MCP registry;
-`github-mcp` alone never marks the use case ready. `deep-research` requires
-`firecrawl-mcp`; `fetch-mcp` alone cannot search.
+`github-mcp` alone never marks the use case ready. `deep-research` checks baseline
+and optional Fetch only. Host built-in search is outside the MCP catalog and
+stack check cannot prove its availability or usability. Fetch alone cannot search.
+If host search is unavailable, report that limitation. Built-in results must not
+be fabricated as MCP evidence or used as a Lab refresh run. Only actual catalog
+MCP calls go through the unchanged MOZAK tool-evidence recorder.
 
 Honest limits:
 
@@ -73,11 +78,8 @@ Honest limits:
   `github-mcp` with a token for larger watches.
 - `fetch-mcp` upstream cautions that it can reach local and internal IP addresses. Point it
   only at exact public URLs.
-- Firecrawl calls spend credits on the owner's account. No search, scrape, or probe call
-  that spends credits runs without explicit owner consent for that purpose. Feedback
-  tools are disabled in the registration (`FIRECRAWL_NO_SEARCH_FEEDBACK=1`,
-  `FIRECRAWL_NO_ENDPOINT_FEEDBACK=1`). Crawl, agent, interact, and monitor tools are out of
-  scope.
+- Any permitted tool that spends credits requires explicit owner consent for that
+  purpose. This does not authorize adding tools.
 - Historical adapter runs and recorded evidence remain readable through the existing
   evidence readers and the generic record tool. The catalog no longer offers adapters as
   a route or fallback.
@@ -88,7 +90,6 @@ Honest limits:
 |---|---|---|---|
 | `fetch-mcp` | PyPI `mcp-server-fetch` | `2026.8.18` (uploaded 2026-08-18) | PyPI JSON API and `modelcontextprotocol/servers` `src/fetch` README |
 | `github-mcp` | `ghcr.io/github/github-mcp-server` | `v1.14.0` image index `sha256:7aaeeec9ae4fe9a736d100c1ff0798f3c219b5009e05f5d3945fcacb13cc196b` (release 2026-10-02) | GitHub release API, ghcr manifest, README at tag `v1.14.0` |
-| `firecrawl-mcp` | npm `firecrawl-mcp` | `3.27.3` (published 2026-10-02, gitHead `af5c378915280a87628a07cbc1b6041e7e8694cb`) | npm registry metadata and `package.json` at that commit |
 
 Registrations are local stdio only, with exact versions; no moving `latest` tag. The host
 config parser does not yet observe remote transports. Install text is never executed by
@@ -146,9 +147,6 @@ Read-only, bounded (8 MiB), and only at catalog paths under HOME:
 GitHub: `github-mcp` requires `GITHUB_PERSONAL_ACCESS_TOKEN` (an owner-created read-only
 token) plus Docker or the release binary. Read-only mode and the `repos` toolset are set
 in the registration.
-
-Firecrawl: `firecrawl-mcp` requires `FIRECRAWL_API_KEY` plus `npx` (Node.js 22+).
-`FIRECRAWL_API_URL` is optional for a self-hosted instance.
 
 Fetch: `fetch-mcp` needs no credential, only `uvx` or the installed executable.
 

@@ -65,7 +65,9 @@ mozak stack check "$HOME" literature    # what is ready on this machine
 
 MOZAK ships a catalog of MCP servers and skills per use case: arXiv for
 literature, Zotero for references, Overleaf for manuscripts, Fetch and GitHub
-for tooling watch, and Firecrawl for deep research. It shows exact install
+for tooling watch, and optional Fetch for exact URLs in deep research.
+Deep research uses host built-in search when available, outside the MCP
+catalog and its evidence recorder. It shows exact install
 steps for what is missing and installs nothing without your consent.
 `stack check` reads local config only: an installed package is not a working
 connection, and a working connection is not write access. Your agent makes the

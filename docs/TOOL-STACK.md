@@ -56,7 +56,7 @@ obedience. It grants no approval and overrides no safety boundary.
 | `references` | `zotero-mcp` | `zotero-cli-skill` | Needs a local Zotero database |
 | `manuscript` | `overleaf-mcp` | none | Optional use case, needs credentials |
 | `tooling-watch` | `fetch-mcp` | `github-mcp` | Released tooling and repository watch |
-| `deep-research` | `firecrawl-mcp` | `fetch-mcp` | Multi-source search and reading; consumes Firecrawl credits |
+| `deep-research` | None beyond baseline | `fetch-mcp` | Host built-in search when available; optional MCP reads of exact URLs |
 
 Values in the table are catalog tool ids. `mozak stack catalog` is the
 authority if this table and the catalog ever disagree.
@@ -72,8 +72,6 @@ drift from the catalog. Read them with `mozak stack recommend USE_CASE`.
 Credential key names the catalog declares:
 
 - `github-mcp`: `GITHUB_PERSONAL_ACCESS_TOKEN` (required).
-- `firecrawl-mcp`: `FIRECRAWL_API_KEY` (required), `FIRECRAWL_API_URL`
-  (optional).
 - `fetch-mcp`: none.
 - `overleaf-mcp`: see `mozak stack recommend manuscript`, for example
   `OVERLEAF_SESSION`.
@@ -184,15 +182,16 @@ Tooling watch runs when you or your agent ask for it. MOZAK schedules nothing.
 
 ### Deep research (`deep-research`)
 
-1. `mozak stack check "$HOME" deep-research`. `firecrawl-mcp` needs
-   `FIRECRAWL_API_KEY`. Every Firecrawl search or scrape consumes credits on
-   that account, so state the planned number of calls and get the owner's
-   explicit consent before spending.
-2. Search and read across sources with `firecrawl-mcp`. Use `fetch-mcp` for a
-   single known URL, and `arxiv-mcp` when the source is an arXiv paper and the
-   `literature` check passed.
-3. Record each call as its own fixture with exact versions, declared effects,
-   and excerpt byte ranges. Bounded results that stop early set
+1. `mozak stack check "$HOME" deep-research` checks baseline and optional
+   Fetch configuration only. A ready report does not prove host search exists.
+2. Use the host's built-in web search and reading when available. Cite exact
+   sources and disclose limitations. If unavailable, report missing search.
+   Optional `fetch-mcp` reads exact known URLs, not search. Use `arxiv-mcp`
+   for papers only when the `literature` check passed.
+3. Record only actual catalog MCP calls with exact versions, declared effects,
+   and excerpt byte ranges. Never fabricate MCP evidence from built-in results
+   or use them as a Lab refresh run. Built-in research is outside MOZAK's
+   tool-evidence recorder. Bounded MCP results that stop early set
    `truncated: true` with a gap.
 
 This is not the old HyperResearch or MONOKL pipeline. It does not reproduce

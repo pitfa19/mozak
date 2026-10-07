@@ -47,9 +47,10 @@ package import, agent-facing project context, reviewed discovery, pinned case
 records with reproduction packets, Concepts and Translations, and Linux
 distribution with update and rollback.
 
-New retrieval runs only through catalog MCP tools that your agent host calls:
-arXiv for literature, Zotero for references, Overleaf for manuscripts, and
-GitHub, Fetch, and Firecrawl MCP servers for tooling watch and deep research.
+New retrieval recorded by MOZAK runs through catalog MCP tools that your agent
+host calls: arXiv for literature, Zotero for references, Overleaf for manuscripts,
+and GitHub and Fetch for tooling watch and exact-URL reading. Deep research may
+use host built-in search when available, outside the MCP evidence recorder.
 Networking happens outside MOZAK and the recorded output is proposal-only. The
 former live adapters are retired; their recorded runs stay readable as history.
 

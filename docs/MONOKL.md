@@ -1,9 +1,10 @@
 # MONOKL adapter (retired, historical)
 
 MOZAK no longer runs a MONOKL adapter. New deep research goes through the
-`deep-research` use case: your agent host calls `firecrawl-mcp` (and
-optionally `fetch-mcp` or `arxiv-mcp`), and MOZAK records each call with
-`mozak research record-tool`. See the
+`deep-research` use case: use host built-in search and reading when
+available, with optional `fetch-mcp` for exact known URLs. MOZAK records only
+actual catalog MCP calls with `mozak research record-tool`, never built-in
+results presented as MCP evidence. See the
 [tool-stack guide](TOOL-STACK.md#deep-research-deep-research).
 
 That MCP path is not the MONOKL workflow and does not reproduce its vault or

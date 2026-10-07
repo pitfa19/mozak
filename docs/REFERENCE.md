@@ -121,7 +121,7 @@ decision. Full guide: [TOOL-STACK.md](TOOL-STACK.md).
 |---|---|
 | "Find papers on this topic." | `mozak stack check "$HOME" literature`, then the agent calls `arxiv-mcp` |
 | "Watch new tooling releases." | `mozak stack check "$HOME" tooling-watch`, then the agent calls `fetch-mcp` (and `github-mcp` if configured) |
-| "Research this question across the web." | `mozak stack check "$HOME" deep-research`, then the agent calls `firecrawl-mcp` |
+| "Research this question across the web." | `mozak stack check "$HOME" deep-research`, then host built-in search when available; optional `fetch-mcp` reads exact URLs |
 | "Record that tool result as evidence." | `mozak research record-tool <fixture.json> <response-bytes> <run.json>` |
 | "Is that recorded run still intact?" | `mozak research verify-tool <fixture.json> <response-bytes> <run.json>` |
 | "Check this research run is valid." | `mozak research validate <run.json>` |

@@ -323,12 +323,15 @@ See [the worked example](examples/tool-evidence-example.md) for the fixture.
   `fetch-mcp` or `github-mcp` at an exact commit.
 - New tooling releases and repositories: `mozak stack check "$HOME" tooling-watch`
   (needs `fetch-mcp`).
-- Multi-source web research: `mozak stack check "$HOME" deep-research` (needs
-  `firecrawl-mcp` and a `FIRECRAWL_API_KEY`; calls consume credits).
+- Multi-source web research: `mozak stack check "$HOME" deep-research` checks
+  baseline and optional Fetch only. Use host built-in search when available,
+  or report missing search. Fetch optionally reads exact URLs.
 
 Each is described step by step in the [tool-stack guide](TOOL-STACK.md#workflows).
 
-Every path ends in a validated research run. It is **proposal-only**.
+Every MCP path ends in a validated research run. Built-in search is outside
+that recorder and must never be relabeled MCP evidence. All research is
+**proposal-only**.
 Nothing entered your Topic yet.
 
 Accept what you actually want with `mozak scope ingest-links`, which applies an

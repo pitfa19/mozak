@@ -69,7 +69,7 @@ accept it.
 │  GitHub launcher · stable/main channels · update · rollback      │
 ├─────────────────────────────────────────────────────────────────┤
 │  MCP TOOLS (agent host, outside MOZAK)                          │
-│  arXiv · Zotero · Overleaf · GitHub · Fetch · Firecrawl         │
+│  arXiv · Zotero · Overleaf · GitHub · Fetch                    │
 │  the host makes the call; MOZAK validates recorded tool evidence│
 └─────────────────────────────────────────────────────────────────┘
 ```
