@@ -264,6 +264,9 @@ Treat overview, list, graph-source, graph, validation, status, and next-goal rec
 
 - Register an exact reviewed discovery proposal: `mozak project register DISCOVERY_JSON APPROVAL_JSON`
 - Refresh an exact reviewed replacement: `mozak project refresh DISCOVERY_JSON APPROVAL_JSON`
+- Register projects without a local checkout: `mozak project register-remote REMOTE_SPECS_JSON APPROVAL_JSON`. It performs no networking and needs an approval pinned to the exact specs file hash with `intent: "project register-remote"`. Each spec carries an https or `git@github.com:` URL, an exact pinned commit, and the expected manifest and idea hashes.
+- Fetch a remote-only project: `mozak project fetch PROJECT_ID`. This is the only MOZAK command that touches the network. It fetches the registered URL at the pinned commit into `~/.cache/mozak/projects/PROJECT_ID` and removes the checkout unless its bytes match the registration. `project context` never clones: for an unfetched project it reports invalid and names `project fetch`, so run it first, then context.
+- Remove cached remote checkouts: `mozak project prune [PROJECT_ID]`. It refuses a locally registered project.
 - Inspect automatic refresh audit history: `mozak project refresh history`
 - Roll back to a preserved identity-equivalent config generation: `mozak project refresh rollback CONFIG_SHA256`
 - Registration is create-only and atomically creates only an absent local config. Never delete or replace it to force registration. Refresh requires an existing valid config, an exact matching `config_base_sha256`, and strict owner approval pinned to the digest and target with `intent: "project refresh"`, owner, canonical UTC time, and rationale.

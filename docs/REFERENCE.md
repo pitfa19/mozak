@@ -59,6 +59,9 @@ mozak project why <project-id> <record-id>
 mozak project registrations
 mozak project refresh history
 mozak project refresh rollback <config-sha256>
+mozak project register-remote <remote-specs.json> <approval.json>  # mutation, no network
+mozak project fetch <project-id>                                  # the only networked command
+mozak project prune [project-id]                                  # removes cached remote checkouts only
 mozak notes scope <scope-id> [--limit N] [--offset N]
 mozak notes meta-goal <meta-goal-id> [--limit N] [--offset N]
 mozak notes check
@@ -87,6 +90,16 @@ Project additions, removals, renames, root changes, KB changes, and manifest
 identity or owned-path authority changes still require reviewed discovery and a
 strict owner approval. `project refresh rollback` likewise accepts only a
 preserved generation with the same membership, roots, KB, and identities.
+
+Since 0.10 a project can be registered without a local checkout. `project
+register-remote` records a git URL and an exact pinned commit under an owner
+approval pinned to the specs file hash, and performs no networking. `project
+fetch PROJECT_ID` is the only command that touches the network: it fetches that
+URL at that commit into `~/.cache/mozak/projects/PROJECT_ID`, then removes the
+checkout and fails unless the manifest and idea hashes match the registration.
+`project context` never clones. For an unfetched project it reports the project
+invalid and names `project fetch`. `project prune` removes cached remote
+checkouts only and refuses a local registration. See ADR 0005.
 
 ### Tool stack
 
