@@ -44,6 +44,21 @@ const CATALOG_MCP_SERVERS: [&str; 5] = [
 ];
 
 #[test]
+fn setup_install_does_not_ship_retired_jcode_profile_skills() {
+    let home = scratch("retired-jcode");
+    let installed = run(&["setup", "install", home.to_str().unwrap()]);
+    assert!(installed.status.success());
+    for name in ["swarm-low", "swarm-normal", "teacher", "mozak-jcode"] {
+        assert!(
+            !home.join(".jcode/skills").join(name).exists(),
+            "retired Jcode skill {name} must not be installed"
+        );
+    }
+    let retired = run(&["setup", "jcode", "plan", home.to_str().unwrap()]);
+    assert!(!retired.status.success(), "setup jcode must be retired");
+}
+
+#[test]
 fn install_and_check_are_embedded_idempotent_and_deterministic() {
     let home = scratch("install");
     let home_arg = home.to_str().unwrap();
@@ -60,7 +75,8 @@ fn install_and_check_are_embedded_idempotent_and_deterministic() {
     assert_eq!(report["state"], "ready");
     assert_eq!(report["parity"], true);
     assert_eq!(report["embedded"], true);
-    assert_eq!(report["checks"].as_array().unwrap().len(), 136);
+    // 132: the 136-file generation minus the four retired Jcode profile skills.
+    assert_eq!(report["checks"].as_array().unwrap().len(), 132);
     let catalog_bytes = fs::read(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../skills/mozak/tool-stack.json"),
     )

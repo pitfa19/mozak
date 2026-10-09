@@ -22,13 +22,6 @@ curl -fsSL https://raw.githubusercontent.com/pitfa19/mozak/main/scripts/install.
 mozak setup check "$HOME"
 ```
 
-Optional Jcode Low/Normal profiles and teacher supervision ship as invocation
-skills. Global configuration is explicit opt-in, never an automatic update:
-`mozak setup jcode plan "$HOME"`, then owner-approved
-`mozak setup jcode install "$HOME"` and `mozak setup jcode check "$HOME"`.
-See [Jcode agent work](docs/distribution/JCODE-AGENT-WORK.md). Python 3.11+
-required. LOW stays default and teacher stays OFF until explicitly invoked.
-
 This installs `mozak`, `mozak-mcp`, and the MOZAK skill for Claude Code,
 Jcode, Codex, and agents using the shared `.agents` convention. The installer
 prints the exact configuration step when this is a new machine.

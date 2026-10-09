@@ -51,6 +51,10 @@ NOTE_VOICE_CENSUS_MANAGED_FILENAMES = {
 }
 SEQUENCE_MANAGED_FILENAMES = {"SKILL.md", "scripts/check_sequence.py", "tests/test_sequence.py"}
 JCODE_MANAGED_SKILLS = {"swarm-low", "swarm-normal", "teacher", "mozak-jcode"}
+# MOZAK 0.11 retired the opt-in Jcode profile skills. A build that no longer
+# manages them must still upgrade an install whose owner already removed them,
+# so their absence (never their modification) is accepted for this one set.
+RETIRED_JCODE_SKILLS = JCODE_MANAGED_SKILLS
 LEGACY_ALIAS = Path(".claude/skills/i-have-adhd")
 LEGACY_ALIAS_TARGET = Path(".agents/skills/i-have-adhd")
 
@@ -300,9 +304,9 @@ def migrate_skills(old_binary: Path | None, new_binary: Path, home: Path, owner:
             backup[backup_path] = snapshot_managed_path(home, backup_path)
     if old_binary is not None:
         old_check, old_report = setup_report(old_binary, "check", home)
-        if old_check.returncode != 0 or not old_report or old_report.get("state") != "ready":
+        if old_check.returncode not in (0, 2) or not old_report_ready(old_report, new_report):
             raise RuntimeError("installed managed skills drifted; refusing automatic migration")
-        old_paths = report_paths(old_report, home)
+        old_paths = present_paths(old_report, home)
         alias = home / LEGACY_ALIAS
         alias_is_link = alias.is_symlink()
         for path in old_paths:
@@ -331,6 +335,47 @@ def jcode_custody_paths(report: dict[str, Any], home: Path) -> set[Path]:
     return {path for path in report_paths(report, home)
             if path.relative_to(home).parts[:2] == (".jcode", "skills")
             and path.relative_to(home).parts[2] in JCODE_MANAGED_SKILLS}
+
+
+def is_retired_jcode_path(path: Path) -> bool:
+    parts = path.parts
+    return (len(parts) == 4 and parts[:2] == (".jcode", "skills")
+            and parts[2] in RETIRED_JCODE_SKILLS and parts[3] == "SKILL.md")
+
+
+def old_report_ready(old_report: dict[str, Any] | None, new_report: dict[str, Any] | None) -> bool:
+    """True when the old install is intact apart from retired files it lost.
+
+    A missing file is tolerated only if it is a retired Jcode skill AND the new
+    build no longer manages it. Any drifted file, any other missing file, or a
+    malformed report still refuses the migration.
+    """
+    if not isinstance(old_report, dict) or not isinstance(old_report.get("checks"), list):
+        return False
+    if old_report.get("state") == "ready":
+        return True
+    new_managed = set()
+    if isinstance(new_report, dict) and isinstance(new_report.get("checks"), list):
+        new_managed = {check.get("path") for check in new_report["checks"] if isinstance(check, dict)}
+    for check in old_report["checks"]:
+        if not isinstance(check, dict) or not isinstance(check.get("path"), str):
+            return False
+        status = check.get("status")
+        if status == "ok":
+            continue
+        relative = Path(check["path"])
+        if status == "missing" and is_retired_jcode_path(relative) and check["path"] not in new_managed:
+            continue
+        return False
+    return True
+
+
+def present_paths(report: dict[str, Any], home: Path) -> list[Path]:
+    """Managed paths from a report, excluding retired files already absent."""
+    missing = {home / Path(check["path"]) for check in report["checks"]
+               if isinstance(check, dict) and check.get("status") == "missing"
+               and isinstance(check.get("path"), str) and is_retired_jcode_path(Path(check["path"]))}
+    return [path for path in report_paths(report, home) if path not in missing]
 
 
 def custody_record(old: Path, target: Path, home: Path, paths: set[Path]) -> bytes:
@@ -473,10 +518,10 @@ def activate(source: Path, prefix: Path, home: Path, expected_build_id: str | No
     dropped_backup = {}
     if old is not None:
         old_check, old_report = setup_report(old_binary, "check", home)
-        if old_check.returncode != 0 or not old_report or old_report.get("state") != "ready":
-            raise RuntimeError("installed managed skills drifted; refusing automatic migration")
         _, new_report = setup_report(target / "mozak", "check", home)
-        old_jcode = jcode_custody_paths(old_report, home)
+        if old_check.returncode not in (0, 2) or not old_report_ready(old_report, new_report):
+            raise RuntimeError("installed managed skills drifted; refusing automatic migration")
+        old_jcode = jcode_custody_paths(old_report, home) & set(present_paths(old_report, home))
         new_jcode = jcode_custody_paths(new_report, home)
         gained, dropped = new_jcode - old_jcode, old_jcode - new_jcode
         if gained:

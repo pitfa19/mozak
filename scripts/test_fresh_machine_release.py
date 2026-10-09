@@ -120,21 +120,20 @@ def main() -> int:
         assert installed["local_config"]["owner"] == "packaged-acceptance-owner"
         assert installed["local_config"]["kb_root"] == str(kb)
         # Actual archive launcher path, not a copied installer or synthetic CLI.
+        # Owner Jcode files are never managed: setup leaves them untouched.
         jcode_root = home / ".jcode"
         assert not (jcode_root / "config.toml").exists()
         config_before = b"# packaged owner\n[other]\nkeep = 17\n"
         (jcode_root / "config.toml").write_bytes(config_before)
         credential = jcode_root / "credentials.json"
         credential.write_bytes(b"acceptance-sentinel-not-a-real-secret")
-        plan = run(binary, env, "setup", "jcode", "plan", str(home))
-        assert plan["state"] == "planned" and plan["effects"]["mutation"] is False
-        assert (jcode_root / "config.toml").read_bytes() == config_before
-        opted_in = run(binary, env, "setup", "jcode", "install", str(home))
-        assert opted_in["state"] == "ready" and opted_in["teacher_default"] == "off"
-        assert run(binary, env, "setup", "jcode", "check", str(home))["state"] == "ready"
-        assert run(binary, env, "setup", "jcode", "install", str(home))["changes"] == []
+        retired = subprocess.run([binary, "setup", "jcode", "plan", str(home)], env=env, capture_output=True, text=True)
+        assert retired.returncode != 0, "the retired setup jcode route must not exist"
+        assert run(binary, env, "setup", "install", str(home))["parity"] is True
         assert credential.read_bytes() == b"acceptance-sentinel-not-a-real-secret"
-        assert b"keep = 17" in (jcode_root / "config.toml").read_bytes()
+        assert (jcode_root / "config.toml").read_bytes() == config_before
+        for name in ("swarm-low", "swarm-normal", "teacher", "mozak-jcode"):
+            assert not (jcode_root / "skills" / name).exists(), name
         assert run(binary, env, "setup", "check", str(home))["parity"] is True
         tree = subprocess.run([binary, "kb", "tree"], env=env, capture_output=True, text=True)
         assert tree.returncode == 0 and "Knowledge Base" in tree.stdout

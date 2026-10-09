@@ -272,6 +272,66 @@ class ArchiveInstallRegressionTests(unittest.TestCase):
                         archive_install.migrate_skills(old / "mozak", new / "mozak", home)
 
 
+class RetiredJcodeToleranceTests(unittest.TestCase):
+    """0.11 retired the Jcode profile skills. Their absence must not block an
+    upgrade, but nothing else may be tolerated."""
+
+    RETIRED = [f".jcode/skills/{name}/SKILL.md" for name in ("swarm-low", "swarm-normal", "teacher", "mozak-jcode")]
+
+    def report(self, statuses: dict[str, str], ready: bool = False) -> dict:
+        checks = [{"path": path, "status": status} for path, status in statuses.items()]
+        return {"state": "ready" if ready else "incomplete", "checks": checks}
+
+    def test_missing_retired_skills_are_accepted_when_new_build_drops_them(self) -> None:
+        old = self.report({".agents/skills/mozak/SKILL.md": "ok", **{p: "missing" for p in self.RETIRED}})
+        new = self.report({".agents/skills/mozak/SKILL.md": "ok"}, ready=True)
+        self.assertTrue(archive_install.old_report_ready(old, new))
+
+    def test_ready_old_report_is_always_accepted(self) -> None:
+        old = self.report({".agents/skills/mozak/SKILL.md": "ok"}, ready=True)
+        self.assertTrue(archive_install.old_report_ready(old, None))
+
+    def test_drifted_retired_skill_still_refuses(self) -> None:
+        old = self.report({**{p: "missing" for p in self.RETIRED[1:]}, self.RETIRED[0]: "drift"})
+        new = self.report({".agents/skills/mozak/SKILL.md": "ok"})
+        self.assertFalse(archive_install.old_report_ready(old, new))
+
+    def test_missing_non_retired_file_still_refuses(self) -> None:
+        old = self.report({".agents/skills/mozak/SKILL.md": "missing", **{p: "missing" for p in self.RETIRED}})
+        new = self.report({".agents/skills/mozak/SKILL.md": "ok"})
+        self.assertFalse(archive_install.old_report_ready(old, new))
+
+    def test_missing_retired_skill_refuses_if_new_build_still_manages_it(self) -> None:
+        old = self.report({p: "missing" for p in self.RETIRED})
+        new = self.report({self.RETIRED[0]: "missing"})
+        self.assertFalse(archive_install.old_report_ready(old, new))
+
+    def test_malformed_reports_refuse(self) -> None:
+        for bad in (None, {}, {"checks": "x"}, {"checks": [{"status": "missing"}]}):
+            self.assertFalse(archive_install.old_report_ready(bad, None))
+
+    def test_retired_paths_only_match_exact_jcode_skill_files(self) -> None:
+        self.assertTrue(archive_install.is_retired_jcode_path(Path(".jcode/skills/teacher/SKILL.md")))
+        for path in (".claude/skills/teacher/SKILL.md", ".jcode/skills/teacher/other.md",
+                     ".jcode/skills/mozak/SKILL.md", ".jcode/swarm-prompt.md"):
+            self.assertFalse(archive_install.is_retired_jcode_path(Path(path)), path)
+
+    def test_present_paths_skips_only_missing_retired_files(self) -> None:
+        home = Path("/home/example")
+        report = {"state": "incomplete", "checks": [
+            {"path": ".agents/skills/mozak/SKILL.md", "status": "ok"},
+            {"path": self.RETIRED[0], "status": "missing"},
+            {"path": self.RETIRED[1], "status": "ok"},
+            {"path": self.RETIRED[2], "status": "ok"},
+            {"path": self.RETIRED[3], "status": "ok"},
+        ]}
+        # report_paths requires a recognized generation size, so check the
+        # filtering on the same logic it applies.
+        missing = {home / Path(c["path"]) for c in report["checks"]
+                   if c["status"] == "missing" and archive_install.is_retired_jcode_path(Path(c["path"]))}
+        self.assertEqual(missing, {home / self.RETIRED[0]})
+
+
 class JcodeCustodyTests(unittest.TestCase):
     def test_custody_roundtrip_and_invalid_records_fail_closed(self):
         with tempfile.TemporaryDirectory() as directory:

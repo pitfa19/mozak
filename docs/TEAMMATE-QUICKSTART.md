@@ -32,16 +32,6 @@ The release installs all of these together:
 `setup check` must report `"parity": true`. It may also report that local
 configuration is absent. That is expected until step 3.
 
-### Optional Jcode agent-work profiles
-
-Preview `mozak setup jcode plan "$HOME"`. With explicit owner approval, run
-`mozak setup jcode install "$HOME"`, then `mozak setup jcode check "$HOME"`.
-Requires Python 3.11+ and compatible Jcode. Ordinary installation ships skills
-only, not global settings. LOW is default, NORMAL is session-local, and teacher
-stays OFF until invoked. Start a fresh session for global prompt changes.
-Use `/swarm-low`, `/swarm-normal`, or `/teacher` after `/effort swarm-deep`.
-See [Jcode agent work](distribution/JCODE-AGENT-WORK.md) for prerequisites,
-Claude account fallback, backups and file-custody limits.
 
 ## 2. Make the shared work available locally
 

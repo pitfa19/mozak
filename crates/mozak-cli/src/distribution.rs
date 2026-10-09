@@ -14,12 +14,6 @@ const DESTINATIONS: [&str; 4] = [
     ".claude/skills/mozak",
     ".codex/skills/mozak",
 ];
-const JCODE_DESTINATIONS: [&str; 4] = [
-    ".jcode/skills/swarm-low",
-    ".jcode/skills/swarm-normal",
-    ".jcode/skills/teacher",
-    ".jcode/skills/mozak-jcode",
-];
 const SEQUENCE_DESTINATIONS: [&str; 4] = [
     ".agents/skills/mozak-sequence-commitment",
     ".jcode/skills/mozak-sequence-commitment",
@@ -452,16 +446,10 @@ fn all_destinations() -> impl Iterator<Item = &'static str> {
         .chain(NOTE_HEALTHCHECK_DESTINATIONS)
         .chain(NOTE_VOICE_CENSUS_DESTINATIONS)
         .chain(SEQUENCE_DESTINATIONS)
-        .chain(JCODE_DESTINATIONS)
 }
 
 fn files_for_destination(destination: &str) -> Vec<&'static (&'static str, &'static [u8])> {
-    if let Some(index) = JCODE_DESTINATIONS
-        .iter()
-        .position(|value| *value == destination)
-    {
-        crate::jcode_setup::SKILL_FILES[index].iter().collect()
-    } else if ADHD_DESTINATIONS.contains(&destination) {
+    if ADHD_DESTINATIONS.contains(&destination) {
         ADHD_FILES.iter().collect()
     } else if NOTE_DESTINATIONS.contains(&destination) {
         NOTE_FILES.iter().chain(NOTE_EXTRA_FILES.iter()).collect()

@@ -76,12 +76,6 @@ Every MCP workflow ends the same way: save the exact response bytes, write one `
 - Offline rollback: `mozak rollback`
 - Install the exact embedded managed skill payload: `mozak setup install HOME`
 - Verify exact installed parity without mutation: `mozak setup check HOME`
-- Optional Jcode agent work: preview `mozak setup jcode plan HOME`, explicitly
-  opt in with `mozak setup jcode install HOME`, then `mozak setup jcode check HOME`.
-  Python 3.11+ required. Default LOW, teacher OFF. Ordinary setup ships invocation
-  skills only and never opts in. Use `/swarm-low`, `/swarm-normal`, or `/teacher`
-  after `/effort swarm-deep`. Fresh sessions required for global prompt changes.
-  These skills do not prove runtime model switches or nested execution.
 - Check skill parity, Termaid on PATH, and optionally a real KB:
   `mozak doctor HOME [KB_ROOT]`
 - The managed payload ships `tool-stack.json` (the use-case catalog, see Explicit tool stack) and, for compatibility, `companion-recommendations.json`. `setup` and `doctor` keep the companion output shape and add a nonblocking `stack_onboarding` object that points to `mozak stack recommend` and `mozak stack check`. Termaid is required.
