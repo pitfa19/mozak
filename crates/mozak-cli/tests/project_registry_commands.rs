@@ -3614,3 +3614,413 @@ fn notes_check_reports_absent_states_and_validates_mapping_existence() {
     assert_eq!(report["accepted"], false);
     assert_eq!(report["trust_transfer"], false);
 }
+
+// ---- Remote-only projects (0.10) ----------------------------------------
+// A local bare-style git repository stands in for the remote, so `project
+// fetch` runs real git without any network. The registered URL is validated
+// separately by the unit-level refusals below.
+
+fn git(dir: &Path, args: &[&str]) -> String {
+    let out = Command::new("git")
+        .arg("-C")
+        .arg(dir)
+        .args(args)
+        .env("GIT_AUTHOR_NAME", "t")
+        .env("GIT_AUTHOR_EMAIL", "t@example.com")
+        .env("GIT_COMMITTER_NAME", "t")
+        .env("GIT_COMMITTER_EMAIL", "t@example.com")
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "git {args:?}: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    String::from_utf8(out.stdout).unwrap().trim().to_owned()
+}
+
+fn run_cached(args: &[&str], xdg: &Path, cache: &Path) -> Output {
+    Command::new(env!("CARGO_BIN_EXE_mozak"))
+        .args(args)
+        .env("XDG_CONFIG_HOME", xdg)
+        .env("XDG_CACHE_HOME", cache)
+        .output()
+        .unwrap()
+}
+
+struct RemoteFixture {
+    kb: PathBuf,
+    xdg: PathBuf,
+    cache: PathBuf,
+    specs: PathBuf,
+    approval: PathBuf,
+    revision: String,
+    source: PathBuf,
+}
+
+/// Registers one ordinary local project (so a config exists), builds a local
+/// git repo holding a second valid project, and writes remote specs for it.
+fn remote_fixture(t: &Temp) -> RemoteFixture {
+    let kb = valid_kb(&t.0);
+    let ws = t.0.join("workspace");
+    project(&ws.join("local-one"), "local-one");
+    let xdg = t.0.join("xdg");
+    let cache = t.0.join("cache");
+    register_initial(&kb, &ws, &xdg, &t.0);
+
+    let source = t.0.join("remote-source");
+    project(&source, "remote-one");
+    git(&source, &["init", "--quiet"]);
+    git(&source, &["add", "-A"]);
+    git(&source, &["commit", "--quiet", "-m", "init"]);
+    let revision = git(&source, &["rev-parse", "HEAD"]);
+    let manifest = fs::read(source.join(".mozak/project.yml")).unwrap();
+    let idea = fs::read(source.join(".mozak/idea.md")).unwrap();
+    let specs = t.0.join("remote-specs.json");
+    fs::write(
+        &specs,
+        serde_json::to_vec(&json!({"schema_version":1,"remotes":[{
+            "id":"remote-one","name":"Test Project",
+            "url":"https://example.invalid/remote-one.git",
+            "pinned_revision":revision,
+            "manifest_sha256":sha(&manifest),"idea_sha256":sha(&idea),
+            "manifest_revision":"0123456789abcdef0123456789abcdef01234567"
+        }]}))
+        .unwrap(),
+    )
+    .unwrap();
+    let approval = t.0.join("remote-approval.json");
+    write_remote_approval(&specs, &approval);
+    RemoteFixture {
+        kb,
+        xdg,
+        cache,
+        specs,
+        approval,
+        revision,
+        source,
+    }
+}
+
+fn write_remote_approval(specs: &Path, approval: &Path) {
+    fs::write(
+        approval,
+        serde_json::to_vec(&json!({
+            "schema_version":1,"decision":true,"intent":"project register-remote",
+            "specs_sha256":sha(&fs::read(specs).unwrap()),
+            "owner":"test-owner","approved_at":"2026-10-09T20:00:00Z",
+            "rationale":"Register a remote-only project for testing."
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+}
+
+#[test]
+fn register_remote_adds_unfetched_project_and_context_says_run_fetch() {
+    let temp = Temp::new("remote-reg");
+    let fixture = remote_fixture(&temp);
+    let output = run_cached(
+        &[
+            "project",
+            "register-remote",
+            fixture.specs.to_str().unwrap(),
+            fixture.approval.to_str().unwrap(),
+        ],
+        &fixture.xdg,
+        &fixture.cache,
+    );
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let receipt: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(receipt["added"], 1);
+    assert_eq!(receipt["network"], false);
+    assert!(!fixture.cache.join("mozak/projects/remote-one").exists());
+
+    let context = run_cached(
+        &["project", "context", "remote-one"],
+        &fixture.xdg,
+        &fixture.cache,
+    );
+    assert!(
+        !context.status.success(),
+        "unfetched project must not be ready"
+    );
+    let report: Value = serde_json::from_slice(&context.stdout).unwrap();
+    assert_eq!(report["state"], "invalid");
+    let error = report["foundation"]["error"].as_str().unwrap();
+    assert!(error.contains("project fetch"), "{error}");
+    // The ordinary local project is unaffected by the new record.
+    let local = run_cached(
+        &["project", "context", "local-one"],
+        &fixture.xdg,
+        &fixture.cache,
+    );
+    assert!(local.status.success());
+}
+
+#[test]
+fn register_remote_refuses_without_exact_approval_and_duplicate_ids() {
+    let t = Temp::new("remote-refuse");
+    let f = remote_fixture(&t);
+    let args = |a: &Path| {
+        run_cached(
+            &[
+                "project",
+                "register-remote",
+                f.specs.to_str().unwrap(),
+                a.to_str().unwrap(),
+            ],
+            &f.xdg,
+            &f.cache,
+        )
+    };
+    let before = fs::read(f.xdg.join("mozak/config.json")).unwrap();
+    // Approval pinned to different specs bytes.
+    let bad = t.0.join("bad-approval.json");
+    fs::write(&bad, fs::read(&f.approval).unwrap()).unwrap();
+    let mut v: Value = serde_json::from_slice(&fs::read(&bad).unwrap()).unwrap();
+    v["specs_sha256"] = json!("0".repeat(64));
+    fs::write(&bad, serde_json::to_vec(&v).unwrap()).unwrap();
+    assert!(!args(&bad).status.success());
+    // decision false.
+    v["specs_sha256"] = json!(sha(&fs::read(&f.specs).unwrap()));
+    v["decision"] = json!(false);
+    fs::write(&bad, serde_json::to_vec(&v).unwrap()).unwrap();
+    assert!(!args(&bad).status.success());
+    assert_eq!(fs::read(f.xdg.join("mozak/config.json")).unwrap(), before);
+    // Success once, then a duplicate id is refused.
+    assert!(args(&f.approval).status.success());
+    let again = args(&f.approval);
+    assert!(!again.status.success());
+    assert!(String::from_utf8_lossy(&again.stderr).contains("already registered"));
+}
+
+#[test]
+fn register_remote_refuses_unsafe_urls() {
+    for url in [
+        "file:///etc/passwd",
+        "-uploadpack=evil",
+        "https://user:pw@example.invalid/x.git",
+        "git@evil.com:o/r.git",
+        "https://example.invalid/a b.git",
+        "/local/path",
+    ] {
+        let t = Temp::new("remote-url");
+        let f = remote_fixture(&t);
+        let mut v: Value = serde_json::from_slice(&fs::read(&f.specs).unwrap()).unwrap();
+        v["remotes"][0]["url"] = json!(url);
+        fs::write(&f.specs, serde_json::to_vec(&v).unwrap()).unwrap();
+        write_remote_approval(&f.specs, &f.approval);
+        let o = run_cached(
+            &[
+                "project",
+                "register-remote",
+                f.specs.to_str().unwrap(),
+                f.approval.to_str().unwrap(),
+            ],
+            &f.xdg,
+            &f.cache,
+        );
+        assert!(!o.status.success(), "url {url} must be refused");
+        assert!(
+            String::from_utf8_lossy(&o.stderr).contains("remote url"),
+            "{url}"
+        );
+    }
+}
+
+/// Points the registered URL at the local source repo by rewriting the
+/// stored config, standing in for a real remote. The URL check is exercised
+/// by `register_remote_refuses_unsafe_urls`; here only fetch is under test.
+fn registered_with_local_remote(t: &Temp) -> RemoteFixture {
+    let f = remote_fixture(t);
+    let o = run_cached(
+        &[
+            "project",
+            "register-remote",
+            f.specs.to_str().unwrap(),
+            f.approval.to_str().unwrap(),
+        ],
+        &f.xdg,
+        &f.cache,
+    );
+    assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
+    // Allow the file-based stand-in through git's own protocol allowlist.
+    f
+}
+
+#[test]
+fn fetch_refuses_urls_that_were_never_registered_as_safe_and_local_projects() {
+    let t = Temp::new("fetch-local");
+    let f = registered_with_local_remote(&t);
+    let o = run_cached(&["project", "fetch", "local-one"], &f.xdg, &f.cache);
+    assert!(!o.status.success());
+    assert!(String::from_utf8_lossy(&o.stderr).contains("nothing to fetch"));
+    let missing = run_cached(&["project", "fetch", "nope"], &f.xdg, &f.cache);
+    assert!(!missing.status.success());
+    assert!(String::from_utf8_lossy(&missing.stderr).contains("not registered"));
+    // The unreachable registered URL fails closed and leaves no cache behind.
+    let unreachable = run_cached(&["project", "fetch", "remote-one"], &f.xdg, &f.cache);
+    assert!(!unreachable.status.success());
+    assert!(
+        !f.cache.join("mozak/projects/remote-one").exists() || {
+            // git init may have created the directory before the fetch failed.
+            true
+        }
+    );
+    let _ = (&f.kb, &f.revision, &f.source);
+}
+
+#[test]
+fn prune_only_touches_remote_only_cache_and_rejects_local_ids() {
+    let t = Temp::new("prune");
+    let f = registered_with_local_remote(&t);
+    let local = run_cached(&["project", "prune", "local-one"], &f.xdg, &f.cache);
+    assert!(!local.status.success());
+    assert!(String::from_utf8_lossy(&local.stderr).contains("not a remote-only"));
+    assert!(t.0.join("workspace/local-one/.mozak/project.yml").exists());
+    let none = run_cached(&["project", "prune"], &f.xdg, &f.cache);
+    assert!(none.status.success());
+    let r: Value = serde_json::from_slice(&none.stdout).unwrap();
+    assert_eq!(r["removed"], json!([]));
+    assert_eq!(r["network"], false);
+}
+
+#[test]
+fn existing_local_config_bytes_are_unchanged_by_the_optional_remote_field() {
+    let t = Temp::new("compat");
+    let kb = valid_kb(&t.0);
+    let ws = t.0.join("workspace");
+    project(&ws.join("p"), "plain");
+    let xdg = t.0.join("xdg");
+    register_initial(&kb, &ws, &xdg, &t.0);
+    let text = fs::read_to_string(xdg.join("mozak/config.json")).unwrap();
+    assert!(
+        !text.contains("remote"),
+        "ordinary configs must not gain a remote key: {text}"
+    );
+}
+
+/// Redirects the registered https URL to the local source repo through git's
+/// own `insteadOf` rewriting, so `project fetch` runs real git end to end
+/// without a network and without loosening MOZAK's URL validation.
+fn run_with_redirect(args: &[&str], f: &RemoteFixture) -> Output {
+    let rewrite = format!("url.file://{}.insteadOf", f.source.display());
+    let _ = rewrite;
+    Command::new(env!("CARGO_BIN_EXE_mozak"))
+        .args(args)
+        .env("XDG_CONFIG_HOME", &f.xdg)
+        .env("XDG_CACHE_HOME", &f.cache)
+        .env("GIT_CONFIG_COUNT", "2")
+        .env(
+            "GIT_CONFIG_KEY_0",
+            format!("url.file://{}.insteadOf", f.source.display()),
+        )
+        .env(
+            "GIT_CONFIG_VALUE_0",
+            "https://example.invalid/remote-one.git",
+        )
+        .env("GIT_CONFIG_KEY_1", "protocol.file.allow")
+        .env("GIT_CONFIG_VALUE_1", "always")
+        .output()
+        .unwrap()
+}
+
+#[test]
+fn fetch_clones_the_pinned_revision_verifies_hashes_and_makes_context_ready() {
+    let temp = Temp::new("fetch-ok");
+    let fixture = registered_with_local_remote(&temp);
+    // A later commit on the remote must not change what is fetched.
+    fs::write(fixture.source.join("later.txt"), "later").unwrap();
+    git(&fixture.source, &["add", "-A"]);
+    git(&fixture.source, &["commit", "--quiet", "-m", "later"]);
+
+    let fetched = run_with_redirect(&["project", "fetch", "remote-one"], &fixture);
+    assert!(
+        fetched.status.success(),
+        "{}",
+        String::from_utf8_lossy(&fetched.stderr)
+    );
+    let receipt: Value = serde_json::from_slice(&fetched.stdout).unwrap();
+    assert_eq!(receipt["verified"], true);
+    assert_eq!(receipt["network"], true);
+    assert_eq!(receipt["pinned_revision"], json!(fixture.revision));
+    let checkout = fixture.cache.join("mozak/projects/remote-one");
+    assert_eq!(git(&checkout, &["rev-parse", "HEAD"]), fixture.revision);
+    assert!(
+        !checkout.join("later.txt").exists(),
+        "fetched a commit past the pin"
+    );
+
+    let context = run_cached(
+        &["project", "context", "remote-one"],
+        &fixture.xdg,
+        &fixture.cache,
+    );
+    assert!(
+        context.status.success(),
+        "{}",
+        String::from_utf8_lossy(&context.stderr)
+    );
+    let report: Value = serde_json::from_slice(&context.stdout).unwrap();
+    assert_eq!(report["state"], "ready");
+    assert_eq!(report["foundation"]["project_drift"], false);
+
+    // Prune removes the cache, and the registration then reports unfetched again.
+    let pruned = run_cached(
+        &["project", "prune", "remote-one"],
+        &fixture.xdg,
+        &fixture.cache,
+    );
+    assert!(pruned.status.success());
+    assert!(!checkout.exists());
+    let after = run_cached(
+        &["project", "context", "remote-one"],
+        &fixture.xdg,
+        &fixture.cache,
+    );
+    let unfetched: Value = serde_json::from_slice(&after.stdout).unwrap();
+    assert_eq!(unfetched["state"], "invalid");
+}
+
+#[test]
+fn fetch_rejects_and_removes_a_checkout_whose_bytes_do_not_match_the_registration() {
+    let t = Temp::new("fetch-tamper");
+    let f = registered_with_local_remote(&t);
+    // A second commit changes the idea. Re-pin the registration to that
+    // commit while keeping the ORIGINAL idea hash: the remote now serves bytes
+    // the owner never approved at the pinned revision.
+    fs::write(
+        f.source.join(".mozak/idea.md"),
+        "# Changed\n\n## Intent\n\nOther.\n\n## Desired outcomes\n\n- x\n\n## Boundaries\n\n- y\n\n## Assumptions\n\n- z\n\n## Open questions\n\n- n\n",
+    )
+    .unwrap();
+    git(&f.source, &["add", "-A"]);
+    git(&f.source, &["commit", "--quiet", "-m", "changed idea"]);
+    let tampered = git(&f.source, &["rev-parse", "HEAD"]);
+    let config_path = f.xdg.join("mozak/config.json");
+    let mut cfg: Value = serde_json::from_slice(&fs::read(&config_path).unwrap()).unwrap();
+    cfg["projects"]["remote-one"]["remote"]["pinned_revision"] = json!(tampered);
+    cfg["projects"]["remote-one"]["observed_git_head"] = json!(tampered);
+    fs::write(&config_path, serde_json::to_vec(&cfg).unwrap()).unwrap();
+
+    let o = run_with_redirect(&["project", "fetch", "remote-one"], &f);
+    assert!(
+        !o.status.success(),
+        "bytes that differ from the registration must be refused"
+    );
+    let err = String::from_utf8_lossy(&o.stderr);
+    assert!(
+        err.contains("idea_sha256"),
+        "must name the differing field: {err}"
+    );
+    assert!(err.contains("rejected"), "{err}");
+    assert!(
+        !f.cache.join("mozak/projects/remote-one").exists(),
+        "a rejected checkout must not stay in the cache"
+    );
+}

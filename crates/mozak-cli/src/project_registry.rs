@@ -56,6 +56,38 @@ struct ProjectRecord {
     idea_sha256: String,
     manifest_revision: String,
     observed_git_head: Option<String>,
+    /// Present only for a project registered without a local checkout. The
+    /// checkout is fetched on demand into a per-machine cache at an exact
+    /// pinned commit. Absent for every ordinary local registration, and then
+    /// omitted from the serialized record so existing configs keep their bytes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    remote: Option<RemoteSource>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RemoteSource {
+    url: String,
+    pinned_revision: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RemoteSpecs {
+    schema_version: u64,
+    remotes: Vec<RemoteSpec>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RemoteSpec {
+    id: String,
+    name: String,
+    url: String,
+    pinned_revision: String,
+    manifest_sha256: String,
+    idea_sha256: String,
+    manifest_revision: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -946,13 +978,27 @@ pub fn context(id: &str, mode: ContextOutputMode) -> Result<ExitCode, String> {
         }
         Err(error) => (None, true, false, Some(error.to_string())),
     };
-    let live = inspect_project(Path::new(&configured.root));
+    let unfetched = configured.remote.is_some() && !Path::new(&configured.root).exists();
+    let live = if unfetched {
+        Err(format!(
+            "remote-only project is not fetched; run `mozak project fetch {}`",
+            shell_arg(id)
+        ))
+    } else {
+        inspect_record(&configured)
+    };
     let (current, project_valid, project_error) = match live {
         Ok(value) => (Some(value), true, None),
         Err(error) => (None, false, Some(error)),
     };
     let mut reconciliation = None;
-    if !kb_drift && project_valid && current.as_ref().is_some_and(|value| value != &configured) {
+    // A remote-only registration is pinned to an exact commit, so drift is
+    // reported and never silently written back.
+    if !kb_drift
+        && configured.remote.is_none()
+        && project_valid
+        && current.as_ref().is_some_and(|value| value != &configured)
+    {
         let value = current.as_ref().expect("validated live project");
         if identity_preserving_registration_drift(&config_path, &bytes, &configured, value)? {
             let old_digest = hash(&bytes);
@@ -3896,7 +3942,391 @@ fn inspect_project(root: &Path) -> Result<ProjectRecord, String> {
         idea_sha256: hash(&idea_bytes),
         manifest_revision: manifest.repository.revision,
         observed_git_head: git_head(&root),
+        remote: None,
     })
+}
+
+/// Inspects the live bytes behind a record and re-attaches its remote pin, so a
+/// fetched checkout compares equal to the record it was registered as.
+fn inspect_record(record: &ProjectRecord) -> Result<ProjectRecord, String> {
+    let mut live = inspect_project(Path::new(&record.root))?;
+    live.remote.clone_from(&record.remote);
+    Ok(live)
+}
+
+fn validate_remote_record(record: &ProjectRecord, remote: &RemoteSource) -> Result<(), String> {
+    validate_remote_url(&remote.url)?;
+    validate_lower_hex("remote pinned revision", &remote.pinned_revision, 40)
+        .map_err(|e| e.replace("invalid local config: ", ""))?;
+    // `manifest_revision` is the revision the project's own manifest declares.
+    // It is the author's claim and need not equal the commit that holds it, so
+    // it is pinned like any other manifest byte and checked on fetch, never
+    // tied to the git commit.
+    validate_lower_hex("project manifest revision", &record.manifest_revision, 40)
+        .map_err(|e| e.replace("invalid local config: ", ""))?;
+    let expected = remote_cache_root()?.join(&record.id);
+    if Path::new(&record.root) != expected {
+        return Err(format!(
+            "remote project {} root must be its cache path {}",
+            record.id,
+            expected.display()
+        ));
+    }
+    Ok(())
+}
+
+/// Only plain https or ssh git URLs. No credentials, no local paths, no options.
+fn validate_remote_url(url: &str) -> Result<(), String> {
+    let clean = url.len() <= 300
+        && !url.starts_with('-')
+        && !url.chars().any(|c| c.is_control() || c.is_whitespace());
+    // An https URL must carry no credentials. The only accepted ssh form is
+    // GitHub's `git@github.com:owner/repo`, where the `@` is the fixed user.
+    let https_ok = url.starts_with("https://") && !url.contains('@');
+    let ssh_ok =
+        url.starts_with("git@github.com:") && !url["git@github.com:".len()..].contains('@');
+    if !(clean && (https_ok || ssh_ok)) {
+        return Err(format!(
+            "remote url must be an https:// URL without credentials or a git@github.com: URL: {url}"
+        ));
+    }
+    Ok(())
+}
+
+fn remote_cache_root() -> Result<PathBuf, String> {
+    let base = match env::var_os("XDG_CACHE_HOME") {
+        Some(value) => PathBuf::from(value),
+        None => PathBuf::from(env::var_os("HOME").ok_or("HOME is not set")?).join(".cache"),
+    };
+    if !base.is_absolute() {
+        return Err("cache base path must be absolute".into());
+    }
+    reject_unsafe_lexical(&base)?;
+    Ok(base.join("mozak/projects"))
+}
+
+fn git_output(args: &[&str]) -> Result<String, String> {
+    let output = Command::new("git")
+        .args(args)
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .output()
+        .map_err(|e| format!("cannot run git: {e}"))?;
+    if !output.status.success() {
+        return Err(format!(
+            "git {} failed: {}",
+            args.first().copied().unwrap_or(""),
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_owned())
+}
+
+/// Registers projects that have no local checkout. Each spec pins an exact
+/// commit and the manifest and idea hashes expected at that commit.
+pub fn register_remote(specs_path: &Path, approval_path: &Path) -> Result<ExitCode, String> {
+    let specs: RemoteSpecs = strict_json_file(specs_path, "remote project specs")?;
+    if specs.schema_version != 1 || specs.remotes.is_empty() {
+        return Err("remote project specs must use schema_version 1 and list a project".into());
+    }
+    let spec_digest = hash(&fs::read(specs_path).map_err(|e| e.to_string())?);
+    let approval: RemoteApproval = strict_json_file(approval_path, "remote registration approval")?;
+    if approval.schema_version != 1
+        || !approval.decision
+        || approval.intent != "project register-remote"
+        || approval.specs_sha256 != spec_digest
+    {
+        return Err(
+            "approval must pin schema_version=1, decision=true, intent=project register-remote, and the exact specs sha256"
+                .into(),
+        );
+    }
+    for (name, value) in [
+        ("owner", &approval.owner),
+        ("rationale", &approval.rationale),
+    ] {
+        display_safe(&format!("approval {name}"), value)?;
+    }
+    if !canonical_utc(&approval.approved_at) {
+        return Err("approved_at must be canonical UTC like 2026-09-03T07:21:10Z".into());
+    }
+    let config_path = default_config_path()?;
+    validate_target_path(&config_path)?;
+    let old_bytes = read_optional_regular(&config_path)?
+        .ok_or("register-remote requires an existing local config")?;
+    let old: LocalConfig = serde_json::from_slice(&old_bytes).map_err(|e| e.to_string())?;
+    validate_local_config(&old)?;
+    let mut config = old.clone();
+    let cache = remote_cache_root()?;
+    for spec in specs.remotes {
+        if !valid_project_id(&spec.id) {
+            return Err(format!("invalid remote project id: {}", spec.id));
+        }
+        if config.projects.contains_key(&spec.id) {
+            return Err(format!("project id is already registered: {}", spec.id));
+        }
+        display_safe("remote project name", &spec.name)?;
+        validate_lower_hex("remote manifest SHA-256", &spec.manifest_sha256, 64)?;
+        validate_lower_hex("remote idea SHA-256", &spec.idea_sha256, 64)?;
+        let root = cache.join(&spec.id);
+        let record = ProjectRecord {
+            id: spec.id.clone(),
+            name: spec.name,
+            root: path_text(&root)?,
+            manifest_path: path_text(&root.join(".mozak/project.yml"))?,
+            idea_path: path_text(&root.join(".mozak/idea.md"))?,
+            manifest_sha256: spec.manifest_sha256,
+            idea_sha256: spec.idea_sha256,
+            manifest_revision: spec.manifest_revision,
+            observed_git_head: Some(spec.pinned_revision.clone()),
+            remote: Some(RemoteSource {
+                url: spec.url,
+                pinned_revision: spec.pinned_revision,
+            }),
+        };
+        let remote = record.remote.as_ref().expect("remote set above");
+        validate_remote_record(&record, remote)?;
+        config.projects.insert(spec.id, record);
+    }
+    config.approval = ConfigApproval {
+        proposal_digest: spec_digest,
+        owner: approval.owner.clone(),
+        approved_at: approval.approved_at,
+        rationale: approval.rationale,
+    };
+    let added = config.projects.len() - old.projects.len();
+    let bytes = serde_json::to_vec(&config).map_err(|e| e.to_string())?;
+    let audit = make_audit_entry(
+        &approval.owner,
+        "project register-remote added remote-only registrations",
+        &hash(&old_bytes),
+        &hash(&bytes),
+        &hash(b""),
+        &hash(b""),
+    )?;
+    atomic_replace_exact(&config_path, &bytes, &hash(&old_bytes), Some(&audit))?;
+    println!(
+        "{}",
+        serde_json::to_string(&serde_json::json!({
+            "schema_version": 1,
+            "command": "project register-remote",
+            "config_path": path_text(&config_path)?,
+            "previous_config_sha256": hash(&old_bytes),
+            "config_sha256": hash(&bytes),
+            "added": added,
+            "network": false,
+            "trust_transfer": false
+        }))
+        .map_err(|e| e.to_string())?
+    );
+    Ok(ExitCode::SUCCESS)
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RemoteApproval {
+    schema_version: u64,
+    decision: bool,
+    intent: String,
+    specs_sha256: String,
+    owner: String,
+    approved_at: String,
+    rationale: String,
+}
+
+/// The one command that touches the network. It fetches exactly the pinned URL
+/// at exactly the pinned commit, then rejects the checkout unless the project
+/// bytes match the registration. Nothing else in MOZAK clones.
+pub fn fetch(id: &str) -> Result<ExitCode, String> {
+    if id.is_empty() || id.chars().any(char::is_control) {
+        return Err("project id is empty or contains control characters".into());
+    }
+    let config_path = default_config_path()?;
+    validate_target_path(&config_path)?;
+    let bytes = read_optional_regular(&config_path)?
+        .ok_or_else(|| format!("local config does not exist: {}", config_path.display()))?;
+    let config: LocalConfig = serde_json::from_slice(&bytes)
+        .map_err(|e| format!("invalid local config {}: {e}", config_path.display()))?;
+    validate_local_config(&config)?;
+    let record = config
+        .projects
+        .get(id)
+        .ok_or_else(|| format!("project id is not registered: {id}"))?;
+    let remote = record
+        .remote
+        .as_ref()
+        .ok_or_else(|| format!("project {id} is a local registration and has nothing to fetch"))?;
+    let root = PathBuf::from(&record.root);
+    let existed = root.exists();
+    prepare_cache(&root, remote, existed)?;
+    // Every step after preparation can fail once a fresh cache exists, and a
+    // failed fetch must leave nothing behind. An existing cache is only advanced.
+    if let Err(error) = fetch_and_verify(&root, record, remote) {
+        if !existed {
+            let _ = fs::remove_dir_all(&root);
+        }
+        return Err(format!("{error}; the checkout was rejected"));
+    }
+    println!(
+        "{}",
+        serde_json::to_string(&serde_json::json!({
+            "schema_version": 1,
+            "command": "project fetch",
+            "project": id,
+            "root": record.root,
+            "url": remote.url,
+            "pinned_revision": remote.pinned_revision,
+            "verified": true,
+            "network": true,
+            "trust_transfer": false
+        }))
+        .map_err(|e| e.to_string())?
+    );
+    Ok(ExitCode::SUCCESS)
+}
+
+fn prepare_cache(root: &Path, remote: &RemoteSource, existed: bool) -> Result<(), String> {
+    if existed {
+        return reject_symlink_chain(root, "remote cache path");
+    }
+    let parent = root.parent().ok_or("cache path has no parent")?;
+    fs::create_dir_all(parent).map_err(|e| format!("cannot create cache directory: {e}"))?;
+    reject_symlink_chain(root, "remote cache path")?;
+    let text = path_text(root)?;
+    git_output(&["init", "--quiet", &text])?;
+    git_output(&["-C", &text, "remote", "add", "origin", &remote.url])?;
+    Ok(())
+}
+
+fn fetch_and_verify(
+    root: &Path,
+    record: &ProjectRecord,
+    remote: &RemoteSource,
+) -> Result<(), String> {
+    let text = path_text(root)?;
+    // The raw configured value, not `remote get-url`, which applies URL
+    // rewriting and would hide a changed origin.
+    let origin = git_output(&["-C", &text, "config", "--get", "remote.origin.url"])?;
+    if origin != remote.url {
+        return Err(format!(
+            "cached checkout origin does not match the registered url for {}",
+            record.id
+        ));
+    }
+    git_output(&[
+        "-C",
+        &text,
+        "fetch",
+        "--quiet",
+        "--depth",
+        "1",
+        "origin",
+        &remote.pinned_revision,
+    ])?;
+    git_output(&[
+        "-C",
+        &text,
+        "checkout",
+        "--quiet",
+        "--detach",
+        &remote.pinned_revision,
+    ])?;
+    let head = git_head(root).ok_or("fetched checkout has no readable HEAD")?;
+    if head != remote.pinned_revision {
+        return Err(format!(
+            "fetched HEAD {head} is not the pinned revision {}",
+            remote.pinned_revision
+        ));
+    }
+    let live = inspect_record(record)?;
+    let differing = differing_fields(&live, record);
+    if !differing.is_empty() {
+        return Err(format!(
+            "fetched project {} does not match its registration ({})",
+            record.id,
+            differing.join(", ")
+        ));
+    }
+    Ok(())
+}
+
+fn differing_fields(live: &ProjectRecord, record: &ProjectRecord) -> Vec<&'static str> {
+    [
+        (
+            "manifest_sha256",
+            live.manifest_sha256 == record.manifest_sha256,
+        ),
+        ("idea_sha256", live.idea_sha256 == record.idea_sha256),
+        (
+            "manifest_revision",
+            live.manifest_revision == record.manifest_revision,
+        ),
+        (
+            "observed_git_head",
+            live.observed_git_head == record.observed_git_head,
+        ),
+        ("id", live.id == record.id),
+        ("name", live.name == record.name),
+        (
+            "paths",
+            live.root == record.root
+                && live.manifest_path == record.manifest_path
+                && live.idea_path == record.idea_path,
+        ),
+    ]
+    .into_iter()
+    .filter(|(_, same)| !same)
+    .map(|(field, _)| field)
+    .collect()
+}
+
+/// Removes cached checkouts of remote-only projects. Never touches a project
+/// registered with a local root.
+pub fn prune(id: Option<&str>) -> Result<ExitCode, String> {
+    let config_path = default_config_path()?;
+    validate_target_path(&config_path)?;
+    let bytes = read_optional_regular(&config_path)?
+        .ok_or_else(|| format!("local config does not exist: {}", config_path.display()))?;
+    let config: LocalConfig = serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
+    validate_local_config(&config)?;
+    let cache = remote_cache_root()?;
+    let mut removed = Vec::new();
+    for (key, record) in &config.projects {
+        if record.remote.is_none() || id.is_some_and(|wanted| wanted != key) {
+            continue;
+        }
+        let root = PathBuf::from(&record.root);
+        if root != cache.join(key) {
+            return Err(format!("refusing to prune unexpected path for {key}"));
+        }
+        if root.exists() {
+            reject_symlink_chain(&root, "remote cache path")?;
+            fs::remove_dir_all(&root).map_err(|e| format!("cannot remove {key} cache: {e}"))?;
+            removed.push(key.clone());
+        }
+    }
+    if let Some(wanted) = id {
+        if config
+            .projects
+            .get(wanted)
+            .is_none_or(|r| r.remote.is_none())
+        {
+            return Err(format!(
+                "project {wanted} is not a remote-only registration"
+            ));
+        }
+    }
+    println!(
+        "{}",
+        serde_json::to_string(&serde_json::json!({
+            "schema_version": 1,
+            "command": "project prune",
+            "removed": removed,
+            "network": false,
+            "trust_transfer": false
+        }))
+        .map_err(|e| e.to_string())?
+    );
+    Ok(ExitCode::SUCCESS)
 }
 
 fn read_idea(root: &Path) -> Result<IdeaDocument, String> {
@@ -3934,12 +4364,15 @@ fn validated_proposal(path: &Path) -> Result<DiscoveryProposal, String> {
         prior_root = Some(value);
         roots.push(root);
     }
-    if proposal.projects.iter().any(|project| {
-        !roots
+    for project in &proposal.projects {
+        if let Some(remote) = &project.remote {
+            validate_remote_record(project, remote)?;
+        } else if !roots
             .iter()
             .any(|root| Path::new(&project.root).starts_with(root))
-    }) {
-        return Err("project root is outside discovery workspace roots".into());
+        {
+            return Err("project root is outside discovery workspace roots".into());
+        }
     }
     Ok(proposal)
 }
@@ -3970,7 +4403,10 @@ fn validate_live_proposal(
     }
     let mut projects = BTreeMap::new();
     for record in &proposal.projects {
-        if inspect_project(Path::new(&record.root))? != *record {
+        // A remote-only project that has not been fetched has no live bytes to
+        // compare. Its pins are checked against the checkout when it is fetched.
+        let unfetched = record.remote.is_some() && !Path::new(&record.root).exists();
+        if !unfetched && inspect_record(record)? != *record {
             return Err(format!(
                 "live project drifted since discovery: {}",
                 record.id
@@ -4021,6 +4457,10 @@ fn validate_local_config(config: &LocalConfig) -> Result<(), String> {
                 "invalid local config: project idea path does not match root for {}",
                 record.id
             ));
+        }
+        if let Some(remote) = &record.remote {
+            validate_remote_record(record, remote)
+                .map_err(|e| format!("invalid local config: {e}"))?;
         }
         validate_lower_hex("project manifest SHA-256", &record.manifest_sha256, 64)?;
         validate_lower_hex("project idea SHA-256", &record.idea_sha256, 64)?;
