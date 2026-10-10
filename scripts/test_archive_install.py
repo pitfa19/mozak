@@ -332,6 +332,35 @@ class RetiredJcodeToleranceTests(unittest.TestCase):
         self.assertEqual(missing, {home / self.RETIRED[0]})
 
 
+class RetiredSequenceToleranceTests(unittest.TestCase):
+    """0.12 retired mozak-sequence-commitment. Only its exact files may be absent."""
+
+    FILES = sorted(archive_install.SEQUENCE_MANAGED_FILENAMES)
+
+    def test_every_sequence_file_in_every_root_is_retired(self) -> None:
+        for root in (".agents", ".jcode", ".claude", ".codex"):
+            for name in self.FILES:
+                self.assertTrue(archive_install.is_retired_jcode_path(
+                    Path(root) / "skills/mozak-sequence-commitment" / name), (root, name))
+
+    def test_other_files_in_that_folder_or_other_skills_are_not_retired(self) -> None:
+        for path in (".agents/skills/mozak-sequence-commitment/notes.md",
+                     ".agents/skills/mozak/SKILL.md",
+                     ".other/skills/mozak-sequence-commitment/SKILL.md",
+                     ".agents/skills/mozak-sequence-commitment"):
+            self.assertFalse(archive_install.is_retired_jcode_path(Path(path)), path)
+
+    def test_missing_sequence_files_accepted_but_drift_refused(self) -> None:
+        paths = [f"{root}/skills/mozak-sequence-commitment/{name}"
+                 for root in (".agents", ".jcode", ".claude", ".codex") for name in self.FILES]
+        old = {"state": "incomplete", "checks": [{"path": p, "status": "missing"} for p in paths]
+               + [{"path": ".agents/skills/mozak/SKILL.md", "status": "ok"}]}
+        new = {"state": "ready", "checks": [{"path": ".agents/skills/mozak/SKILL.md", "status": "ok"}]}
+        self.assertTrue(archive_install.old_report_ready(old, new))
+        old["checks"][0]["status"] = "drift"
+        self.assertFalse(archive_install.old_report_ready(old, new))
+
+
 class JcodeCustodyTests(unittest.TestCase):
     def test_custody_roundtrip_and_invalid_records_fail_closed(self):
         with tempfile.TemporaryDirectory() as directory:

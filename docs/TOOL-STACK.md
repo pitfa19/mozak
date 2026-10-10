@@ -39,19 +39,18 @@ the agent to, and the agent is responsible for doing it.
 ## Owner-approved work completion
 
 For an authorized sequence, plan, batch, checklist or equivalent commitment,
-load the managed `mozak-sequence-commitment` skill. Keep the original scope and
-acceptance checks through delegation and resume. A candidate milestone does not
-close the parent goal, and one approval-blocked branch does not stop other safe,
-authorized work. Only the owner can remove requirements. Forced interruption
-leaves an incomplete checkpoint and a resume path. The companion's read-only
-closure audit checks declarations, not evidence authenticity or future agent
-obedience. It grants no approval and overrides no safety boundary.
+keep the original scope and acceptance checks through delegation and resume.
+A candidate milestone does not close the parent goal, and one approval-blocked
+branch does not stop other safe, authorized work. Only the owner can remove
+requirements. Forced interruption leaves an incomplete checkpoint and a resume
+path. These rules live in the `mozak` skill. The separate
+`mozak-sequence-commitment` companion was retired in 0.12.
 
 ## Use cases
 
 | Use case | Required | Optional | Notes |
 |---|---|---|---|
-| `baseline` | `adhd-skill`, `notes-skills`, `sequence-commitment`, `termaid` | `mmdr`, `caveman-skill`, `drawing-skills` | Always included |
+| `baseline` | `adhd-skill`, `notes-skills`, `termaid` | `mmdr`, `caveman-skill`, `drawing-skills` | Always included |
 | `literature` | `arxiv-mcp` | `github-mcp`, `fetch-mcp` | arXiv search and reading; curated DAIR.AI snapshots |
 | `references` | `zotero-mcp` | `zotero-cli-skill` | Needs a local Zotero database |
 | `manuscript` | `overleaf-mcp` | none | Optional use case, needs credentials |

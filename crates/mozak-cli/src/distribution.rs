@@ -14,26 +14,6 @@ const DESTINATIONS: [&str; 4] = [
     ".claude/skills/mozak",
     ".codex/skills/mozak",
 ];
-const SEQUENCE_DESTINATIONS: [&str; 4] = [
-    ".agents/skills/mozak-sequence-commitment",
-    ".jcode/skills/mozak-sequence-commitment",
-    ".claude/skills/mozak-sequence-commitment",
-    ".codex/skills/mozak-sequence-commitment",
-];
-const SEQUENCE_FILES: [(&str, &[u8]); 3] = [
-    (
-        "SKILL.md",
-        include_bytes!("../../../skills/mozak-sequence-commitment/SKILL.md"),
-    ),
-    (
-        "scripts/check_sequence.py",
-        include_bytes!("../../../skills/mozak-sequence-commitment/scripts/check_sequence.py"),
-    ),
-    (
-        "tests/test_sequence.py",
-        include_bytes!("../../../skills/mozak-sequence-commitment/tests/test_sequence.py"),
-    ),
-];
 const ADHD_DESTINATIONS: [&str; 4] = [
     ".agents/skills/i-have-adhd",
     ".jcode/skills/i-have-adhd",
@@ -445,7 +425,6 @@ fn all_destinations() -> impl Iterator<Item = &'static str> {
         .chain(NOTE_DESTINATIONS)
         .chain(NOTE_HEALTHCHECK_DESTINATIONS)
         .chain(NOTE_VOICE_CENSUS_DESTINATIONS)
-        .chain(SEQUENCE_DESTINATIONS)
 }
 
 fn files_for_destination(destination: &str) -> Vec<&'static (&'static str, &'static [u8])> {
@@ -457,8 +436,6 @@ fn files_for_destination(destination: &str) -> Vec<&'static (&'static str, &'sta
         NOTE_HEALTHCHECK_FILES.iter().collect()
     } else if NOTE_VOICE_CENSUS_DESTINATIONS.contains(&destination) {
         NOTE_VOICE_CENSUS_FILES.iter().collect()
-    } else if SEQUENCE_DESTINATIONS.contains(&destination) {
-        SEQUENCE_FILES.iter().collect()
     } else {
         FILES.iter().collect()
     }

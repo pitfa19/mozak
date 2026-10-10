@@ -89,7 +89,6 @@ fn install_baseline(home: &Path) {
             "note",
             "note-healthcheck",
             "note-voice-census",
-            "mozak-sequence-commitment",
         ] {
             fs::create_dir_all(home.join(root).join("skills").join(skill)).unwrap();
         }

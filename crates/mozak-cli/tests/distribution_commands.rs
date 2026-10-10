@@ -54,6 +54,15 @@ fn setup_install_does_not_ship_retired_jcode_profile_skills() {
             "retired Jcode skill {name} must not be installed"
         );
     }
+    for root in [".agents", ".jcode", ".claude", ".codex"] {
+        assert!(
+            !home
+                .join(root)
+                .join("skills/mozak-sequence-commitment")
+                .exists(),
+            "retired sequence companion must not be installed in {root}"
+        );
+    }
     let retired = run(&["setup", "jcode", "plan", home.to_str().unwrap()]);
     assert!(!retired.status.success(), "setup jcode must be retired");
 }
@@ -75,8 +84,9 @@ fn install_and_check_are_embedded_idempotent_and_deterministic() {
     assert_eq!(report["state"], "ready");
     assert_eq!(report["parity"], true);
     assert_eq!(report["embedded"], true);
-    // 132: the 136-file generation minus the four retired Jcode profile skills.
-    assert_eq!(report["checks"].as_array().unwrap().len(), 132);
+    // 120: the 136-file generation minus four retired Jcode skills (0.11)
+    // and twelve retired sequence-commitment files (0.12).
+    assert_eq!(report["checks"].as_array().unwrap().len(), 120);
     let catalog_bytes = fs::read(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../skills/mozak/tool-stack.json"),
     )
@@ -107,7 +117,6 @@ fn install_and_check_are_embedded_idempotent_and_deterministic() {
                 .join("skills/i-have-adhd/SKILL.md")
                 .is_file()
         );
-        verify_sequence_companion(&home, root, &report);
         for skill in ["note", "note-healthcheck", "note-voice-census"] {
             assert!(
                 home.join(root)
@@ -156,46 +165,6 @@ fn install_and_check_are_embedded_idempotent_and_deterministic() {
     assert_eq!(check_report["state"], "ready");
     assert_eq!(check_report["checks"], report["checks"]);
     fs::remove_dir_all(home).unwrap();
-}
-
-fn verify_sequence_companion(home: &std::path::Path, root: &str, report: &Value) {
-    let companion = home.join(root).join("skills/mozak-sequence-commitment");
-    for (path, expected) in [
-        (
-            "SKILL.md",
-            include_bytes!("../../../skills/mozak-sequence-commitment/SKILL.md").as_slice(),
-        ),
-        (
-            "scripts/check_sequence.py",
-            include_bytes!("../../../skills/mozak-sequence-commitment/scripts/check_sequence.py")
-                .as_slice(),
-        ),
-        (
-            "tests/test_sequence.py",
-            include_bytes!("../../../skills/mozak-sequence-commitment/tests/test_sequence.py")
-                .as_slice(),
-        ),
-    ] {
-        assert_eq!(fs::read(companion.join(path)).unwrap(), expected);
-    }
-    let audit_tests = Command::new("python3")
-        .arg(companion.join("tests/test_sequence.py"))
-        .env("PYTHONDONTWRITEBYTECODE", "1")
-        .output()
-        .unwrap();
-    assert!(
-        audit_tests.status.success(),
-        "{}",
-        String::from_utf8_lossy(&audit_tests.stderr)
-    );
-    assert_eq!(
-        report["companion_recommendations"]["managed"][2]["id"],
-        "sequence-commitment"
-    );
-    assert_eq!(
-        report["companion_recommendations"]["managed"][2]["status"],
-        "present"
-    );
 }
 
 #[test]

@@ -35,14 +35,6 @@
       "reason": "MOZAK installs these version-matched embedded Notes payloads during setup install, update, and rollback, and setup check verifies deterministic drift. Provenance is pinned in skills/notes-vendor-manifest.json."
     },
     {
-      "id": "sequence-commitment",
-      "name": "Owner-approved sequence completion",
-      "classification": "managed",
-      "kind": "skill",
-      "skill_names": ["mozak-sequence-commitment"],
-      "reason": "Preserves original authorized work scope and audits declared completion without replacing owner approval or real acceptance evidence."
-    },
-    {
       "id": "caveman-skill",
       "name": "Caveman skill",
       "classification": "recommended",

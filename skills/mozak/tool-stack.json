@@ -37,7 +37,6 @@
       "tools": [
         {"tool_id": "adhd-skill", "requirement": "required"},
         {"tool_id": "notes-skills", "requirement": "required"},
-        {"tool_id": "sequence-commitment", "requirement": "required"},
         {"tool_id": "termaid", "requirement": "required"},
         {"tool_id": "mmdr", "requirement": "optional"},
         {"tool_id": "caveman-skill", "requirement": "optional"},
@@ -111,17 +110,6 @@
       "detection": {"skill_dirs": ["note", "note-healthcheck", "note-voice-census"], "skill_match": "all"},
       "install": ["mozak setup install HOME"],
       "notes": "Pinned to Notes commit 91a2b675bf876e71433bec7d0d0cb6ef080d957c; file hashes in skills/notes-vendor-manifest.json."
-    },
-    {
-      "id": "sequence-commitment",
-      "name": "Owner-approved sequence completion",
-      "kind": "managed_skill",
-      "companion_classification": "managed",
-      "shipped_by_mozak": true,
-      "ready_at": "installed",
-      "detection": {"skill_dirs": ["mozak-sequence-commitment"]},
-      "install": ["mozak setup install HOME"],
-      "notes": "Retain original owner-approved scope and continue safe authorized branches. Declared-record audit cannot guarantee agent obedience or authenticate acceptance evidence."
     },
     {
       "id": "termaid",

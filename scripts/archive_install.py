@@ -55,6 +55,10 @@ JCODE_MANAGED_SKILLS = {"swarm-low", "swarm-normal", "teacher", "mozak-jcode"}
 # manages them must still upgrade an install whose owner already removed them,
 # so their absence (never their modification) is accepted for this one set.
 RETIRED_JCODE_SKILLS = JCODE_MANAGED_SKILLS
+# MOZAK 0.12 retired the sequence-commitment companion. Same rule: its exact
+# managed files may be absent when the new build no longer manages them.
+RETIRED_SEQUENCE_SKILL = "mozak-sequence-commitment"
+RETIRED_SEQUENCE_ROOTS = {".agents", ".jcode", ".claude", ".codex"}
 LEGACY_ALIAS = Path(".claude/skills/i-have-adhd")
 LEGACY_ALIAS_TARGET = Path(".agents/skills/i-have-adhd")
 
@@ -338,9 +342,14 @@ def jcode_custody_paths(report: dict[str, Any], home: Path) -> set[Path]:
 
 
 def is_retired_jcode_path(path: Path) -> bool:
+    """True for any managed file of a skill MOZAK has retired (Jcode 0.11, sequence 0.12)."""
     parts = path.parts
-    return (len(parts) == 4 and parts[:2] == (".jcode", "skills")
-            and parts[2] in RETIRED_JCODE_SKILLS and parts[3] == "SKILL.md")
+    if (len(parts) == 4 and parts[:2] == (".jcode", "skills")
+            and parts[2] in RETIRED_JCODE_SKILLS and parts[3] == "SKILL.md"):
+        return True
+    return (len(parts) >= 4 and parts[0] in RETIRED_SEQUENCE_ROOTS and parts[1] == "skills"
+            and parts[2] == RETIRED_SEQUENCE_SKILL
+            and "/".join(parts[3:]) in SEQUENCE_MANAGED_FILENAMES)
 
 
 def old_report_ready(old_report: dict[str, Any] | None, new_report: dict[str, Any] | None) -> bool:

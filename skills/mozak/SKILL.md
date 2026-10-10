@@ -5,9 +5,9 @@ description: Operate MOZAK projects, Scopes, explicit KB registries, and local M
 
 # MOZAK
 
-## Owner-approved sequence completion
+## Owner-approved work completion
 
-When the owner authorizes a sequence, plan, batch, phases, checklist or synonymous work commitment, load `mozak-sequence-commitment` and retain the complete original scope across delegation and resume. A passing candidate or milestone is not completion. Never silently cancel, defer or narrow agreed requirements. Continue every safe authorized unblocked branch, even when another branch needs approval. Finish only after every original requirement has direct, current acceptance evidence, or the owner explicitly changes the scope. A forced interruption must be reported as incomplete with open todos and a resume path. These core rules apply even if the companion is unavailable, in which case record the same whole-scope audit manually. The companion is shipped by `mozak setup install`; it does not grant approvals or guarantee agent obedience.
+When the owner approves a sequence, plan, batch or checklist, keep the whole original scope until each requirement has current evidence or the owner changes it. A passing milestone is not completion. Never silently cancel, defer or narrow agreed work. Keep working on every safe, authorized branch while another waits for approval. A forced stop is reported as incomplete, with the open items and how to resume. Track this in the todo list or a feature record; no separate skill is needed.
 
 Natural language is the user interface. Translate the request into the smallest current MOZAK command, inspect its result, and answer with terminal bullet lists or a `Termaid` diagram. Never direct the user to a web dashboard.
 
@@ -26,7 +26,7 @@ The local CLI checks observable facts: files, hashes, host configuration, and re
 - Catalog: `tool-stack.json`, shipped next to this skill and versioned with the binary. It is the source of truth for which MCP servers and skills serve which use case. `companion-recommendations.json` still ships for compatibility; its entries are now stack catalog policies, mainly the always-on `baseline` use case.
 - Read the catalog with `mozak stack catalog`. Get the tools for one use case with `mozak stack recommend USE_CASE`. Observe local readiness with `mozak stack check HOME [USE_CASE]`. All three are read-only and offline, install nothing, and perform no MCP handshake.
 - New retrieval recorded through MOZAK is MCP-only. Host built-in web search and reading may support deep research when available, outside this catalog and its evidence recorder. Never relabel built-in results as MCP evidence. The agent host calls a catalog MCP server; MOZAK records and validates the bytes. MOZAK ships no live source adapter, and there is no adapter fallback, setup, run, or recheck. Never recommend a `mozak adapter` command.
-- Use cases and catalog tool ids: `baseline` (always: `adhd-skill`, `notes-skills`, `sequence-commitment`, `termaid`), `literature` (`arxiv-mcp` required; `fetch-mcp` and `github-mcp` optional for curated DAIR.AI snapshots), `references` (`zotero-mcp`), `manuscript` (`overleaf-mcp`, optional, needs credentials), `tooling-watch` (`fetch-mcp` required; `github-mcp` optional), `deep-research` (`fetch-mcp` optional; host built-in search outside the catalog). `mozak stack catalog` is authoritative if this list ever disagrees.
+- Use cases and catalog tool ids: `baseline` (always: `adhd-skill`, `notes-skills`, `termaid`), `literature` (`arxiv-mcp` required; `fetch-mcp` and `github-mcp` optional for curated DAIR.AI snapshots), `references` (`zotero-mcp`), `manuscript` (`overleaf-mcp`, optional, needs credentials), `tooling-watch` (`fetch-mcp` required; `github-mcp` optional), `deep-research` (`fetch-mcp` optional; host built-in search outside the catalog). `mozak stack catalog` is authoritative if this list ever disagrees.
 - Activate a tool only for its applicable use case: arXiv for literature, Zotero for references and reading, Overleaf for manuscripts, Fetch and GitHub for tooling watch, Fetch for exact known URLs in deep research. A literature question does not justify opening Zotero or Overleaf.
 - Readiness is a ladder, and each rung is a separate fact: `missing`, `installed`, `configured`, `handshake_ok`, `usable`, `write_granted`. An installed package is not a configured server. A successful handshake is not a usable library. Read access is not write permission. `prerequisite_missing` means configured but a declared prerequisite is absent, for example Zotero with no `zotero.sqlite` at the default path or `ZOTERO_DB_PATH`.
 - `stack check` observes only up to `configured` from host files (executables on PATH, skill directories, `~/.jcode/mcp.json`, `~/.claude.json`, `~/.codex/config.toml`). Beyond that it reports `handshake: "not_observed"`, `usable: "unknown"`, and `write_grant: "not_observed"`. Do not upgrade those values from memory or assumption. Only the agent host calls an MCP server, and only that call can show a handshake or real library access.
@@ -79,8 +79,7 @@ Every MCP workflow ends the same way: save the exact response bytes, write one `
 - Check skill parity, Termaid on PATH, and optionally a real KB:
   `mozak doctor HOME [KB_ROOT]`
 - The managed payload ships `tool-stack.json` (the use-case catalog, see Explicit tool stack) and, for compatibility, `companion-recommendations.json`. `setup` and `doctor` keep the companion output shape and add a nonblocking `stack_onboarding` object that points to `mozak stack recommend` and `mozak stack check`. Termaid is required.
-  The owner-approved sequence contract `mozak-sequence-commitment`, ADHD skill,
-  and Notes `note`, `note-healthcheck`, and `note-voice-census`
+  The ADHD skill and Notes `note`, `note-healthcheck`, and `note-voice-census`
   are MOZAK-managed, version-matched embedded payloads installed and checked
   under `.agents`, `.jcode`, `.claude`, and `.codex`. The Notes payload is pinned
   to Notes commit `91a2b675bf876e71433bec7d0d0cb6ef080d957c` with file hashes in
