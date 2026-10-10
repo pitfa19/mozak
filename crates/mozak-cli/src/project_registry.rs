@@ -1123,7 +1123,7 @@ pub fn context(id: &str, mode: ContextOutputMode) -> Result<ExitCode, String> {
             "revision_matches_git_head": revision_matches_head
         },
         "idea": idea.map(|v| serde_json::json!({"title": v.title, "intent": v.sections.get("Intent").cloned().unwrap_or_default()})),
-        "workflow": snapshot.as_ref().map(|s| serde_json::json!({"state": s.state, "latest_plan": s.latest_valid_plan, "ready_goals": s.ready_goals, "compaction": s.compaction})),
+        "workflow": snapshot.as_ref().map(|s| serde_json::json!({"state": s.state, "latest_plan": s.latest_valid_plan, "ready_goals": s.ready_goals, "features": s.features, "compaction": s.compaction})),
         "workflow_error": workflow_error,
         "context_notes": context_notes,
         "notes": notes_summary,

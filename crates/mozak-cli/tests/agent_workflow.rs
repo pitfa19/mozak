@@ -92,6 +92,7 @@ fn overview_has_closed_stable_shape_and_production_ready_order() {
             "compaction",
             "concepts",
             "contexts",
+            "features",
             "findings",
             "goals",
             "latest_valid_plan",

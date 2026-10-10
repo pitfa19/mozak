@@ -232,6 +232,7 @@ impl Module {
             ],
             Self::Plans => &[
                 "planning.rs",
+                "feature.rs",
                 "planning_archive.rs",
                 "execution.rs",
                 "project_release.rs",

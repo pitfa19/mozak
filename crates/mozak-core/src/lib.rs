@@ -6,6 +6,7 @@ pub mod case_study;
 pub mod concept;
 pub mod current_state;
 pub mod execution;
+pub mod feature;
 pub mod kb;
 pub mod knowledge_package;
 pub mod lab;

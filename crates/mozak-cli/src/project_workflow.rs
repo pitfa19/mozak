@@ -102,6 +102,16 @@ pub struct ContextView {
 }
 
 #[derive(Debug, Serialize)]
+pub struct FeatureView {
+    pub id: String,
+    pub title: String,
+    pub status: mozak_core::feature::FeatureStatus,
+    pub version: u64,
+    pub tickets: usize,
+    pub tickets_pinned: usize,
+}
+
+#[derive(Debug, Serialize)]
 pub struct WorkflowSnapshot {
     pub schema_version: u64,
     pub command: &'static str,
@@ -113,6 +123,8 @@ pub struct WorkflowSnapshot {
     pub concepts: Vec<ConceptView>,
     pub goals: Vec<GoalView>,
     pub ready_goals: Vec<GoalView>,
+    /// Feature records (0.12+): the current version of each, open ones first.
+    pub features: Vec<FeatureView>,
     pub findings: Vec<Finding>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub compaction: Option<CompactionRecommendation>,
@@ -308,6 +320,7 @@ pub fn snapshot(root: &Path) -> Result<WorkflowSnapshot, String> {
         }
         None => (None, Vec::new(), Vec::new()),
     };
+    let features = load_feature_views(&root, &mut counts, &mut findings)?;
     let compaction = if root.join(".mozak/planning").is_dir() {
         match compaction_recommendation(&root, "1970-01-01T00:00:00Z") {
             Ok(value) => Some(value),
@@ -329,7 +342,9 @@ pub fn snapshot(root: &Path) -> Result<WorkflowSnapshot, String> {
     let invalid_count = counts.values().map(|count| count.invalid).sum::<usize>();
     let state = if invalid_count > 0 || findings.iter().any(|f| f.status == "invalid") {
         SnapshotState::Invalid
-    } else if !manifest_valid || !idea_valid || input_sets.is_empty() || latest_valid_plan.is_none()
+    } else if !manifest_valid
+        || !idea_valid
+        || ((input_sets.is_empty() || latest_valid_plan.is_none()) && features.is_empty())
     {
         SnapshotState::Incomplete
     } else {
@@ -340,6 +355,7 @@ pub fn snapshot(root: &Path) -> Result<WorkflowSnapshot, String> {
         !input_sets.is_empty(),
         latest_valid_plan.is_some(),
         &ready_goals,
+        &features,
     );
     Ok(WorkflowSnapshot {
         schema_version: 1,
@@ -352,6 +368,7 @@ pub fn snapshot(root: &Path) -> Result<WorkflowSnapshot, String> {
         concepts,
         goals,
         ready_goals,
+        features,
         findings,
         compaction,
         next_actions,
@@ -1050,24 +1067,89 @@ fn status(value: GoalStatus) -> &'static str {
         GoalStatus::Superseded => "superseded",
     }
 }
-fn actions(state: SnapshotState, inputs: bool, plan: bool, ready: &[GoalView]) -> Vec<String> {
+fn actions(
+    state: SnapshotState,
+    inputs: bool,
+    plan: bool,
+    ready: &[GoalView],
+    features: &[FeatureView],
+) -> Vec<String> {
     if state == SnapshotState::Invalid {
         return vec!["repair malformed lifecycle artifacts listed in findings".into()];
     }
     let mut result = Vec::new();
-    if !inputs {
-        result.push("create and validate .mozak/planning/accepted-inputs.json".into());
-    } else if !plan {
-        result.push("create and validate a plan under .mozak/planning/plans/".into());
+    let open: Vec<&FeatureView> = features
+        .iter()
+        .filter(|f| f.status == mozak_core::feature::FeatureStatus::Open)
+        .collect();
+    if let Some(feature) = open.first() {
+        result.push(if feature.tickets == 0 {
+            format!(
+                "continue feature {}: no tickets yet; run /to-tickets, then `mozak feature ticket` for each",
+                feature.id
+            )
+        } else if feature.tickets_pinned < feature.tickets {
+            format!(
+                "continue feature {}: {} of {} tickets pinned; /implement the next ticket, then `mozak feature ticket` to pin its snapshot",
+                feature.id, feature.tickets_pinned, feature.tickets
+            )
+        } else {
+            format!(
+                "finish feature {}: all {} tickets pinned; pin acceptance evidence, then `mozak feature close <root> {} done`",
+                feature.id, feature.tickets, feature.id
+            )
+        });
     } else if let Some(goal) = ready.first() {
         result.push(format!(
-            "prepare bounded execution for ready goal {}",
+            "legacy goal-DAG plan has ready goal {}; new work should start as a feature",
             goal.id
         ));
+    } else if !inputs || !plan || !features.is_empty() {
+        result.push(
+            "start the next feature: /grill-me, then /to-spec, then `mozak feature new`".into(),
+        );
     } else {
         result.push("review the plan for blocked, in-progress, or completed goals".into());
     }
     result
+}
+
+fn load_feature_views(
+    root: &Path,
+    counts: &mut BTreeMap<String, ArtifactCounts>,
+    findings: &mut Vec<Finding>,
+) -> Result<Vec<FeatureView>, String> {
+    let state = crate::feature_workflow::load(root)?;
+    counts.entry("feature".into()).or_insert_with(empty_counts);
+    for _ in &state.current {
+        recognized(counts, "feature");
+        valid(counts, "feature");
+    }
+    for problem in state.problems {
+        recognized(counts, "feature");
+        invalid(counts, "feature");
+        finding(
+            root,
+            &root.join(mozak_core::feature::FEATURE_ROOT),
+            "invalid",
+            problem,
+            findings,
+        );
+    }
+    let mut views: Vec<FeatureView> = state
+        .current
+        .into_values()
+        .map(|f| FeatureView {
+            tickets_pinned: f.tickets.iter().filter(|t| t.snapshot.is_some()).count(),
+            tickets: f.tickets.len(),
+            id: f.id,
+            title: f.title,
+            status: f.status,
+            version: f.version,
+        })
+        .collect();
+    views.sort_by(|a, b| a.status.cmp(&b.status).then_with(|| a.id.cmp(&b.id)));
+    Ok(views)
 }
 
 pub fn render_list(s: &WorkflowSnapshot) -> String {
