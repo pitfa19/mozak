@@ -234,6 +234,12 @@ fn run() -> Result<ExitCode, String> {
             Ok(ExitCode::SUCCESS)
         }
         [planning, command, inputs, plan] if planning == "planning" && command == "next" => {
+            // Deprecated in 0.12: new work is tracked as feature records. The
+            // notice goes to stderr so the JSON on stdout is unchanged for
+            // anything still parsing it.
+            eprintln!(
+                "deprecated: `mozak planning next` reads legacy goal-DAG plans. Track new work with `mozak feature new` (see /grill-me, /to-spec, /to-tickets)."
+            );
             lifecycle::planning_next(Path::new(inputs), Path::new(plan))?;
             Ok(ExitCode::SUCCESS)
         }

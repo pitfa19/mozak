@@ -188,11 +188,44 @@ measured observation from interpretation, record its own limitations, and
 cannot report a comparative result without a control that declares itself
 comparable. Case proposals stay `proposal_only`.
 
-### Plans
+### Features (current way to track work)
+
+New work is one feature record per finished, user-visible feature. Design it
+with `/grill-me` and `/to-spec`, split it with `/to-tickets`, build it with
+`/implement` and `/code-review`. MOZAK keeps the thin index and the proof.
 
 | Say this | Agent runs |
 |---|---|
-| "What's the next goal I can start?" | `mozak planning next <accepted-inputs.json> <plan.json>` |
+| "Start tracking this feature." | `mozak feature new <root> <id> <title> [spec-url]` |
+| "Pin the ticket I just finished." | `mozak feature ticket <root> <id> <issue-url> <snapshot-path>` |
+| "Pin the acceptance evidence." | `mozak feature evidence <root> <id> <path>` |
+| "This feature is done." | `mozak feature close <root> <id> done` |
+| "What features are open?" | `mozak feature list <root>` or `mozak project context <id>` |
+
+```bash
+mozak feature new <project-root> <feature-id> <title> [spec-url]
+mozak feature ticket <project-root> <feature-id> <issue-url> [snapshot-path]
+mozak feature evidence <project-root> <feature-id> <evidence-path>
+mozak feature close <project-root> <feature-id> <done|dropped>
+mozak feature <list|validate> <project-root>
+```
+
+Every change writes a new create-only file `.mozak/features/<id>.v<N>.json`
+that pins the SHA-256 of the version before it, so an earlier version cannot be
+edited without `feature validate` and `project overview` reporting it. Snapshot
+and evidence files must live under `.mozak/evidence/<id>/`. MOZAK does not fetch
+issues: the agent saves the issue text it saw, and MOZAK pins those bytes. A
+feature can close as `done` only when every ticket has a pinned snapshot and at
+least one evidence file is pinned. A closed feature is final.
+
+### Plans (legacy goal-DAG, deprecated in 0.12)
+
+Existing plans stay readable and valid. New work should be a feature record.
+`planning next` prints a deprecation notice on stderr and keeps its stdout.
+
+| Say this | Agent runs |
+|---|---|
+| "What's the next goal in this old plan?" | `mozak planning next <accepted-inputs.json> <plan.json>` |
 | "Show the current plan and ready goals." | `mozak project overview .` |
 | "Verify this package." | `mozak package validate <package-root>` |
 | "Make this package verifiable outside MOZAK." | `mozak package attest <package-root>` |

@@ -91,7 +91,7 @@ fn tools() -> Vec<Value> {
         ),
         tool(
             "planning_next",
-            "Recommend the next goal from explicit accepted-input and plan files without accepting it.",
+            "Deprecated in 0.12. Reads a legacy goal-DAG plan and recommends its next goal without accepting it. New work is tracked as feature records (mozak feature).",
             &json!({"accepted_inputs":{"type":"string","minLength":1},"plan":{"type":"string","minLength":1}}),
             &["accepted_inputs", "plan"],
         ),
