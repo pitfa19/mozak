@@ -1,0 +1,60 @@
+# MOZAK reference: tool stack and research evidence
+
+Load this when the request involves papers, references, manuscripts, tooling watch, deep research, or recording MCP evidence.
+
+## Explicit tool stack
+
+- Catalog: `tool-stack.json`, shipped next to this skill and versioned with the binary. It is the source of truth for which MCP servers and skills serve which use case. `companion-recommendations.json` still ships for compatibility; its entries are now stack catalog policies, mainly the always-on `baseline` use case.
+- Read the catalog with `mozak stack catalog`. Get the tools for one use case with `mozak stack recommend USE_CASE`. Observe local readiness with `mozak stack check HOME [USE_CASE]`. All three are read-only and offline, install nothing, and perform no MCP handshake.
+- New retrieval recorded through MOZAK is MCP-only. Host built-in web search and reading may support deep research when available, outside this catalog and its evidence recorder. Never relabel built-in results as MCP evidence. The agent host calls a catalog MCP server; MOZAK records and validates the bytes. MOZAK ships no live source adapter, and there is no adapter fallback, setup, run, or recheck. Never recommend a `mozak adapter` command.
+- Use cases and catalog tool ids: `baseline` (always: `adhd-skill`, `notes-skills`, `termaid`), `literature` (`arxiv-mcp` required; `fetch-mcp` and `github-mcp` optional for curated DAIR.AI snapshots), `references` (`zotero-mcp`), `manuscript` (`overleaf-mcp`, optional, needs credentials), `tooling-watch` (`fetch-mcp` required; `github-mcp` optional), `deep-research` (`fetch-mcp` optional; host built-in search outside the catalog). `mozak stack catalog` is authoritative if this list ever disagrees.
+- Activate a tool only for its applicable use case: arXiv for literature, Zotero for references and reading, Overleaf for manuscripts, Fetch and GitHub for tooling watch, Fetch for exact known URLs in deep research. A literature question does not justify opening Zotero or Overleaf.
+- Readiness is a ladder, and each rung is a separate fact: `missing`, `installed`, `configured`, `handshake_ok`, `usable`, `write_granted`. An installed package is not a configured server. A successful handshake is not a usable library. Read access is not write permission. `prerequisite_missing` means configured but a declared prerequisite is absent, for example Zotero with no `zotero.sqlite` at the default path or `ZOTERO_DB_PATH`.
+- `stack check` observes only up to `configured` from host files (executables on PATH, skill directories, `~/.jcode/mcp.json`, `~/.claude.json`, `~/.codex/config.toml`). Beyond that it reports `handshake: "not_observed"`, `usable: "unknown"`, and `write_grant: "not_observed"`. Do not upgrade those values from memory or assumption. Only the agent host calls an MCP server, and only that call can show a handshake or real library access.
+- Exit codes: `stack check` returns 0 when every required tool of the checked use case(s) reaches its declared `ready_at` rung (`installed` for baseline skills and executables, `configured` for MCP servers) with its declared prerequisites and required credentials present, and each `any_of` group has at least one member ready. It returns 2 when incomplete and 3 for invalid input. An unknown use case returns 3 and lists the valid ids.
+- Missing required MCP configuration or a missing required credential means incomplete. Report it and stop. Never substitute another retrieval path.
+- When a tool is unavailable, show the exact installation steps and prerequisites from the shipped catalog. Never invent package names, versions, or commands.
+- Installing is a separate owner decision per tool. Show the step, wait for consent, and never install every recommended tool at once.
+- Credentials: MOZAK never emits or stores credential values. It inspects only declared key names and their presence in the environment and host config files, and reports names such as `OVERLEAF_SESSION` or `GITHUB_PERSONAL_ACCESS_TOKEN`. A write grant is never implied by setup or by the catalog.
+- MOZAK maintains no live tool runtime. It does not start, supervise, or keep MCP servers alive. The agent host does that.
+- What an MCP tool returns is research evidence, not knowledge. Record it as an immutable proposal-only snapshot (see source-neutral evidence below), and keep acceptance a separate explicit owner decision.
+
+### MCP workflows
+
+If any permitted tool would spend credits, get explicit owner consent before
+network or credit use. This policy grants no permission to add tools.
+
+Every MCP workflow ends the same way: save the exact response bytes, write one `mozak.tool-evidence.v1` fixture per call with the catalog tool id, and run `mozak research record-tool FIXTURE_JSON RESPONSE_BYTES RUN_JSON`. Coverage of a source through an MCP tool counts as tested only after a real recorded run through that tool.
+
+- Literature: `mozak stack check HOME literature`, then search and read through `arxiv-mcp`, one section at a time. A curated DAIR.AI snapshot is read through `fetch-mcp` or `github-mcp` at an exact commit of `dair-ai/AI-Papers-of-the-Week`. Its upstream declares no license, so retain only titles, links, week labels, and exact source provenance; use curator prose transiently. DAIR.AI is a curated complement, not a complete literature search.
+- Tooling watch: `mozak stack check HOME tooling-watch`.
+  1. Repository discovery: run owner-declared topic and keyword searches against the public GitHub API through `fetch-mcp`, or through `github-mcp` when configured. Discovery proposes and never promotes. A repository becomes watched only when the owner adds it to the watchlist.
+  2. Repository watch: for each repository on the owner's explicit watchlist, record the latest release when one exists, otherwise the head commit, so an active repository without releases is never shown as dormant.
+  3. MCP registry: read the official registry's public v0 API through `fetch-mcp`. It paginates by server name, not by date, so read every page of the `updated_since` window before picking the newest, one fixture per page with the exact URL and cursor in the call arguments. Stopping at a page ceiling sets `truncated: true` and records a high-impact gap saying unread pages may contain newer entries.
+  4. Retain only release facts (identity, version, repository and website links, timestamps, `isLatest`, status). Never retain descriptions or READMEs.
+  5. Disclose in every record: stars and pushes measure attention rather than quality, security or fitness; licences vary and some are undeclared; discovery cannot see a repository that declares no matching topic; registry entries are self-published, so presence is not assessment; the registry lists MCP servers only. Unauthenticated public API reads are rate limited, so keep requests bounded. MOZAK schedules nothing; a watch runs when the owner asks.
+- Deep research: `mozak stack check HOME deep-research` checks baseline and optional `fetch-mcp`, not host search availability. Use the host's built-in web search and reading when available, with explicit source citations and limitations. If unavailable, report the missing search capability rather than claiming research readiness. Use `fetch-mcp` only for exact known URLs, and `arxiv-mcp` for papers when `literature` checks ready. Record only actual catalog MCP calls with `mozak research record-tool`. Built-in tool results cannot be recorded as MCP evidence or used as a Lab refresh run. This is not the old HyperResearch or MONOKL pipeline: do not claim their vault, ranking, contradiction analysis, or citation checks ran. Say which steps actually ran.
+- Not every API is reachable through the catalog tools. A source no catalog MCP server can read is out of scope; say so instead of improvising a fetcher.
+- A handshake can succeed while the library is unusable. The owner's first Zotero trial (2026-10-05) did exactly that: the local MCP handshake succeeded, but no Zotero database existed at the configured or default path. Report that state as `prerequisite_missing`, not as usable.
+
+## Networking and historical adapter evidence
+
+- The MOZAK binary's project, stack, and validation routes perform no networking: they check local config, files, and recorded evidence. Network access happens outside those routes, only in the agent host calling an MCP server, and MOZAK validates the recorded snapshot that came back. The managed launcher's update check is the one exception and contacts GitHub only for tool updates. Retrieved content enters under the `recorded` scheme as immutable untrusted data, never as a live resource.
+- Live source adapters are retired. No adapter runner, adapter registry route, or adapter catalog entry remains, and nothing can launch one. Never suggest setting up, running, rechecking, listing, or showing an adapter, and never fall back to one when an MCP tool is missing.
+- Runs that adapters already recorded are historical evidence and stay valid. Read them with `mozak research validate RUN_JSON`, `project current`, `project browse`, and `project why`, which report them as `historical` and `callable: false`. `research normalize` re-derives a run only from an already-recorded fixture, offline. Do not delete, rewrite, or re-pin historical adapter evidence.
+- Every recorded run, historical or new, is proposal-only research evidence. Promoting a source to a Scope input or an accepted planning input remains an explicit owner decision. Recording makes no relevance-ranking claim.
+
+## Source-neutral tool evidence
+
+- Record one tool call as evidence with `mozak research record-tool FIXTURE_JSON RESPONSE_BYTES RUN_JSON`. It is create-only and writes a standard research run, so `mozak research validate RUN_JSON` and `research landmarks` work unchanged.
+- Check a stored run against its inputs with `mozak research verify-tool FIXTURE_JSON RESPONSE_BYTES RUN_JSON`. It is read-only, re-derives the run, and requires a byte-for-byte match.
+- The `mozak.tool-evidence.v1` fixture pins the catalog tool id, kind, exact version, operation, and MCP server; canonical call arguments and their hash; the UTC call window; declared effects; the exact response hash and length; and each selected excerpt with its locator and byte range. The full response is never stored.
+- New recordings are MCP-only: `tool.kind` must be `mcp` and `tool_id` must be the shipped catalog id (for example `arxiv-mcp`), never a package name. The generic format still lets `verify-tool` and `research validate` read evidence recorded before this rule.
+- Refused: response hash or length mismatch, an excerpt that differs from its byte range, declared external writes, mutations other than `none`, irreversible effects, pending owner approval, `latest`/unknown versions, credential-looking argument keys, `accepted: true`, symlinked paths, and an existing output. `dry_run_available` is recorded but not enforced, because a call that already happened has no meaningful dry run. The receipt `input_hash` is the SHA-256 of the canonical (key-sorted, compact) fixture JSON, so reformatting the fixture does not change it. Truncated results get a high-impact gap.
+- The agent host makes the call. MOZAK only records and validates the bytes the host saved. See `docs/examples/tool-evidence-example.md`.
+
+## Input provenance and owner acceptance
+
+- Research evidence, from an MCP tool or a historical adapter run, is recorded once as an immutable snapshot with its exact source, time, and content hashes. Later edits fail validation; a correction is a new snapshot, never an overwrite.
+- A recorded snapshot is `proposal_only`. It becomes a planning input only when the owner explicitly accepts it into a new input set. A tool call, a successful record, a stack check, or general approval of the migration is not that acceptance.
+- Accepted inputs carry provenance (`human_decision`, `codebase_observation`, or recorded evidence) so any plan can be traced back to who decided what, from which bytes.

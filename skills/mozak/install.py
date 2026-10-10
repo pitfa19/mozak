@@ -14,6 +14,11 @@ from pathlib import Path
 
 MANAGED_FILES = (
     "SKILL.md",
+    "reference/routes.md",
+    "reference/tool-stack.md",
+    "reference/knowledge.md",
+    "reference/examples.md",
+    "reference/frozen.md",
     "install.py",
     "mcp.json",
     "tool-stack.json",

@@ -142,10 +142,13 @@ full text.
 
 ## Skill
 
-**Id** `skill` · **Files** `distribution.rs` `skills/mozak/SKILL.md` · **Commands** `mozak setup`, `mozak doctor`
+**Id** `skill` · **Files** `distribution.rs` `skills/mozak/SKILL.md` `skills/mozak/reference/*.md` · **Commands** `mozak setup`, `mozak doctor`
 
 Which request maps to which route, the shape the answer takes, and
-installation. Embedded in the binary and hash-pinned.
+installation. Embedded in the binary and hash-pinned. Since 0.12 the skill is
+a short core (under 100 lines) that names five reference files an agent loads
+only when needed: routes, tool stack, knowledge, examples, and frozen features
+(Lab, packages, legacy execution).
 
 | Taken | From | What exactly |
 |---|---|---|

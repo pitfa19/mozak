@@ -13,7 +13,16 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SKILL = ROOT / "SKILL.md"
 INSTALLER = ROOT / "install.py"
-TEXT = SKILL.read_text()
+CORE = SKILL.read_text()
+REFERENCE_FILES = (
+    "reference/routes.md",
+    "reference/tool-stack.md",
+    "reference/knowledge.md",
+    "reference/examples.md",
+    "reference/frozen.md",
+)
+# The skill contract is the short core plus its on-demand reference files.
+TEXT = CORE + "\n" + "\n".join((ROOT / name).read_text() for name in REFERENCE_FILES)
 
 
 class SkillContractTests(unittest.TestCase):
@@ -22,10 +31,21 @@ class SkillContractTests(unittest.TestCase):
         frontmatter = TEXT.split("---", 2)[1]
         self.assertIn("description:", frontmatter)
         for trigger in (
-            "onboarding", "status", "research", "planning", "next-goal",
-            "packet", "execution", "evaluation", "release", "graph", "meta kb",
+            "onboarding", "status", "context", "feature", "research",
+            "release", "graph", "meta kb", "concepts",
         ):
             self.assertIn(trigger, frontmatter.lower())
+
+    def test_core_is_short_and_maps_every_reference_file(self) -> None:
+        self.assertLess(len(CORE.splitlines()), 100)
+        for name in REFERENCE_FILES:
+            self.assertIn(f"`{name}`", CORE)
+            self.assertTrue((ROOT / name).is_file(), name)
+        for frozen in ("Self Improvement Lab", "Knowledge packages", "Owner-approved package import"):
+            self.assertNotIn(f"## {frozen}", CORE)
+            self.assertIn(f"## {frozen}", (ROOT / "reference/frozen.md").read_text())
+        for core_rule in ("mozak feature new", "mozak project context PROJECT_ID", "explicit owner acceptance"):
+            self.assertIn(core_rule, CORE)
 
     def test_routes_cover_only_current_command_families(self) -> None:
         routes = (
@@ -326,7 +346,7 @@ class InstallerTests(unittest.TestCase):
 
 class ToolStackSkillContractTests(unittest.TestCase):
     def test_every_use_loads_adhd_context_and_applicable_stack(self) -> None:
-        rule = TEXT.split("## Every MOZAK use starts the same way", 1)[1].split("## Explicit tool stack", 1)[0]
+        rule = CORE.split("## Every MOZAK use starts the same way", 1)[1].split("## ", 1)[0]
         for phrase in (
             "`i-have-adhd`", "mozak project context PROJECT_ID",
             "mozak stack recommend USE_CASE", "mozak stack check HOME USE_CASE",
@@ -579,7 +599,7 @@ class ToolStackPayloadTests(unittest.TestCase):
                     self.assertEqual(installed.read_bytes(), (ROOT / name).read_bytes())
 
     def test_skill_rule_includes_baseline_and_ready_at(self) -> None:
-        rule = TEXT.split("## Every MOZAK use starts the same way", 1)[1].split("## Explicit tool stack", 1)[0]
+        rule = CORE.split("## Every MOZAK use starts the same way", 1)[1].split("## ", 1)[0]
         self.assertIn("mozak stack check HOME baseline", rule)
         self.assertNotIn("Skip this step", rule)
         self.assertIn("`ready_at`", TEXT)

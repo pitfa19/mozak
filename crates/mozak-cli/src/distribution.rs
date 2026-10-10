@@ -38,8 +38,28 @@ const NOTE_VOICE_CENSUS_DESTINATIONS: [&str; 4] = [
     ".claude/skills/note-voice-census",
     ".codex/skills/note-voice-census",
 ];
-const FILES: [(&str, &[u8]); 7] = [
+const FILES: [(&str, &[u8]); 12] = [
     ("SKILL.md", include_bytes!("../../../skills/mozak/SKILL.md")),
+    (
+        "reference/routes.md",
+        include_bytes!("../../../skills/mozak/reference/routes.md"),
+    ),
+    (
+        "reference/tool-stack.md",
+        include_bytes!("../../../skills/mozak/reference/tool-stack.md"),
+    ),
+    (
+        "reference/knowledge.md",
+        include_bytes!("../../../skills/mozak/reference/knowledge.md"),
+    ),
+    (
+        "reference/examples.md",
+        include_bytes!("../../../skills/mozak/reference/examples.md"),
+    ),
+    (
+        "reference/frozen.md",
+        include_bytes!("../../../skills/mozak/reference/frozen.md"),
+    ),
     (
         "install.py",
         include_bytes!("../../../skills/mozak/install.py"),

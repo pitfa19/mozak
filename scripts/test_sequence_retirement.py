@@ -60,10 +60,10 @@ def scenario(old_binary: Path, new_binary: Path, mode: str) -> str:
             return "drift refused"
         assert result.returncode == 0, result.stderr
         report = json.loads(run(launcher, env, "setup", "check", str(home)).stdout)
-        assert report["parity"] is True and len(report["checks"]) == 120, (report["state"], len(report["checks"]))
+        assert report["parity"] is True and len(report["checks"]) == 140, (report["state"], len(report["checks"]))
         for skill_root in ROOTS:
             assert not (home / skill_root / "skills/mozak-sequence-commitment/SKILL.md").exists(), skill_root
-        return f"{mode}: upgraded to 120-file generation"
+        return f"{mode}: upgraded to 140-file generation"
 
 
 def main() -> int:

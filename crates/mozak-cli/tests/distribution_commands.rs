@@ -85,8 +85,9 @@ fn install_and_check_are_embedded_idempotent_and_deterministic() {
     assert_eq!(report["parity"], true);
     assert_eq!(report["embedded"], true);
     // 120: the 136-file generation minus four retired Jcode skills (0.11)
-    // and twelve retired sequence-commitment files (0.12).
-    assert_eq!(report["checks"].as_array().unwrap().len(), 120);
+    // and the three-file sequence companion in four hosts (0.12). 140: plus
+    // the five mozak reference files in four hosts (0.12 skill split).
+    assert_eq!(report["checks"].as_array().unwrap().len(), 140);
     let catalog_bytes = fs::read(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../skills/mozak/tool-stack.json"),
     )

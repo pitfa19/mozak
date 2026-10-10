@@ -20,6 +20,8 @@ from typing import Any
 LAUNCHER_MARKER = b"MOZAK_MANAGED_LAUNCHER_V1"
 BUILD_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+-]{0,127}$")
 MOZAK_MANAGED_FILENAMES = {"SKILL.md", "install.py", "mcp.json", "tests/test_skill.py", "evals/evals.json", "companion-recommendations.json", "tool-stack.json"}
+# 0.12 split the mozak skill into a short core plus these reference files.
+MOZAK_REFERENCE_FILENAMES = {"reference/routes.md", "reference/tool-stack.md", "reference/knowledge.md", "reference/examples.md", "reference/frozen.md"}
 ADHD_MANAGED_FILENAMES = {"SKILL.md"}
 NOTE_MANAGED_FILENAMES = {
     "SKILL.md",
@@ -238,7 +240,8 @@ def report_paths(report: dict[str, Any] | None, home: Path) -> list[Path]:
     # Legacy generations remain supported for offline rollback. The stack
     # catalog adds four files; sequence commitment adds three files per host;
     # opt-in Jcode support adds four invocation skills only under .jcode.
-    if len(paths) not in {16, 20, 24, 28, 32, 116, 120, 132, 136}:
+    # 0.12 splits the mozak skill into a core plus five reference files (+20).
+    if len(paths) not in {16, 20, 24, 28, 32, 116, 120, 132, 136, 140}:
         raise RuntimeError("setup report must declare a recognized managed file generation")
     return paths
 
@@ -254,7 +257,7 @@ def allowed_managed_report_path(path: Path) -> bool:
     skill = parts[2]
     suffix = "/".join(parts[3:])
     if skill == "mozak":
-        return suffix in MOZAK_MANAGED_FILENAMES
+        return suffix in MOZAK_MANAGED_FILENAMES or suffix in MOZAK_REFERENCE_FILENAMES
     if skill == "i-have-adhd":
         return suffix in ADHD_MANAGED_FILENAMES
     if skill == "note":

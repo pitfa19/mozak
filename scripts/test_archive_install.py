@@ -16,7 +16,10 @@ archive_install = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
 SPEC.loader.exec_module(archive_install)
 
+# Legacy mozak skill file set (0.11 and earlier generations used in fixtures).
 MOZAK_FILES = ["SKILL.md", "install.py", "mcp.json", "tests/test_skill.py", "evals/evals.json", "companion-recommendations.json", "tool-stack.json"]
+# 0.12 split the skill into a short core plus five reference files.
+MOZAK_REFERENCE_FILES = ["reference/routes.md", "reference/tool-stack.md", "reference/knowledge.md", "reference/examples.md", "reference/frozen.md"]
 ROOTS = [".agents", ".jcode", ".claude", ".codex"]
 
 
@@ -105,6 +108,30 @@ class ArchiveInstallRegressionTests(unittest.TestCase):
                     Path(root) / "skills/mozak-sequence-commitment" / name))
         self.assertFalse(archive_install.allowed_managed_report_path(
             Path("/tmp/.jcode/skills/mozak-sequence-commitment/SKILL.md")))
+
+    def test_split_skill_generation_accepts_140_and_exact_reference_paths(self) -> None:
+        # 0.12: no sequence companion, no Jcode skills, mozak core + 5 references.
+        paths = []
+        for root in ROOTS:
+            groups = {
+                "mozak": archive_install.MOZAK_MANAGED_FILENAMES | archive_install.MOZAK_REFERENCE_FILENAMES,
+                "i-have-adhd": archive_install.ADHD_MANAGED_FILENAMES,
+                "note": archive_install.NOTE_MANAGED_FILENAMES,
+                "note-healthcheck": archive_install.NOTE_HEALTHCHECK_MANAGED_FILENAMES,
+                "note-voice-census": archive_install.NOTE_VOICE_CENSUS_MANAGED_FILENAMES,
+            }
+            for skill, names in groups.items():
+                paths.extend(str(Path(root) / "skills" / skill / name) for name in sorted(names))
+        report = {"checks": [{"path": path} for path in paths]}
+        self.assertEqual(len(archive_install.report_paths(report, Path("/owned/home"))), 140)
+        report["checks"].pop()
+        with self.assertRaises(RuntimeError):
+            archive_install.report_paths(report, Path("/owned/home"))
+        for root in ROOTS:
+            for name in MOZAK_REFERENCE_FILES:
+                self.assertTrue(archive_install.allowed_managed_report_path(Path(root) / "skills/mozak" / name))
+            for name in ("reference/other.md", "reference/../SKILL.md", "references/routes.md"):
+                self.assertFalse(archive_install.allowed_managed_report_path(Path(root) / "skills/mozak" / name))
 
     def test_sequence_generation_report_keeps_exact_scope(self) -> None:
         paths = []
