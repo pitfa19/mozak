@@ -1,0 +1,14 @@
+{
+  "name": "mozak-monorepo",
+  "private": true,
+  "type": "module",
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "build": "tsc -b",
+    "test": "node --test --experimental-strip-types packages/core/test/*.test.ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "@types/node": "^22.0.0"
+  }
+}
