@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { parseMozak, checkScope } from "../src/index.ts";
@@ -77,12 +77,42 @@ test("checkScope needs the three root files", () => {
   assert.equal(checkScope(dir).ok, true);
 });
 
-test("CLAUDE.md must point at AGENTS.md", () => {
+function claudeIssues(setup: (dir: string) => void): number {
   const dir = mkdtempSync(join(tmpdir(), "mozak-"));
   for (const f of ["README.md", "AGENTS.md"]) writeFileSync(join(dir, f), "x\n");
   writeFileSync(join(dir, "MOZAK.md"), good);
-  writeFileSync(join(dir, "CLAUDE.md"), "lots of separate instructions\n");
-  assert.ok(checkScope(dir).issues.some((i) => i.code === "claude-pointer"));
-  writeFileSync(join(dir, "CLAUDE.md"), "See AGENTS.md\n");
-  assert.equal(checkScope(dir).ok, true);
+  setup(dir);
+  return checkScope(dir).issues.filter((i) => i.code === "claude-pointer").length;
+}
+
+test("no CLAUDE.md is fine, Claude Code 2.1.277+ falls back to AGENTS.md", () => {
+  assert.equal(claudeIssues(() => {}), 0);
+});
+
+test("a CLAUDE.md that only says in words to read AGENTS.md is flagged, it is not an import", () => {
+  assert.equal(claudeIssues((d) => writeFileSync(join(d, "CLAUDE.md"), "See AGENTS.md\n")), 1);
+  assert.equal(claudeIssues((d) => writeFileSync(join(d, "CLAUDE.md"), "Read AGENTS.md first.\n")), 1);
+  assert.equal(claudeIssues((d) => writeFileSync(join(d, "CLAUDE.md"), "lots of separate instructions\n")), 1);
+});
+
+test("a CLAUDE.md with an @AGENTS.md import passes, with or without extra Claude instructions", () => {
+  assert.equal(claudeIssues((d) => writeFileSync(join(d, "CLAUDE.md"), "@AGENTS.md\n")), 0);
+  assert.equal(claudeIssues((d) => writeFileSync(join(d, "CLAUDE.md"), "@AGENTS.md\n\n## Claude Code\n\nUse plan mode.\n")), 0);
+});
+
+test("@AGENTS.md inside a code span or fenced block is not an import and is flagged", () => {
+  assert.equal(claudeIssues((d) => writeFileSync(join(d, "CLAUDE.md"), "Mentions `@AGENTS.md` only\n")), 1);
+  assert.equal(claudeIssues((d) => writeFileSync(join(d, "CLAUDE.md"), "```\n@AGENTS.md\n```\n")), 1);
+});
+
+test("a CLAUDE.md symlinked to AGENTS.md passes, one symlinked elsewhere or dangling is flagged", () => {
+  assert.equal(claudeIssues((d) => symlinkSync("AGENTS.md", join(d, "CLAUDE.md"))), 0);
+  assert.equal(
+    claudeIssues((d) => {
+      writeFileSync(join(d, "OTHER.md"), "x\n");
+      symlinkSync("OTHER.md", join(d, "CLAUDE.md"));
+    }),
+    1,
+  );
+  assert.equal(claudeIssues((d) => symlinkSync("/nonexistent/target", join(d, "CLAUDE.md"))), 1);
 });

@@ -16,10 +16,12 @@ Each scope has exactly three files at its root:
 | File | For | What it holds |
 |---|---|---|
 | `README.md` | you | what this is |
-| `AGENTS.md` | your agents | how to work here (`CLAUDE.md` is a one-line pointer to it) |
+| `AGENTS.md` | your agents | how to work here |
 | `MOZAK.md` | both | the **one living plan**, links to other scopes, and translations |
 
 `MOZAK.md` is the only file that points at other scopes. Link a repo by URL, a topic by `[[wikilink]]`. Put all your topics in one git repo and the whole thing is shared across machines and people. Because it is plain Markdown, Obsidian draws the graph for free.
+
+`CLAUDE.md` is optional. Claude Code 2.1.277 and newer reads `AGENTS.md` by itself when there is no `CLAUDE.md`. Older versions do not, so add a `CLAUDE.md` containing the line `@AGENTS.md`. Do not write "see AGENTS.md" in words: once a `CLAUDE.md` exists, Claude Code stops falling back to `AGENTS.md`, so a prose pointer hides it. `check` flags that. (Based on the [Claude Code docs](https://code.claude.com/docs/en/memory), not yet confirmed by running it here.)
 
 ```markdown
 ---
