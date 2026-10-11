@@ -28,7 +28,7 @@ The three files:
 | `AGENTS.md` | agents | instructions an agent needs |
 | `MOZAK.md` | both | the bridge: living plan, links, translations |
 
-`MOZAK.md` is the only file that links to other scopes or to MOZAK related work. It may reference files inside its own scope.
+`MOZAK.md` is, by convention, the only file that links to other scopes or to MOZAK related work. It may reference files inside its own scope. This is not enforced: `check` does not scan other files for links, `graph` reads only `MOZAK.md`, and `stale` also follows wikilinks in a scope's other files to see whether a cited note changed.
 
 `CLAUDE.md` is optional. Claude Code 2.1.277 and newer reads `AGENTS.md` only when no `CLAUDE.md` exists in the working directory or above it. A `CLAUDE.md` that merely mentions `AGENTS.md` in words therefore hides it. When a `CLAUDE.md` exists, `check` requires a line `@AGENTS.md` (an import, which Claude Code does not read twice) or a symlink to `AGENTS.md`. A mention inside a code span or fenced block is not an import. Versions before 2.1.277 ignore `AGENTS.md`, so the import is how those versions read it. Source: the Claude Code memory docs.
 

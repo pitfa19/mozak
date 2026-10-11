@@ -1,8 +1,14 @@
 # MOZAK
 
-**One graph over your git repos and your Obsidian notes, readable by you and your AI agents.**
+**One living plan per project and per research topic, linked into a graph that you and your AI agents can both read. An idea only moves between them after the target re-derives its assumptions.**
 
-Developers and researchers now work with ideas more than with files. Agents do the typing, and the hard part is keeping a project and the thinking around it in one place that both you and the agent understand. MOZAK is that intermediate layer between git and Obsidian.
+Agent plans kept in loose notes drift apart, and nothing tells you which one is current. MOZAK gives every scope, a git repo or an Obsidian topic folder, exactly one plan file, `MOZAK.md`. By convention it is the only file that links to other scopes, so the graph has one place to look. `graph` only reads `MOZAK.md`. `check` does not stop you linking elsewhere in your notes, and `stale` also follows wikilinks in a scope's other files to see if a cited note changed. Three things follow from that:
+
+1. **One plan, one bridge file.** `MOZAK.md` holds the plan, the links, and the translations. `README.md` is for you, `AGENTS.md` is for your agents.
+2. **Translation that has to be earned.** Moving an idea to another scope lists every assumption it rests on. It is invalid until the target has re-derived each one.
+3. **Compare-and-swap on the shared plan.** When several agents edit, a stale write is refused instead of overwriting.
+
+It is plain Markdown, so Obsidian draws the graph for free. It is not a memory store or a search tool. If you want agent memory from an Obsidian vault, [obsidian-mind](https://github.com/breferrari/obsidian-mind) does that. See [Prior art](#prior-art).
 
 ## How it is organised
 
@@ -19,7 +25,7 @@ Each scope has exactly three files at its root:
 | `AGENTS.md` | your agents | how to work here |
 | `MOZAK.md` | both | the **one living plan**, links to other scopes, and translations |
 
-`MOZAK.md` is the only file that points at other scopes. Link a repo by URL, a topic by `[[wikilink]]`. Put all your topics in one git repo and the whole thing is shared across machines and people. Because it is plain Markdown, Obsidian draws the graph for free.
+In `MOZAK.md`, link a repo by URL and a topic by `[[wikilink]]`. Put all your topics in one git repo and the whole thing is shared across machines and people. Because it is plain Markdown, Obsidian draws the graph for free.
 
 `CLAUDE.md` is optional. Claude Code 2.1.277 and newer reads `AGENTS.md` by itself when there is no `CLAUDE.md`. Older versions do not, so add a `CLAUDE.md` containing the line `@AGENTS.md`. Do not write "see AGENTS.md" in words: once a `CLAUDE.md` exists, Claude Code stops falling back to `AGENTS.md`, so a prose pointer hides it. `check` flags that. (Based on the [Claude Code docs](https://code.claude.com/docs/en/memory), not yet confirmed by running it here.)
 
