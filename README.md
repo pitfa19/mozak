@@ -1,11 +1,11 @@
 # MOZAK
 
-**One living plan per project and per research topic, linked into a graph that you and your AI agents can both read. An idea only moves between them after the target re-derives its assumptions.**
+**One living plan per project and per research topic, linked into a graph that you and your AI agents can both read. An idea is only recorded as moved after the target has written down a re-derivation of each assumption it rests on.**
 
 Agent plans kept in loose notes drift apart, and nothing tells you which one is current. MOZAK gives every scope, a git repo or an Obsidian topic folder, exactly one plan file, `MOZAK.md`. By convention it is the only file that links to other scopes, so the graph has one place to look. `graph` only reads `MOZAK.md`. `check` does not stop you linking elsewhere in your notes, and `stale` also follows wikilinks in a scope's other files to see if a cited note changed. Three things follow from that:
 
 1. **One plan, one bridge file.** `MOZAK.md` holds the plan, the links, and the translations. `README.md` is for you, `AGENTS.md` is for your agents.
-2. **Translation that has to be earned.** Moving an idea to another scope lists every assumption it rests on. It is invalid until the target has re-derived each one.
+2. **Translation that has to be earned.** Moving an idea to another scope lists every assumption it rests on. It stays invalid until each one is marked re-derived in the target. MOZAK records that state, it cannot check that anyone really re-derived anything. `resolve` just flips the mark.
 3. **Compare-and-swap on the shared plan.** When several agents edit, a stale write is refused instead of overwriting.
 
 It is plain Markdown, so Obsidian draws the graph for free. It is not a memory store or a search tool. If you want agent memory from an Obsidian vault, [obsidian-mind](https://github.com/breferrari/obsidian-mind) does that. See [Prior art](#prior-art).
