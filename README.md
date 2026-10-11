@@ -130,7 +130,7 @@ Early. Working: `init`, `check`, `graph`, `translate`, `resolve`, `audit`, guard
 - an Obsidian plugin
 - publishing to npm
 
-The MCP server is tested over a real stdio session, but not yet inside a specific agent client.
+The MCP server is tested over a real stdio session and through a real Jcode session (all five tools discovered, a valid plan write, a stale write refused, and a plan that tried to inject a link refused with the file left byte for byte unchanged). It is not yet tested in Claude Code or Cursor.
 
 Locking is tested on Linux only.
 
