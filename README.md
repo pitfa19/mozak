@@ -62,9 +62,9 @@ mozak resolve --in site --idea "publishing concept" --n 2
 mozak check ./site        # ok
 ```
 
-## Safe for several agents at once
+## Several agents editing one plan
 
-Agents on different projects update the same graph. Writes through MOZAK take a lock, compare the file's hash against what the agent last read, and rename atomically. A stale write is refused instead of overwriting someone else's edit, and the agent re-reads and retries.
+Agents on different projects update the same graph. Writes through MOZAK take a lock, compare the file's hash against what the agent last read, and rename atomically. A stale write is refused instead of overwriting someone else's edit, and the agent re-reads and retries. This is compare-and-swap on one shared, editable plan. Other tools protect append-only memory writes, which is a different problem.
 
 Three real processes appending 120 lines to one file keep all 120, run after run. The same test without the guard lost most of them (8 of 120 survived in the one run I measured). See `packages/core/test/write.test.ts`.
 
@@ -80,10 +80,25 @@ Edits made directly in an editor or in Obsidian cannot be blocked, so `check` is
 mozak init [dir] --kind project|topic     scaffold the three files, never overwrites
 mozak check [dir]                         validate a scope
 mozak graph [--config FILE] [--mermaid]   print the graph across scopes
+mozak stale [scope] [--plan-only]         what changed after each scope was last touched (read only)
 mozak translate ...                       draft a translation, or print the packet an agent works from
 mozak resolve ...                         mark an assumption re-derived
 mozak audit [dir]                         read only: look at an old .mozak/ and propose a MOZAK.md
 ```
+
+### Staleness
+
+`mozak stale` answers "what changed since I last touched this?". Nothing is stored. Dates come from git (the last commit, or the file time for uncommitted edits), so there is no timestamp to forget to update.
+
+A scope is flagged when something it relies on changed after it: a scope it `depends-on` or `derived-from`, a scope that `informs` it, or a note its own files cite with a wikilink. A link that does not resolve on this machine is reported as "cannot judge" instead of passing silently. Exit code 3 means at least one input changed, so it works in a script.
+
+```text
+agentic-systems (topic): last touched 2026-09-01 (40d ago, commit)  [inputs changed]
+  note [[list]]  changed 2026-10-06 +35d
+  cannot judge, not found on this machine: derived-from: [[personal-research]]
+```
+
+It says something changed, not that the change matters. It works at the level of notes and scopes, not individual statements. Commit dates move on rebase or bulk reformatting.
 
 `graph` reads a small local config that says where your vault and repos live. It never uses the network.
 
@@ -140,6 +155,14 @@ Locking is tested on Linux only.
 
 ## Prior art
 
-Obsidian MCP servers, basic-memory, and the AGENTS.md standard already cover parts of this. As far as I could find, nothing combines one cross-scope bridge file with translations that must re-derive their assumptions.
+This space is not empty. [obsidian-mind](https://github.com/breferrari/obsidian-mind) already gives coding agents cross-repo memory from an Obsidian vault, with trust labels on every memory and atomic writes. [basic-memory](https://github.com/basicmachines-co/basic-memory) and several Obsidian MCP servers cover Markdown memory, and AGENTS.md is the shared instruction file. MOZAK does not try to be a memory store.
+
+What I found nothing for in any of them, from reading their READMEs and, for obsidian-mind, its architecture doc (not their code, so treat this as "I did not find it", not "it does not exist"):
+
+- translation where the target must re-derive each assumption before an idea moves
+- one `MOZAK.md` per scope as the only cross-scope linker, with one living plan in it
+- compare-and-swap on that shared plan, so a stale edit is refused
+
+Safe concurrent writes in general are not unique: obsidian-mind handles them too, for a different kind of write.
 
 MIT licensed.

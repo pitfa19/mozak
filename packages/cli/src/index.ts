@@ -12,8 +12,10 @@ import {
   loadConfig,
   parseMozak,
   renderMermaid,
+  renderStale,
   renderText,
   setAssumption,
+  staleReports,
   updateFile,
 } from "@mozak/core";
 
@@ -91,6 +93,23 @@ if (cmd === "check") {
       process.exitCode = 1;
     }
   }
+} else if (cmd === "stale") {
+  // mozak stale [scope-id] [--plan-only] [--json] [--config FILE]   read only
+  const p = configPath();
+  if (!existsSync(p)) {
+    console.error(`no config at ${p}`);
+    process.exitCode = 2;
+  } else {
+    const only = args[1] && !args[1].startsWith("--") ? args[1] : undefined;
+    const reports = staleReports(loadConfig(p), only, { planOnly: flag("plan-only") });
+    if (only && reports.length === 0) {
+      console.error(`scope "${only}" not found under the configured roots`);
+      process.exitCode = 1;
+    } else {
+      console.log(flag("json") ? JSON.stringify(reports, null, 2) : renderStale(reports));
+      if (reports.some((r) => r.verdict === "inputs-changed")) process.exitCode = 3;
+    }
+  }
 } else if (cmd === "init") {
   // mozak init [dir] --kind project|topic [--id ID]
   const dir = args[1] && !args[1].startsWith("--") ? args[1] : ".";
@@ -123,6 +142,7 @@ if (cmd === "check") {
       "       mozak check [scope-dir]",
       "       mozak audit [dir] [--kind project|topic] [--json]",
       "       mozak graph [--config FILE] [--mermaid|--json]",
+      "       mozak stale [scope-id] [--plan-only] [--json]   what changed after each scope (exit 3 if any input changed)",
       "       mozak translate --idea TITLE --from SRC --to TARGET --assumption TEXT [--assumption TEXT ...] [--write]",
       "       mozak resolve --in TARGET --idea TITLE --n N",
     ].join("\n"),
