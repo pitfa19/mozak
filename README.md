@@ -66,6 +66,10 @@ Agents on different projects update the same graph. Writes through MOZAK take a 
 
 Three real processes appending 120 lines to one file keep all 120, run after run. The same test without the guard lost most of them (8 of 120 survived in the one run I measured). See `packages/core/test/write.test.ts`.
 
+![Two agents edit the same MOZAK.md: one write is refused as stale, retried, and both edits survive](docs/demo.gif)
+
+The GIF is rendered from the real output of `scripts/demo.ts`. Only the pacing is simulated, it is not a live recording. Regenerate it with `python3 scripts/render_gif.py`.
+
 Edits made directly in an editor or in Obsidian cannot be blocked, so `check` is the safety net for those.
 
 ## Commands
