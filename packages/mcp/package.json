@@ -1,1 +1,1 @@
-{ "name": "@mozak/mcp", "version": "0.0.0", "type": "module", "main": "dist/index.js", "types": "dist/index.d.ts" }
+{ "name": "@mozak/mcp", "version": "0.0.0", "type": "module", "main": "dist/index.js", "bin": { "mozak-mcp": "dist/index.js" }, "dependencies": { "@mozak/core": "*" } }

@@ -4,3 +4,4 @@ export * from "./write.ts";
 export * from "./graph.ts";
 export * from "./translate.ts";
 export * from "./init.ts";
+export * from "./plan.ts";

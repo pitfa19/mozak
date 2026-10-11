@@ -100,13 +100,33 @@ node packages/cli/dist/index.js init ./my-scope --kind project
 
 Needs Node 22 or newer.
 
+## For agents (MCP)
+
+`mozak-mcp` is a stdio MCP server over the same core. It has five tools and only one of them writes:
+
+| Tool | Does |
+|---|---|
+| `mozak_graph` | list scopes and how they link |
+| `mozak_read` | read a scope's `MOZAK.md` and get a `base_hash` |
+| `mozak_check` | validate a scope |
+| `mozak_set_plan` | replace the **Plan** section only, with the `base_hash` from `mozak_read` |
+| `mozak_translation_packet` | read only: build the work packet for moving an idea |
+
+An agent can never change Links or Translations through MCP. Those are proposals for you. A hostile plan string containing `## Links` is refused, and this is tested.
+
+```json
+{ "mcpServers": { "mozak": { "command": "node", "args": ["/path/to/mozak/packages/mcp/dist/index.js"], "env": { "MOZAK_CONFIG": "/home/you/.config/mozak/config.json" } } } }
+```
+
 ## Status
 
-Early. Working: `init`, `check`, `graph`, `translate`, `resolve`, `audit`, guarded writes. Not built yet:
+Early. Working: `init`, `check`, `graph`, `translate`, `resolve`, `audit`, guarded writes, and the MCP server. Not built yet:
 
-- an MCP server (the package is an empty stub)
 - `check` flagging unapproved changes to Links and Translations against git history
 - an Obsidian plugin
+- publishing to npm
+
+The MCP server is tested over a real stdio session, but not yet inside a specific agent client.
 
 Locking is tested on Linux only.
 
