@@ -1,6 +1,6 @@
 # Pilot: a real idea transfer into MOZAK
 
-**Status: pilot design and source/target selection approved under P4 at `2026-10-11T23:26:34.289Z`. Not run. Execution and implementation remain unauthorised. P5 host/access limits remain pending.**
+**Status: pilot design and source/target selection approved under P4 at `2026-10-11T23:26:34.289Z`. P5 first-host/local-access boundaries approved at `2026-10-11T23:28:21.909Z`. Not run. Execution and implementation remain unauthorised.**
 
 This is the first proof for the accepted MOZAK and Monokl direction, not a general benchmark and not evidence that either redesigned product already works. The companion document is `idea-oriented-planning-and-monokl-spec.md`.
 
