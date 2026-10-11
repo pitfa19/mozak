@@ -326,7 +326,7 @@ Independent read-only review found no material blockers against the accepted exp
 ### Owner review points
 
 1. **P1 Data ownership: APPROVED.** Canonical JSON is the editable source of truth, with a generated, checked `MOZAK.md` bridge rather than two editable authorities. Owner confirmed at `2026-10-11T23:23:28.952Z`, responding to decision 1 of 5 after documentation checkpoint `7014969`. This accepts the data-ownership choice only, not every proposed storage mechanism, P2–P5, implementation, migration or publication.
-2. **P2 Review semantics:** approve one accepted and one pending revision per plan, revision-bound grants and the displayed treatment of pending changes.
+2. **P2 Review semantics: APPROVED.** Keep one accepted version and one pending revision per plan, with proposed changes under Awaiting approval and approval bound to the exact displayed revision. Direction approval starts detailed planning, not coding. Owner confirmed at `2026-10-11T23:24:14.417Z`, responding to decision 2 of 5. This accepts the stated review semantics, not undisplayed connection declarations, P3–P5 or implementation.
 3. **P3 Small core:** approve the minimal Monokl packet/skill boundary, the proposed slim Python validator and the two initial optional adapter boundaries.
 4. **P4 First proof:** approve the proposed local source, target, topic and actual-host test seam in the companion pilot. This does not claim the pilot has already run.
 5. **P5 Delivery scope:** approve the reference-host and access limits, then separately authorise implementation packages. Publication and destructive migration remain separate decisions.
