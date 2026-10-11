@@ -3,9 +3,11 @@ import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import {
+  auditProject,
   buildGraph,
   buildPacket,
   checkScope,
+  initScope,
   insertTranslation,
   loadConfig,
   parseMozak,
@@ -89,10 +91,37 @@ if (cmd === "check") {
       process.exitCode = 1;
     }
   }
+} else if (cmd === "init") {
+  // mozak init [dir] --kind project|topic [--id ID]
+  const dir = args[1] && !args[1].startsWith("--") ? args[1] : ".";
+  const kind = value("kind");
+  if (kind !== "project" && kind !== "topic") {
+    console.error("need --kind project or --kind topic");
+    process.exitCode = 2;
+  } else {
+    const r = initScope(dir, { kind, id: value("id") });
+    for (const f of r.created) console.log(`created ${f}`);
+    for (const f of r.skipped) console.log(`kept existing ${f}`);
+  }
+} else if (cmd === "audit") {
+  // mozak audit [dir] [--kind project|topic] [--json]   read only
+  const dir = args[1] && !args[1].startsWith("--") ? args[1] : ".";
+  const kind = value("kind") === "topic" ? "topic" : "project";
+  const a = auditProject(dir, kind);
+  if (flag("json")) console.log(JSON.stringify(a, null, 2));
+  else {
+    console.log(`${a.dir}: ${a.hasOldState ? "old .mozak/ found" : "no old state"}`);
+    for (const [k, n] of Object.entries(a.counts)) console.log(`  ${k}: ${n} file${n === 1 ? "" : "s"}`);
+    for (const n of a.notes) console.log(`- ${n}`);
+    console.log("\nProposed MOZAK.md (nothing was written):\n");
+    console.log(a.draft);
+  }
 } else {
   console.error(
     [
-      "usage: mozak check [scope-dir]",
+      "usage: mozak init [dir] --kind project|topic [--id ID]",
+      "       mozak check [scope-dir]",
+      "       mozak audit [dir] [--kind project|topic] [--json]",
       "       mozak graph [--config FILE] [--mermaid|--json]",
       "       mozak translate --idea TITLE --from SRC --to TARGET --assumption TEXT [--assumption TEXT ...] [--write]",
       "       mozak resolve --in TARGET --idea TITLE --n N",
