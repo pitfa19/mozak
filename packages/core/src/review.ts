@@ -14,6 +14,7 @@ import {
   evidenceDigest,
   isDigest,
   isUtcTimestamp,
+  ownerMessageKey,
   newRevision,
   validateContent,
   validateObservation,
@@ -499,6 +500,15 @@ export function applyMutation(
   const next = structuredClone(state) as ScopeState;
   const p = structuredClone(payload) as Record<string, unknown>;
   const ids: string[] = [];
+  if (OWNER_ACTIONS.has(action)) {
+    const key = ownerMessageKey(p.ownerRef as string, p.ownerMessageAt as string);
+    const implementationAction = action === "approve-implementation" || action === "revoke-implementation";
+    if (next.plans.some(other => other.decisions.some(d =>
+      (implementationAction || d.purpose === "approve-implementation" || d.purpose === "revoke-implementation") &&
+      ownerMessageKey(d.ownerRef, d.ownerMessageAt) === key))) {
+      throw stale("owner message already consumed for implementation decision");
+    }
+  }
 
   switch (action) {
     case "save-discussion": {
@@ -530,7 +540,6 @@ export function applyMutation(
     case "revoke-implementation": {
       const plan = findPlan(next, p.planId as string), accepted = acceptedOf(plan);
       if (p.revisionId !== accepted.id) throw stale("implementation decision binds the accepted revision");
-      if (next.plans.some(other => other.decisions.some(d => d.ownerRef === p.ownerRef && d.ownerMessageAt === p.ownerMessageAt))) throw stale("owner message already consumed for implementation decision");
       requireReviewDigest(next, plan, action, accepted, p);
       if (action === "approve-implementation") {
         const spec = candidate(plan);

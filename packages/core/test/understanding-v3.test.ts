@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { digest, hashBytes, validateScope, validateDiscussion, discussionDigest, validateBounds, validateDecision, validateAnswerInput, validateQuestionInput } from "../src/understanding.ts";
+import { digest, hashBytes, validateScope, validateDiscussion, discussionDigest, validateBounds, validateDecision, validateAnswerInput, validateQuestionInput, ownerMessageKey } from "../src/understanding.ts";
 
 const T = "2026-10-12T08:00:00.000Z";
 const T2 = "2026-10-12T09:00:00.000Z";
@@ -196,4 +196,36 @@ test("implementation owner-message replay is refused across plans in the same sc
   other.decisions.forEach((d: any) => { d.planId = "other"; d.revisionId = d.purpose === "approve-direction" ? "other-pending" : "other-a"; });
   other.specifications[0].acceptedRevisionId = "other-a"; other.implementationAuthorizations[0].acceptedRevisionId = "other-a";
   s.plans.push(other); refuses(() => validateScope(s));
+});
+
+test("owner message keys normalize equivalent UTC spelling without rounding precision", () => {
+  assert.equal(ownerMessageKey("owner", T), ownerMessageKey("owner", "2026-10-12T08:00:00Z"));
+  assert.equal(ownerMessageKey("owner", "2026-10-12T08:00:00.120000Z"), ownerMessageKey("owner", "2026-10-12T08:00:00.12Z"));
+  assert.notEqual(ownerMessageKey("owner", "2026-10-12T08:00:00.000001Z"), ownerMessageKey("owner", T));
+  assert.notEqual(ownerMessageKey("owner", "2026-10-12T08:00:00.000001Z"), ownerMessageKey("owner", "2026-10-12T08:00:00.000002Z"));
+  refuses(() => ownerMessageKey("owner", "2026-10-12T10:00:00+02:00"));
+});
+
+test("equivalent owner timestamps cannot bypass direction, revoke or resume purpose separation", () => {
+  const sameTime = "2026-10-12T08:00:00Z";
+  const direction = grant(); direction.plans[0].decisions[1].ownerRef = "host:direction"; direction.plans[0].decisions[1].ownerMessageAt = sameTime;
+  refuses(() => validateScope(direction));
+  const revoked = grant(); revoke(revoked); revoked.plans[0].decisions.at(-1).ownerRef = "host:grant"; revoked.plans[0].decisions.at(-1).ownerMessageAt = sameTime;
+  refuses(() => validateScope(revoked));
+  const resumed = grant(), p = resumed.plans[0];
+  p.decisions.push({ ...p.decisions[0], id: "pause", purpose: "pause", revisionId: "a", ownerRef: "host:pause" });
+  p.decisions.push({ ...p.decisions[0], id: "resume", purpose: "resume", revisionId: "a", ownerRef: "host:grant", ownerMessageAt: sameTime });
+  refuses(() => validateScope(resumed));
+  p.decisions.at(-1).ownerRef = "host:fresh-resume";
+  assert.doesNotThrow(() => validateScope(resumed));
+});
+
+test("equivalent owner timestamps cannot bypass cross-plan implementation replay checks", () => {
+  const s = grant(), other = grant().plans[0];
+  other.id = "other"; other.accepted.id = "other-a"; other.accepted.acceptedFromRevision = "other-pending";
+  other.decisions.forEach((d: any) => { d.planId = "other"; d.revisionId = d.purpose === "approve-direction" ? "other-pending" : "other-a"; d.ownerMessageAt = "2026-10-12T08:00:00Z"; });
+  other.specifications[0].acceptedRevisionId = "other-a"; other.implementationAuthorizations[0].acceptedRevisionId = "other-a";
+  s.plans.push(other); refuses(() => validateScope(s));
+  other.decisions[1].ownerRef = "host:other-fresh-grant";
+  assert.doesNotThrow(() => validateScope(s));
 });

@@ -187,6 +187,22 @@ test("direction approval message cannot double as implementation permission", ()
   assert.throws(() => decide(s, "approve-implementation", environment(s), plan(s).decisions[0].ownerRef));
 });
 
+test("equivalent UTC spellings cannot reuse implementation provenance for revoke, approve or resume", () => {
+  let s = attach(accepted());
+  s = decide(s, "approve-implementation", environment(s), "grant-message");
+  for (const timestamp of ["2026-10-12T09:00:00Z", "2026-10-12T09:00:00.0Z", "2026-10-12T09:00:00.000000Z"]) {
+    const snapshot = structuredClone(s);
+    assert.throws(() => mutate(s, "revoke-implementation", { ...payload(s, "revoke-implementation", undefined, "grant-message"), ownerMessageAt: timestamp }, undefined, "owner"));
+    const candidateState = attach(s);
+    assert.throws(() => mutate(candidateState, "approve-implementation", { ...payload(candidateState, "approve-implementation", environment(candidateState), "grant-message"), ownerMessageAt: timestamp }, environment(candidateState), "owner"));
+    const paused = decide(s, "pause");
+    assert.throws(() => mutate(paused, "resume", { ...payload(paused, "resume", undefined, "grant-message"), ownerMessageAt: timestamp }, undefined, "owner"));
+    assert.equal(plan(paused).lifecycle.state, "paused");
+    assert.equal(handoff(paused, environment(paused)).executionEligible, false);
+    assert.deepEqual(s, snapshot);
+  }
+});
+
 test("same-byte attachment changes review identity, stale confirmations cannot approve its replacement", () => {
   let s = attach(accepted()); const old = payload(s, "approve-implementation", environment(s));
   s = attach(s);

@@ -324,6 +324,15 @@ export function isUtcTimestamp(value: unknown): value is UtcTimestamp {
   const time = Date.parse(value);
   return Number.isFinite(time) && new Date(time).toISOString().slice(0, 19) === value.slice(0, 19);
 }
+/** Provenance identity normalizes UTC spelling, never rounds sub-millisecond time. */
+export function ownerMessageKey(ownerRef: string, ownerMessageAt: UtcTimestamp): string {
+  str(ownerRef, "ownerRef"); date(ownerMessageAt, "ownerMessageAt");
+  const normalized = ownerMessageAt.replace(/\.(\d+)Z$/, (_match, fraction: string) => {
+    const significant = fraction.replace(/0+$/, "");
+    return significant ? `.${significant}Z` : "Z";
+  });
+  return JSON.stringify([ownerRef, normalized]);
+}
 export function isObject(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null);
 }
@@ -590,7 +599,7 @@ function planReferences(p: Plan, plans: Map<string, Plan>): void {
   for (const d of p.decisions) {
     if (d.purpose === "approve-direction") effectiveAuthorization = null;
     if (d.purpose === "approve-implementation" || d.purpose === "revoke-implementation") {
-      const provenance = JSON.stringify([d.ownerRef, d.ownerMessageAt]);
+      const provenance = ownerMessageKey(d.ownerRef, d.ownerMessageAt);
       requireRef(!ownerMessages.has(provenance), "owner message reused for implementation decision"); ownerMessages.add(provenance);
       const a = authorizations.get(d.authorizationId!);
       requireRef(a && d.revisionId === a.acceptedRevisionId, "implementation decision authorization mismatch");
@@ -719,11 +728,11 @@ export function validateScope(value: unknown): ScopeState {
   const allDecisions = plans.flatMap(p => p.decisions);
   const messageCounts = new Map<string, number>();
   for (const d of allDecisions) {
-    const key = JSON.stringify([d.ownerRef, d.ownerMessageAt]);
+    const key = ownerMessageKey(d.ownerRef, d.ownerMessageAt);
     messageCounts.set(key, (messageCounts.get(key) ?? 0) + 1);
   }
   for (const d of allDecisions) if (d.purpose === "approve-implementation" || d.purpose === "revoke-implementation") {
-    requireRef(messageCounts.get(JSON.stringify([d.ownerRef, d.ownerMessageAt])) === 1, "implementation requires a separate owner message across scope decisions");
+    requireRef(messageCounts.get(ownerMessageKey(d.ownerRef, d.ownerMessageAt)) === 1, "implementation requires a separate owner message across scope decisions");
   }
   unique(plans.flatMap(p => [p.accepted?.id, p.pending?.id].filter((id): id is string => id !== undefined)), "scope revisions");
   const map = new Map(plans.map(p => [p.id, p])); plans.forEach(p => planReferences(p, map));
