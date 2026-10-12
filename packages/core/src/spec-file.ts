@@ -24,6 +24,8 @@ export interface SpecificationFile {
  * post-read checks. An exception thrown by the hook is a programmer error and is not converted.
  */
 export interface SpecificationReadHooks {
+  /** Runs after the initial lstat and before open. Used to change the file between lstat and open. */
+  beforeOpen?: () => void;
   afterRead?: () => void;
 }
 
@@ -151,6 +153,7 @@ function regularFileStat(path: string): BigIntStats {
 interface Read { buffer: Buffer; total: number; opened: BigIntStats; post: BigIntStats }
 
 function readBounded(path: string, pre: BigIntStats, hooks: SpecificationReadHooks): Read {
+  hooks.beforeOpen?.();
   let fd: number;
   try {
     // O_NOFOLLOW refuses a symlink in the final component. O_NONBLOCK keeps an opened FIFO from hanging.
@@ -165,7 +168,11 @@ function readBounded(path: string, pre: BigIntStats, hooks: SpecificationReadHoo
   try {
     const opened = io(() => fstatSync(fd, { bigint: true }), "specification could not be inspected");
     if (!opened.isFile()) throw unavailable("specification is not a regular file");
-    if (opened.dev !== pre.dev || opened.ino !== pre.ino) throw staleChanged(path);
+    // Compare the opened descriptor with the pre-open lstat, not only identity. A same-inode rewrite
+    // between lstat and open changes size or ctime, so it is refused here.
+    if (opened.dev !== pre.dev || opened.ino !== pre.ino || opened.size !== pre.size || opened.mtimeNs !== pre.mtimeNs || opened.ctimeNs !== pre.ctimeNs) {
+      throw staleChanged(path);
+    }
     if (opened.size > BigInt(MAX_SPECIFICATION_BYTES)) throw unavailable("specification exceeds 256 KiB");
 
     // One byte beyond the limit detects growth between the fstat and the read.

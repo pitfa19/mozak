@@ -312,6 +312,19 @@ test("a metadata-only change during the read is refused, via the descriptor ctim
   }), "stale-reference", 3);
 });
 
+test("a same-inode metadata change between lstat and open is refused as stale-reference", (t) => {
+  if (typeof process.getuid === "function" && process.getuid() === 0) {
+    t.skip("chmod change check skipped as root to keep runs consistent");
+    return;
+  }
+  const { root } = world();
+  const path = join(root, "pre-open.md");
+  writeFileSync(path, "same inode\n");
+  expectError(() => readSpecification(root, "pre-open.md", {
+    beforeOpen: () => chmodSync(path, 0o640),
+  }), "stale-reference", 3);
+});
+
 test("an exception thrown by the test hook propagates unchanged, not as a spec error", () => {
   const { root } = world();
   writeFileSync(join(root, "hook.md"), "x\n");
