@@ -467,6 +467,61 @@ test("an observed failing correction retires old passing support without rewriti
   assert.equal(s.plans[0].observations[0].evidence[0].result.verdict, "pass", "immutable historical report survives");
 });
 
+test("completed evidence withdrawal remains visible after restart without reopening history", () => {
+  for (const source of ["p1", "source"]) {
+    let s = decide(proposed(), "p1", "approve-direction");
+    if (source !== "p1") s = proposed(s, source);
+    s = apply(s, "observe", { planId: source, observation: fact("proof"), reasoningLinks: [link(s, source, "p1", "proof-link", "proof")] });
+    s = apply(s, "complete", { planId: "p1", revisionId: acceptedId(s) });
+    const history = structuredClone(s.plans[0].completionRecords);
+    const unverified = { id: "rumor", classification: "unverified", summary: "Maybe wrong", evidence: [], supersedesObservationId: "proof" };
+    s = apply(s, "observe", { planId: source, observation: unverified });
+    assert.equal(contextView(s).plans[0].reviewNeeded, false, "unverified text does not withdraw verified support");
+    const corrected = { ...fact("correction"), supersedesObservationId: "proof" };
+    corrected.evidence[0].result.verdict = "fail";
+    s = apply(s, "observe", { planId: source, observation: corrected });
+    const fresh = JSON.parse(JSON.stringify(s));
+    const view = contextView(fresh).plans[0];
+    assert.equal(view.lifecycle.state, "completed");
+    assert.deepEqual(view.completionRecords, history);
+    assert.equal(view.reviewNeeded, true);
+    assert.equal(view.nextAction, "owner-review-completed-findings");
+    assert.ok(view.reviewIssues.some(issue => issue.code === "completion-evidence-withdrawn" && issue.outcomeId === "o1"));
+    assert.equal(reviewRows(fresh).completed[0].reviewNeeded, true);
+  }
+});
+
+test("new evidence on a completed owner outcome creates a recoverable review entry", () => {
+  let s = acceptedState("owner");
+  s = apply(s, "observe", { planId: "p1", observation: fact("first"), reasoningLinks: [link(s, "p1", "p1", "first-link", "first")] });
+  s = decide(s, "p1", "accept-outcome", "o1");
+  s = apply(s, "complete", { planId: "p1", revisionId: acceptedId(s) });
+  const history = structuredClone(s.plans[0].completionRecords);
+  s = apply(s, "observe", { planId: "p1", observation: fact("second"), reasoningLinks: [link(s, "p1", "p1", "second-link", "second")] });
+  let fresh = JSON.parse(JSON.stringify(s));
+  assert.deepEqual(reviewRows(fresh).awaiting.map(row => row.outcomeId), ["o1"]);
+  assert.equal(contextView(fresh).plans[0].reviewNeeded, true);
+  fresh = decide(fresh, "p1", "accept-outcome", "o1");
+  assert.equal(reviewRows(fresh).awaiting.length, 0);
+  assert.equal(contextView(fresh).plans[0].reviewNeeded, false);
+  assert.equal(fresh.plans[0].lifecycle.state, "completed");
+  assert.deepEqual(fresh.plans[0].completionRecords, history);
+});
+
+test("an awaiting first outcome cannot hide a later effective owner acceptance", () => {
+  const value = ownerContent("owner");
+  value.outcomes.push({ ...value.outcomes[0], id: "o2", statement: "Second owner outcome" });
+  let s = decide(proposed(emptyState(), "p1", value), "p1", "approve-direction");
+  const links = [linkOf("one", "supports", "proof", acceptedId(s)), linkOf("two", "supports", "proof", acceptedId(s))];
+  links[1].to.id = "o2";
+  s = apply(s, "observe", { planId: "p1", observation: fact("proof"), reasoningLinks: links });
+  s = decide(s, "p1", "accept-outcome", "o2");
+  const view = contextView(JSON.parse(JSON.stringify(s))).plans[0];
+  assert.equal(view.nextAction, "owner-review-outcome");
+  assert.equal(view.effectiveDecisions[JSON.stringify(["accept-outcome", "o2"])], s.plans[0].decisions.find(d => d.purpose === "accept-outcome").id);
+  assert.deepEqual(reviewRows(s).awaiting.map(row => row.outcomeId), ["o1"]);
+});
+
 test("a correction in another plan cannot retire a same-name challenge", () => {
   let s = decide(proposed(), "p1", "approve-direction");
   s = proposed(s, "other");

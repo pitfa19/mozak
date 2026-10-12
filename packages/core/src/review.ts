@@ -719,6 +719,30 @@ export interface ReviewGroups {
   rejected: ReviewRow[];
 }
 
+/** New findings flag review without changing the historical completion or its evidence. */
+function planReviewIssues(state: ScopeState, plan: Plan) {
+  const issues: { code: string; outcomeId: string; completionId?: string }[] = [];
+  if (!plan.accepted) return issues;
+  const completion = plan.lifecycle.state === "completed"
+    ? plan.completionRecords.find(record => record.id === (plan.lifecycle as { completionId: string }).completionId)
+    : undefined;
+  for (const outcome of plan.accepted.content.outcomes) {
+    const review = outcomeReview(state, plan, plan.accepted, outcome.id);
+    if (review.challengeIds.length) issues.push({ code: "active-outcome-challenge", outcomeId: outcome.id });
+    const pinned = completion?.outcomeEvidence.find(row => row.outcomeId === outcome.id);
+    if (pinned) {
+      const remaining = review.evidence.filter(e => pinned.evidenceIds.includes(e.id));
+      if (remaining.length !== pinned.evidenceIds.length || evidenceDigest(remaining) !== pinned.evidenceDigest) {
+        issues.push({ code: "completion-evidence-withdrawn", outcomeId: outcome.id, completionId: completion!.id });
+      }
+      if (review.evidenceIds.length && outcome.acceptance === "owner" && !boundDecision(state, plan, plan.accepted, review)) {
+        issues.push({ code: "outcome-acceptance-stale", outcomeId: outcome.id, completionId: completion!.id });
+      }
+    }
+  }
+  return issues;
+}
+
 /** Four fixed groups, sorted by time descending then composite key ascending, using binary comparison. */
 export function reviewRows(state: ScopeState, includeRejected = false): ReviewGroups {
   const groups: ReviewGroups = { completed: [], open: [], awaiting: [], rejected: [] };
@@ -729,7 +753,7 @@ export function reviewRows(state: ScopeState, includeRejected = false): ReviewGr
   for (const plan of state.plans) {
     const title = plan.accepted?.content.title ?? plan.pending?.content.title ?? plan.id;
     const purposeText = (plan.accepted?.content ?? plan.pending!.content).outcomes.map(o => o.statement).join(". ");
-    const reviewNeeded = plan.accepted?.content.outcomes.some(o => outcomeReview(state, plan, plan.accepted!, o.id).challengeIds.length > 0) ?? false;
+    const reviewNeeded = planReviewIssues(state, plan).length > 0;
 
     if (plan.lifecycle.state === "completed" && plan.accepted) {
       const record = plan.completionRecords.find((r) => r.id === (plan.lifecycle as { completionId: string }).completionId);
@@ -747,6 +771,8 @@ export function reviewRows(state: ScopeState, includeRejected = false): ReviewGr
         ...(decision ? { reason: decision.reason } : {}),
         compositeKey: keyOf("plan", plan.id, plan.accepted.id, null, plan.id),
       });
+    }
+    if (plan.accepted) {
       for (const o of plan.accepted.content.outcomes) {
         if (o.acceptance !== "owner" && outcomeReview(state, plan, plan.accepted, o.id).challengeIds.length === 0) continue;
         const review = outcomeReview(state, plan, plan.accepted, o.id);
@@ -805,17 +831,18 @@ export function contextView(state: ScopeState) {
       let outcomeAwaiting = false;
       if (plan.accepted) {
         const accepted = plan.accepted;
-        outcomeAwaiting = accepted.content.outcomes.some((o) => {
+        for (const o of accepted.content.outcomes) {
           const review = outcomeReview(state, plan, accepted, o.id);
           const decision = boundDecision(state, plan, accepted, review);
           if (decision) effectiveDecisions[JSON.stringify(["accept-outcome", o.id])] = decision.id;
-          return review.evidenceIds.length > 0 && (o.acceptance === "owner" || review.challengeIds.length > 0) && !decision;
-        });
+          if (review.evidenceIds.length > 0 && (o.acceptance === "owner" || review.challengeIds.length > 0) && !decision) outcomeAwaiting = true;
+        }
       }
+      const reviewIssues = planReviewIssues(state, plan);
       let permittedNextAction: string;
       if (plan.pending?.reviewState === "awaiting") permittedNextAction = "owner-review-direction";
       else if (plan.pending?.reviewState === "rejected") permittedNextAction = "owner-reconsider";
-      else if (plan.lifecycle.state === "completed") permittedNextAction = "none-completed";
+      else if (plan.lifecycle.state === "completed") permittedNextAction = reviewIssues.length ? "owner-review-completed-findings" : "none-completed";
       else if (plan.lifecycle.state === "paused") permittedNextAction = "owner-resume";
       else if (outcomeAwaiting) permittedNextAction = "owner-review-outcome";
       else if (plan.lifecycle.state === "open") permittedNextAction = "detailed-planning-observe-propose-revision-or-complete";
@@ -827,7 +854,8 @@ export function contextView(state: ScopeState) {
           const target = findPlan(state, link.to.planId);
           return ![target.accepted, target.pending].some(r => r?.id === link.to.revisionId);
         }),
-        reviewNeeded: plan.accepted?.content.outcomes.some(o => outcomeReview(state, plan, plan.accepted!, o.id).challengeIds.length > 0) ?? false,
+        reviewNeeded: reviewIssues.length > 0,
+        reviewIssues,
         effectiveDecisions,
         permittedNextAction,
         nextAction: permittedNextAction,
