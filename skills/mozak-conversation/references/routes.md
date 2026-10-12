@@ -6,82 +6,97 @@ Every command uses the full built path. Never the bare `mozak` command:
 node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js <route> --config INVENTORY --scope ID [flags]
 ```
 
-Run `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js --help` first. If a route is missing, stop.
+Run `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js --help` at session start. If a route is missing, stop.
 
 ## Read
 
 | Command | Use |
 |---|---|
-| `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js context --config INVENTORY --scope ID --json` | Direction, lifecycle, handoff, `permittedNextAction` |
+| `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js context --config INVENTORY --scope ID --json` | Direction, lifecycle, handoff, `permittedNextAction`, and the `snapshot` for `expected` |
 | `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js plans --config INVENTORY --scope ID --json` | Plan list |
 | `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js review show --config INVENTORY --scope ID --plan PLAN [--purpose P] [--outcome ID] --json` | Review subject for one decision |
 | `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js check --config INVENTORY --scope ID --json` | Findings. Never repairs. |
 
-`review show` purpose rules, checked on the built CLI:
+`review show` purposes, checked on the built CLI:
 - Pending direction: `--purpose` may be omitted (defaults to `approve-direction`).
 - Accepted-only plan: `--purpose` is required, or the call returns `invalid-payload`.
-- Purposes: `approve-direction`, `reject-pending`, `reconsider`, `pause`, `resume`, `approve-implementation`, `revoke-implementation`, `accept-outcome` (needs `--outcome`).
+- Values: `approve-direction`, `reject-pending`, `reconsider`, `pause`, `resume`, `approve-implementation`, `revoke-implementation`, `accept-outcome` (needs `--outcome`).
 
 ## Agent writes (advisory, grant nothing)
 
-Request file, written as data (not inline JSON):
+Request file, written as data. Envelope:
 
 ```json
-{ "operationId": "unique-id", "scopeId": "ID", "expected": { ...from context snapshot... }, "action": "ACTION", "payload": { ... } }
+{ "operationId": "unique-id", "scopeId": "ID", "expected": { "revision": "...", "graphHash": "...", "bridge": { "exists": true, "sha256": "..." } }, "action": "ACTION", "payload": { } }
 ```
 
-| Command | Action | Effect |
-|---|---|---|
-| `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js discussion save --config INVENTORY --scope ID --request FILE` | `save-discussion` | Clarification checkpoint |
-| `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js spec attach --config INVENTORY --scope ID --request FILE` | `attach-spec` | Spec file descriptor |
+`expected` is copied from the `snapshot` of a fresh `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js context --config INVENTORY --scope ID --json`.
 
-## Owner decisions (host persists only after a real owner message)
+| Command | Action |
+|---|---|
+| `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js discussion save --config INVENTORY --scope ID --request FILE` | `save-discussion` |
+| `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js spec attach --config INVENTORY --scope ID --request FILE` | `attach-spec` |
+| `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js plan complete --config INVENTORY --scope ID --request FILE` | `complete` |
+
+### Question IDs and history (synthetic smoke test in scratch, fixture question, not an owner conversation)
+
+1. A new question with `"id": null` is saved. Core assigns the ID, returned in `result.discussion.questions[].id`.
+2. Reuse that returned ID to answer it. The ID stays the same, the answer is appended, and `reopenings` stays empty.
+3. Never invent a question ID. A string ID must name an existing question.
+4. Existing questions cannot be dropped. A save that omits one is refused with `invalid-payload`. Verified in the smoke test.
+5. Moving a settled question back to open needs a non-empty `reopenReason`. Core appends a reopening and keeps prior answers.
+
+## Owner decisions
 
 `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js review decide --config INVENTORY --scope ID --request FILE`
 
 Payload for every decision: `planId`, `revisionId`, `reviewDigest`, `ownerRef`, `ownerMessageAt`, `reason`.
-- `revisionId` and `reviewDigest` come from `review show` for that same purpose, read just before the decision.
-- `action` is one of: `approve-direction`, `pause`, `resume`, `approve-implementation`, `revoke-implementation`, and others from the `review show` list.
-- Implementation approval also needs `specificationId`. Revocation needs `authorizationId`.
-- `ownerRef` and `ownerMessageAt` are the real owner message reference and time. Never invent them.
+- `revisionId` and `reviewDigest` come from `review show` for the same purpose, read just before the decision.
+- Action values: `approve-direction`, `pause`, `resume`, `approve-implementation`, `revoke-implementation`, `reject-pending`, `reconsider`, `accept-outcome`.
+- `approve-implementation` also needs `specificationId`. `revoke-implementation` needs `authorizationId`.
 
-Synthetic automated command smoke test (scratch scope `/home/pitfa/.jcode/scratch/p2-verify`, fixture owner ref `scratch-verification-fixture`, not a real owner): `review decide` with action `pause` committed. A fresh `context` then showed `lifecycle.state: paused`, `permittedNextAction: owner-resume`, and `executionEligible: false`. This is CLI mechanics only. It is not a live owner pass for B08 or B14.
+### Provenance (`ownerRef`, `ownerMessageAt`)
 
-## Stale input: how to recover
+- Preferred: a genuine owner message ID from the host.
+- Permitted fallback, labelled a host assertion and not a native message ID or authentication: the actual session ID, the actual user-message timestamp, and the digest of the actual response, joined into one reference.
+- Never fabricate a locator. Never infer a time from file modification times.
+- If provenance cannot be established, redisplay the subject and ask again.
 
-`stale-input` (exit 3) means the request `expected` block (revision, graphHash, or bridge sha256) no longer matches the store. Synthetic smoke test: the write is refused and nothing commits.
+### Pause (restrictive exception, spec section 7)
 
-Rules after a conflict:
-- Reread `context --json`, rebuild `expected` from its `snapshot`, rebuild the review subject, then show the owner the current state.
-- Do not resubmit the old request. Do not reuse its `operationId`.
-- An owner decision (`review decide`) needs a fresh owner message that answers the newly displayed review. An earlier "yes" given against the old subject is not consent to the new one. Ask again.
-- Agent writes (`discussion save`, `spec attach`) may be resubmitted with a new `operationId` only after the reread, and only if the content still reflects the current state.
+An unambiguous pause instruction stops host work first. The host may then persist it using the current pause subject, with the real provenance. The provenance record states that the instruction preceded this generated review. This covers stopping only. It never covers approval, resume, or broadening.
+
+## Review digest and CAS: what can be reused
+
+Receipt replay runs before the CAS check. An identical retry returns the committed result. A same-operation ID with different input is refused with `operation-conflict` (exit 3).
+
+After `stale-input` (exit 3), reread with `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js context --config INVENTORY --scope ID --json` and decide:
+- Same subject: scope, plan, purpose, accepted revision and content digest, specification and bounds digest, and authorization identity all match, and `reviewDigest` and `revisionId` match the displayed subject. The owner's still-unconsumed confirmation for that exact subject may be reused with a fresh `expected` block and a new `operationId`. Storage revision and projection bytes are not part of the subject. Verified in a synthetic smoke test: after a committed unrelated save changed the storage revision, the resume `reviewDigest` and `revisionId` stayed the same.
+- Changed subject or purpose: redisplay and get fresh owner confirmation. Never retarget with an old "yes".
 
 ## Plan completion
 
-`plan complete`, request `action: "complete"`, payload `{ planId, revisionId }`. `revisionId` must be the accepted revision.
-- Synthetic smoke test (scratch, fixture owner ref): on a paused plan, refused with `invalid-lifecycle` (exit 3). Resume first, with owner confirmation.
-- Code-read only, not run live: an awaiting pending revision is refused with `owner-review-required`, and an open plan with the accepted revision is expected to commit. Do not claim either until a live run confirms it.
+`plan complete` (`action: "complete"`, payload `{ planId, revisionId }`), with `revisionId` the accepted revision. Core requires:
+- An open lifecycle. A paused plan is refused with `invalid-lifecycle` (exit 3). Verified in a synthetic smoke test.
+- No awaiting pending revision (`owner-review-required`). Code-read only, not run live.
+- For each outcome: at least one observed supporting pass (`insufficient-evidence` otherwise), and a bound owner acceptance when the outcome's acceptance is `owner` or it has challenges (`owner-review-required` otherwise). Code-read only, not run live.
 
-## Question IDs and history
+Do not claim a plan will complete because it is open. Run the package 1 outcome checks first.
 
-Synthetic smoke test in scratch with a fixture question (not an owner conversation):
-1. A new question with `"id": null` is saved. Core assigns the ID, returned in `result.discussion.questions[].id`.
-2. Reuse that returned ID to add an answer. The question ID stays the same, the answer is appended, and `reopenings` stays empty.
-3. Never invent a question ID. A string ID must match an existing question.
-4. A settled question moved back to open needs a non-empty `reopenReason`. Core then appends a reopening record and keeps prior answers.
-
-## Exit codes
+## Exit codes and what the host does
 
 | Code | Meaning | Host action |
 |---|---|---|
-| 0 | Success | Continue |
-| 2 | Invalid or unavailable | Report cause, stop that step |
-| 3 | Stale, conflict, or owner review needed | Reread, rebuild the request, then ask the owner if still needed |
-| 4 | Busy or recovery | Retry once after rereading, then report |
-| 5 | Committed with unfinished projection or cleanup | Report as committed. Do not ask for duplicate approval |
+| 0 | Success, or replayed committed result | Continue. Confirm with `context` |
+| 2 | Invalid or unavailable | Report cause. Stop that step |
+| 3 | Stale, conflict, owner review needed, invalid lifecycle | Reread. Apply the CAS rules above. Ask the owner if the subject changed |
+| 4 | Busy or recovery | Reread and retry once. If still busy, report not confirmed |
+| 5 | Committed, projection or cleanup unfinished | Inspect the receipt and `context`. Report saved if committed, with repair pending. Do not call it unsaved. Repair only through the owner path |
 | 6 | Partial all-scope coverage | Say which scopes were not covered |
 
-## Pause: when to report "not saved"
+## Pause: reporting
 
-Report **stopped here, pause not saved** only if `review decide` with action `pause` returns a real failure (exit 2, 3 after a reread still fails, or the owner ref/time cannot be established). Name the exact issue and the fix.
+- Exit 0, or a replayed committed result, with `context` showing `paused`: saved.
+- Exit 2, exit 3 after a reread still fails, or provenance cannot be established: **stopped here, pause not saved**, with the exact issue and fix. Keep this host stopped.
+- Exit 4 after a retry: pause not confirmed. Keep this host stopped and inspect the operation before any other claim.
+- Exit 5: the pause may already be committed. Check the receipt and `context`. If paused, report **saved, repair pending**, not unsaved.
