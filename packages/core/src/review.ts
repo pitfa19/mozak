@@ -618,8 +618,14 @@ export function applyMutation(
     }
   }
 
-  // Store-visible resulting graph must pass the canonical model, not only the transition checks.
-  return { state: validateScope(next), result: { action, ids } };
+  // Published states must remain readable as well as satisfy the canonical schema.
+  // Evidence IDs are plan-local, but a combined outcome review cannot bind the same
+  // ID to different evidence bytes. Refuse that combination before storage publishes.
+  const validated = validateScope(next);
+  for (const plan of validated.plans) if (plan.accepted) {
+    for (const outcome of plan.accepted.content.outcomes) outcomeReview(validated, plan, plan.accepted, outcome.id);
+  }
+  return { state: validated, result: { action, ids } };
 }
 
 // ---------- derived views ----------

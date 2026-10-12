@@ -388,6 +388,19 @@ test("review rows group pending work and hide rejected drafts unless requested",
   assert.equal(reviewRows(s, true).rejected.length, 1);
 });
 
+test("review rows order actual mixed-precision UTC instants rather than timestamp text", () => {
+  let s = applyMutation(emptyState(), "propose", { planId: "older", content: content() }, "agent", "2026-10-12T09:00:00Z").state;
+  s = applyMutation(s, "propose", { planId: "newer", content: content() }, "agent", "2026-10-12T09:00:00.500Z").state;
+  for (const id of ["older", "newer"]) s = decide(s, id, "approve-direction");
+  // updateAt is the open-row sort time, assigned through supported transitions.
+  s = applyMutation(s, "observe", { planId: "older", observation: observation("old", "unverified") }, "agent", "2026-10-12T09:00:00Z").state;
+  s = applyMutation(s, "observe", { planId: "newer", observation: observation("new", "unverified") }, "agent", "2026-10-12T09:00:00.500Z").state;
+  const rows = reviewRows(s).open;
+  assert.equal(rows[0].date, "2026-10-12T09:00:00.500Z");
+  assert.equal(rows[1].date, "2026-10-12T09:00:00Z");
+  assert.deepEqual(rows.map(row => row.planId), ["newer", "older"]);
+});
+
 test("a stale approval digest is refused", () => {
   const s = apply(emptyState(), "propose", { planId: "p1", content: content() });
   const pendingId = s.plans[0].pending.id;
