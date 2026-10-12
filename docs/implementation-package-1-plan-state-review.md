@@ -1,6 +1,6 @@
 # Implementation package 1: MOZAK plan state and review
 
-**Status: approved for the bounded package-1 build by the owner at `2026-10-12T08:16:20.810Z`, responding to the explicit implementation question for local checkpoint `caffffa`. Implementation and acceptance verification are in progress, not yet complete. All exclusions below remain in force.**
+**Status: the bounded package-1 build and A01–A15 verification are complete on October 12, 2026. Build succeeds and 239/239 tests pass at implementation checkpoint `78896e9`. See `implementation-package-1-acceptance.md` for evidence and limits. Owner approval was granted at `2026-10-12T08:16:20.810Z` for checkpoint `caffffa`. All exclusions below remain in force.**
 
 Prepared after the owner's `2026-10-11T23:32:29.420Z` approval to detail the first package. That approval authorises this planning document, not code, installation, migration or execution of the real pilot. Product direction and P1–P5 are recorded in `idea-oriented-planning-and-monokl-spec.md`. The proposed real pilot remains in `idea-transfer-pilot.md` and is not run by this package.
 
@@ -244,7 +244,7 @@ Use Haiku 5.5 at high effort for smaller bounded implementation assignments, as 
 
 ## 8. Acceptance plan
 
-**No test below has run for this package.** This planning task reads source and writes documentation only. Existing tests were inspected, not rerun as proof. During implementation, test-owned files must live under the configured scratch root, not real user scopes.
+**Planning-time baseline:** no test below had run when this package was proposed. **Implementation result:** all A01–A15 now have passing evidence in `implementation-package-1-acceptance.md`, with a successful build and 239/239 tests on the local Linux environment. The original acceptance requirements below are retained. Test-owned files live under the configured scratch root, not real user scopes.
 
 ### Model and workflow checks
 

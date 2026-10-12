@@ -1,174 +1,151 @@
 # MOZAK
 
-**One living plan per project and per research topic, linked into a graph that you and your AI agents can both read. An idea is only recorded as moved after the target has written down a re-derivation of each assumption it rests on.**
+**Idea-oriented project understanding, with explicit review rather than a task tracker.**
 
-Agent plans kept in loose notes drift apart, and nothing tells you which one is current. MOZAK gives every scope, a git repo or an Obsidian topic folder, exactly one plan file, `MOZAK.md`. By convention it is the only file that links to other scopes, so the graph has one place to look. `graph` only reads `MOZAK.md`. `check` does not stop you linking elsewhere in your notes, and `stale` also follows wikilinks in a scope's other files to see if a cited note changed. Three things follow from that:
+A scope is a project or research topic. Its `MOZAK.json` holds several high-level plans, accepted direction, proposed revisions, dated observations and owner decisions. `MOZAK.md` is a generated entrypoint, not a second editable authority. Ordinary links in other notes are unrestricted.
 
-1. **One plan, one bridge file.** `MOZAK.md` holds the plan, the links, and the translations. `README.md` is for you, `AGENTS.md` is for your agents.
-2. **Translation that has to be earned.** Moving an idea to another scope lists every assumption it rests on. It stays invalid until each one is marked re-derived in the target. MOZAK records that state, it cannot check that anyone really re-derived anything. `resolve` just flips the mark.
-3. **Compare-and-swap on the shared plan.** When several agents edit, a stale write is refused instead of overwriting.
+**Package 1: local plan state and review is implemented and verified.** The local Linux gate passes 239/239 tests, including built CLI/MCP workflows and real process crash recovery. See `docs/implementation-package-1-acceptance.md` for A01–A15 evidence and `docs/implementation-package-1-plan-state-review.md` for the approved boundary.
 
-It is plain Markdown, so Obsidian draws the graph for free. It is not a memory store or a search tool. If you want agent memory from an Obsidian vault, [obsidian-mind](https://github.com/breferrari/obsidian-mind) does that. See [Prior art](#prior-art).
+This is not completion of Monokl, accepted cross-scope connections, implementation grants, a polished installed conversational skill, automatic migration or the real-user transfer pilot. Those remain separate work.
 
-## How it is organised
+## What belongs where
 
-Everything MOZAK manages is a **scope**. A scope is either:
+| File | Role |
+| --- | --- |
+| `MOZAK.json` | Canonical scope understanding, revisions, decisions, evidence and operation receipts. |
+| `MOZAK.md` | Deterministic generated bridge, pinned to the canonical file digest. Do not edit it. |
+| `README.md` | Human introduction, preserved by MOZAK operations. |
+| `AGENTS.md` | Agent instructions, preserved by MOZAK operations. |
 
-- a **project**: a git repository, or
-- a **topic**: an Obsidian folder (it can hold any other notes and subfolders).
+Git retains historical file versions. The store does not create per-plan version directories or auto-commit a user's repository.
 
-Each scope has exactly three files at its root:
+## Review and permission model
 
-| File | For | What it holds |
-|---|---|---|
-| `README.md` | you | what this is |
-| `AGENTS.md` | your agents | how to work here |
-| `MOZAK.md` | both | the **one living plan**, links to other scopes, and translations |
+1. **Propose or discuss:** create a pending revision without replacing accepted direction.
+2. **Approve direction:** record an actual owner decision bound to the exact displayed revision. Detailed planning may start, but this is not permission to code.
+3. **Record observations:** preserve provenance and distinguish observed, inferred and unverified claims. Facts do not silently rewrite expectations.
+4. **Complete:** require evidence for agreed outcomes and owner acceptance for subjective outcomes. A checked task list is insufficient.
+5. **Continue:** read saved context and the ordered Completed, Open and Awaiting approval views. Rejections retain their reason/date and are hidden by default.
 
-In `MOZAK.md`, link a repo by URL and a topic by `[[wikilink]]`. Put all your topics in one git repo and the whole thing is shared across machines and people. Because it is plain Markdown, Obsidian draws the graph for free.
+The owner-action CLI path is a trusted-host convention, not authentication. An owner reference and matching digest check consistency, not whether a human really spoke. Source text cannot supply approval. A privileged host or direct filesystem editor is not made tamper-proof by MOZAK.
 
-`CLAUDE.md` is optional. Claude Code 2.1.277 and newer reads `AGENTS.md` by itself when there is no `CLAUDE.md`. Older versions do not, so add a `CLAUDE.md` containing the line `@AGENTS.md`. Do not write "see AGENTS.md" in words: once a `CLAUDE.md` exists, Claude Code stops falling back to `AGENTS.md`, so a prose pointer hides it. `check` flags that. (Based on the [Claude Code docs](https://code.claude.com/docs/en/memory), not yet confirmed by running it here.)
+## Explicit local inventory
 
-```markdown
----
-id: api
-kind: project
-format: 1
----
-
-## Plan
-
-- [ ] add rate limiting
-
-## Links
-
-- depends-on: [[research]]
-- informs: https://github.com/you/web
-
-## Translations
-```
-
-Relations are a closed set: `depends-on`, `informs`, `derived-from`, `translates-to`.
-
-## What that makes possible: idea translation
-
-Moving an idea between scopes is where things quietly go wrong. A publishing setup that works in one repo carries hidden assumptions (where it deploys, how it builds) that may not hold in the next.
-
-In MOZAK a translation lists every assumption the idea rests on. It starts with all of them **open**, and it is invalid until the target has re-derived each one. A translation transfers no truth and no authority, it only creates a new claim in the target.
-
-```bash
-# draft: every assumption starts [open], and `check` fails
-mozak translate --idea "publishing concept" --from research --to site \
-  --assumption "deploys from main" --assumption "markdown build step" --write
-mozak check ./site        # fails: 2 open assumptions
-
-# after you verify each one in the target
-mozak resolve --in site --idea "publishing concept" --n 1
-mozak resolve --in site --idea "publishing concept" --n 2
-mozak check ./site        # ok
-```
-
-## Several agents editing one plan
-
-Agents on different projects update the same graph. Writes through MOZAK take a lock, compare the file's hash against what the agent last read, and rename atomically. A stale write is refused instead of overwriting someone else's edit, and the agent re-reads and retries. This is compare-and-swap on one shared, editable plan. Other tools protect append-only memory writes, which is a different problem.
-
-Three real processes appending 120 lines to one file keep all 120, run after run. The same test without the guard lost most of them (8 of 120 survived in the one run I measured). See `packages/core/test/write.test.ts`.
-
-![Two agents edit the same MOZAK.md: one write is refused as stale, retried, and both edits survive](docs/demo.gif)
-
-The GIF is rendered from the real output of `scripts/demo.ts`. Only the pacing is simulated, it is not a live recording. Regenerate it with `python3 scripts/render_gif.py`.
-
-Edits made directly in an editor or in Obsidian cannot be blocked, so `check` is the safety net for those.
-
-## Commands
-
-```text
-mozak init [dir] --kind project|topic     scaffold the three files, never overwrites
-mozak check [dir]                         validate a scope
-mozak graph [--config FILE] [--mermaid]   print the graph across scopes
-mozak stale [scope] [--plan-only]         what changed after each scope was last touched (read only)
-mozak translate ...                       draft a translation, or print the packet an agent works from
-mozak resolve ...                         mark an assumption re-derived
-mozak audit [dir]                         read only: look at an old .mozak/ and propose a MOZAK.md
-```
-
-### Staleness
-
-`mozak stale` answers "what changed since I last touched this?". Nothing is stored. Dates come from git (the last commit, or the file time for uncommitted edits), so there is no timestamp to forget to update.
-
-A scope is flagged when something it relies on changed after it: a scope it `depends-on` or `derived-from`, a scope that `informs` it, or a note its own files cite with a wikilink. A link that does not resolve on this machine is reported as "cannot judge" instead of passing silently. Exit code 3 means at least one input changed, so it works in a script.
-
-```text
-agentic-systems (topic): last touched 2026-09-01 (40d ago, commit)  [inputs changed]
-  note [[list]]  changed 2026-10-06 +35d
-  cannot judge, not found on this machine: derived-from: [[personal-research]]
-```
-
-It says something changed, not that the change matters. It works at the level of notes and scopes, not individual statements. Commit dates move on rebase or bulk reformatting.
-
-`graph` reads a small local config that says where your vault and repos live. It never uses the network.
+Every new CLI invocation requires `--config FILE`. The MCP server requires it at startup. Neither falls back to the installed global configuration. The inventory is a local list, not a home-directory crawler:
 
 ```json
-{ "roots": ["/home/you/obsidian", "/home/you/code"] }
+{
+  "format": "mozak.local/v2",
+  "scopes": [
+    { "id": "project", "root": "./isolated-project" },
+    { "id": "research", "root": "./isolated-topic" }
+  ]
+}
 ```
 
-Save it as `~/.config/mozak/config.json`.
+Relative paths resolve against the inventory's directory. Duplicate IDs/physical roots and unsafe scope-file symlinks are rejected. All-scope views report inaccessible scopes explicitly, including partial coverage.
 
-## Try it
+Use isolated test scopes while verifying this package. Building the repository is not permission to onboard real projects, modify installed skills, replace the global CLI or convert legacy state.
 
-Not on npm yet. From a clone:
+## Local development
+
+Use the repository's existing dependencies and a configured test scratch directory:
 
 ```bash
-git clone https://github.com/pitfa19/mozak && cd mozak
-npm install && npm run build && npm test
-node --experimental-strip-types --no-warnings scripts/demo.ts   # two agents, one refused as stale, graph stays consistent
-node packages/cli/dist/index.js init ./my-scope --kind project
+npm run build
+TMPDIR="$JCODE_SCRATCH_DIR" npm test
 ```
 
-Needs Node 22 or newer.
+`JCODE_SCRATCH_DIR` must point to an existing writable scratch directory. The package is developed in a local Node 24/Linux environment. Do not infer untested platform compatibility from the plain TypeScript interfaces.
 
-## For agents (MCP)
+The CLI entrypoint is `node packages/cli/dist/index.js`. For example, after explicitly initializing an isolated test scope:
 
-`mozak-mcp` is a stdio MCP server over the same core. It has five tools and only one of them writes:
+```bash
+node packages/cli/dist/index.js context --config ./local-test.json --scope project --json
+node packages/cli/dist/index.js plans --config ./local-test.json --all
+node packages/cli/dist/index.js review show --config ./local-test.json --scope project --plan PLAN_ID --json
+node packages/cli/dist/index.js check --config ./local-test.json --scope project --json
+```
 
-| Tool | Does |
-|---|---|
-| `mozak_graph` | list scopes and how they link |
-| `mozak_read` | read a scope's `MOZAK.md` and get a `base_hash` |
-| `mozak_check` | validate a scope |
-| `mozak_set_plan` | replace the **Plan** section only, with the `base_hash` from `mozak_read` |
-| `mozak_translation_packet` | read only: build the work packet for moving an idea |
+### Supported operation families
 
-An agent can never change Links or Translations through MCP. Those are proposals for you. A hostile plan string containing `## Links` is refused, and this is tested.
+| Family | Purpose |
+| --- | --- |
+| `scope init` | Create-only format-2 initialization in an explicitly inventoried scope, with an owner-init reference. Requires existing README/AGENTS and refuses prior graph/bridge/legacy state. |
+| `plan propose`, `plan revise`, `observe` | Typed pending-content changes and factual observations. |
+| `review show`, `review decide`, `plan complete` | Exact review display, trusted owner decisions and outcome verification. |
+| `context`, `plans`, `check`, `operation` | Read-only understanding, review views, integrity checks and receipt lookup. |
+| `projection repair` | Explicit recovery of an interrupted generated bridge, preserving manual conflicts. |
+
+Mutations take `--request FILE` containing a closed JSON request. Semantic mutations carry an operation ID, scope ID, exact expected storage/graph/bridge snapshot, an action and its typed payload. Unknown fields are errors. Request data is never evaluated as code.
+
+For init, the request is separate because no graph snapshot exists yet:
 
 ```json
-{ "mcpServers": { "mozak": { "command": "node", "args": ["/path/to/mozak/packages/mcp/dist/index.js"], "env": { "MOZAK_CONFIG": "/home/you/.config/mozak/config.json" } } } }
+{
+  "operationId": "unique-init-operation",
+  "scopeId": "project",
+  "kind": "project",
+  "title": "Isolated test scope",
+  "expectedAbsent": { "graph": true, "bridge": true },
+  "ownerRef": "actual-owner-decision-reference",
+  "ownerMessageAt": "2026-10-12T08:16:20.810Z"
+}
 ```
 
-## Status
+Replace the example owner reference/date with the actual scoped decision. Test fixtures label synthetic owner references as synthetic. Do not reuse the package implementation approval as authorization to initialize a real user scope.
 
-Early. Working: `init`, `check`, `graph`, `translate`, `resolve`, `audit`, guarded writes, and the MCP server. Not built yet:
+## Agent-safe MCP
 
-- `check` flagging unapproved changes to Links and Translations against git history
-- an Obsidian plugin
-- publishing to npm
+Start the local stdio server with an explicit isolated inventory:
 
-The MCP server is tested over a real stdio session and through a real Jcode session (all five tools discovered, a valid plan write, a stale write refused, and a plan that tried to inject a link refused with the file left byte for byte unchanged). It is not yet tested in Claude Code or Cursor.
+```bash
+node packages/mcp/dist/index.js --config ./local-test.json
+```
 
-Locking is tested on Linux only.
+The read tools are `mozak_context`, `mozak_plans`, `mozak_review_show`, `mozak_check` and `mozak_operation`. Mutations are `mozak_propose`, `mozak_revise`, `mozak_observe` and `mozak_complete`. Tools share the core runtime validation, not just schema descriptions.
 
-[SPEC.md](SPEC.md) has the full design.
+There is no MCP owner-decision, init, repair or generic arbitrary-operation tool. Callers cannot supply a different config or actor role. The full structured operation result remains available even when a partial-commit result is marked as an error.
 
-## Prior art
+## Concurrent writes and crash recovery
 
-This space is not empty. [obsidian-mind](https://github.com/breferrari/obsidian-mind) already gives coding agents cross-repo memory from an Obsidian vault, with trust labels on every memory and atomic writes. [basic-memory](https://github.com/basicmachines-co/basic-memory) and several Obsidian MCP servers cover Markdown memory, and AGENTS.md is the shared instruction file. MOZAK does not try to be a memory store.
+A scope-wide directory lock covers canonical CAS and bridge publication. Locks are **never stolen because they are old**. Matching operation-ID retries return the recorded result instead of creating duplicate decisions or observations. A reused ID with different input fails.
 
-What I found nothing for in any of them, from reading their READMEs and, for obsidian-mind, its architecture doc (not their code, so treat this as "I did not find it", not "it does not exist"):
+The canonical JSON and generated Markdown cannot be atomically replaced together. If JSON committed but bridge publication did not, the result says so. Local context remains readable, but later semantic writes wait for explicit repair. `check` does not repair anything.
 
-- translation where the target must re-derive each assumption before an idea moves
-- one `MOZAK.md` per scope as the only cross-scope linker, with one living plan in it
-- compare-and-swap on that shared plan, so a stale edit is refused
+If an ordinary bridge file is too large or unreadable, local canonical context still returns with a `bridge-unavailable` diagnostic and `snapshot.bridge: null`. This means **unavailable**, not absent. No mutation or repair may use that untrusted bridge snapshot. Missing/unreadable entry documents are also diagnostics, not substitutes for canonical state. Symlinked graph, bridge and lock paths remain refused.
 
-Safe concurrent writes in general are not unique: obsidian-mind handles them too, for a different kind of write.
+### Offline lock recovery
+
+1. Stop **all** scope writers and acquirers, including paused processes and child workers. A timeout, old timestamp or a single PID check does not prove quiescence.
+2. Preserve the lock metadata and graph/bridge state. Verify that the holder is dead, accounting for PID reuse. If identity or quiescence is uncertain, do not remove anything.
+3. Only under established offline quiescence, explicitly remove the abandoned `.mozak-write-lock` coordination directory. There is no online force-unlock command. Preserve unexpected contents for inspection.
+4. Restart a read-only `context`/`check`. If canonical state exists with its prior bridge snapshot, invoke explicit `projection repair` against the current snapshot. If init died before any graph existed, recheck absence and retry the original init instead.
+5. A manually changed bridge is preserved as a conflict. Automatic repair cannot merge or overwrite it. Resolve that conflict with the owner before continuing writes.
+
+The process-start hint in lock metadata is diagnostic, not an authentication mechanism. Tests can prove quiescence by terminating and joining their own child processes. An agent must not assume the same proof exists for arbitrary user processes.
+
+Guarantees cover cooperative processes on the tested local filesystem. They do not cover arbitrary concurrent editors, power-loss durability or network filesystems. No fsync guarantee is implied by rename.
+
+### Result handling
+
+Never assume a nonzero exit means nothing changed. Read `committed`, `projectionUpdated`, `projectionStatus` and the operation receipt.
+
+| Exit | Meaning |
+| --- | --- |
+| 0 | Completed operation/read, including a recognized successful retry. |
+| 2 | Invalid, unsupported, over-capacity or unavailable selected input. |
+| 3 | Stale/conflicting state, required owner review or check findings. |
+| 4 | Busy or offline recovery required. |
+| 5 | Persistent change occurred but projection/cleanup is unfinished. |
+| 6 | Partial all-scope read coverage. |
+
+## Compatibility and remaining work
+
+The old raw `mozak_set_plan`, `translate --write`, `resolve` and format-1 initialization paths are retired in this local build. They must not bypass the review model. Pure format-1 inspection/parser code is retained for explicit read-only analysis, not a permanent dual-runtime planning mode.
+
+Older `SPEC.md`, demos and historical test evidence describe the earlier Markdown-only model. They are not evidence for package 1 and must not be used as current setup instructions. The current design is in `docs/idea-oriented-planning-and-monokl-spec.md`, the bounded build is in `docs/implementation-package-1-plan-state-review.md`, and the unexecuted real pilot is in `docs/idea-transfer-pilot.md`.
+
+Package verification does not prove that an owner finds an adaptation useful or that an independent fresh host understands their direction. Those checks remain required in the actual later pilot. Migration, publication and changes to global agent setup remain separate approvals.
 
 MIT licensed.

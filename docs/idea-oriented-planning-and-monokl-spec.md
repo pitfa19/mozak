@@ -1,6 +1,8 @@
 # Idea-oriented MOZAK and simple Monokl
 
-**Status: owner design choices P1–P5 approved individually, completed at `2026-10-11T23:28:21.909Z`. Remaining engineering details are proposals for implementation planning. No implementation, pilot execution, migration or publication authorised.**
+**Design status: owner choices P1–P5 approved individually, completed at `2026-10-11T23:28:21.909Z`. Remaining engineering details are proposals for implementation planning. This design approval alone did not authorize implementation, pilot execution, migration or publication.**
+
+**Later bounded execution:** the owner separately approved package 1 at `2026-10-12T08:16:20.810Z` against checkpoint `caffffa`. Its local MOZAK plan-state/review implementation and A01–A15 checks are complete, with 239/239 tests passing. See `implementation-package-1-acceptance.md`. Monokl, the actual pilot, global setup, migration and publication remain outside that grant.
 
 This specification implements the expectations accepted at **2026-10-11T23:09:39Z**. The owner subsequently requested the detailed specification, not coding. Accepted product requirements are marked **R**. Concrete engineering choices made in this document remain **proposed** except for the explicitly recorded P1–P5 approvals below, and are not retroactively attributed to the owner. Approval of this document must name whether it approves the design only or also authorises a bounded implementation package.
 
