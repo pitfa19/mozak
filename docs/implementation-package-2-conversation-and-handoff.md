@@ -1,6 +1,6 @@
 # Implementation package 2: conversation, continuity and implementation handoff
 
-**Status: proposed bounded implementation package, not approved to build.** The owner approved Q1–Q7 below and authorised drafting this proposal at `2026-10-12T14:03:25.600Z`. That message did not authorise code, installation, migration or the live trial. All engineering choices in sections 3–9 remain proposed until a separate approval names this document's reviewed checkpoint and bounded implementation scope.
+**Status: approved to build within this document's bounded scope.** The actual owner message at `2026-10-12T17:48:24.249Z`, “approved”, answers the preceding explicit Package 2 build-approval request and approves this proposal as present at checkpoint `e5d80b9` (proposal bytes originally committed in `7da7e41`). This authorizes sections 3–9 repository/test implementation and isolated-trial preparation. It does not manufacture the live trial's separate owner direction, implementation, pause, resume or usability decisions, and does not authorize installation, migration, publication or global changes. The earlier `2026-10-12T14:03:25.600Z` approval was drafting-only. Historical proposed/unexecuted wording below describes the reviewed proposal, not evidence of implementation results.
 
 ## 1. Outcome and accepted expectations
 
