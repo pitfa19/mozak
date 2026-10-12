@@ -1,6 +1,6 @@
 # Package 2 acceptance and live-trial handoff
 
-**Status: implementation verification in progress; actual owner/fresh-host acceptance remains open.** Automated fixtures do not constitute owner approval or conversational usefulness. This report retains the complete Q1–Q7 and B01–B15 scope, including the unexecuted live requirements.
+**Status: implementation and deterministic/public-interface verification passed; actual owner/fresh-host acceptance remains open.** The rebuilt clean-checkpoint gate passed 334/334 tests. Automated fixtures do not constitute owner approval or conversational usefulness. This report retains the complete Q1–Q7 and B01–B15 scope, including the unexecuted live requirements.
 
 ## Authority and boundaries
 
@@ -30,7 +30,17 @@ npm run build
 npm test
 ```
 
-Observed **304 passed, zero failures/skips**, log `/home/pitfa/.jcode/scratch/package2/full-gate-first.log`. This is an intermediate milestone, not the final checkpoint claim. The fixed-checkpoint final gate and digest will be recorded below after all reviews and interface additions finish.
+Observed **304 passed, zero failures/skips**, log `/home/pitfa/.jcode/scratch/package2/full-gate-first.log`. This was an intermediate milestone, not the final checkpoint claim.
+
+### Final pinned gate
+
+- Checkpoint: `3f21a791583baf929eda5b19919c2f3b31404f37`.
+- Packages tree: `ba25e84783eb1812aba9ce98f8667d8dd653b0d1`.
+- Execution: `2026-10-12T18:22:31Z` through `2026-10-12T18:23:35Z`, `npm run build` followed by `TMPDIR="$JCODE_SCRATCH_DIR" npm test`.
+- Result: **build exit 0; 334 tests passed, zero failed/cancelled/skipped**. The command verified identical HEAD and a clean worktree before and after the run, then ran `git diff --check`.
+- Log: `/home/pitfa/.jcode/scratch/package2/full-gate-final-3f21a79.log`, SHA-256 `cc43f7728472448cb625e0b75c6da01fd18dd2978fba90ebb8aa395ee94bfaa8`.
+
+Before that gate, `npm run build && node --test --experimental-strip-types packages/cli/test/package2-*.test.ts packages/mcp/test/package2-protected.test.ts` passed **15/15**. Log: `/home/pitfa/.jcode/scratch/package2/final-interfaces.log`. These cases launch the built CLI and fresh built `packages/mcp/dist/index.js` processes. They actually commit direction, discussion, spec and implementation decisions through the CLI owner convention, then compare full context/review DTOs and assert recovered meaning/provenance. Owner references remain synthetic fixtures. Neither those children nor this continued coordinator session count as a genuinely fresh conversational host.
 
 Real store checks run with:
 
@@ -47,7 +57,7 @@ Test paths below are under `packages/`. A synthetic owner reference in an automa
 | ID | Concrete check and observed boundary | State |
 | --- | --- | --- |
 | B01 | Exact repo skill read at `/home/pitfa/Documents/mozak-v1/skills/mozak-conversation/SKILL.md`; built CLI `--help`; `handoff-store.test.ts` B01 old-format refusal compares bytes. Isolated trial create-only init below leaves ordinary entry files unchanged. Installed/global fingerprints recorded below. | Local activation/preparation checked; no installed rollout claimed |
-| B02 | Built CLI fixed-group and paused/rejected tests, new mixed-row/cursor checks. Actual pending trial overview prints Completed 0, Open 0, Awaiting 1 with its date. User-open, ordinary-turn non-repetition and explicit show-plans behavior still need actual conversation. | Automated/local preview, live portion open |
+| B02 | Built CLI fixed-group and paused/rejected tests. `cli/test/package2-mixed-rows.test.ts` emits direction/outcome/implementation rows on one plan, then pages one item at a time, checking cursor keys and no repeats. Actual pending trial overview prints Completed 0, Open 0, Awaiting 1 with its date. User-open, ordinary-turn non-repetition and explicit show-plans behavior still need actual conversation. | Automated/local preview passed; live portion open |
 | B03 | `core/test/conversation.test.ts` history/no-op/reopen/current-rebase cases and v3 model limits. New built CLI history tests exercise null IDs, settled answers, reopen reasons and unchanged refusals. Real owner clarifications are not fabricated. | Automated history checked; actual owner interview open |
 | B04 | Purpose/actor/identity checks, nested protected-field refusal and equivalent-time owner-message regression. Source/tool/quoted text cannot invoke owner-only MCP routes. Actual host ambiguous-yes behavior needs an actual attributed conversation. | Runtime boundaries checked; conversational consent trial open |
 | B05 | `handoff-store.test.ts` B05 demonstrates only explicit bound grant enables execution and status does not write. Actual tiny local change beginning after a real trial implementation confirmation has not happened. | Authority mechanics checked; real handoff open |
@@ -56,11 +66,11 @@ Test paths below are under `packages/`. A synthetic owner reference in an automa
 | B08 | Actual store pause/revoke/resume succeed with missing specs. Direction changes preserve paused lifecycle and retire old grant. Lock/projection failures withhold eligibility. A real owner pause, stopping batches and a genuinely fresh paused host still must run. | Automated persistence checked; actual host portion open |
 | B09 | Distinct candidate survives revocation without inheriting permission, exact spec requeue requires fresh attachment. Supported vs unsupported challenges use bound evidence/acknowledgement, not a raw review-needed flag. Completed plans cannot execute or requeue automatically. | Automated transition/store evidence |
 | B10 | Rich context contains discussion, spec, grant, accepted/pending meaning and provenance. CLI/fresh-stdio parity is only process evidence, not a fresh conversational host. Neither paused nor eligible-unpaused genuinely new-host recovery is claimed. | Fresh conversational host trial open |
-| B11 | New typed CLI/MCP operations, existing runtime protection and semantic DTOs share the facade. Final new-operation parity, unavailable-spec and nested-injection results will be pinned with the final gate. | Final interface checks in progress |
+| B11 | `cli/test/package2-parity.test.ts` commits actual CLI grants and pause, compares full DTOs to fresh built MCP, and checks accepted meaning, saved answer/provenance, deferred question, bounds, grant, current/changed/missing file health and eligibility. `cli/test/package2-protected.test.ts` and `mcp/test/package2-protected.test.ts` inject nested authority/forged descriptor fields into valid requests: exact refusals and byte-identical graph/bridge. Clean agent controls commit advisory discussion/descriptors without grants. | Public-interface checks passed, synthetic owner fixtures only |
 | B12 | Preserved actual subprocess CAS/live-lock/offline-recovery/publication tests plus `handoff-store.test.ts` child crash after grant commit. Reread after replay remains ineligible until explicit repair. Tests establish quiescence only for their own joined child. | Automated actual-process evidence |
-| B13 | Full rebuilt first gate 304/304; final fixed checkpoint pending. No package manifest/dependency change, removed safety assertion, global migration or stale-dist acceptance intended. | Final gate in progress |
+| B13 | Final clean fixed-checkpoint rebuild passed 334/334. `core/test/conversation.test.ts` explicitly gives implementation/pending rows whole-second vs fractional timestamps and checks instant order. Actual CLI mixed-kind cursor test checks exact keys and no omissions/repeats. Package-1 test diff preserves safety assertions, with only required v3 fixture fields; manifests/dependencies unchanged. | Final gate passed |
 | B14 | No actual owner usability feedback about the new conversation has been received yet. Design/build approval is not that feedback. | Open |
-| B15 | This report maps the full original scope and will pin final commands/checkpoint/results. Live evidence fields remain open until real attributable observations exist. | Interim report, not package completion |
+| B15 | This report maps the complete original scope and pins final checkpoint, commands, results, corrections and limitations. Live evidence fields remain open until real attributable observations exist. | Implementation handoff recorded; overall acceptance incomplete |
 
 ### Q1–Q7 trace
 
@@ -78,7 +88,7 @@ Test paths below are under `packages/`. A synthetic owner reference in an automa
 
 1. Authority reviewer reproduced reuse of the same owner message using equivalent `.000Z` and `Z` spellings, including resume that restored eligibility. The model and transitions now use one normalized owner-message key. Regression tests cover revoke, approve, resume and cross-plan reuse without rounding nonzero fractional precision. Coordinator reran `/home/pitfa/.jcode/scratch/giraffe-package2-owner-time-fixed-probe.ts` at `2026-10-12T18:14:11Z`: both bypasses reject and the paused grant stays ineligible. This is actual-core synthetic-fixture evidence, not a live owner message.
 2. IO review and coordinator inspection hardened filesystem error conversion, root symlink refusal, descriptor/path metadata checks and descriptor lifetime. A caught intermediate edit was corrected before final acceptance. Reviewer's stable 37-case IO/store run passed; all six source hashes in `/home/pitfa/.jcode/scratch/package2-io-review/stable-before.sha256` still matched on the coordinator recheck. Coordinator reran the actual facade/store probes: current → changed → missing → exact restoration gave eligible → ineligible → ineligible → eligible without rewriting canonical state. The separate two-scope probe passed namespace isolation, missing-file pause/resume/observe/revoke and all-scope facade checks.
-3. Coordinator found material skill mismatches: bare installed CLI usage, incorrectly claiming no persistence path for owner pause, unnecessary reapproval after unrelated CAS changes, confusing partial commit handling, and presenting direction approval as a completed plan. These were corrected through `84322ef` and `ab3f82e`. Normative instructions no longer substitute smoke-test anecdotes for the host contract. Actual owner UX remains unverified.
+3. Coordinator found material skill mismatches: bare installed CLI usage, incorrectly claiming no persistence path for owner pause, unnecessary reapproval after unrelated CAS changes, confusing partial commit handling, and presenting direction approval as a completed plan. These were corrected through `84322ef` and `ab3f82e`. Normative instructions no longer substitute smoke-test anecdotes for the host contract. The independent authority reviewer read all four finalized skill files with stable hashes and found no material mismatch with approved section 7. That is static contract review, not live UX acceptance.
 4. Same-path candidate/current-grant descriptors can be inspected at different instants if an external editor changes the file between reads. The independent IO review did not find a new permission bypass under the approved point-in-time contract. This implementation does not claim a single atomic snapshot of multiple spec files or direct-editor exclusion. Approval rereads the selected candidate under the cooperative scope lock, and the host must recheck current grant/spec before each bounded batch.
 
 ## Prepared actual trial, not a completed trial
@@ -97,7 +107,7 @@ A fresh-host bootstrap may contain only exact skill/CLI/inventory paths, scope/p
 
 ## Unchanged boundaries and limitations
 
-Observed fingerprints at `2026-10-12T18:01:16Z`:
+Observed fingerprints at `2026-10-12T18:01:16Z`, unchanged on the `2026-10-12T18:16:25Z` recheck:
 
 | Item | SHA-256 |
 | --- | --- |
@@ -105,6 +115,6 @@ Observed fingerprints at `2026-10-12T18:01:16Z`:
 | Installed `~/.claude/skills/mozak/SKILL.md` | `afa45da091e12fe6f72321e4eb0f5d21cc51d77c98f416e4abc09e7568d11346` |
 | Accepted idea brief | `23e4718ab4e224c120adc03967467d419e9f0ebe45ea67b78d4d0417980ca696` |
 
-Config and brief equal their pre-work recorded hashes. No implementation tool wrote installed/global skills or configuration. The installed-skill hash is a current fingerprint, not a retroactively invented earlier baseline.
+Config and brief equal their pre-work recorded hashes. No implementation tool wrote installed/global skills or configuration. The installed-skill hash is a current fingerprint, not a retroactively invented earlier baseline. No dependency or package manifest changed against the approved proposal checkpoint. Trial entry-file fingerprints after initialization/read checks: README `fe02e05f05bf0a36a4b552e387b0bb996e01316af3e953df7e80973edc09f872`, AGENTS `5501cb1f70ba1b91ad2c43ea7226f9fc6c468de2ffbab892dc57738663823e06`.
 
 Host-supplied owner provenance remains a trusted convention, not authentication. Bounds are declarations, not shell capabilities. Graph/spec/bridge operations are not atomic together. Direct editors, ABA rewrites, power-loss durability and untested filesystems remain outside the guarantees. No overall Package 2 completion, Monokl usefulness or global rollout is claimed until the still-open acceptance requirements have their own evidence.
