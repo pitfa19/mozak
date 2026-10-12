@@ -3,9 +3,13 @@
   "private": true,
   "type": "module",
   "workspaces": ["packages/*"],
+  "engines": {
+    "node": ">=24.11.0 <25"
+  },
   "scripts": {
     "build": "tsc -b",
-    "test": "node --test --experimental-strip-types packages/core/test/*.test.ts packages/cli/test/*.test.ts packages/mcp/test/*.test.ts"
+    "test": "node --test --experimental-strip-types packages/core/test/*.test.ts packages/cli/test/*.test.ts packages/mcp/test/*.test.ts",
+    "test:install": "node --test scripts/test-install.mjs"
   },
   "devDependencies": {
     "typescript": "^5.6.0",

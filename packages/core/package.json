@@ -1,1 +1,10 @@
-{ "name": "@mozak/core", "version": "0.0.0", "type": "module", "main": "dist/index.js", "types": "dist/index.d.ts" }
+{
+  "name": "@mozak/core",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "engines": {
+    "node": ">=24.11.0 <25"
+  }
+}

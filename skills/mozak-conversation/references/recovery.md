@@ -2,7 +2,7 @@
 
 Use only in a genuinely new host session. Not resume, fork, compaction, a worker that inherited this conversation, or a swarm handoff.
 
-Every command uses the full path `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js`. Never the bare `mozak` command.
+Every command uses the full path `node {{MOZAK_CLI}}`. Never the bare `mozak` command.
 
 ## 1. Check the new host first (before any work)
 
@@ -20,9 +20,9 @@ Verify the initial context. The new host must have no semantic recap, no prior a
 
 ## 2. Read durable state
 
-1. `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js context --config INVENTORY --scope ID --json`: recover meaning, settled and unresolved questions, lifecycle, evidence, specification and grant. A `paused` plan does not run. Report the pause and stop implementation. Explicitly requested discussion may occur without resuming or granting work.
+1. `node {{MOZAK_CLI}} context --config INVENTORY --scope ID --json`: recover meaning, settled and unresolved questions, lifecycle, evidence, specification and grant. A `paused` plan does not run. Report the pause and stop implementation. Explicitly requested discussion may occur without resuming or granting work.
 2. For implementation continuation, check `executionEligible` and `reasons`. If false, report the reasons and do not code. For a discussion-only request, recover the checkpoint and ask only unresolved questions. A status-only request stays read-only regardless of eligibility.
-3. Only if you need a decision subject: `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js review show --config INVENTORY --scope ID --plan PLAN --purpose P --json`. Accepted-only plans require the purpose.
+3. Only if you need a decision subject: `node {{MOZAK_CLI}} review show --config INVENTORY --scope ID --plan PLAN --purpose P --json`. Accepted-only plans require the purpose.
 
 ## 3. Check the spec file before any batch
 

@@ -3,19 +3,19 @@
 Every command uses the full built path. Never the bare `mozak` command:
 
 ```
-node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js <route> --config INVENTORY --scope ID [flags]
+node {{MOZAK_CLI}} <route> --config INVENTORY --scope ID [flags]
 ```
 
-Run `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js --help` at session start. If a route is missing, stop.
+Run `node {{MOZAK_CLI}} --help` at session start. If a route is missing, stop.
 
 ## Read
 
 | Command | Use |
 |---|---|
-| `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js context --config INVENTORY --scope ID --json` | Direction, lifecycle, handoff, `permittedNextAction`, and the `snapshot` for `expected` |
-| `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js plans --config INVENTORY --scope ID --json` | Plan list |
-| `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js review show --config INVENTORY --scope ID --plan PLAN [--purpose P] [--outcome ID] --json` | Review subject for one decision |
-| `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js check --config INVENTORY --scope ID --json` | Findings. Never repairs. |
+| `node {{MOZAK_CLI}} context --config INVENTORY --scope ID --json` | Direction, lifecycle, handoff, `permittedNextAction`, and the `snapshot` for `expected` |
+| `node {{MOZAK_CLI}} plans --config INVENTORY --scope ID --json` | Plan list |
+| `node {{MOZAK_CLI}} review show --config INVENTORY --scope ID --plan PLAN [--purpose P] [--outcome ID] --json` | Review subject for one decision |
+| `node {{MOZAK_CLI}} check --config INVENTORY --scope ID --json` | Findings. Never repairs. |
 
 `review show` purposes:
 - Pending direction: `--purpose` may be omitted (defaults to `approve-direction`).
@@ -30,13 +30,13 @@ Request file, written as data. Envelope:
 { "operationId": "unique-id", "scopeId": "ID", "expected": { "revision": "...", "graphHash": "...", "bridge": { "exists": true, "sha256": "..." } }, "action": "ACTION", "payload": { } }
 ```
 
-`expected` is copied from the `snapshot` of a fresh `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js context --config INVENTORY --scope ID --json`.
+`expected` is copied from the `snapshot` of a fresh `node {{MOZAK_CLI}} context --config INVENTORY --scope ID --json`.
 
 | Command | Action |
 |---|---|
-| `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js discussion save --config INVENTORY --scope ID --request FILE` | `save-discussion` |
-| `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js spec attach --config INVENTORY --scope ID --request FILE` | `attach-spec` |
-| `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js plan complete --config INVENTORY --scope ID --request FILE` | `complete` |
+| `node {{MOZAK_CLI}} discussion save --config INVENTORY --scope ID --request FILE` | `save-discussion` |
+| `node {{MOZAK_CLI}} spec attach --config INVENTORY --scope ID --request FILE` | `attach-spec` |
+| `node {{MOZAK_CLI}} plan complete --config INVENTORY --scope ID --request FILE` | `complete` |
 
 ### Question IDs and history
 
@@ -48,7 +48,7 @@ Request file, written as data. Envelope:
 
 ## Owner decisions
 
-`node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js review decide --config INVENTORY --scope ID --request FILE`
+`node {{MOZAK_CLI}} review decide --config INVENTORY --scope ID --request FILE`
 
 Payload for every decision: `planId`, `revisionId`, `reviewDigest`, `ownerRef`, `ownerMessageAt`, `reason`.
 - `revisionId` and `reviewDigest` come from `review show` for the same purpose, read just before the decision.
@@ -70,7 +70,7 @@ An unambiguous pause instruction stops host work first. The host may then persis
 
 Receipt replay runs before the CAS check. An identical retry returns the committed result. A same-operation ID with different input is refused with `operation-conflict` (exit 3).
 
-After `stale-input` (exit 3), reread with `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js context --config INVENTORY --scope ID --json` and decide:
+After `stale-input` (exit 3), reread with `node {{MOZAK_CLI}} context --config INVENTORY --scope ID --json` and decide:
 - Same subject: scope, plan, purpose, relevant revision and content digest, specification and bounds digest, and authorization identity all match, and `reviewDigest` and `revisionId` match the displayed subject. The owner's still-unconsumed confirmation for that exact subject may be reused with a fresh `expected` block and a new `operationId`. Storage revision and projection bytes are not part of the subject.
 - Changed subject or purpose: redisplay and get fresh owner confirmation. Never retarget with an old "yes".
 

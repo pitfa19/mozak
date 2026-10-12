@@ -1,1 +1,15 @@
-{ "name": "@mozak/cli", "version": "0.0.0", "type": "module", "main": "dist/index.js", "bin": { "mozak": "dist/index.js" }, "dependencies": { "@mozak/core": "*" } }
+{
+  "name": "@mozak/cli",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "mozak": "dist/index.js"
+  },
+  "engines": {
+    "node": ">=24.11.0 <25"
+  },
+  "dependencies": {
+    "@mozak/core": "0.1.0"
+  }
+}

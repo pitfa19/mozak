@@ -1,25 +1,27 @@
 ---
 name: mozak-conversation
-description: Local MOZAK conversation for one explicitly named scope. Overview, focused clarification, separate direction and implementation approval, pause, and fresh-session recovery. Load only by exact repo path.
+description: MOZAK conversation for one explicitly named scope. Overview, focused clarification, separate direction and implementation approval, pause, and fresh-session recovery. Load only by the exact installed skill path rendered at install time.
 ---
 
-# MOZAK conversation (repo copy, local only)
+# MOZAK conversation (installed copy)
 
-Normative contract for this repository skill. Tests are not owner approval or conversational acceptance.
+Normative contract for this installed skill. Tests are not owner approval or conversational acceptance.
 
 ## Activation
 
-Load only this exact file: `skills/mozak-conversation/SKILL.md` in `/home/pitfa/Documents/mozak-v1`.
-If the returned base directory is not that repo path, stop and say so.
+This file is a template. The installer renders `{{MOZAK_CLI}}` (the shell-quoted absolute CLI path) and `{{MOZAK_SKILL}}` (the absolute installed skill directory) before activation. If any placeholder is still present, stop: the rendered copy is missing.
+
+Load only this exact file: `{{MOZAK_SKILL}}/SKILL.md`, the installed skill directory rendered by the installer.
+If the returned base directory is not `{{MOZAK_SKILL}}`, stop and say so. Never load an older installed copy or a global skill of the same name.
 Do not use the installed `mozak` skill. Do not install, copy, symlink, or shadow any global skill.
 
 ## CLI
 
-Every command is the full built repo path. The bare `mozak` command is never used. No shell variable or function is set up.
+Every command is the full rendered CLI path. The bare `mozak` command is never used. No shell variable or function is set up.
 
 Replace `INVENTORY` with the explicit inventory path the owner gives, and `ID` with the scope ID. Full command forms and request envelopes are in `references/routes.md`.
 
-At session start, run `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js --help` and check the routes you need. If a route is missing, stop and say which one. Never invent a flag.
+At session start, run `node {{MOZAK_CLI}} --help` and check the routes you need. If a route is missing, stop and say which one. Never invent a flag.
 
 ## Open a project: overview once
 
@@ -34,19 +36,19 @@ Offer "show plans" for the full list. That request reads plans again and follows
 
 ## Read first
 
-1. `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js context --config INVENTORY --scope ID --json`: direction, lifecycle, handoff, and `permittedNextAction`.
-2. `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js plans --config INVENTORY --scope ID --json`: authoritative overview groups, counts and continuation. Continue with `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js plans --config INVENTORY --continuation TOKEN --json`, without repeating scope, limit or filter flags.
-3. `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js review show --config INVENTORY --scope ID --plan PLAN --purpose P --json`, only to build a decision subject.
+1. `node {{MOZAK_CLI}} context --config INVENTORY --scope ID --json`: direction, lifecycle, handoff, and `permittedNextAction`.
+2. `node {{MOZAK_CLI}} plans --config INVENTORY --scope ID --json`: authoritative overview groups, counts and continuation. Continue with `node {{MOZAK_CLI}} plans --config INVENTORY --continuation TOKEN --json`, without repeating scope, limit or filter flags.
+3. `node {{MOZAK_CLI}} review show --config INVENTORY --scope ID --plan PLAN --purpose P --json`, only to build a decision subject.
    - Pending direction: `--purpose` may be omitted (defaults to `approve-direction`).
    - Accepted-only plan: `--purpose` is required, or the call returns `invalid-payload`.
 
 ## The loop
 
-1. Ask only the next unresolved question, using the existing `grilling` skill. Save each settled answer with `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js discussion save --config INVENTORY --scope ID --request FILE`.
-2. On direction, the owner approves the displayed direction subject. The host persists it with `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js review decide --config INVENTORY --scope ID --request FILE` (`approve-direction`). Then it starts focused clarification for anything still open, unless the plan is paused.
-3. Draft the spec inside the scope root. Attach it with `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js spec attach --config INVENTORY --scope ID --request FILE`. Attaching grants nothing.
-4. Implementation approval is separate. Show the exact spec path, digest, bounds, and limitations. On a real owner approval, persist it with `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js review decide --config INVENTORY --scope ID --request FILE` (`approve-implementation`), reread `context`, and start the bounded work in the same turn only if `executionEligible` is true. Otherwise report the `reasons`.
-5. Record routine observed evidence quietly through `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js observe --config INVENTORY --scope ID --request FILE`, with actual result/provenance and limitations. Report only meaningful milestones: the outcome delivered, then the blocker or next step. Ask for decisions or blockers, not approval of every routine observation.
+1. Ask only the next unresolved question, using the existing `grilling` skill. Save each settled answer with `node {{MOZAK_CLI}} discussion save --config INVENTORY --scope ID --request FILE`.
+2. On direction, the owner approves the displayed direction subject. The host persists it with `node {{MOZAK_CLI}} review decide --config INVENTORY --scope ID --request FILE` (`approve-direction`). Then it starts focused clarification for anything still open, unless the plan is paused.
+3. Draft the spec inside the scope root. Attach it with `node {{MOZAK_CLI}} spec attach --config INVENTORY --scope ID --request FILE`. Attaching grants nothing.
+4. Implementation approval is separate. Show the exact spec path, digest, bounds, and limitations. On a real owner approval, persist it with `node {{MOZAK_CLI}} review decide --config INVENTORY --scope ID --request FILE` (`approve-implementation`), reread `context`, and start the bounded work in the same turn only if `executionEligible` is true. Otherwise report the `reasons`.
+5. Record routine observed evidence quietly through `node {{MOZAK_CLI}} observe --config INVENTORY --scope ID --request FILE`, with actual result/provenance and limitations. Report only meaningful milestones: the outcome delivered, then the blocker or next step. Ask for decisions or blockers, not approval of every routine observation.
 
 ## Owner decisions and provenance
 
@@ -70,7 +72,7 @@ After a `stale-input` (exit 3) conflict, reread `context`, then decide:
 - Clear pause intent ("pause this plan") is an owner instruction, and it stops host work first, before any storage attempt. Pausing never grants, widens, or resumes work.
 - Restrictive pause exception (bounded, from spec section 7): the host may mechanically derive the current pause review subject and persist that same restrictive instruction with its real provenance. The provenance record states that the instruction preceded this generated review. This applies only to stopping the identified work. It never covers approval, resume, or broadening.
 - If the plan is unclear, ask which plan to pause. Do not guess.
-- Persist: `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js review show --config INVENTORY --scope ID --plan PLAN --purpose pause --json`, then `review decide` with action `pause`, `revisionId` and `reviewDigest` from that subject, and the real `ownerRef` and `ownerMessageAt`.
+- Persist: `node {{MOZAK_CLI}} review show --config INVENTORY --scope ID --plan PLAN --purpose pause --json`, then `review decide` with action `pause`, `revisionId` and `reviewDigest` from that subject, and the real `ownerRef` and `ownerMessageAt`.
 - Outcome handling. Read `references/routes.md` exit codes:
   - Exit 0, or replayed committed result, with context showing `lifecycle.state: paused`: saved. Report it.
   - Exit 2, or exit 3 after a reread still fails, or provenance cannot be established: report **stopped here, pause not saved**, with the exact issue and fix. Keep this host stopped.
@@ -81,12 +83,12 @@ After a `stale-input` (exit 3) conflict, reread `context`, then decide:
 ## Resume
 
 - Resume needs its own explicit owner confirmation of the displayed `resume` subject.
-- The host persists it with `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js review decide --config INVENTORY --scope ID --request FILE` (action `resume`), then rereads `context` with the full command above.
+- The host persists it with `node {{MOZAK_CLI}} review decide --config INVENTORY --scope ID --request FILE` (action `resume`), then rereads `context` with the full command above.
 - Resume never creates or restores a grant. Work still needs `executionEligible: true`.
 
 ## Completion
 
-- `plan complete` (full command: `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js plan complete --config INVENTORY --scope ID --request FILE`, `action: "complete"`, payload `{ planId, revisionId }`) is not a plain state change. Core requires the accepted revision, an open lifecycle, no awaiting pending revision, and for every outcome: observed supporting evidence, plus a bound owner acceptance when the outcome requires owner acceptance or has challenges.
+- `plan complete` (full command: `node {{MOZAK_CLI}} plan complete --config INVENTORY --scope ID --request FILE`, `action: "complete"`, payload `{ planId, revisionId }`) is not a plain state change. Core requires the accepted revision, an open lifecycle, no awaiting pending revision, and for every outcome: observed supporting evidence, plus a bound owner acceptance when the outcome requires owner acceptance or has challenges.
 - Do not say a plan will complete because it is open. Run the package 1 outcome checks first, and report any outcome with no evidence or an unresolved challenge.
 
 ## Fresh-session recovery
