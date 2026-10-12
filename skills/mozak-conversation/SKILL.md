@@ -5,7 +5,7 @@ description: Local MOZAK conversation for one explicitly named scope. Overview, 
 
 # MOZAK conversation (repo copy, local only)
 
-Normative contract for this repository skill. Scratch checks are synthetic smoke tests, not owner evidence.
+Normative contract for this repository skill. Tests are not owner approval or conversational acceptance.
 
 ## Activation
 
@@ -23,19 +23,20 @@ At session start, run `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/ind
 
 ## Open a project: overview once
 
-Show this once when a project opens. Do not repeat it every turn. Each group has at most 5 items:
+Read both context and plans for the explicitly selected scope. Show this once when a project opens. Do not repeat it every turn. Each group has at most 5 preview items, with dates:
 
 - **Completed** (briefly)
 - **Open**
 - **Awaiting approval**
 - One recommended next action
 
-Say "show plans" for the full list.
+Offer "show plans" for the full list. That request reads plans again and follows continuation tokens as needed, without changing plans. State returned counts, truncation and partial scope coverage honestly. Do not label a direction approval or a downstream task as a completed high-level plan. Status-only and review-only requests stay read-only and do not start implementation. If the scope or target plan is ambiguous, ask for selection rather than guessing.
 
 ## Read first
 
 1. `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js context --config INVENTORY --scope ID --json`: direction, lifecycle, handoff, and `permittedNextAction`.
-2. `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js review show --config INVENTORY --scope ID --plan PLAN --purpose P --json`, only to build a decision subject.
+2. `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js plans --config INVENTORY --scope ID --json`: authoritative overview groups, counts and continuation. Continue with `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js plans --config INVENTORY --continuation TOKEN --json`, without repeating scope, limit or filter flags.
+3. `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js review show --config INVENTORY --scope ID --plan PLAN --purpose P --json`, only to build a decision subject.
    - Pending direction: `--purpose` may be omitted (defaults to `approve-direction`).
    - Accepted-only plan: `--purpose` is required, or the call returns `invalid-payload`.
 
@@ -45,7 +46,7 @@ Say "show plans" for the full list.
 2. On direction, the owner approves the displayed direction subject. The host persists it with `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js review decide --config INVENTORY --scope ID --request FILE` (`approve-direction`). Then it starts focused clarification for anything still open, unless the plan is paused.
 3. Draft the spec inside the scope root. Attach it with `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js spec attach --config INVENTORY --scope ID --request FILE`. Attaching grants nothing.
 4. Implementation approval is separate. Show the exact spec path, digest, bounds, and limitations. On a real owner approval, persist it with `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js review decide --config INVENTORY --scope ID --request FILE` (`approve-implementation`), reread `context`, and start the bounded work in the same turn only if `executionEligible` is true. Otherwise report the `reasons`.
-5. Report only meaningful milestones: the outcome delivered, then the blocker or next step.
+5. Record routine observed evidence quietly through `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js observe --config INVENTORY --scope ID --request FILE`, with actual result/provenance and limitations. Report only meaningful milestones: the outcome delivered, then the blocker or next step. Ask for decisions or blockers, not approval of every routine observation.
 
 ## Owner decisions and provenance
 
@@ -60,9 +61,9 @@ Say "show plans" for the full list.
 Replay first. The store checks receipts before the CAS match, so a retried identical operation returns its committed result.
 
 After a `stale-input` (exit 3) conflict, reread `context`, then decide:
-- The review subject is unchanged when its scope ID, plan ID, purpose, accepted revision and content digest, specification and bounds digest, and authorization identity match, and its `reviewDigest` and `revisionId` match the displayed subject. Storage revision and projection bytes do not count. In that case the still-unconsumed owner confirmation for that exact subject may be used with a fresh `expected` block and a new `operationId`. Verified in a synthetic smoke test: a committed unrelated save changed the storage revision, and the resume `reviewDigest` and `revisionId` stayed the same.
+- The review subject is unchanged when its scope ID, plan ID, purpose, relevant revision and content digest, specification and bounds digest, and authorization identity match, and its `reviewDigest` and `revisionId` match the displayed subject. Storage revision and projection bytes do not count. In that case the still-unconsumed owner confirmation for that exact subject may be used with a fresh `expected` block and a new `operationId`.
 - The subject changed (different revision, purpose, spec, or authorization) requires redisplay and a fresh owner confirmation. Never retarget a changed subject or purpose with an old "yes".
-- Never resubmit the old request with its old `operationId`. Never bypass receipt replay.
+- An identical retry uses the original request and operation ID for receipt replay. A changed request, including a refreshed `expected` block, needs a new operation ID. Never retarget a consumed confirmation or bypass receipt replay.
 
 ## Pause
 

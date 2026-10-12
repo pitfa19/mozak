@@ -236,3 +236,22 @@ test("mixed awaiting rows retain five-part unique keys and paused implementation
   for (const r of rows) assert.equal(JSON.parse(r.compositeKey).length, 5);
   assert.deepEqual(rows.map(r => r.compositeKey), [...rows.map(r => r.compositeKey)].sort());
 });
+
+test("implementation and pending review rows sort by UTC instant across mixed precision", () => {
+  // Explicit time seam in the real transition API, not wall-clock timing or copied sorting logic.
+  let s = accepted();
+  s = mutate(s, "attach-spec", attachPayload(s), attachmentEnv, "agent", "2026-10-12T09:00:00Z");
+  s = mutate(s, "revise", {
+    planId: "p", acceptedRevisionId: plan(s).accepted.id,
+    pendingRevisionId: null, content: content("Newer proposal"),
+  }, undefined, "agent", "2026-10-12T09:00:00.500Z");
+  const rows = reviewRows(s).awaiting;
+  assert.deepEqual(rows.map(row => row.rowKind), ["pending", "implementation"]);
+  assert.deepEqual(rows.map(row => row.reviewAt), ["2026-10-12T09:00:00.500Z", "2026-10-12T09:00:00Z"]);
+  assert.equal(new Set(rows.map(row => row.compositeKey)).size, 2);
+  for (const row of rows) {
+    const key = JSON.parse(row.compositeKey);
+    assert.equal(key.length, 5);
+    assert.deepEqual(key.slice(0, 3), [row.scopeId, row.planId, row.rowKind]);
+  }
+});

@@ -17,7 +17,7 @@ Run `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js --help` at s
 | `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js review show --config INVENTORY --scope ID --plan PLAN [--purpose P] [--outcome ID] --json` | Review subject for one decision |
 | `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js check --config INVENTORY --scope ID --json` | Findings. Never repairs. |
 
-`review show` purposes, checked on the built CLI:
+`review show` purposes:
 - Pending direction: `--purpose` may be omitted (defaults to `approve-direction`).
 - Accepted-only plan: `--purpose` is required, or the call returns `invalid-payload`.
 - Values: `approve-direction`, `reject-pending`, `reconsider`, `pause`, `resume`, `approve-implementation`, `revoke-implementation`, `accept-outcome` (needs `--outcome`).
@@ -38,12 +38,12 @@ Request file, written as data. Envelope:
 | `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js spec attach --config INVENTORY --scope ID --request FILE` | `attach-spec` |
 | `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js plan complete --config INVENTORY --scope ID --request FILE` | `complete` |
 
-### Question IDs and history (synthetic smoke test in scratch, fixture question, not an owner conversation)
+### Question IDs and history
 
 1. A new question with `"id": null` is saved. Core assigns the ID, returned in `result.discussion.questions[].id`.
 2. Reuse that returned ID to answer it. The ID stays the same, the answer is appended, and `reopenings` stays empty.
 3. Never invent a question ID. A string ID must name an existing question.
-4. Existing questions cannot be dropped. A save that omits one is refused with `invalid-payload`. Verified in the smoke test.
+4. Existing questions cannot be dropped. A save that omits one is refused with `invalid-payload`.
 5. Moving a settled question back to open needs a non-empty `reopenReason`. Core appends a reopening and keeps prior answers.
 
 ## Owner decisions
@@ -71,15 +71,15 @@ An unambiguous pause instruction stops host work first. The host may then persis
 Receipt replay runs before the CAS check. An identical retry returns the committed result. A same-operation ID with different input is refused with `operation-conflict` (exit 3).
 
 After `stale-input` (exit 3), reread with `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js context --config INVENTORY --scope ID --json` and decide:
-- Same subject: scope, plan, purpose, accepted revision and content digest, specification and bounds digest, and authorization identity all match, and `reviewDigest` and `revisionId` match the displayed subject. The owner's still-unconsumed confirmation for that exact subject may be reused with a fresh `expected` block and a new `operationId`. Storage revision and projection bytes are not part of the subject. Verified in a synthetic smoke test: after a committed unrelated save changed the storage revision, the resume `reviewDigest` and `revisionId` stayed the same.
+- Same subject: scope, plan, purpose, relevant revision and content digest, specification and bounds digest, and authorization identity all match, and `reviewDigest` and `revisionId` match the displayed subject. The owner's still-unconsumed confirmation for that exact subject may be reused with a fresh `expected` block and a new `operationId`. Storage revision and projection bytes are not part of the subject.
 - Changed subject or purpose: redisplay and get fresh owner confirmation. Never retarget with an old "yes".
 
 ## Plan completion
 
 `plan complete` (`action: "complete"`, payload `{ planId, revisionId }`), with `revisionId` the accepted revision. Core requires:
-- An open lifecycle. A paused plan is refused with `invalid-lifecycle` (exit 3). Verified in a synthetic smoke test.
-- No awaiting pending revision (`owner-review-required`). Code-read only, not run live.
-- For each outcome: at least one observed supporting pass (`insufficient-evidence` otherwise), and a bound owner acceptance when the outcome's acceptance is `owner` or it has challenges (`owner-review-required` otherwise). Code-read only, not run live.
+- An open lifecycle. A paused plan is refused with `invalid-lifecycle` (exit 3).
+- No awaiting pending revision (`owner-review-required`).
+- For each outcome: at least one observed supporting pass (`insufficient-evidence` otherwise), and a bound owner acceptance when the outcome's acceptance is `owner` or it has challenges (`owner-review-required` otherwise).
 
 Do not claim a plan will complete because it is open. Run the package 1 outcome checks first.
 

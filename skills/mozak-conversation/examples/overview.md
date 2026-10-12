@@ -1,13 +1,12 @@
 # Example: what the overview looks like
 
-Shown once when the project opens. Scope and dates are placeholders.
+Illustrative output, not actual completed work. Shown once when the project opens. Plan names and dates are placeholders, populated from durable review rows in real use.
 
 **Completed**
-- Direction approved for the test scope (2026-10-12)
+- Earlier sample plan: outcome verified and recorded as completed (2026-10-11)
 
 **Open**
-- Clarify one edge case in the formatting rules
-- Draft the local spec with explicit file bounds
+- Formatter trial (2026-10-12): direction accepted, one clarification remains. No implementation permission yet.
 
 **Awaiting approval**
 - Implementation approval: none yet
