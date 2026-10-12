@@ -133,18 +133,27 @@ async function parityHandoff(f: ReturnType<typeof fixture>) {
   const cliContext = cli(f.config, ["context", "--scope", "one"]).json;
   const mcpContext = await mcpCall(f.config, "mozak_context", { scope: "one" });
   assert.deepEqual(mcpContext.data, cliContext, "context DTO is identical across CLI and fresh MCP");
-  return { handoff: cliContext.context.plans[0].handoff, lifecycle: cliContext.context.plans[0].lifecycle, reviewHandoff: cliReview.review.handoff };
+  return { plan: cliContext.context.plans[0], handoff: cliContext.context.plans[0].handoff, lifecycle: cliContext.context.plans[0].lifecycle, reviewHandoff: cliReview.review.handoff };
 }
 
 test("B11 granted: executionEligible true, same DTO from CLI and built MCP", async () => {
   const f = fixture();
   grant(f);
-  const { handoff } = await parityHandoff(f);
+  const { handoff, plan } = await parityHandoff(f);
   assert.equal(handoff.implementationAuthorized, true);
   assert.equal(handoff.executionEligible, true);
   assert.equal(handoff.specificationHealth, "current");
   assert.deepEqual(handoff.reasons, []);
   assert.ok(handoff.bounds.limitations.includes("Line width deferred to a later package"), "deferred limitation is in the bounds");
+  assert.equal(plan.accepted.content.title, "Formatter", "recovery contains accepted meaning, not just its ID");
+  assert.equal(plan.discussionStatus, "current");
+  assert.deepEqual(plan.discussion.questions.map(q => [q.text, q.status]), [
+    ["Which formatter?", "answered"], ["Which line width?", "deferred"],
+  ]);
+  assert.equal(plan.discussion.questions[0].answers[0].summary, "Use the project formatter");
+  assert.equal(plan.discussion.questions[0].answers[0].ownerRef, "synthetic-owner:fixture-clarification");
+  assert.equal(plan.specifications.length, 1);
+  assert.equal(plan.implementationAuthorizations.length, 1);
 });
 
 test("B11 changed current-grant file: eligibility false, canonical context still readable, same DTO from CLI and built MCP", async () => {
@@ -184,7 +193,7 @@ test("B11 owner pause: lifecycle paused, grant kept, eligibility false, same DTO
   assert.ok(handoff.reasons.includes("lifecycle-paused"));
 });
 
-test("B11 protected-route controls: a valid fresh MCP save-discussion and attach-spec on a plan with no grant change nothing", async () => {
+test("B11 protected-route control: fresh MCP save-discussion commits advisory meaning without creating a grant", async () => {
   // Fresh MCP calls with valid envelopes. They reach core, and a grant must not appear as a side effect.
   const f = fixture();
   const init = join(f.root, "init.json");

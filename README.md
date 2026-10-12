@@ -63,7 +63,7 @@ The CLI entrypoint is `node packages/cli/dist/index.js`. For example, after expl
 ```bash
 node packages/cli/dist/index.js context --config ./local-test.json --scope project --json
 node packages/cli/dist/index.js plans --config ./local-test.json --all
-node packages/cli/dist/index.js review show --config ./local-test.json --scope project --plan PLAN_ID --json
+node packages/cli/dist/index.js review show --config ./local-test.json --scope project --plan PLAN_ID --purpose approve-direction --json
 node packages/cli/dist/index.js check --config ./local-test.json --scope project --json
 ```
 
