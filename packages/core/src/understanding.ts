@@ -390,13 +390,33 @@ function requireRef(condition: unknown, message: string): asserts condition { if
 function requireDigest(condition: unknown, message: string): void { if (!condition) fail(message, "digest-mismatch"); }
 function planReferences(p: Plan, plans: Map<string, Plan>): void {
   const decisions = new Map(p.decisions.map(d => [d.id, d]));
-  for (const d of p.decisions) requireRef(d.planId === p.id, "decision belongs to another plan");
+  const challengeLinks = new Map([...plans.values()].flatMap(container => container.reasoningLinks.map(link => [JSON.stringify([container.id, link.id]), link] as const)));
+  for (const d of p.decisions) {
+    requireRef(d.planId === p.id, "decision belongs to another plan");
+    const subject = [p.accepted, p.pending].find(r => r?.id === d.revisionId)
+      ?? (p.accepted?.acceptedFromRevision === d.revisionId ? p.accepted : undefined);
+    if (subject) {
+      requireDigest(d.contentDigest === subject.contentDigest, "decision content digest mismatch");
+      if (d.purpose === "accept-outcome") requireRef(subject.content.outcomes.some(o => o.id === d.outcomeId), "decision outcome missing");
+    }
+    for (const id of d.challengeIds ?? []) {
+      const link = challengeLinks.get(id);
+      requireRef(link && link.relation === "challenges" && link.to.planId === p.id && link.to.revisionId === d.revisionId && link.to.id === d.outcomeId, "decision challenge reference mismatch");
+    }
+    // Old acceptance remains valid history when later observations change current evidence.
+  }
   const bound = (id: string, purpose: DecisionPurpose, rev: string, contentDigest: string) => {
     const d = decisions.get(id); requireRef(d && d.purpose === purpose && d.revisionId === rev, "decision subject or purpose mismatch");
     requireDigest(d.contentDigest === contentDigest, "decision content digest mismatch"); return d;
   };
   if (p.accepted) bound(p.accepted.directionDecisionId, "approve-direction", p.accepted.acceptedFromRevision, p.accepted.contentDigest);
   if (p.pending) {
+    const consumed = new Set([
+      ...(p.accepted ? [p.accepted.acceptedFromRevision] : []),
+      ...p.decisions.filter(d => !["reject-pending", "reconsider"].includes(d.purpose)).map(d => d.revisionId),
+      ...p.completionRecords.map(c => c.acceptedRevisionId),
+    ]);
+    requireRef(!consumed.has(p.pending.id), "pending revision reuses a consumed identity");
     if ((p.pending.baseAcceptedRevision === null) !== (p.accepted === null) || (p.pending.baseAcceptedDigest === null) !== (p.accepted === null)) fail("pending null base differs from accepted state");
     requireRef(p.pending.baseAcceptedRevision === (p.accepted?.id ?? null), "pending base revision is stale");
     requireDigest(p.pending.baseAcceptedDigest === (p.accepted?.contentDigest ?? null), "pending base digest is stale");
@@ -415,11 +435,23 @@ function planReferences(p: Plan, plans: Map<string, Plan>): void {
     // A non-current pinned revision is historical/unresolved. Creation checks live in the transition.
   }
   if (p.lifecycle.state === "paused") bound(p.lifecycle.decisionId, "pause", p.accepted!.id, p.accepted!.contentDigest);
-  const allEvidence = new Map(p.observations.flatMap(o => o.evidence.map(e => [e.id, { observation: o, evidence: e }] as const)));
   for (const c of p.completionRecords) {
-    for (const id of c.ownerDecisionIds) requireRef(decisions.get(id)?.purpose === "accept-outcome", "missing completion owner decision");
+    for (const id of c.ownerDecisionIds) {
+      const d = decisions.get(id);
+      requireRef(d?.purpose === "accept-outcome" && d.revisionId === c.acceptedRevisionId && c.outcomeEvidence.some(row => row.outcomeId === d.outcomeId && row.evidenceDigest === d.evidenceDigest), "completion owner decision binding mismatch");
+    }
     for (const row of c.outcomeEvidence) {
-      const ev = row.evidenceIds.map(id => { const item = allEvidence.get(id); requireRef(item, "missing completion evidence"); if (item.observation.classification !== "observed" || item.evidence.result.verdict !== "pass") fail("completion requires observed passing evidence"); return item.evidence; });
+      const linked = [...plans.values()].flatMap(container => container.reasoningLinks.filter(link => link.relation === "supports" && link.to.planId === p.id && link.to.revisionId === c.acceptedRevisionId && link.to.id === row.outcomeId).map(link => plans.get(link.from.planId)!.observations.find(o => o.id === link.from.id)!));
+      // Explicit support links pin source identity. Unrelated later local records cannot shadow it.
+      const candidates = (linked.length ? linked : p.observations).flatMap(observation => observation.evidence.map(evidence => ({ observation, evidence })));
+      const ev = row.evidenceIds.map(id => {
+        const matches = candidates.filter(item => item.evidence.id === id);
+        requireRef(matches.length > 0, "missing completion evidence");
+        requireRef(matches.every(item => digest(item.evidence) === digest(matches[0].evidence)), "ambiguous completion evidence identity");
+        const item = matches.find(item => item.observation.classification === "observed" && item.evidence.result.verdict === "pass");
+        if (!item) fail("completion requires observed passing evidence");
+        return item.evidence;
+      });
       requireDigest(evidenceDigest(ev) === row.evidenceDigest, "completion evidence digest mismatch");
     }
     if (c.acceptedRevisionId === p.accepted?.id) {

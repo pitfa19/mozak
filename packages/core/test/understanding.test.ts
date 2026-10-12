@@ -546,3 +546,45 @@ test("isDigest accepts only 64 lowercase hex characters", () => {
   assert.equal(isDigest("a".repeat(63)), false);
   assert.equal(isDigest(hashBytes("a").toUpperCase()), false);
 });
+
+function outcomeDecision(s: any, overrides: any = {}) {
+  return { ...approveDecision(s.plans[0].accepted.content), id: "owner-outcome", purpose: "accept-outcome", revisionId: "rev-a", outcomeId: "o1", evidenceDigest: evidenceDigest([]), challengeIds: [], ...overrides };
+}
+
+test("every current decision validates content, outcome and challenge references even when unconsumed", () => {
+  for (const [overrides, code] of [
+    [{ contentDigest: hashBytes("wrong") }, "digest-mismatch"],
+    [{ outcomeId: "missing" }, "invalid-reference"],
+    [{ challengeIds: ["missing"] }, "invalid-reference"],
+    [{ revisionId: "rev-p", contentDigest: hashBytes("wrong") }, "digest-mismatch"],
+  ] as const) {
+    const s = makeScope();
+    s.plans[0].decisions.push(outcomeDecision(s, overrides));
+    expectCode(() => validateScope(s), code);
+  }
+  const s = makeScope();
+  s.plans[0].decisions.push(outcomeDecision(s));
+  s.plans[0].observations.push(observation("later-evidence"));
+  assert.doesNotThrow(() => validateScope(s), "new evidence may stale old acceptance without corrupting canonical history");
+});
+
+test("historical completions retain owner revision, outcome and evidence binding", () => {
+  const ev = evidence("ev-history"), s = makeScope();
+  s.plans[0].observations.push(observation("historical-observation", [ev]));
+  s.plans[0].decisions.push(outcomeDecision(s, { revisionId: "old-accepted", evidenceDigest: evidenceDigest([ev]) }));
+  s.plans[0].completionRecords.push({ id: "historical-completion", acceptedRevisionId: "old-accepted", recordedAt: T1, outcomeEvidence: [{ outcomeId: "o1", criterionDigest: digest("old criterion"), evidenceIds: [ev.id], evidenceDigest: evidenceDigest([ev]), result: "pass" }], ownerDecisionIds: ["owner-outcome"], limitations: [] });
+  assert.doesNotThrow(() => validateScope(s));
+  for (const change of [{ revisionId: "unrelated" }, { outcomeId: "unrelated" }, { evidenceDigest: hashBytes("unrelated") }]) {
+    const bad = structuredClone(s); Object.assign(bad.plans[0].decisions[1], change);
+    expectCode(() => validateScope(bad), "invalid-reference");
+  }
+});
+
+test("pending revision identity cannot reuse a consumed source or known old accepted revision", () => {
+  for (const id of ["rev-p", "old-accepted"]) {
+    const s = makeScope(), p = s.plans[0];
+    p.decisions.push(outcomeDecision(s, { revisionId: "old-accepted" }));
+    p.pending = { id, createdAt: T1, content: content(), contentDigest: digest(content()), baseAcceptedRevision: "rev-a", baseAcceptedDigest: p.accepted.contentDigest, reviewState: "awaiting", rejectionDecisionId: null };
+    expectCode(() => validateScope(s), "invalid-reference");
+  }
+});
