@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { auditProject, checkScope, initScope } from "../src/index.ts";
+import { auditProject, checkScope } from "../src/index.ts";
+import { initScope } from "../src/init.ts";
 
 const tmp = () => mkdtempSync(join(tmpdir(), "mozak-i-"));
 
@@ -21,22 +22,19 @@ function snapshot(root: string): Record<string, string> {
   return out;
 }
 
-test("init creates a scope that passes check", () => {
-  const dir = join(tmp(), "My Project");
-  const r = initScope(dir, { kind: "project" });
-  assert.deepEqual(r.created.sort(), ["AGENTS.md", "MOZAK.md", "README.md"]);
-  const c = checkScope(dir);
-  assert.equal(c.ok, true);
-  assert.equal(c.doc?.id, "my-project");
+test("retired format-1 init refuses before creating a directory", () => {
+  const parent = tmp();
+  const dir = join(parent, "My Project");
+  assert.throws(() => initScope(dir, { kind: "project" }), { code: "unsupported-legacy-operation" });
+  assert.deepEqual(readdirSync(parent), []);
 });
 
-test("init never overwrites existing files", () => {
+test("retired format-1 init preserves existing entry documents", () => {
   const dir = tmp();
   writeFileSync(join(dir, "README.md"), "mine\n");
-  const r = initScope(dir, { kind: "topic", id: "t" });
-  assert.deepEqual(r.skipped, ["README.md"]);
-  assert.equal(readFileSync(join(dir, "README.md"), "utf8"), "mine\n");
-  assert.equal(initScope(dir, { kind: "topic", id: "t" }).created.length, 0);
+  const before = snapshot(dir);
+  assert.throws(() => initScope(dir, { kind: "topic", id: "t" }), { code: "unsupported-legacy-operation" });
+  assert.deepEqual(snapshot(dir), before);
 });
 
 test("audit reads old state, proposes a valid draft, and changes no file", () => {

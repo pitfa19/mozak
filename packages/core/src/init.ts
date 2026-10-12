@@ -1,6 +1,6 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, lstatSync, type Dirent } from "node:fs";
+import { existsSync, readdirSync, readFileSync, lstatSync, type Dirent } from "node:fs";
 import { basename, join, resolve } from "node:path";
-import { guardedWrite, readSnapshot } from "./write.ts";
+import { DomainError } from "./errors.ts";
 
 export interface InitOptions {
   id?: string;
@@ -19,29 +19,9 @@ export function mozakTemplate(id: string, kind: "project" | "topic", plan = "- [
   return `---\nid: ${id}\nkind: ${kind}\nformat: 1\n---\n\n## Plan\n\n${plan}\n\n## Links\n\n## Translations\n`;
 }
 
-/** Scaffold the three root files. Never overwrites: an existing file is skipped and reported. */
-export function initScope(dir: string, opts: InitOptions): InitResult {
-  const root = resolve(dir);
-  mkdirSync(root, { recursive: true });
-  const id = opts.id ?? slug(basename(root));
-  const title = opts.title ?? id;
-  const files: Record<string, string> = {
-    "README.md": `# ${title}\n\nWhat this ${opts.kind} is, for people.\n`,
-    "AGENTS.md": `# ${title}\n\nRead MOZAK.md first. It holds the plan and the links to related scopes.\nEdit the Plan section freely. Changes to Links and Translations are proposals for the owner.\n`,
-    "MOZAK.md": mozakTemplate(id, opts.kind),
-  };
-  const created: string[] = [];
-  const skipped: string[] = [];
-  for (const [name, text] of Object.entries(files)) {
-    const p = join(root, name);
-    if (existsSync(p)) {
-      skipped.push(name);
-      continue;
-    }
-    guardedWrite(p, text, readSnapshot(p).hash);
-    created.push(name);
-  }
-  return { created, skipped };
+/** Format-1 scaffolding is retired, including its old free-edit instructions. */
+export function initScope(_dir: string, _opts: InitOptions): never {
+  throw new DomainError("unsupported-legacy-operation", "format-1 init is retired; explicitly initialize a new inventoried format-2 scope");
 }
 
 export interface AuditReport {
