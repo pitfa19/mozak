@@ -1,34 +1,55 @@
 # CLI routes for this skill
 
-All routes need `--config FILE`. Run `node packages/cli/dist/index.js --help` first. If a route is missing, stop.
+Every command uses the full built path. Never the bare `mozak` command:
+
+```
+node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js <route> --config INVENTORY --scope ID [flags]
+```
+
+Run `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js --help` first. If a route is missing, stop.
 
 ## Read
 
-| Route | Use |
+| Command | Use |
 |---|---|
-| `mozak context --config FILE --scope ID [--json]` | Accepted and pending direction, decisions, next permitted action |
-| `mozak plans --config FILE --scope ID [--json]` | Plan list for the overview |
-| `mozak review show --config FILE --scope ID --plan ID [--purpose P] [--outcome ID] [--json]` | Review subject for one plan |
-| `mozak check --config FILE --scope ID [--json]` | Findings. Never repairs. |
+| `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js context --config INVENTORY --scope ID --json` | Direction, lifecycle, handoff, `permittedNextAction` |
+| `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js plans --config INVENTORY --scope ID --json` | Plan list |
+| `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js review show --config INVENTORY --scope ID --plan PLAN [--purpose P] [--outcome ID] --json` | Review subject for one decision |
+| `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js check --config INVENTORY --scope ID --json` | Findings. Never repairs. |
 
-`--purpose` accepts `approve-implementation` and `revoke-implementation` for the grant review.
+`review show` purpose rules, checked on the built CLI:
+- Pending direction: `--purpose` may be omitted (defaults to `approve-direction`).
+- Accepted-only plan: `--purpose` is required, or the call returns `invalid-payload`.
+- Purposes: `approve-direction`, `reject-pending`, `reconsider`, `pause`, `resume`, `approve-implementation`, `revoke-implementation`, `accept-outcome` (needs `--outcome`).
 
-## Agent writes
+## Agent writes (advisory, grant nothing)
 
-Request file = mutation envelope: `{ operationId, scopeId, expected, action, payload }`. The file is data, not inline JSON.
+Request file, written as data (not inline JSON):
 
-| Route | Operation | Effect |
+```json
+{ "operationId": "unique-id", "scopeId": "ID", "expected": { ...from context snapshot... }, "action": "ACTION", "payload": { ... } }
+```
+
+| Command | Action | Effect |
 |---|---|---|
-| `mozak discussion save --config FILE --scope ID --request FILE` | `save-discussion` | Advisory clarification checkpoint. Grants nothing. |
-| `mozak spec attach --config FILE --scope ID --request FILE` | `attach-spec` | Records a spec file descriptor. Grants nothing. |
+| `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js discussion save --config INVENTORY --scope ID --request FILE` | `save-discussion` | Clarification checkpoint |
+| `node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js spec attach --config INVENTORY --scope ID --request FILE` | `attach-spec` | Spec file descriptor |
 
-Status: these routes exist in the CLI. The core operations are still landing, so the core may refuse them. If a call refuses, report the refusal and stop. Do not retry with other flags.
+## Owner decisions (host persists only after a real owner message)
 
-## Owner-only
+`node /home/pitfa/Documents/mozak-v1/packages/cli/dist/index.js review decide --config INVENTORY --scope ID --request FILE`
 
-| Route | Notes |
-|---|---|
-| `mozak review decide --config FILE --scope ID --request FILE` | Owner only. This host must never run it as the owner. |
+Payload for every decision: `planId`, `revisionId`, `reviewDigest`, `ownerRef`, `ownerMessageAt`, `reason`.
+- `revisionId` and `reviewDigest` come from `review show` for that same purpose, read just before the decision.
+- `action` is one of: `approve-direction`, `pause`, `resume`, `approve-implementation`, `revoke-implementation`, and others from the `review show` list.
+- Implementation approval also needs `specificationId`. Revocation needs `authorizationId`.
+- `ownerRef` and `ownerMessageAt` are the real owner message reference and time. Never invent them.
+
+Verified on a scratch scope: `review decide` with action `pause` committed. A fresh `context` then showed `lifecycle.state: paused`, `permittedNextAction: owner-resume`, and `executionEligible: false`.
+
+## Stale input: how to recover
+
+`stale-input` means the request `expected` block (revision, graphHash, or bridge sha256) no longer matches the store. Reread `context --json`, rebuild `expected` from its `snapshot`, rebuild the review subject, then resubmit with a new `operationId`. Do not reuse the old one.
 
 ## Exit codes
 
@@ -36,11 +57,11 @@ Status: these routes exist in the CLI. The core operations are still landing, so
 |---|---|---|
 | 0 | Success | Continue |
 | 2 | Invalid or unavailable | Report cause, stop that step |
-| 3 | Stale, conflict, or owner review needed | Re-read context, then ask the owner |
-| 4 | Busy or recovery | Retry once after re-reading, then report |
-| 5 | Committed but projection or cleanup unfinished | Report as committed. Do not ask for duplicate approval |
+| 3 | Stale, conflict, or owner review needed | Reread, rebuild the request, then ask the owner if still needed |
+| 4 | Busy or recovery | Retry once after rereading, then report |
+| 5 | Committed with unfinished projection or cleanup | Report as committed. Do not ask for duplicate approval |
 | 6 | Partial all-scope coverage | Say which scopes were not covered |
 
-## Pause gap
+## Pause: when to report "not saved"
 
-No agent route persists a pause. `review decide` is owner-only. Until an agent pause route exists, a clear pause stops the host and is reported as **stopped here, pause not saved**.
+Report **stopped here, pause not saved** only if `review decide` with action `pause` returns a real failure (exit 2, 3 after a reread still fails, or the owner ref/time cannot be established). Name the exact issue and the fix.
