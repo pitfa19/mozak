@@ -1,6 +1,6 @@
 # Implementation package 1: MOZAK plan state and review
 
-**Status: proposed bounded implementation package. Not approved to build.**
+**Status: approved for the bounded package-1 build by the owner at `2026-10-12T08:16:20.810Z`, responding to the explicit implementation question for local checkpoint `caffffa`. Implementation and acceptance verification are in progress, not yet complete. All exclusions below remain in force.**
 
 Prepared after the owner's `2026-10-11T23:32:29.420Z` approval to detail the first package. That approval authorises this planning document, not code, installation, migration or execution of the real pilot. Product direction and P1–P5 are recorded in `idea-oriented-planning-and-monokl-spec.md`. The proposed real pilot remains in `idea-transfer-pilot.md` and is not run by this package.
 
@@ -294,4 +294,4 @@ Independent static review identified gaps in lifecycle records, deferred attachm
 
 It would not approve Monokl work, actual user-scope onboarding, the real pilot, installed skills/global routing, conversion/deletion, publication or later packages. It would not turn all proposed details in the parent specification into an unlimited implementation grant. If this package changes materially after approval, show the changed scope before proceeding.
 
-**Current authorisation: documentation only.** P1–P5 remain accepted product/design decisions. This package remains pending until the owner approves its clearly identified content/revision.
+**Current authorisation: implement this package at `caffffa`, granted at `2026-10-12T08:16:20.810Z`.** P1–P5 remain accepted product/design decisions. This grant covers only the build and A01–A15 verification scope described above. It does not approve real-scope onboarding, Monokl, the actual pilot, migration, global setup changes or publication.
