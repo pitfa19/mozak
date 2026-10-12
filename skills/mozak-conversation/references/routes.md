@@ -45,11 +45,31 @@ Payload for every decision: `planId`, `revisionId`, `reviewDigest`, `ownerRef`, 
 - Implementation approval also needs `specificationId`. Revocation needs `authorizationId`.
 - `ownerRef` and `ownerMessageAt` are the real owner message reference and time. Never invent them.
 
-Verified on a scratch scope: `review decide` with action `pause` committed. A fresh `context` then showed `lifecycle.state: paused`, `permittedNextAction: owner-resume`, and `executionEligible: false`.
+Synthetic automated command smoke test (scratch scope `/home/pitfa/.jcode/scratch/p2-verify`, fixture owner ref `scratch-verification-fixture`, not a real owner): `review decide` with action `pause` committed. A fresh `context` then showed `lifecycle.state: paused`, `permittedNextAction: owner-resume`, and `executionEligible: false`. This is CLI mechanics only. It is not a live owner pass for B08 or B14.
 
 ## Stale input: how to recover
 
-`stale-input` means the request `expected` block (revision, graphHash, or bridge sha256) no longer matches the store. Reread `context --json`, rebuild `expected` from its `snapshot`, rebuild the review subject, then resubmit with a new `operationId`. Do not reuse the old one.
+`stale-input` (exit 3) means the request `expected` block (revision, graphHash, or bridge sha256) no longer matches the store. Synthetic smoke test: the write is refused and nothing commits.
+
+Rules after a conflict:
+- Reread `context --json`, rebuild `expected` from its `snapshot`, rebuild the review subject, then show the owner the current state.
+- Do not resubmit the old request. Do not reuse its `operationId`.
+- An owner decision (`review decide`) needs a fresh owner message that answers the newly displayed review. An earlier "yes" given against the old subject is not consent to the new one. Ask again.
+- Agent writes (`discussion save`, `spec attach`) may be resubmitted with a new `operationId` only after the reread, and only if the content still reflects the current state.
+
+## Plan completion
+
+`plan complete`, request `action: "complete"`, payload `{ planId, revisionId }`. `revisionId` must be the accepted revision.
+- Synthetic smoke test (scratch, fixture owner ref): on a paused plan, refused with `invalid-lifecycle` (exit 3). Resume first, with owner confirmation.
+- Code-read only, not run live: an awaiting pending revision is refused with `owner-review-required`, and an open plan with the accepted revision is expected to commit. Do not claim either until a live run confirms it.
+
+## Question IDs and history
+
+Synthetic smoke test in scratch with a fixture question (not an owner conversation):
+1. A new question with `"id": null` is saved. Core assigns the ID, returned in `result.discussion.questions[].id`.
+2. Reuse that returned ID to add an answer. The question ID stays the same, the answer is appended, and `reopenings` stays empty.
+3. Never invent a question ID. A string ID must match an existing question.
+4. A settled question moved back to open needs a non-empty `reopenReason`. Core then appends a reopening record and keeps prior answers.
 
 ## Exit codes
 
