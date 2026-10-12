@@ -9,8 +9,8 @@ This guide covers building MOZAK from source, the portable installer, exit codes
 | Source build and tests on Linux, Node 24.11.0 | Verified: 334 core tests and 69 installer tests pass. They reused the local npm cache. |
 | Source build and tests on macOS | Pending. Needs a real Mac run. |
 | Portable installer `scripts/install.mjs` | Verified on Linux. Real CLI and MCP subprocesses, including paths with spaces and Unicode. |
-| CI on Ubuntu and macOS | Workflow file written with pinned actions. It has not run on GitHub, because it is not pushed. |
-| Public remote matches local commits | Lagging. Local commits may include changes that are not pushed yet. |
+| CI on Ubuntu and macOS | Passed on GitHub's Ubuntu and macOS runners for the pushed commit `c324d45`. Not run on a personal Mac yet. |
+| Public remote matches local commits | In sync as of the last push. Check `git log --oneline -1`. |
 
 ## 1. Prerequisites
 
@@ -40,12 +40,12 @@ Notes:
 
 - `npm ci` installs only what `package-lock.json` pins. `--ignore-scripts` blocks install scripts from dependencies.
 - The test run uses `scratch/`, which is git-ignored. Any existing writable directory works. The run needs a writable temporary directory, and `TMPDIR` points there.
-- The public remote can lag the newest local commits. Build the exact commit you were given, and check it with `git log --oneline -1`.
+- Build the exact commit you were given, and check it with `git log --oneline -1`.
 - Building or testing does not install MOZAK globally. It does not create any scope or project state.
 
 ## 3. Portable installer
 
-The installer follows [Package 3A](implementation-package-3-portable-workspace.md#6-first-implementation-contract-portable-local-installation-3a). Run it from the built source checkout. It is not on the public remote until the work is pushed.
+The installer follows [Package 3A](implementation-package-3-portable-workspace.md#6-first-implementation-contract-portable-local-installation-3a). Run it from the built source checkout.
 
 ```bash
 mkdir -p "$HOME/.local/share"
@@ -197,7 +197,7 @@ If a write saved the JSON but not the generated `MOZAK.md` bridge, the result sa
 | Mac install and restore | Pending. |
 | Installer suite (69 tests): install, check, unchanged, conflict, partial, concurrency, symlinks, bounds, timeouts, unreadable target | Passed on Linux. |
 | Installed CLI, MCP and rendered skill from a new prefix | Passed. The installed skill's own commands read a saved trial scope without changing it. |
-| CI on Ubuntu and macOS | Workflow written. Not run, because it is not pushed. |
+| CI on Ubuntu and macOS | Passed for `c324d45` on GitHub-hosted runners. A personal Mac run is still pending. |
 | Installed skill activated in a separate fresh host session | Not done. |
 
 Record the actual results of any new check here before claiming it passed.
