@@ -1,11 +1,15 @@
-// Pure MOZAK package-1 transitions and derived review views. No IO, storage or receipts.
+// Pure MOZAK transitions and derived review views. No IO, storage or receipts.
 // Owner authority is a trusted-host claim: the core checks consistency, not a human's identity.
 // Sorting uses binary code-unit comparison only. Source text is data, never instructions.
 
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHash } from "node:crypto";
+import { checkQuestionInputs, discussionCurrent, saveDiscussion } from "./conversation.ts";
 import { DomainError } from "./errors.ts";
 import {
   canonical,
+  discussionDigest,
+  validateBounds,
+  validateRelativePath,
   digest,
   evidenceDigest,
   isDigest,
@@ -16,6 +20,9 @@ import {
   validateScope,
 } from "./understanding.ts";
 import type {
+  Bounds,
+  Discussion,
+  Specification,
   AcceptedRevision,
   CompletionRecord,
   Decision,
@@ -32,6 +39,10 @@ import type {
 } from "./understanding.ts";
 
 export type MutationAction =
+  | "save-discussion"
+  | "attach-spec"
+  | "approve-implementation"
+  | "revoke-implementation"
   | "propose"
   | "revise"
   | "observe"
@@ -47,11 +58,71 @@ type Actor = "agent" | "owner";
 
 export interface MutationResult {
   state: ScopeState;
-  result: { action: string; ids: string[] };
+  result: { action: string; ids: string[]; discussion?: Discussion };
+}
+
+/** Trusted store inspection, separate from every client payload. Never persisted as authority. */
+export interface ReviewEnvironment {
+  storageUsable?: boolean;
+  specifications: Record<string, { health: "current" | "changed" | "unavailable"; content?: string; sha256?: string; byteLength?: number }>;
+  attachment?: { path: string; sha256: string; byteLength: number; content: string };
+}
+export type TrustedIOContext = ReviewEnvironment;
+export const specificationKey = (planId: string, specificationId: string) => JSON.stringify([planId, specificationId]);
+export interface Handoff {
+  authorizationId: string | null;
+  specificationId: string | null;
+  specificationHealth: "current" | "changed" | "unavailable" | "not-applicable";
+  implementationAuthorized: boolean;
+  executionEligible: boolean;
+  reasons: string[];
+  bounds: Bounds | null;
+}
+function currentGrant(plan: Plan) { return plan.implementationAuthorizations.find(a => a.id === plan.implementationAuthorization); }
+function candidate(plan: Plan) { return plan.specifications.find(s => s.id === plan.downstreamSpec); }
+function implementationSubject(plan: Plan, purpose: string) {
+  const grant = currentGrant(plan);
+  const specification = purpose === "approve-implementation" ? candidate(plan) : plan.specifications.find(s => s.id === grant?.specificationId);
+  return { specification: specification ?? null, specificationId: specification?.id ?? null, authorizationId: plan.implementationAuthorization };
+}
+function materialReviewBlocked(state: ScopeState, plan: Plan): boolean {
+  return !!plan.accepted && plan.accepted.content.outcomes.some(outcome => {
+    const review = outcomeReview(state, plan, plan.accepted!, outcome.id);
+    return review.challengeIds.length > 0 && (review.evidenceIds.length === 0 || !boundDecision(state, plan, plan.accepted!, review));
+  });
+}
+function specificationHealth(plan: Plan, spec: Specification, env?: ReviewEnvironment): Handoff["specificationHealth"] {
+  return env?.specifications?.[specificationKey(plan.id, spec.id)]?.health ?? "unavailable";
+}
+function requireInspected(plan: Plan, spec: Specification, env?: ReviewEnvironment): string {
+  const inspection = env?.specifications?.[specificationKey(plan.id, spec.id)];
+  if (inspection?.health !== "current" || typeof inspection.content !== "string" ||
+      Buffer.byteLength(inspection.content) !== spec.byteLength || createHash("sha256").update(inspection.content).digest("hex") !== spec.sha256) {
+    throw new DomainError("owner-review-required", "the exact specification must be safely inspected before implementation approval", 3);
+  }
+  return inspection.content;
+}
+export function handoffView(state: ScopeState, plan: Plan, env?: ReviewEnvironment): Handoff {
+  const grant = currentGrant(plan);
+  const spec = plan.specifications.find(s => s.id === grant?.specificationId);
+  const authorized = !!(grant && spec && plan.accepted && grant.acceptedRevisionId === plan.accepted.id &&
+    grant.acceptedContentDigest === plan.accepted.contentDigest && spec.acceptedRevisionId === plan.accepted.id &&
+    grant.specificationDigest === spec.sha256 && grant.boundsDigest === spec.boundsDigest);
+  const health = spec ? specificationHealth(plan, spec, env) : "not-applicable";
+  const reasons: string[] = [];
+  if (!authorized) reasons.push("no-current-implementation-authorization");
+  if (plan.lifecycle.state !== "open") reasons.push(`lifecycle-${plan.lifecycle.state}`);
+  if (spec && health !== "current") reasons.push(`specification-${health}`);
+  if (env?.storageUsable !== true) reasons.push("storage-not-checked-usable");
+  if (materialReviewBlocked(state, plan)) reasons.push("unresolved-material-review");
+  return { authorizationId: grant?.id ?? null, specificationId: spec?.id ?? null, specificationHealth: health,
+    implementationAuthorized: authorized, executionEligible: authorized && reasons.length === 0, reasons, bounds: spec?.bounds ?? null };
 }
 
 const DECISION_FIELDS = ["planId", "revisionId", "reviewDigest", "ownerRef", "ownerMessageAt", "reason"];
 const OWNER_ACTIONS = new Set<string>([
+  "approve-implementation",
+  "revoke-implementation",
   "approve-direction",
   "reject-pending",
   "reconsider",
@@ -62,6 +133,10 @@ const OWNER_ACTIONS = new Set<string>([
 const PURPOSES = new Set<string>([...OWNER_ACTIONS]);
 
 const SHAPES: Record<MutationAction, { required: string[]; optional: string[] }> = {
+  "save-discussion": { required: ["planId", "acceptedRevisionId", "pendingRevisionId", "summary", "stage", "questions"], optional: [] },
+  "attach-spec": { required: ["planId", "acceptedRevisionId", "path", "bounds", "discussionDigest"], optional: [] },
+  "approve-implementation": { required: [...DECISION_FIELDS, "specificationId"], optional: [] },
+  "revoke-implementation": { required: [...DECISION_FIELDS, "authorizationId"], optional: [] },
   propose: { required: ["planId", "content"], optional: [] },
   revise: { required: ["planId", "pendingRevisionId", "acceptedRevisionId", "content"], optional: [] },
   observe: { required: ["planId", "observation"], optional: ["reasoningLinks"] },
@@ -162,6 +237,8 @@ function checkDecisionPayload(p: Record<string, unknown>, action: MutationAction
   nonEmpty(p.ownerRef, "ownerRef");
   if (!isUtcTimestamp(p.ownerMessageAt)) throw invalid("ownerMessageAt must be an RFC 3339 UTC timestamp");
   nonEmpty(p.reason, "reason");
+  if (action === "approve-implementation") nonEmpty(p.specificationId, "specificationId");
+  if (action === "revoke-implementation") nonEmpty(p.authorizationId, "authorizationId");
   if (action === "accept-outcome") nonEmpty(p.outcomeId, "outcomeId");
 }
 
@@ -179,6 +256,19 @@ export function validateMutation(action: unknown, payload: unknown, actor: unkno
   const p = requireClosed(payload, "payload", shape.required, shape.optional);
 
   switch (action as MutationAction) {
+    case "save-discussion":
+      nonEmpty(p.planId, "planId");
+      if (p.acceptedRevisionId !== null) nonEmpty(p.acceptedRevisionId, "acceptedRevisionId");
+      if (p.pendingRevisionId !== null) nonEmpty(p.pendingRevisionId, "pendingRevisionId");
+      nonEmpty(p.summary, "summary");
+      if (Buffer.byteLength(p.summary as string) > 2000 || !["clarifying", "ready-for-spec"].includes(p.stage as string)) throw invalid("invalid discussion summary/stage");
+      checkQuestionInputs(p.questions);
+      return;
+    case "attach-spec":
+      nonEmpty(p.planId, "planId"); nonEmpty(p.acceptedRevisionId, "acceptedRevisionId"); nonEmpty(p.path, "path");
+      if (p.discussionDigest !== null && !isDigest(p.discussionDigest)) throw invalid("invalid discussionDigest");
+      try { validateBounds(p.bounds); } catch (e) { throw invalid((e as Error).message); }
+      return;
     case "propose":
       nonEmpty(p.planId, "planId");
       checkContent(p.content);
@@ -337,7 +427,8 @@ function displayPayload(plan: Plan, purpose: DecisionPurpose, review?: OutcomeRe
   return {
     accepted: plan.accepted ? { id: plan.accepted.id, content: plan.accepted.content, contentDigest: plan.accepted.contentDigest } : null,
     proposal: pendingAction ? plan.pending : null,
-    ...(purpose === "pause" || purpose === "resume" ? { lifecycle: plan.lifecycle } : {}),
+    ...(purpose === "pause" || purpose === "resume" ? { lifecycle: plan.lifecycle, authorizationId: plan.implementationAuthorization } : {}),
+    ...(["approve-implementation", "revoke-implementation"].includes(purpose) ? implementationSubject(plan, purpose) : {}),
     ...(review ? { outcome: plan.accepted!.content.outcomes.find(o => o.id === review.outcomeId), evidence: review.evidence, supports: review.supports, challenges: review.challenges } : {}),
   };
 }
@@ -400,6 +491,7 @@ export function applyMutation(
   payload: unknown,
   actor: Actor,
   now: UtcTimestamp,
+  env?: ReviewEnvironment,
 ): MutationResult {
   validateMutation(action, payload, actor);
   validateScope(state);
@@ -409,6 +501,62 @@ export function applyMutation(
   const ids: string[] = [];
 
   switch (action) {
+    case "save-discussion": {
+      const plan = findPlan(next, p.planId as string);
+      const saved = saveDiscussion(plan, p, now);
+      if (saved !== plan.discussion) { plan.discussion = saved; plan.updatedAt = now; }
+      ids.push(saved.id);
+      break;
+    }
+    case "attach-spec": {
+      const plan = findPlan(next, p.planId as string), accepted = acceptedOf(plan);
+      if (p.acceptedRevisionId !== accepted.id) throw stale("attach-spec binds the accepted revision");
+      const file = env?.attachment;
+      try { validateRelativePath(p.path); } catch (e) { throw invalid((e as Error).message); }
+      if (!file || file.path !== p.path || !isDigest(file.sha256) || file.byteLength > 256 * 1024 ||
+        file.byteLength !== Buffer.byteLength(file.content) || createHash("sha256").update(file.content).digest("hex") !== file.sha256) throw invalid("attach-spec requires trusted inspected specification bytes");
+      const bounds = validateBounds(p.bounds);
+      if (accepted.content.outcomes.some(o => !bounds.outcomeChecks.some(c => c.outcomeId === o.id)) || bounds.outcomeChecks.some(c => !accepted.content.outcomes.some(o => o.id === c.outcomeId))) throw invalid("bounds must cover exactly the accepted outcomes");
+      if (plan.discussion) {
+        if (!discussionCurrent(plan) || plan.discussion.stage !== "ready-for-spec" || p.discussionDigest !== discussionDigest(plan.discussion)) throw stale("attachment requires current ready-for-spec discussion digest");
+        if (plan.discussion.questions.some(q => q.status === "deferred") && bounds.limitations.length === 0) throw invalid("deferred questions require explicit specification limitations");
+      } else if (p.discussionDigest !== null) throw stale("no discussion matches supplied digest");
+      const spec: Specification = { id: randomUUID(), recordedAt: now, acceptedRevisionId: accepted.id, acceptedContentDigest: accepted.contentDigest,
+        path: file.path, sha256: file.sha256, byteLength: file.byteLength, discussionDigest: p.discussionDigest as string | null, bounds, boundsDigest: digest(bounds) };
+      plan.specifications.push(spec); plan.downstreamSpec = spec.id; plan.updatedAt = now; ids.push(spec.id);
+      break;
+    }
+    case "approve-implementation":
+    case "revoke-implementation": {
+      const plan = findPlan(next, p.planId as string), accepted = acceptedOf(plan);
+      if (p.revisionId !== accepted.id) throw stale("implementation decision binds the accepted revision");
+      if (next.plans.some(other => other.decisions.some(d => d.ownerRef === p.ownerRef && d.ownerMessageAt === p.ownerMessageAt))) throw stale("owner message already consumed for implementation decision");
+      requireReviewDigest(next, plan, action, accepted, p);
+      if (action === "approve-implementation") {
+        const spec = candidate(plan);
+        if (!spec || p.specificationId !== spec.id || spec.acceptedRevisionId !== accepted.id || spec.acceptedContentDigest !== accepted.contentDigest) throw stale("implementation approval requires the exact current candidate");
+        if (plan.implementationAuthorizations.some(a => a.specificationId === spec.id)) throw stale("previously authorized specification must be freshly attached before another approval");
+        if (plan.lifecycle.state !== "open") throw new DomainError("invalid-lifecycle", "implementation approval requires open lifecycle", 3);
+        if (materialReviewBlocked(next, plan)) throw new DomainError("owner-review-required", "unresolved material review blocks implementation approval", 3);
+        if (env?.storageUsable !== true) throw new DomainError("owner-review-required", "storage must be checked usable", 3);
+        requireInspected(plan, spec, env);
+        const authorizationId = randomUUID();
+        const decision = recordDecision(plan, action, p, accepted, now);
+        decision.specificationId = spec.id; decision.authorizationId = authorizationId;
+        plan.implementationAuthorizations.push({ id: authorizationId, decisionId: decision.id, recordedAt: now, acceptedRevisionId: accepted.id,
+          acceptedContentDigest: accepted.contentDigest, specificationId: spec.id, specificationDigest: spec.sha256, boundsDigest: spec.boundsDigest });
+        plan.implementationAuthorization = authorizationId; ids.push(decision.id, authorizationId);
+      } else {
+        const grant = currentGrant(plan);
+        if (!grant || p.authorizationId !== grant.id) throw stale("revocation requires exact current authorization");
+        const decision = recordDecision(plan, action, p, accepted, now); decision.authorizationId = grant.id;
+        plan.implementationAuthorization = null;
+        if (plan.downstreamSpec === grant.specificationId) plan.downstreamSpec = null;
+        ids.push(decision.id);
+      }
+      plan.updatedAt = now;
+      break;
+    }
     case "propose": {
       const planId = p.planId as string;
       if (next.plans.some((x) => x.id === planId)) throw invalid(`plan "${planId}" already exists`);
@@ -424,6 +572,9 @@ export function applyMutation(
         decisions: [],
         reasoningLinks: [],
         completionRecords: [],
+        discussion: null,
+        specifications: [],
+        implementationAuthorizations: [],
         downstreamSpec: null,
         implementationAuthorization: null,
       });
@@ -494,7 +645,9 @@ export function applyMutation(
         directionDecisionId: decision.id,
       };
       plan.pending = null;
-      plan.lifecycle = { state: "open" };
+      if (plan.lifecycle.state !== "paused") plan.lifecycle = { state: "open" };
+      plan.downstreamSpec = null;
+      plan.implementationAuthorization = null;
       plan.updatedAt = now;
       ids.push(decision.id, promoted.id);
       break;
@@ -625,7 +778,7 @@ export function applyMutation(
   for (const plan of validated.plans) if (plan.accepted) {
     for (const outcome of plan.accepted.content.outcomes) outcomeReview(validated, plan, plan.accepted, outcome.id);
   }
-  return { state: validated, result: { action, ids } };
+  return { state: validated, result: { action, ids, ...(action === "save-discussion" ? { discussion: findPlan(validated, p.planId as string).discussion! } : {}) } };
 }
 
 // ---------- derived views ----------
@@ -643,7 +796,15 @@ export interface ReviewDisplay {
   evidenceIds: string[];
   evidenceDigest: string | null;
   challengeIds: string[];
-  implementationAuthorized: false;
+  implementationAuthorized: boolean;
+  handoff: Handoff;
+  specification?: Specification | null;
+  specificationId?: string | null;
+  authorizationId?: string | null;
+  specificationContent?: string | null;
+  candidateHealth?: Handoff["specificationHealth"];
+  approvalAvailable?: boolean;
+  approvalReasons?: string[];
   accepted: ReturnType<typeof displayPayload>["accepted"];
   proposal: PendingRevision | null;
   evidence?: Evidence[];
@@ -652,7 +813,7 @@ export interface ReviewDisplay {
 }
 
 /** Positional signature agreed with the API: reviewShow(state, planId, purpose?, outcomeId?). */
-export function reviewShow(state: ScopeState, planId: string, purpose?: string, outcomeId?: string): ReviewDisplay {
+export function reviewShow(state: ScopeState, planId: string, purpose?: string, outcomeId?: string, env?: ReviewEnvironment): ReviewDisplay {
   const plan = findPlan(state, planId);
   const chosen = purpose ?? (plan.pending?.reviewState === "awaiting" ? "approve-direction" : undefined);
   if (chosen === undefined) throw invalid("select the exact review purpose");
@@ -661,6 +822,8 @@ export function reviewShow(state: ScopeState, planId: string, purpose?: string, 
   if (outcomeId !== undefined && p !== "accept-outcome") throw invalid("outcomeId applies only to accept-outcome");
   if (p === "pause" && plan.lifecycle.state !== "open") throw stale("only an open plan can pause");
   if (p === "resume" && plan.lifecycle.state !== "paused") throw stale("only a paused plan can resume");
+  if (p === "approve-implementation" && !candidate(plan)) throw stale("no implementation specification candidate");
+  if (p === "revoke-implementation" && !currentGrant(plan)) throw stale("no current implementation authorization");
 
   let subject: Subject;
   let changedFields: string[] = [];
@@ -676,6 +839,8 @@ export function reviewShow(state: ScopeState, planId: string, purpose?: string, 
 
   const review = reviewFor(state, plan, p, subject as AcceptedRevision, outcomeId);
   const ownQuestion: Record<DecisionPurpose, string> = {
+    "approve-implementation": `Approve implementation of the exact specification and bounds for plan ${plan.id}?`,
+    "revoke-implementation": `Revoke the current implementation authorization for plan ${plan.id}?`,
     "approve-direction": `Approve the proposed direction for plan ${plan.id}?`,
     "reject-pending": `Reject the proposed direction for plan ${plan.id}?`,
     reconsider: `Reconsider the rejected proposal for plan ${plan.id}?`,
@@ -683,6 +848,17 @@ export function reviewShow(state: ScopeState, planId: string, purpose?: string, 
     resume: `Resume plan ${plan.id}?`,
     "accept-outcome": `Accept outcome "${outcomeId}" for plan ${plan.id}?`,
   };
+  const handoff = handoffView(state, plan, env);
+  const spec = p === "approve-implementation" ? candidate(plan) : undefined;
+  const approvalReasons: string[] = [];
+  let specificationContent: string | null = null;
+  if (spec) {
+    try { specificationContent = requireInspected(plan, spec, env); } catch { approvalReasons.push("specification-not-current-or-unavailable"); }
+    if (env?.storageUsable !== true) approvalReasons.push("storage-not-checked-usable");
+    if (plan.lifecycle.state !== "open") approvalReasons.push(`lifecycle-${plan.lifecycle.state}`);
+    if (materialReviewBlocked(state, plan)) approvalReasons.push("unresolved-material-review");
+    if (plan.implementationAuthorizations.some(a => a.specificationId === spec.id)) approvalReasons.push("specification-previously-authorized-reattach-required");
+  }
   return {
     ...displayPayload(plan, p, review),
     scopeId: state.scope.id,
@@ -697,14 +873,16 @@ export function reviewShow(state: ScopeState, planId: string, purpose?: string, 
     evidenceIds: review?.evidenceIds ?? [],
     evidenceDigest: review?.evidenceDigest ?? null,
     challengeIds: review?.challengeIds ?? [],
-    implementationAuthorized: false,
+    implementationAuthorized: handoff.implementationAuthorized,
+    handoff,
+    ...(spec ? { specificationContent, candidateHealth: specificationHealth(plan, spec, env), approvalAvailable: approvalReasons.length === 0, approvalReasons } : {}),
   };
 }
 
 export interface ReviewRow {
   scopeId: string;
   planId: string;
-  rowKind: "plan" | "pending" | "outcome" | "rejected";
+  rowKind: "plan" | "pending" | "outcome" | "rejected" | "implementation";
   id: string;
   title: string;
   outcome: string;
@@ -750,7 +928,7 @@ function planReviewIssues(state: ScopeState, plan: Plan) {
 }
 
 /** Four fixed groups, sorted by time descending then composite key ascending, using binary comparison. */
-export function reviewRows(state: ScopeState, includeRejected = false): ReviewGroups {
+export function reviewRows(state: ScopeState, includeRejected = false, _env?: ReviewEnvironment): ReviewGroups {
   const groups: ReviewGroups = { completed: [], open: [], awaiting: [], rejected: [] };
   const scopeId = state.scope.id;
   const keyOf = (rowKind: string, planId: string, revisionId: string, outcomeId: string | null, id: string) =>
@@ -760,6 +938,13 @@ export function reviewRows(state: ScopeState, includeRejected = false): ReviewGr
     const title = plan.accepted?.content.title ?? plan.pending?.content.title ?? plan.id;
     const purposeText = (plan.accepted?.content ?? plan.pending!.content).outcomes.map(o => o.statement).join(". ");
     const reviewNeeded = planReviewIssues(state, plan).length > 0;
+    const spec = candidate(plan);
+    if (spec && plan.accepted?.id === spec.acceptedRevisionId && plan.lifecycle.state !== "completed" &&
+      !plan.implementationAuthorizations.some(a => a.specificationId === spec.id)) {
+      groups.awaiting.push({ scopeId, planId: plan.id, rowKind: "implementation", id: spec.id, title,
+        outcome: spec.bounds.summary, date: spec.recordedAt, reviewAt: spec.recordedAt, revisionId: spec.acceptedRevisionId,
+        paused: plan.lifecycle.state === "paused", compositeKey: keyOf("implementation", plan.id, spec.acceptedRevisionId, null, spec.id) });
+    }
 
     if (plan.lifecycle.state === "completed" && plan.accepted) {
       const record = plan.completionRecords.find((r) => r.id === (plan.lifecycle as { completionId: string }).completionId);
@@ -823,17 +1008,20 @@ export function reviewRows(state: ScopeState, includeRejected = false): ReviewGr
   return groups;
 }
 
-/** Canonical understanding and the single permitted next action. Never authorises implementation. */
-export function contextView(state: ScopeState) {
+/** Canonical understanding and checked point-in-time handoff, never an executor or capability. */
+export function contextView(state: ScopeState, env?: ReviewEnvironment) {
   return {
     scope: state.scope,
     scopeId: state.scope.id,
-    implementationAuthorized: false as const,
+    implementationAuthorized: state.plans.some(plan => handoffView(state, plan, env).implementationAuthorized),
     plans: state.plans.map((plan) => {
       const effectiveDecisions: Record<string, string> = {};
       if (plan.accepted) effectiveDecisions["approve-direction"] = plan.accepted.directionDecisionId;
       if (plan.pending?.rejectionDecisionId) effectiveDecisions["reject-pending"] = plan.pending.rejectionDecisionId;
       if (plan.lifecycle.state === "paused") effectiveDecisions.pause = plan.lifecycle.decisionId;
+      const grant = currentGrant(plan);
+      if (grant) effectiveDecisions["approve-implementation"] = grant.decisionId;
+      const handoff = handoffView(state, plan, env);
       let outcomeAwaiting = false;
       if (plan.accepted) {
         const accepted = plan.accepted;
@@ -851,6 +1039,9 @@ export function contextView(state: ScopeState) {
       else if (plan.lifecycle.state === "completed") permittedNextAction = reviewIssues.length ? "owner-review-completed-findings" : "none-completed";
       else if (plan.lifecycle.state === "paused") permittedNextAction = "owner-resume";
       else if (outcomeAwaiting) permittedNextAction = "owner-review-outcome";
+      else if (handoff.executionEligible) permittedNextAction = "implement-approved-bounds";
+      else if (grant) permittedNextAction = "resolve-implementation-blockers";
+      else if (candidate(plan) && !plan.implementationAuthorizations.some(a => a.specificationId === plan.downstreamSpec)) permittedNextAction = "owner-review-implementation";
       else if (plan.lifecycle.state === "open") permittedNextAction = "detailed-planning-observe-propose-revision-or-complete";
       else permittedNextAction = "owner-review-direction";
       return {
@@ -865,7 +1056,10 @@ export function contextView(state: ScopeState) {
         effectiveDecisions,
         permittedNextAction,
         nextAction: permittedNextAction,
-        implementationAuthorized: false as const,
+        discussionCurrent: discussionCurrent(plan),
+        discussionStatus: plan.discussion ? (discussionCurrent(plan) ? "current" : "stale") : "absent",
+        handoff,
+        implementationAuthorized: handoff.implementationAuthorized,
       };
     }),
   };

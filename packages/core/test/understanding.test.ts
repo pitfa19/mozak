@@ -92,11 +92,14 @@ function makeScope(): any {
     decisions: [approveDecision(c)],
     reasoningLinks: [],
     completionRecords: [],
+    discussion: null,
+    specifications: [],
+    implementationAuthorizations: [],
     downstreamSpec: null,
     implementationAuthorization: null,
   };
   return {
-    format: "mozak.scope/v2",
+    format: "mozak.scope/v3",
     scope: {
       id: "scope-1",
       kind: "project",

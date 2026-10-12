@@ -1,11 +1,11 @@
-// MOZAK v2 understanding model: closed types, validators, canonical bytes and digests.
-// Package 1 public seam. Owner refs are trusted-host claims, not cryptographic verification.
+// MOZAK v3 understanding model: closed types, validators, canonical bytes and digests.
+// Owner refs are trusted-host claims, not cryptographic verification.
 // No JSON Schema dependency, no generic unchecked cast as validation.
 
 import { createHash, randomUUID } from "node:crypto";
 import { DomainError } from "./errors.ts";
 
-export const SCOPE_FORMAT = "mozak.scope/v2";
+export const SCOPE_FORMAT = "mozak.scope/v3";
 export const MAX_REQUEST_BYTES = 1048576;
 export const MAX_SCOPE_BYTES = 4194304;
 
@@ -49,7 +49,7 @@ export interface StorageRecord {
 }
 
 export interface ScopeState {
-  format: "mozak.scope/v2";
+  format: "mozak.scope/v3";
   scope: ScopeRecord;
   storage: StorageRecord;
   plans: Plan[];
@@ -68,8 +68,72 @@ export interface Plan {
   decisions: Decision[];
   reasoningLinks: ReasoningLink[];
   completionRecords: CompletionRecord[];
-  downstreamSpec: null;
-  implementationAuthorization: null;
+  discussion: Discussion | null;
+  specifications: Specification[];
+  implementationAuthorizations: Authorization[];
+  downstreamSpec: string | null;
+  implementationAuthorization: string | null;
+}
+
+export interface AnswerInput {
+  summary: string;
+  basis: "owner" | "inspection";
+  ownerRef: string | null;
+  ownerMessageAt: UtcTimestamp | null;
+  evidence: Evidence[];
+}
+export interface Answer extends AnswerInput { recordedAt: UtcTimestamp }
+export interface QuestionInput {
+  id: string | null;
+  text: string;
+  status: "open" | "answered" | "deferred";
+  answers: AnswerInput[];
+  reopenReason: string | null;
+}
+export interface Question {
+  id: string;
+  text: string;
+  status: "open" | "answered" | "deferred";
+  answers: Answer[];
+  reopenings: { reason: string; recordedAt: UtcTimestamp }[];
+}
+export interface Discussion {
+  id: string;
+  updatedAt: UtcTimestamp;
+  acceptedRevisionId: string | null;
+  pendingRevisionId: string | null;
+  summary: string;
+  stage: "clarifying" | "ready-for-spec";
+  questions: Question[];
+}
+export interface Bounds {
+  summary: string;
+  allowedPaths: string[];
+  excludedActions: string[];
+  outcomeChecks: { outcomeId: string; criterion: string }[];
+  limitations: string[];
+}
+export interface Specification {
+  id: string;
+  recordedAt: UtcTimestamp;
+  acceptedRevisionId: string;
+  acceptedContentDigest: Digest;
+  path: string;
+  sha256: Digest;
+  byteLength: number;
+  discussionDigest: Digest | null;
+  bounds: Bounds;
+  boundsDigest: Digest;
+}
+export interface Authorization {
+  id: string;
+  decisionId: string;
+  recordedAt: UtcTimestamp;
+  acceptedRevisionId: string;
+  acceptedContentDigest: Digest;
+  specificationId: string;
+  specificationDigest: Digest;
+  boundsDigest: Digest;
 }
 
 export interface Revision {
@@ -170,7 +234,9 @@ export type DecisionPurpose =
   | "reconsider"
   | "pause"
   | "resume"
-  | "accept-outcome";
+  | "accept-outcome"
+  | "approve-implementation"
+  | "revoke-implementation";
 
 export interface Decision {
   id: string;
@@ -186,6 +252,8 @@ export interface Decision {
   outcomeId?: string;
   evidenceDigest?: Digest;
   challengeIds?: string[];
+  specificationId?: string;
+  authorizationId?: string;
 }
 
 export interface OutcomeEvidence {
@@ -209,7 +277,7 @@ export interface Receipt {
   requestDigest: Digest;
   storageRevision: string;
   recordedAt: UtcTimestamp;
-  result: { action: string; ids: string[] };
+  result: { action: string; ids: string[]; discussion?: Discussion };
 }
 
 /** Sorted-key, two-space JSON with one trailing newline. Array order is preserved. */
@@ -304,7 +372,7 @@ export function validateContent(value: unknown): PlanContent {
   });
   return value as PlanContent;
 }
-function validateEvidence(value: unknown): Evidence {
+export function validateEvidence(value: unknown): Evidence {
   const o = record(value, "evidence", ["id", "locator", "anchor", "version", "inspectedAt", "activity", "result", "limitations"]);
   str(o.id, "evidence.id"); str(o.locator, "evidence.locator"); date(o.inspectedAt, "evidence.inspectedAt");
   nullableText(o.anchor, "evidence.anchor"); nullableText(o.version, "evidence.version"); strings(o.limitations, "evidence.limitations");
@@ -324,14 +392,20 @@ export function validateObservation(value: unknown): Observation {
   return value as Observation;
 }
 export function validateDecision(value: unknown): Decision {
-  const o = record(value, "decision", ["id", "purpose", "ownerRef", "ownerMessageAt", "recordedAt", "planId", "revisionId", "contentDigest", "reviewDigest", "reason"], ["outcomeId", "evidenceDigest", "challengeIds"]);
+  const o = record(value, "decision", ["id", "purpose", "ownerRef", "ownerMessageAt", "recordedAt", "planId", "revisionId", "contentDigest", "reviewDigest", "reason"], ["outcomeId", "evidenceDigest", "challengeIds", "specificationId", "authorizationId"]);
   for (const k of ["id", "ownerRef", "planId", "revisionId", "reason"]) str(o[k], `decision.${k}`);
-  choice(o.purpose, ["approve-direction", "reject-pending", "reconsider", "pause", "resume", "accept-outcome"], "decision.purpose");
+  choice(o.purpose, ["approve-direction", "reject-pending", "reconsider", "pause", "resume", "accept-outcome", "approve-implementation", "revoke-implementation"], "decision.purpose");
   date(o.ownerMessageAt, "decision.ownerMessageAt"); date(o.recordedAt, "decision.recordedAt");
   sha(o.contentDigest, "decision.contentDigest"); sha(o.reviewDigest, "decision.reviewDigest");
   if (o.purpose === "accept-outcome") {
     str(o.outcomeId, "decision.outcomeId"); sha(o.evidenceDigest, "decision.evidenceDigest"); unique(strings(o.challengeIds, "decision.challengeIds"), "challengeIds");
   } else if (["outcomeId", "evidenceDigest", "challengeIds"].some(k => Object.hasOwn(o, k))) fail("outcome fields belong only to accept-outcome decisions");
+  if (o.purpose === "approve-implementation") {
+    str(o.specificationId, "decision.specificationId"); str(o.authorizationId, "decision.authorizationId");
+  } else if (o.purpose === "revoke-implementation") {
+    str(o.authorizationId, "decision.authorizationId");
+    if (Object.hasOwn(o, "specificationId")) fail("specificationId belongs only to implementation approval");
+  } else if (["specificationId", "authorizationId"].some(k => Object.hasOwn(o, k))) fail("implementation fields belong only to implementation decisions");
   return value as Decision;
 }
 function revision(value: unknown, accepted: boolean): void {
@@ -366,10 +440,106 @@ function completion(value: unknown): void {
   }
   unique(rows.map(r => (r as OutcomeEvidence).outcomeId), "completion outcomes");
 }
+function shortText(value: unknown, path: string): void {
+  str(value, path);
+  if (Buffer.byteLength(value, "utf8") > 2000) fail(`${path}: exceeds 2000 UTF-8 bytes`);
+}
+function boundedArray(value: unknown, path: string, max: number): unknown[] {
+  const result = array(value, path);
+  if (result.length > max) fail(`${path}: exceeds ${max} records`);
+  return result;
+}
+export function validateAnswerInput(value: unknown): AnswerInput {
+  const o = record(value, "answer", ["summary", "basis", "ownerRef", "ownerMessageAt", "evidence"]);
+  shortText(o.summary, "answer.summary"); choice(o.basis, ["owner", "inspection"], "answer.basis");
+  identified(o.evidence, "answer.evidence", validateEvidence);
+  if (o.basis === "owner") { str(o.ownerRef, "answer.ownerRef"); date(o.ownerMessageAt, "answer.ownerMessageAt"); }
+  else if (o.ownerRef !== null || o.ownerMessageAt !== null || !(o.evidence as unknown[]).length) fail("inspection answers require evidence and null owner provenance");
+  return value as AnswerInput;
+}
+export function validateQuestionInput(value: unknown): QuestionInput {
+  const o = record(value, "question input", ["id", "text", "status", "answers", "reopenReason"]);
+  if (o.id !== null) str(o.id, "question.id");
+  shortText(o.text, "question.text"); choice(o.status, ["open", "answered", "deferred"], "question.status");
+  const answers = boundedArray(o.answers, "question.answers", 16); answers.forEach(validateAnswerInput);
+  if (o.status !== "open" && !answers.length) fail("settled questions require an answer explaining the result or deferral");
+  if (o.reopenReason !== null) shortText(o.reopenReason, "question.reopenReason");
+  if (o.id === null && o.reopenReason !== null) fail("new question cannot have a reopening reason");
+  return value as QuestionInput;
+}
+export function validateDiscussion(value: unknown): Discussion {
+  const o = record(value, "discussion", ["id", "updatedAt", "acceptedRevisionId", "pendingRevisionId", "summary", "stage", "questions"]);
+  str(o.id, "discussion.id"); date(o.updatedAt, "discussion.updatedAt"); shortText(o.summary, "discussion.summary");
+  for (const key of ["acceptedRevisionId", "pendingRevisionId"]) if (o[key] !== null) str(o[key], `discussion.${key}`);
+  choice(o.stage, ["clarifying", "ready-for-spec"], "discussion.stage");
+  const questions = boundedArray(o.questions, "discussion.questions", 32);
+  for (const value of questions) {
+    const q = record(value, "question", ["id", "text", "status", "answers", "reopenings"]);
+    str(q.id, "question.id"); shortText(q.text, "question.text"); choice(q.status, ["open", "answered", "deferred"], "question.status");
+    const answers = boundedArray(q.answers, "question.answers", 16);
+    for (const value of answers) {
+      const answer = record(value, "answer", ["summary", "basis", "ownerRef", "ownerMessageAt", "evidence", "recordedAt"]);
+      const { recordedAt, ...input } = answer; date(recordedAt, "answer.recordedAt"); validateAnswerInput(input);
+    }
+    const reopenings = boundedArray(q.reopenings, "question.reopenings", 16);
+    for (const value of reopenings) {
+      const r = record(value, "reopening", ["reason", "recordedAt"]); shortText(r.reason, "reopening.reason"); date(r.recordedAt, "reopening.recordedAt");
+    }
+    if (q.status !== "open" && !answers.length) fail("settled questions require an answer");
+    if (q.status === "open" && answers.length && !reopenings.length) fail("open questions retaining answers require reopening history");
+    if (reopenings.length && !answers.length) fail("reopening requires retained answers");
+    if (reopenings.length > answers.length - (q.status === "open" ? 0 : 1)) fail("each settled reopening requires an additional retained answer");
+    if (o.stage === "ready-for-spec" && q.status === "open") fail("ready-for-spec discussion has open questions");
+  }
+  unique(questions.map(q => (q as Question).id), "discussion questions");
+  canonical(value);
+  return value as Discussion;
+}
+export function discussionDigest(value: Discussion): Digest {
+  validateDiscussion(value);
+  const { id: _id, updatedAt: _updatedAt, ...semantic } = value;
+  return digest(semantic);
+}
+/** Pure lexical check. The store separately rejects symlinks and unsafe file types. */
+export function validateRelativePath(value: unknown): string {
+  str(value, "path");
+  if (/^[\/\\]|^[A-Za-z]:|[\0\\*?\[\]{}]/.test(value) || value.split("/").some(part => part === ".." || part === "." || part === "")) fail("path must be an explicit scope-relative path without traversal or globs");
+  return value;
+}
+export function validateBounds(value: unknown): Bounds {
+  const o = record(value, "bounds", ["summary", "allowedPaths", "excludedActions", "outcomeChecks", "limitations"]);
+  str(o.summary, "bounds.summary");
+  const paths = strings(o.allowedPaths, "bounds.allowedPaths"); paths.forEach(validateRelativePath); unique(paths, "bounds.allowedPaths");
+  strings(o.excludedActions, "bounds.excludedActions"); strings(o.limitations, "bounds.limitations");
+  const checks = array(o.outcomeChecks, "bounds.outcomeChecks");
+  for (const value of checks) { const c = record(value, "outcome check", ["outcomeId", "criterion"]); str(c.outcomeId, "outcomeId"); str(c.criterion, "criterion"); }
+  unique(checks.map(c => (c as Bounds["outcomeChecks"][number]).outcomeId), "bounds outcomes");
+  return value as Bounds;
+}
+function specification(value: unknown): void {
+  const o = record(value, "specification", ["id", "recordedAt", "acceptedRevisionId", "acceptedContentDigest", "path", "sha256", "byteLength", "discussionDigest", "bounds", "boundsDigest"]);
+  str(o.id, "specification.id"); str(o.acceptedRevisionId, "specification.acceptedRevisionId"); date(o.recordedAt, "specification.recordedAt");
+  validateRelativePath(o.path); if (!/\.md$/i.test(o.path as string)) fail("specification must be Markdown");
+  for (const key of ["acceptedContentDigest", "sha256", "boundsDigest"]) sha(o[key], `specification.${key}`);
+  if (o.discussionDigest !== null) sha(o.discussionDigest, "specification.discussionDigest");
+  if (!Number.isSafeInteger(o.byteLength) || (o.byteLength as number) < 0 || (o.byteLength as number) > 262144) fail("specification byteLength exceeds bounded file size");
+  validateBounds(o.bounds); requireDigest(digest(o.bounds) === o.boundsDigest, "specification bounds digest mismatch");
+}
+function authorization(value: unknown): void {
+  const o = record(value, "authorization", ["id", "decisionId", "recordedAt", "acceptedRevisionId", "acceptedContentDigest", "specificationId", "specificationDigest", "boundsDigest"]);
+  for (const key of ["id", "decisionId", "acceptedRevisionId", "specificationId"]) str(o[key], `authorization.${key}`);
+  date(o.recordedAt, "authorization.recordedAt");
+  for (const key of ["acceptedContentDigest", "specificationDigest", "boundsDigest"]) sha(o[key], `authorization.${key}`);
+}
 function planShape(value: unknown): void {
-  const o = record(value, "plan", ["id", "createdAt", "updatedAt", "accepted", "pending", "lifecycle", "observations", "decisions", "reasoningLinks", "completionRecords", "downstreamSpec", "implementationAuthorization"]);
+  const o = record(value, "plan", ["id", "createdAt", "updatedAt", "accepted", "pending", "lifecycle", "observations", "decisions", "reasoningLinks", "completionRecords", "discussion", "specifications", "implementationAuthorizations", "downstreamSpec", "implementationAuthorization"]);
   str(o.id, "plan.id"); date(o.createdAt, "plan.createdAt"); date(o.updatedAt, "plan.updatedAt");
-  if (o.downstreamSpec !== null || o.implementationAuthorization !== null) fail("package 1 does not support attachments or implementation grants", "unsupported-capability");
+  for (const key of ["downstreamSpec", "implementationAuthorization"]) if (o[key] !== null) {
+    if (typeof o[key] !== "string") fail(`${key} must be a record identity or null`, "unsupported-capability");
+    str(o[key], key);
+  }
+  if (o.discussion !== null) validateDiscussion(o.discussion);
+  identified(o.specifications, "specifications", specification); identified(o.implementationAuthorizations, "implementationAuthorizations", authorization);
   if (o.accepted === null && o.pending === null) fail("plan requires accepted or pending content");
   if (o.accepted !== null) revision(o.accepted, true);
   if (o.pending !== null) revision(o.pending, false);
@@ -384,12 +554,65 @@ function planShape(value: unknown): void {
     str(r.id, "link.id"); str(r.rationale, "link.rationale"); choice(r.relation, ["supports", "challenges"], "link.relation"); endpoint(r.from, "observation"); endpoint(r.to, "outcome");
   });
   const p = value as Plan;
-  unique([...p.observations, ...p.decisions, ...p.reasoningLinks, ...p.completionRecords, ...p.observations.flatMap(x => x.evidence), ...(p.accepted ? [p.accepted] : []), ...(p.pending ? [p.pending] : [])].map(x => x.id), "plan record IDs");
+  unique([...p.observations, ...p.decisions, ...p.reasoningLinks, ...p.completionRecords, ...p.specifications, ...p.implementationAuthorizations, ...(p.discussion ? [p.discussion, ...p.discussion.questions] : []), ...p.observations.flatMap(x => x.evidence), ...(p.accepted ? [p.accepted] : []), ...(p.pending ? [p.pending] : [])].map(x => x.id), "plan record IDs");
 }
 function requireRef(condition: unknown, message: string): asserts condition { if (!condition) fail(message, "invalid-reference"); }
 function requireDigest(condition: unknown, message: string): void { if (!condition) fail(message, "digest-mismatch"); }
 function planReferences(p: Plan, plans: Map<string, Plan>): void {
   const decisions = new Map(p.decisions.map(d => [d.id, d]));
+  const specifications = new Map(p.specifications.map(s => [s.id, s]));
+  const authorizations = new Map(p.implementationAuthorizations.map(a => [a.id, a]));
+  // Historical content is not retained, but every retained binding to its identity must agree.
+  const revisionDigests = new Map<string, string>();
+  const bindRevision = (id: string, sha256: string) => {
+    const previous = revisionDigests.get(id);
+    requireDigest(previous === undefined || previous === sha256, "retained revision content digest mismatch");
+    revisionDigests.set(id, sha256);
+  };
+  for (const r of [p.accepted, p.pending]) if (r) bindRevision(r.id, r.contentDigest);
+  for (const d of p.decisions) bindRevision(d.revisionId, d.contentDigest);
+  for (const s of p.specifications) {
+    bindRevision(s.acceptedRevisionId, s.acceptedContentDigest);
+    if (s.acceptedRevisionId === p.accepted?.id) {
+      const outcomes = p.accepted.content.outcomes;
+      requireRef(s.bounds.outcomeChecks.length === outcomes.length && outcomes.every(o => s.bounds.outcomeChecks.some(c => c.outcomeId === o.id)), "specification bounds must cover every accepted outcome");
+    }
+  }
+  for (const a of p.implementationAuthorizations) {
+    bindRevision(a.acceptedRevisionId, a.acceptedContentDigest);
+    const s = specifications.get(a.specificationId), d = decisions.get(a.decisionId);
+    requireRef(s && d?.purpose === "approve-implementation" && d.authorizationId === a.id && d.specificationId === s.id, "authorization approval or specification missing");
+    requireRef(a.acceptedRevisionId === s.acceptedRevisionId && d.revisionId === a.acceptedRevisionId && a.recordedAt === d.recordedAt, "authorization revision or recorded time mismatch");
+    requireDigest(a.acceptedContentDigest === s.acceptedContentDigest && a.acceptedContentDigest === d.contentDigest && a.specificationDigest === s.sha256 && a.boundsDigest === s.boundsDigest, "authorization binding digest mismatch");
+  }
+  let effectiveAuthorization: string | null = null;
+  const ownerMessages = new Set<string>();
+  for (const d of p.decisions) {
+    if (d.purpose === "approve-direction") effectiveAuthorization = null;
+    if (d.purpose === "approve-implementation" || d.purpose === "revoke-implementation") {
+      const provenance = JSON.stringify([d.ownerRef, d.ownerMessageAt]);
+      requireRef(!ownerMessages.has(provenance), "owner message reused for implementation decision"); ownerMessages.add(provenance);
+      const a = authorizations.get(d.authorizationId!);
+      requireRef(a && d.revisionId === a.acceptedRevisionId, "implementation decision authorization mismatch");
+      requireDigest(d.contentDigest === a.acceptedContentDigest, "implementation decision content mismatch");
+      if (d.purpose === "approve-implementation") {
+        requireRef(a.decisionId === d.id && a.specificationId === d.specificationId, "implementation approval backlink mismatch");
+        effectiveAuthorization = a.id;
+      } else {
+        requireRef(effectiveAuthorization === a.id, "revocation must target the effective authorization"); effectiveAuthorization = null;
+      }
+    }
+  }
+  requireRef(p.implementationAuthorization === effectiveAuthorization, "current authorization disagrees with retained decision history");
+  if (p.implementationAuthorization !== null) {
+    const a = authorizations.get(p.implementationAuthorization)!;
+    requireRef(a.acceptedRevisionId === p.accepted?.id, "current authorization belongs to historical direction");
+  }
+  if (p.downstreamSpec !== null) {
+    const s = specifications.get(p.downstreamSpec);
+    requireRef(s && s.acceptedRevisionId === p.accepted?.id, "candidate specification belongs to missing or historical direction");
+    requireRef(!p.decisions.some(d => d.purpose === "revoke-implementation" && authorizations.get(d.authorizationId!)?.specificationId === s.id), "revoked specification cannot be requeued without a fresh descriptor");
+  }
   const challengeLinks = new Map([...plans.values()].flatMap(container => container.reasoningLinks.map(link => [JSON.stringify([container.id, link.id]), link] as const)));
   for (const d of p.decisions) {
     requireRef(d.planId === p.id, "decision belongs to another plan");
@@ -434,7 +657,13 @@ function planReferences(p: Plan, plans: Map<string, Plan>): void {
     if (rev) requireRef(rev.content.outcomes.some(o => o.id === link.to.id), "missing current outcome");
     // A non-current pinned revision is historical/unresolved. Creation checks live in the transition.
   }
-  if (p.lifecycle.state === "paused") bound(p.lifecycle.decisionId, "pause", p.accepted!.id, p.accepted!.contentDigest);
+  const last = p.decisions.filter(d => d.purpose === "pause" || d.purpose === "resume").at(-1);
+  if (last?.purpose === "pause") requireRef(p.lifecycle.state === "paused", "effective pause cannot be cleared without explicit resume");
+  if (p.lifecycle.state === "paused") {
+    requireRef(last?.purpose === "pause" && last.id === p.lifecycle.decisionId, "paused lifecycle must retain the effective pause decision");
+    if (last.revisionId === p.accepted!.id) requireDigest(last.contentDigest === p.accepted!.contentDigest, "pause content digest mismatch");
+    else requireRef(p.decisions.indexOf(last) < p.decisions.findIndex(d => d.id === p.accepted!.directionDecisionId), "historical pause must precede current direction approval");
+  }
   for (const c of p.completionRecords) {
     for (const id of c.ownerDecisionIds) {
       const d = decisions.get(id);
@@ -473,7 +702,7 @@ function planReferences(p: Plan, plans: Map<string, Plan>): void {
 }
 /** Closed structural validation plus cross-reference, digest, lifecycle and capability checks. */
 export function validateScope(value: unknown): ScopeState {
-  if (!isObject(value) || value.format !== SCOPE_FORMAT) fail("expected mozak.scope/v2; conversion is not automatic", "unsupported-format");
+  if (!isObject(value) || value.format !== SCOPE_FORMAT) fail("expected mozak.scope/v3; conversion is not automatic", "unsupported-format");
   const o = record(value, "scope envelope", ["format", "scope", "storage", "plans", "connections", "receipts"]);
   const s = record(o.scope, "scope", ["id", "kind", "title", "createdAt", "initialization"]);
   str(s.id, "scope.id"); str(s.title, "scope.title"); choice(s.kind, ["project", "topic"], "scope.kind"); date(s.createdAt, "scope.createdAt");
@@ -487,13 +716,26 @@ export function validateScope(value: unknown): ScopeState {
   if (array(o.connections, "connections").length) fail("cross-scope connections are unsupported in package 1", "unsupported-capability");
   identified(o.plans, "plans", planShape);
   const plans = o.plans as Plan[];
+  const allDecisions = plans.flatMap(p => p.decisions);
+  const messageCounts = new Map<string, number>();
+  for (const d of allDecisions) {
+    const key = JSON.stringify([d.ownerRef, d.ownerMessageAt]);
+    messageCounts.set(key, (messageCounts.get(key) ?? 0) + 1);
+  }
+  for (const d of allDecisions) if (d.purpose === "approve-implementation" || d.purpose === "revoke-implementation") {
+    requireRef(messageCounts.get(JSON.stringify([d.ownerRef, d.ownerMessageAt])) === 1, "implementation requires a separate owner message across scope decisions");
+  }
   unique(plans.flatMap(p => [p.accepted?.id, p.pending?.id].filter((id): id is string => id !== undefined)), "scope revisions");
   const map = new Map(plans.map(p => [p.id, p])); plans.forEach(p => planReferences(p, map));
   if (!isObject(o.receipts)) fail("receipts must be an operation-keyed record");
   for (const [id, v] of Object.entries(o.receipts)) {
     str(id, "operation id"); const r = record(v, "receipt", ["requestDigest", "storageRevision", "recordedAt", "result"]);
     sha(r.requestDigest, "receipt.requestDigest"); str(r.storageRevision, "receipt.storageRevision"); date(r.recordedAt, "receipt.recordedAt");
-    const result = record(r.result, "receipt.result", ["action", "ids"]); str(result.action, "receipt.action"); strings(result.ids, "receipt.ids");
+    const result = record(r.result, "receipt.result", ["action", "ids"], ["discussion"]); str(result.action, "receipt.action"); strings(result.ids, "receipt.ids");
+    if (Object.hasOwn(result, "discussion")) {
+      if (result.action !== "save-discussion") fail("discussion receipt belongs only to save-discussion");
+      validateDiscussion(result.discussion);
+    }
   }
   canonical(value); // Reject hidden non-JSON values, cycles and malformed Unicode throughout.
   return value as unknown as ScopeState;

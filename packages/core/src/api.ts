@@ -8,6 +8,7 @@ import {
   initScopeState,
   mutateScope,
   readScope,
+  readScopeView,
   repairProjection,
   type OperationResult,
   type ScopeRead,
@@ -31,6 +32,8 @@ export const OPERATIONS = [
   "revise",
   "observe",
   "complete",
+  "save-discussion",
+  "attach-spec",
   "decide",
   "init",
   "repair",
@@ -39,7 +42,7 @@ export const OPERATIONS = [
 /** Owner-only: refused for every other actor before any file is touched. */
 const OWNER_ONLY = new Set(["decide", "init", "repair"]);
 /** Route name must equal request.action for these routes. */
-const ROUTE_ACTIONS = new Set(["propose", "revise", "observe", "complete"]);
+const ROUTE_ACTIONS = new Set(["propose", "revise", "observe", "complete", "save-discussion", "attach-spec"]);
 export const DECISION_ACTIONS = [
   "approve-direction",
   "reject-pending",
@@ -47,6 +50,8 @@ export const DECISION_ACTIONS = [
   "pause",
   "resume",
   "accept-outcome",
+  "approve-implementation",
+  "revoke-implementation",
 ] as const;
 export const DECISION_PURPOSES = DECISION_ACTIONS;
 /** Visible review groups in fixed order. "rejected" appears only when explicitly requested. */
@@ -165,7 +170,7 @@ function requireOwner(operation: string, actor: Actor): void {
 // ---------- continuation tokens ----------
 
 interface Continuation {
-  v: 1;
+  v: 2;
   inventory: string;
   selector: { scope: string | null; all: boolean };
   includeRejected: boolean;
@@ -193,7 +198,7 @@ function decodeContinuation(text: unknown): Continuation {
   } catch {
     throw bad("not decodable");
   }
-  if (!isPlain(raw) || raw.v !== 1) throw bad("unknown version");
+  if (!isPlain(raw) || raw.v !== 2) throw bad("unknown version");
   const c = closed(raw, "continuation", CONTINUATION_KEYS);
   const selector = closed(c.selector, "continuation selector", ["scope", "all"]);
   if (typeof selector.all !== "boolean") throw bad("selector.all must be a boolean");
@@ -207,7 +212,7 @@ function decodeContinuation(text: unknown): Continuation {
   if (!(ALL_GROUPS as readonly string[]).includes(c.group as string)) throw bad("unknown group");
   if (c.group === "rejected" && c.includeRejected !== true) throw bad("rejected group requires includeRejected");
   return {
-    v: 1,
+    v: 2,
     inventory: nonEmpty(c.inventory, "continuation inventory"),
     selector: { scope: selector.scope as string | null, all: selector.all },
     includeRejected: c.includeRejected,
@@ -440,7 +445,7 @@ function plansOp(inv: ScopeInventory, a: Record<string, unknown>): OperationOutp
     const next: string | null =
       hasMore && last
         ? encodeContinuation({
-            v: 1,
+            v: 2,
             inventory: inv.digest,
             selector,
             includeRejected,
@@ -500,9 +505,8 @@ function readOp(inv: ScopeInventory, operation: string, a: Record<string, unknow
       throw invalid(`purpose must be one of ${DECISION_PURPOSES.join(", ")}`);
     }
     const outcome = o.outcome === undefined ? undefined : nonEmpty(o.outcome, "outcome");
-    const read = readScope(resolveScope(inv, scope));
-    // Agreed positional contract: reviewShow(state, planId, purpose?, outcomeId?).
-    const shown = reviewShow(read.state, plan, o.purpose as string | undefined, outcome);
+    const read = readScopeView(resolveScope(inv, scope), o.purpose === "approve-implementation" ? plan : undefined);
+    const shown = reviewShow(read.state, plan, o.purpose as string | undefined, outcome, read.environment);
     return {
       exitCode: 0,
       data: {
@@ -523,7 +527,7 @@ function readOp(inv: ScopeInventory, operation: string, a: Record<string, unknow
   const entry = resolveScope(inv, scope);
 
   if (operation === "context") {
-    const read = readScope(entry);
+    const read = readScopeView(entry);
     return {
       exitCode: 0,
       data: {
@@ -534,7 +538,7 @@ function readOp(inv: ScopeInventory, operation: string, a: Record<string, unknow
         projectionStatus: read.projectionStatus,
         projectionUpdated: false,
         issues: read.issues,
-        context: contextView(read.state),
+        context: contextView(read.state, read.environment),
       },
     };
   }
@@ -639,7 +643,7 @@ export function executeOperation(inv: ScopeInventory, operation: string, args: u
   try {
     if (actor !== "agent" && actor !== "owner") throw invalid("actor must be agent or owner");
     if (LEGACY_OPERATIONS.has(operation)) {
-      throw new DomainError("unsupported-legacy-operation", `${operation} is retired; create a v2 scope with scope init and propose plans`, 2);
+      throw new DomainError("unsupported-legacy-operation", `${operation} is retired; create a v3 scope with scope init and propose plans`, 2);
     }
     if (!(OPERATIONS as readonly string[]).includes(operation)) {
       throw new DomainError("unsupported-operation", `unknown operation "${operation}"`, 2);

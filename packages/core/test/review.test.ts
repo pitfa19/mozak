@@ -12,7 +12,7 @@ const OWNER_MSG = "2026-10-12T08:50:00.000Z";
 
 function emptyState(plans = []) {
   return {
-    format: "mozak.scope/v2",
+    format: "mozak.scope/v3",
     scope: { id: "sample-project", kind: "project", title: "Sample", createdAt: "2026-10-01T00:00:00.000Z", initialization: { operationId: "init", ownerRef: "test:owner", ownerMessageAt: OWNER_MSG, recordedAt: NOW } },
     storage: { revision: "r1", updatedAt: "2026-10-01T00:00:00.000Z", previousBridge: { exists: false, sha256: null } },
     plans,
@@ -33,6 +33,9 @@ function plan(id, overrides = {}) {
     decisions: [],
     reasoningLinks: [],
     completionRecords: [],
+    discussion: null,
+    specifications: [],
+    implementationAuthorizations: [],
     downstreamSpec: null,
     implementationAuthorization: null,
     ...overrides,
