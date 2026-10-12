@@ -1,6 +1,8 @@
 # Package 2 acceptance and live-trial handoff
 
-**Status: implementation and deterministic/public-interface verification passed; actual owner/fresh-host acceptance remains open.** The rebuilt clean-checkpoint gate passed 334/334 tests. Automated fixtures do not constitute owner approval or conversational usefulness. This report retains the complete Q1–Q7 and B01–B15 scope, including the unexecuted live requirements.
+**Current status (October 12, 2026, after 20:04 UTC): implementation verification and the objective formatter trial passed; strict fresh-host isolation and actual owner usability acceptance remain open.** The rebuilt clean-checkpoint gate passed 334/334 tests. The actual formatter passed an independent 75/75 run and its objective was completed through the CLI. See `implementation-package-2-live-trial.md` for the real approvals, pause/resume, recovery-report limitations, requirement mapping and completion pins. No overall Package 2 acceptance is claimed.
+
+The implementation-gate matrices and preparation narrative below are the historical pre-trial baseline, not the current trial state. The live-trial report supersedes their unexecuted-trial entries without converting reported recovery into verified host isolation.
 
 ## Authority and boundaries
 
@@ -8,7 +10,7 @@ The actual owner message at `2026-10-12T17:48:24.249Z`, `approved`, answered the
 
 The registered installed project still resolves to `/home/pitfa/Documents/mozak`, with no ready goals or validated notes. Work here follows the separately approved `/home/pitfa/Documents/mozak-v1` package. Its old registration and project files were not changed. The inventory format stays `mozak.local/v2`; new canonical scopes use `mozak.scope/v3`. Old scope formats refuse rather than migrate. Package-1 historical acceptance remains unchanged.
 
-No interpretation of `approved` as approval of a trial plan, trial specification, pause, resume or outcome has been made. The trial initialization reference below is explicitly restricted to the already authorized preparation. Generated pending content remains unaccepted.
+The original Package 2 `approved` message was not reused as trial direction, trial specification, pause, resume or outcome consent. Initialization below was restricted to authorized preparation. Subsequent distinct actual owner decisions and objective completion are documented in `implementation-package-2-live-trial.md`.
 
 ## Implemented behavior and checkpoints
 
@@ -50,7 +52,7 @@ node --test --experimental-strip-types packages/core/test/handoff-store.test.ts
 
 The ten initial cases all passed, including actual child `SIGKILL` after a grant's canonical commit, offline-only recovery after joining the child, exact receipt replay, projection repair and current eligibility reread. No test merely interprets a thrown exception as proof of a process crash.
 
-## Requirement-to-observation matrix
+## Requirement-to-observation matrix: implementation-gate baseline
 
 Test paths below are under `packages/`. A synthetic owner reference in an automated fixture is explicitly not live owner evidence.
 
@@ -72,7 +74,7 @@ Test paths below are under `packages/`. A synthetic owner reference in an automa
 | B14 | No actual owner usability feedback about the new conversation has been received yet. Design/build approval is not that feedback. | Open |
 | B15 | This report maps the complete original scope and pins final checkpoint, commands, results, corrections and limitations. Live evidence fields remain open until real attributable observations exist. | Implementation handoff recorded; overall acceptance incomplete |
 
-### Q1–Q7 trace
+### Q1–Q7 trace: implementation-gate baseline
 
 | Expectation | Implementation and check | Still required |
 | --- | --- | --- |
@@ -91,7 +93,7 @@ Test paths below are under `packages/`. A synthetic owner reference in an automa
 3. Coordinator found material skill mismatches: bare installed CLI usage, incorrectly claiming no persistence path for owner pause, unnecessary reapproval after unrelated CAS changes, confusing partial commit handling, and presenting direction approval as a completed plan. These were corrected through `84322ef` and `ab3f82e`. Normative instructions no longer substitute smoke-test anecdotes for the host contract. The independent authority reviewer read all four finalized skill files with stable hashes and found no material mismatch with approved section 7. That is static contract review, not live UX acceptance.
 4. Same-path candidate/current-grant descriptors can be inspected at different instants if an external editor changes the file between reads. The independent IO review did not find a new permission bypass under the approved point-in-time contract. This implementation does not claim a single atomic snapshot of multiple spec files or direct-editor exclusion. Approval rereads the selected candidate under the cooperative scope lock, and the host must recheck current grant/spec before each bounded batch.
 
-## Prepared actual trial, not a completed trial
+## Historical trial preparation (superseded by live-trial report)
 
 - Root: `/home/pitfa/.jcode/scratch/mozak-package2-live-20261012-174824/project`.
 - Inventory: `/home/pitfa/.jcode/scratch/mozak-package2-live-20261012-174824/inventory.json`.
