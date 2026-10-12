@@ -1,7 +1,7 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -273,4 +273,48 @@ test("accepts an absolute scope root and resolves relative spec paths beneath it
   writeFileSync(join(root, "rel.md"), "x\n");
   const result = inspectSpecification(resolve(root), "rel.md");
   assert.equal(result.byteLength, 2);
+});
+
+test("refuses a symlinked scope root instead of following it", () => {
+  const { root, base } = world();
+  writeFileSync(join(root, "spec.md"), "inside\n");
+  const link = join(base, "root-link");
+  symlinkSync(root, link);
+  expectError(() => inspectSpecification(link, "spec.md"), "invalid-input", 2);
+});
+
+test("a raw filesystem error during the read becomes unavailable-spec, not a raw errno", (t) => {
+  if (typeof process.getuid === "function" && process.getuid() === 0) {
+    t.skip("root ignores file permission bits");
+    return;
+  }
+  const { root } = world();
+  const path = join(root, "locked.md");
+  writeFileSync(path, "secret\n");
+  chmodSync(path, 0o000);
+  try {
+    expectError(() => inspectSpecification(root, "locked.md"), "unavailable-spec", 2);
+  } finally {
+    chmodSync(path, 0o600);
+  }
+});
+
+test("a metadata-only change during the read is refused, via the descriptor ctime comparison", (t) => {
+  if (typeof process.getuid === "function" && process.getuid() === 0) {
+    t.skip("chmod change check is exercised the same way; skipped only to keep root runs consistent");
+    return;
+  }
+  const { root } = world();
+  const path = join(root, "meta.md");
+  writeFileSync(path, "same bytes\n");
+  expectError(() => readSpecification(root, "meta.md", {
+    afterRead: () => chmodSync(path, 0o640),
+  }), "stale-reference", 3);
+});
+
+test("an exception thrown by the test hook propagates unchanged, not as a spec error", () => {
+  const { root } = world();
+  writeFileSync(join(root, "hook.md"), "x\n");
+  const boom = new Error("hook programmer failure");
+  assert.throws(() => readSpecification(root, "hook.md", { afterRead: () => { throw boom; } }), (e: unknown) => e === boom);
 });
