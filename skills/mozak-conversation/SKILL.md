@@ -9,7 +9,7 @@ Normative contract for this installed skill. Tests are not owner approval or con
 
 ## Activation
 
-This file is a template. The installer renders `{{MOZAK_CLI}}` (the shell-quoted absolute CLI path) and `{{MOZAK_SKILL}}` (the absolute installed skill directory) before activation. If any placeholder is still present, stop: the rendered copy is missing.
+The source copy is a template. Only the rendered installed copy is usable: the installer renders `{{MOZAK_CLI}}` (the shell-quoted absolute CLI path) and `{{MOZAK_SKILL}}` (the absolute installed skill directory) before activation. If any placeholder is still present, stop: the rendered copy is missing.
 
 Load only this exact file: `{{MOZAK_SKILL}}/SKILL.md`, the installed skill directory rendered by the installer.
 If the returned base directory is not `{{MOZAK_SKILL}}`, stop and say so. Never load an older installed copy or a global skill of the same name.
