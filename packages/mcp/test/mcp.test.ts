@@ -22,6 +22,8 @@ const MUTATION_TOOLS: Record<string, { op: string }> = {
   mozak_revise: { op: "revise" },
   mozak_observe: { op: "observe" },
   mozak_complete: { op: "complete" },
+  mozak_save_discussion: { op: "save-discussion" },
+  mozak_attach_spec: { op: "attach-spec" },
 };
 const ADVERTISED = [...Object.keys(READ_TOOLS), ...Object.keys(MUTATION_TOOLS)].sort();
 const FORBIDDEN = [
@@ -445,7 +447,7 @@ function call(rt: { inventory: unknown; execute: unknown }, name: string, args: 
 
 // ---- JSON-RPC envelope, params and transport hardening (bounded) -----------
 
-const MUTATION_NAMES = ["mozak_propose", "mozak_revise", "mozak_observe", "mozak_complete"];
+const MUTATION_NAMES = ["mozak_propose", "mozak_revise", "mozak_observe", "mozak_complete", "mozak_save_discussion", "mozak_attach_spec"];
 
 /** Runtime whose execute spy records every reach into the API. A spy that is called is a bypass. */
 function guardRuntime() {

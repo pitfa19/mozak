@@ -35,6 +35,8 @@ const ROUTES: Record<string, Route> = {
   "plan complete": { operation: "complete", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
   observe: { operation: "observe", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
   "review decide": { operation: "decide", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
+  "discussion save": { operation: "save-discussion", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
+  "spec attach": { operation: "attach-spec", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
   "projection repair": { operation: "repair", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
   translate: { operation: "translate", flags: ["config", "scope", "idea", "from", "to", "assumption", "write"], requires: ["config"], requestFile: false },
   resolve: { operation: "resolve", flags: ["config", "scope", "in", "idea", "n"], requires: ["config"], requestFile: false },
@@ -57,6 +59,8 @@ function usage(): string {
     "  mozak operation --scope ID --id OP [--json]",
     "  mozak plan propose|revise|complete --scope ID --request FILE",
     "  mozak observe --scope ID --request FILE",
+    "  mozak discussion save --scope ID --request FILE      (agent; advisory checkpoint only)",
+    "  mozak spec attach --scope ID --request FILE          (agent; descriptor only, no approval)",
     "  mozak review decide --scope ID --request FILE        (owner)",
     "  mozak projection repair --scope ID --request FILE    (owner)",
     "Exit: 0 success, 2 invalid or unavailable, 3 stale/conflict/owner-review, 4 busy/recovery,",
@@ -160,6 +164,16 @@ function parseCommand(argv: string[]): Parsed {
   return { route, routeName: routeName as string, values };
 }
 
+/**
+ * Explicit purpose label for an awaiting row. Each awaiting row is a separate owner decision, so a plan can
+ * appear up to three times. The label keeps those rows unambiguous. It presents existing purposes only.
+ */
+const AWAITING_PURPOSE: Record<string, string> = {
+  pending: "review: direction approval",
+  outcome: "review: outcome acceptance",
+  implementation: "review: implementation approval",
+};
+
 /** Human-readable plans view. JSON output is unchanged and remains the machine contract. */
 interface HumanRow {
   planId: string;
@@ -188,6 +202,7 @@ function renderPlansHuman(data: {
     for (const row of g.rows) {
       const title = row.title ?? row.planId;
       lines.push(`  - ${title}  [${row.planId}]`);
+      if (group === "awaiting" && AWAITING_PURPOSE[row.rowKind]) lines.push(`      ${AWAITING_PURPOSE[row.rowKind]}`);
       if (row.outcome) lines.push(`      outcome: ${row.outcome}`);
       if (row.date) lines.push(`      date: ${row.date}`);
       if (row.paused) lines.push(`      paused${row.reason ? `: ${row.reason}` : ""}`);

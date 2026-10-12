@@ -35,7 +35,8 @@ export interface ToolDef {
 
 const SCOPE: PropertySpec = { type: "string", description: "Scope ID from the explicit inventory." };
 const REQUEST: PropertySpec = { type: "object", description: "Typed mutation envelope: operationId, scopeId, expected, action, payload." };
-const PURPOSES = ["approve-direction", "reject-pending", "reconsider", "pause", "resume", "accept-outcome"] as const;
+// Display purposes for read-only review show. Owner decisions are never dispatched from MCP.
+const PURPOSES = ["approve-direction", "reject-pending", "reconsider", "pause", "resume", "accept-outcome", "approve-implementation", "revoke-implementation"] as const;
 
 function tool(name: string, op: string, description: string, properties: Record<string, PropertySpec>, required: readonly string[]): ToolDef {
   const inputSchema = {
@@ -91,6 +92,22 @@ export const TOOLS: ToolDef[] = [
     ["scope", "request"],
   ),
   tool("mozak_observe", "observe", "Append classified observations, evidence, and allowed reasoning links. Protected fields are refused.", { scope: SCOPE, request: REQUEST }, ["scope", "request"]),
+  // Named agent-only clarification and specification-reference tools. They carry the same mutation envelope as
+  // every other mutation. Core validates the nested envelope and refuses protected fields. Neither grants authority.
+  tool(
+    "mozak_save_discussion",
+    "save-discussion",
+    "Save the advisory clarification checkpoint for one plan: questions, answers and stage, bound to current revisions. Never grants approval or edits accepted content.",
+    { scope: SCOPE, request: REQUEST },
+    ["scope", "request"],
+  ),
+  tool(
+    "mozak_attach_spec",
+    "attach-spec",
+    "Attach a local Markdown specification file with explicit bounds to an accepted direction. Stores a descriptor only; it does not approve implementation.",
+    { scope: SCOPE, request: REQUEST },
+    ["scope", "request"],
+  ),
   tool(
     "mozak_complete",
     "complete",

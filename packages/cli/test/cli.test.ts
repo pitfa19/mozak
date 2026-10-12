@@ -578,3 +578,42 @@ test("plans paging: a continuation alone resumes the next page; mixed selectors 
   assert.equal(withLimit.code, 2);
   assert.equal(json(withLimit).status, "invalid-input");
 });
+
+// Package 2 thin routes. They pin grammar and transport mapping through the real built CLI.
+// Semantic results depend on core save-discussion/attach-spec and are covered by the core suite.
+test("package 2 routes: help lists them and grammar refusals exit 2 with no scope write", async () => {
+  const help = await run(["--help"]);
+  assert.equal(help.code, 0);
+  assert.match(help.out, /mozak discussion save --scope ID --request FILE/);
+  assert.match(help.out, /mozak spec attach --scope ID --request FILE/);
+
+  const f = fixture();
+  const before = readFileSync(join(f.scopeRoot, "README.md"), "utf8");
+
+  const missing = await run(["discussion", "save", "--config", f.config, "--scope", "sample"]);
+  assert.equal(missing.code, 2);
+  assert.match(missing.err, /missing --request/);
+
+  const missingSpec = await run(["spec", "attach", "--config", f.config, "--scope", "sample"]);
+  assert.equal(missingSpec.code, 2);
+  assert.match(missingSpec.err, /missing --request/);
+
+  // --plan is not a spec attach flag. parseArgs refuses it as an unknown option.
+  const unknown = await run(["spec", "attach", "--config", f.config, "--scope", "sample", "--request", join(f.scopeRoot, "nope.json"), "--plan", "p"]);
+  assert.equal(unknown.code, 2);
+  assert.match(unknown.err, /Unknown option .--plan./);
+
+  assert.equal(readFileSync(join(f.scopeRoot, "README.md"), "utf8"), before, "no scope file changed by grammar refusals");
+});
+
+test("package 2 routes: review show accepts the two implementation purposes read-only and never exits as an internal error", async () => {
+  const f = fixture();
+  for (const purpose of ["approve-implementation", "revoke-implementation"]) {
+    const show = await run(["review", "show", "--config", f.config, "--scope", "sample", "--plan", "missing", "--purpose", purpose, "--json"]);
+    assert.notEqual(show.code, 1, "internal error is not a valid outcome: " + show.err);
+    assert.doesNotThrow(() => JSON.parse(show.out), "output is a JSON envelope");
+  }
+  // An unknown purpose is still refused by the existing review show purpose handling.
+  const bogus = await run(["review", "show", "--config", f.config, "--scope", "sample", "--plan", "missing", "--purpose", "not-a-purpose", "--json"]);
+  assert.notEqual(bogus.code, 1, bogus.err);
+});
