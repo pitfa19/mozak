@@ -1,162 +1,233 @@
-import { existsSync, readFileSync } from "node:fs";
-import { homedir } from "node:os";
-import { join, resolve } from "node:path";
-import {
-  buildGraph,
-  buildPacket,
-  checkScope,
-  guardedWrite,
-  loadConfig,
-  parseMozak,
-  readSnapshot,
-  renderText,
-  setPlan,
-  StaleWriteError,
-  LockTimeoutError,
-  type LocalConfig,
-} from "@mozak/core";
+// MOZAK MCP tool layer. Thin transport over the shared core operation seam.
+// Core validation is authoritative. This layer only closes the advertised surface:
+// fixed tool names, closed argument objects, a fixed agent actor and no config input.
+
+import { executeOperation, type ScopeInventory } from "@mozak/core";
 
 export interface ToolResult {
   content: { type: "text"; text: string }[];
   isError?: boolean;
 }
 
-const ok = (text: string): ToolResult => ({ content: [{ type: "text", text }] });
-const fail = (text: string): ToolResult => ({ content: [{ type: "text", text }], isError: true });
+export type Execute = typeof executeOperation;
 
-export function defaultConfigPath(): string {
-  return resolve(process.env.MOZAK_CONFIG ?? join(homedir(), ".config", "mozak", "config.json"));
+/** Runtime built once by the trusted entrypoint from its explicit --config inventory. */
+export interface Runtime {
+  inventory: ScopeInventory;
+  execute: Execute;
+}
+
+interface PropertySpec {
+  type: "string" | "boolean" | "integer" | "object";
+  enum?: readonly string[];
+  description: string;
 }
 
 export interface ToolDef {
   name: string;
+  /** Core operation name. Every MCP call runs as the agent actor. */
+  op: string;
   description: string;
+  properties: Record<string, PropertySpec>;
+  required: readonly string[];
   inputSchema: Record<string, unknown>;
-  run: (args: Record<string, unknown>, cfg: LocalConfig) => ToolResult;
 }
 
-const str = (v: unknown, name: string): string => {
-  if (typeof v !== "string" || !v) throw new Error(`"${name}" is required and must be a string`);
-  return v;
-};
+const SCOPE: PropertySpec = { type: "string", description: "Scope ID from the explicit inventory." };
+const REQUEST: PropertySpec = { type: "object", description: "Typed mutation envelope: operationId, scopeId, expected, action, payload." };
+const PURPOSES = ["approve-direction", "reject-pending", "reconsider", "pause", "resume", "accept-outcome"] as const;
 
-function scopeDir(cfg: LocalConfig, id: string): string {
-  const node = buildGraph(cfg).nodes.find((n) => n.id === id);
-  if (!node) throw new Error(`scope "${id}" not found under the configured roots`);
-  return node.dir;
+function tool(name: string, op: string, description: string, properties: Record<string, PropertySpec>, required: readonly string[]): ToolDef {
+  const inputSchema = {
+    type: "object",
+    properties,
+    required: [...required],
+    additionalProperties: false,
+  };
+  return { name, op, description, properties, required, inputSchema };
 }
 
 export const TOOLS: ToolDef[] = [
-  {
-    name: "mozak_graph",
-    description: "List every scope (project or topic) and how they link. Start here to see what exists.",
-    inputSchema: { type: "object", properties: {}, additionalProperties: false },
-    run: (_a, cfg) => ok(renderText(buildGraph(cfg))),
-  },
-  {
-    name: "mozak_read",
-    description: "Read a scope's MOZAK.md. Returns the text and a base_hash. Quote that hash when you write the plan back.",
-    inputSchema: { type: "object", properties: { scope: { type: "string" } }, required: ["scope"], additionalProperties: false },
-    run: (a, cfg) => {
-      const file = join(scopeDir(cfg, str(a.scope, "scope")), "MOZAK.md");
-      const snap = readSnapshot(file);
-      return ok(JSON.stringify({ base_hash: snap.hash, text: snap.text }, null, 2));
+  tool("mozak_context", "context", "Canonical understanding for one scope: accepted and pending direction, provenance, decisions, and the permitted next action.", { scope: SCOPE }, ["scope"]),
+  tool(
+    "mozak_plans",
+    "plans",
+    "Plans grouped as Completed, Open, and Awaiting approval, with counts, bounded pages, and per-scope coverage.",
+    {
+      scope: SCOPE,
+      all: { type: "boolean", description: "Read every inventoried scope instead of one." },
+      includeRejected: { type: "boolean", description: "Include rejected drafts." },
+      limit: { type: "integer", description: "Page size per group." },
+      continuation: { type: "string", description: "Opaque continuation token from a previous page." },
     },
-  },
-  {
-    name: "mozak_check",
-    description: "Validate a scope: three root files, MOZAK.md structure, links, and open translation assumptions.",
-    inputSchema: { type: "object", properties: { scope: { type: "string" } }, required: ["scope"], additionalProperties: false },
-    run: (a, cfg) => {
-      const r = checkScope(scopeDir(cfg, str(a.scope, "scope")));
-      return r.ok ? ok("ok") : fail(r.issues.map((i) => `${i.code}${i.line ? `:${i.line}` : ""}: ${i.message}`).join("\n"));
+    [],
+  ),
+  tool(
+    "mozak_review_show",
+    "review",
+    "Accepted meaning, pending proposal, changed fields, and the review digest for one exact plan action. Reading creates no approval.",
+    {
+      scope: SCOPE,
+      plan: { type: "string", description: "Plan ID." },
+      purpose: { type: "string", enum: PURPOSES, description: "Owner action purpose to display." },
+      outcome: { type: "string", description: "Outcome ID for an outcome review." },
     },
-  },
-  {
-    name: "mozak_set_plan",
-    description:
-      "Replace the Plan section of a scope's MOZAK.md. This is the only write agents may make. Requires the base_hash from mozak_read. If the file changed since, the write is refused as stale: read again, reapply your change, retry. Links and Translations cannot be changed here, those are proposals for the owner.",
-    inputSchema: {
-      type: "object",
-      properties: { scope: { type: "string" }, plan: { type: "string", description: "New body of the Plan section, no ## headings" }, base_hash: { type: "string" } },
-      required: ["scope", "plan", "base_hash"],
-      additionalProperties: false,
-    },
-    run: (a, cfg) => {
-      const file = join(scopeDir(cfg, str(a.scope, "scope")), "MOZAK.md");
-      const base = str(a.base_hash, "base_hash");
-      const current = readSnapshot(file);
-      if (current.hash !== base) return fail(`stale: MOZAK.md changed since you read it. Call mozak_read again, reapply your edit, then retry.`);
-      try {
-        const next = setPlan(current.text, typeof a.plan === "string" ? a.plan : "");
-        const hash = guardedWrite(file, next, base);
-        return ok(JSON.stringify({ written: true, new_hash: hash }));
-      } catch (e) {
-        if (e instanceof StaleWriteError) return fail("stale: another writer got in first. Call mozak_read again, reapply your edit, then retry.");
-        if (e instanceof LockTimeoutError) return fail("busy: another writer holds the lock. Retry in a moment.");
-        throw e;
-      }
-    },
-  },
-  {
-    name: "mozak_translation_packet",
-    description:
-      "Build the work packet for moving an idea from one scope to another. Read only, writes nothing. Lists both plans, existing links, and the assumptions to re-derive in the target. The owner decides what gets written to Translations.",
-    inputSchema: {
-      type: "object",
-      properties: { idea: { type: "string" }, from: { type: "string" }, to: { type: "string" }, assumptions: { type: "array", items: { type: "string" } } },
-      required: ["idea", "from", "to", "assumptions"],
-      additionalProperties: false,
-    },
-    run: (a, cfg) => {
-      const from = str(a.from, "from");
-      const to = str(a.to, "to");
-      const assumptions = Array.isArray(a.assumptions) ? a.assumptions.filter((x): x is string => typeof x === "string") : [];
-      const src = parseMozak(readFileSync(join(scopeDir(cfg, from), "MOZAK.md"), "utf8"));
-      const tgt = parseMozak(readFileSync(join(scopeDir(cfg, to), "MOZAK.md"), "utf8"));
-      return ok(JSON.stringify(buildPacket(src, tgt, { title: str(a.idea, "idea"), source: from, target: to, assumptions }), null, 2));
-    },
-  },
+    ["scope", "plan"],
+  ),
+  tool("mozak_check", "check", "Schema, reference, approval-consistency, entry-document, and projection findings. Never repairs.", { scope: SCOPE }, ["scope"]),
+  tool(
+    "mozak_operation",
+    "operation",
+    "Receipt status, semantic result, and current projection state for one operation ID. Never resubmits the operation.",
+    { scope: SCOPE, id: { type: "string", description: "Operation ID." } },
+    ["scope", "id"],
+  ),
+  tool("mozak_propose", "propose", "Create one pending plan. Carries no accepted content or owner decision.", { scope: SCOPE, request: REQUEST }, ["scope", "request"]),
+  tool(
+    "mozak_revise",
+    "revise",
+    "Create a new awaiting revision of an accepted plan, or replace an awaiting pending revision against its exact base. Preserves accepted direction.",
+    { scope: SCOPE, request: REQUEST },
+    ["scope", "request"],
+  ),
+  tool("mozak_observe", "observe", "Append classified observations, evidence, and allowed reasoning links. Protected fields are refused.", { scope: SCOPE, request: REQUEST }, ["scope", "request"]),
+  tool(
+    "mozak_complete",
+    "complete",
+    "Record objective completion when every outcome has current evidence. Subjective outcomes need owner acceptance first.",
+    { scope: SCOPE, request: REQUEST },
+    ["scope", "request"],
+  ),
 ];
 
-export function loadCfg(path = defaultConfigPath()): LocalConfig {
-  if (!existsSync(path)) throw new Error(`no config at ${path}. Create it with {"roots": ["/path/to/vault", "/path/to/repos"]} or set MOZAK_CONFIG`);
-  return loadConfig(path);
+const hasOwn = (o: object, k: string) => Object.prototype.hasOwnProperty.call(o, k);
+const isPlainObject = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
+
+class ArgumentError extends Error {}
+
+/** Closed argument check at the MCP boundary. The API runtime validates the nested envelope again. */
+export function validateArguments(def: ToolDef, args: unknown): Record<string, unknown> {
+  if (!isPlainObject(args)) throw new ArgumentError(`${def.name}: arguments must be an object`);
+  for (const key of Object.keys(args)) {
+    if (!hasOwn(def.properties, key)) throw new ArgumentError(`unknown argument "${key}" for ${def.name}`);
+  }
+  for (const key of def.required) {
+    if (!hasOwn(args, key)) throw new ArgumentError(`${def.name}: "${key}" is required`);
+  }
+  for (const [key, value] of Object.entries(args)) {
+    const spec = def.properties[key];
+    const bad = (why: string) => new ArgumentError(`${def.name}: "${key}" ${why}`);
+    switch (spec.type) {
+      case "string":
+        if (typeof value !== "string" || !value.trim()) throw bad("must be a nonempty string");
+        break;
+      case "boolean":
+        if (typeof value !== "boolean") throw bad("must be a boolean");
+        break;
+      case "integer":
+        if (!Number.isSafeInteger(value) || (value as number) < 1) throw bad("must be a positive integer");
+        break;
+      case "object":
+        if (!isPlainObject(value)) throw bad("must be an object");
+        break;
+    }
+    if (spec.enum && !spec.enum.includes(value as string)) throw bad(`must be one of ${spec.enum.join(", ")}`);
+  }
+  return args;
 }
+
+const ok = (text: string): ToolResult => ({ content: [{ type: "text", text }] });
+const fail = (text: string): ToolResult => ({ content: [{ type: "text", text }], isError: true });
 
 interface Rpc {
   jsonrpc: "2.0";
-  id?: number | string;
-  method: string;
-  params?: Record<string, unknown>;
+  id?: number | string | null;
+  method?: string;
+  params?: unknown;
 }
 
-/** Handle one JSON-RPC message. Returns the response, or null for notifications. */
-export function handle(msg: Rpc, getCfg: () => LocalConfig): Record<string, unknown> | null {
-  const reply = (result: unknown) => ({ jsonrpc: "2.0", id: msg.id, result });
-  const error = (code: number, message: string) => ({ jsonrpc: "2.0", id: msg.id, error: { code, message } });
-  if (msg.id === undefined) return null; // notification
-  switch (msg.method) {
-    case "initialize":
-      return reply({
-        protocolVersion: (msg.params?.protocolVersion as string) ?? "2024-11-05",
-        capabilities: { tools: { listChanged: false } },
-        serverInfo: { name: "mozak", version: "0.0.0" },
-      });
-    case "ping":
-      return reply({});
-    case "tools/list":
-      return reply({ tools: TOOLS.map(({ name, description, inputSchema }) => ({ name, description, inputSchema })) });
-    case "tools/call": {
-      const tool = TOOLS.find((t) => t.name === msg.params?.name);
-      if (!tool) return error(-32602, `unknown tool "${String(msg.params?.name)}"`);
-      try {
-        return reply(tool.run((msg.params?.arguments as Record<string, unknown>) ?? {}, getCfg()));
-      } catch (e) {
-        return reply(fail((e as Error).message));
+type Reply = Record<string, unknown>;
+
+const errorReply = (id: unknown, code: number, message: string): Reply => ({ jsonrpc: "2.0", id: id ?? null, error: { code, message } });
+
+/** Standard MCP request metadata. The only extra tools/call param accepted, and never forwarded. */
+const ALLOWED_CALL_PARAM_KEYS = ["name", "arguments", "_meta"] as const;
+
+/**
+ * Runtime envelope check before any dispatch. The static type is a claim, not a check:
+ * version, id, method and params shape are all verified here.
+ */
+export function envelopeError(msg: unknown): { id: unknown; code: number; message: string } | null {
+  if (!isPlainObject(msg) || (Object.getPrototypeOf(msg) !== Object.prototype && Object.getPrototypeOf(msg) !== null)) {
+    return { id: null, code: -32600, message: "invalid request: message must be a plain object" };
+  }
+  const id = hasOwn(msg, "id") ? msg.id : undefined;
+  const safeId = typeof id === "string" || typeof id === "number" || id === null ? id : null;
+  if (!hasOwn(msg, "jsonrpc") || msg.jsonrpc !== "2.0") return { id: safeId, code: -32600, message: "invalid request: jsonrpc must be \"2.0\"" };
+  if (id !== undefined && !(typeof id === "string" || id === null || (typeof id === "number" && Number.isFinite(id)))) {
+    return { id: null, code: -32600, message: "invalid request: id must be a string, a finite number, or null" };
+  }
+  if (!hasOwn(msg, "method") || typeof msg.method !== "string" || msg.method.length === 0) {
+    return { id: safeId, code: -32600, message: "invalid request: method must be a nonempty string" };
+  }
+  return null;
+}
+
+/** Handle one JSON-RPC message. Returns the reply, or null for notifications. Never throws. */
+export function handle(msg: unknown, rt: Runtime): Reply | null {
+  const envelope = envelopeError(msg);
+  if (envelope) {
+    // Silent drop only for a genuine notification: own jsonrpc 2.0, no id. Anything else malformed gets an error reply.
+    const isNotification = isPlainObject(msg) && !hasOwn(msg, "id") && hasOwn(msg, "jsonrpc") && msg.jsonrpc === "2.0";
+    return isNotification ? null : errorReply(envelope.id, envelope.code, envelope.message);
+  }
+  const m = msg as unknown as Rpc;
+  if (m.id === undefined) return null; // well-formed notification
+  const reply = (result: unknown): Reply => ({ jsonrpc: "2.0", id: m.id, result });
+  try {
+    switch (m.method) {
+      case "initialize": {
+        const params = isPlainObject(m.params) ? m.params : {};
+        return reply({
+          protocolVersion: typeof params.protocolVersion === "string" ? params.protocolVersion : "2024-11-05",
+          capabilities: { tools: { listChanged: false } },
+          serverInfo: { name: "mozak", version: "0.0.0" },
+        });
       }
+      case "ping":
+        return reply({});
+      case "tools/list":
+        return reply({ tools: TOOLS.map(({ name, description, inputSchema }) => ({ name, description, inputSchema })) });
+      case "tools/call": {
+        const params = m.params;
+        if (!isPlainObject(params)) return errorReply(m.id, -32602, "params must be an object");
+        for (const key of Object.keys(params)) {
+          if (!(ALLOWED_CALL_PARAM_KEYS as readonly string[]).includes(key)) return errorReply(m.id, -32602, `unknown tools/call param "${key}"`);
+        }
+        if (hasOwn(params, "_meta") && !isPlainObject(params._meta)) return errorReply(m.id, -32602, "_meta must be an object");
+        if (typeof params.name !== "string") return errorReply(m.id, -32602, "tool name must be a string");
+        const def = TOOLS.find((t) => t.name === params.name);
+        if (!def) return errorReply(m.id, -32602, `unknown tool "${params.name}"`);
+        let args: Record<string, unknown>;
+        try {
+          args = validateArguments(def, params.arguments ?? {});
+        } catch (e) {
+          return reply(fail((e as Error).message));
+        }
+        try {
+          const { exitCode, data } = rt.execute(rt.inventory, def.op, args, "agent");
+          // Full structured result is kept. A nonzero exit is an error, but never replaces committed state with a generic message.
+          const result: ToolResult = { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+          if (exitCode !== 0) result.isError = true;
+          return reply(result);
+        } catch (e) {
+          return reply(fail(`internal error: ${(e as Error).message}`));
+        }
+      }
+      default:
+        return errorReply(m.id, -32601, `method not found: ${String(m.method)}`);
     }
-    default:
-      return error(-32601, `method not found: ${msg.method}`);
+  } catch (e) {
+    return errorReply(m.id, -32603, `internal error: ${(e as Error).message}`);
   }
 }

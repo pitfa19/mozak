@@ -1,9 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { buildPacket, insertTranslation, parseMozak, renderTranslation, setAssumption, updateFile } from "../src/index.ts";
+import { buildPacket, insertTranslation, parseMozak, renderTranslation, setAssumption } from "../src/index.ts";
+import { updateFile } from "../src/write.ts";
 
 const base = `---\nid: target\nkind: project\nformat: 1\n---\n## Plan\n- [ ] x\n## Links\n## Translations\n`;
 const draft = { title: "publishing concept", source: "src", target: "target", assumptions: ["deploys from main", "markdown build step"] };
@@ -52,20 +53,15 @@ test("packet carries both plans, the existing relation, and the draft", () => {
   assert.ok(p.instructions.some((i) => /Do not carry the source's answer over/.test(i)));
 });
 
-test("insert through the guarded writer keeps a concurrent edit", () => {
+test("legacy translation writer is disabled without changing existing Markdown", () => {
   const dir = mkdtempSync(join(tmpdir(), "mozak-t-"));
   mkdirSync(dir, { recursive: true });
   const f = join(dir, "MOZAK.md");
   writeFileSync(f, base);
-  let first = true;
-  updateFile(f, (t) => {
-    if (first) {
-      first = false;
-      writeFileSync(f, t.replace("- [ ] x", "- [ ] x\n- [ ] concurrent edit"));
-    }
-    return insertTranslation(t, renderTranslation(draft), draft.title);
-  });
-  const out = readFileSync(f, "utf8");
-  assert.match(out, /concurrent edit/);
-  assert.match(out, /### publishing concept/);
+  try {
+    let called = false;
+    assert.throws(() => updateFile(f, t => { called = true; return insertTranslation(t, renderTranslation(draft), draft.title); }), e => e.code === "unsupported-legacy-operation");
+    assert.equal(called, false);
+    assert.equal(readFileSync(f, "utf8"), base);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });

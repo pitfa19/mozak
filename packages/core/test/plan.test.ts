@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseMozak, setPlan } from "../src/index.ts";
+import { parseMozak } from "../src/parse.ts";
+import { setPlan } from "../src/plan.ts";
 
 const doc = `---\nid: x\nkind: project\nformat: 1\n---\n\n## Plan\n\n- [ ] old\n\n## Links\n\n- informs: [[a]]\n\n## Translations\n\n### t\n- source: [[a]]\n- target: [[x]]\n- [open] foo\n`;
 

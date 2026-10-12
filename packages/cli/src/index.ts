@@ -1,151 +1,288 @@
 #!/usr/bin/env node
-import { existsSync, readFileSync } from "node:fs";
-import { homedir } from "node:os";
-import { join, resolve } from "node:path";
-import {
-  auditProject,
-  buildGraph,
-  buildPacket,
-  checkScope,
-  initScope,
-  insertTranslation,
-  loadConfig,
-  parseMozak,
-  renderMermaid,
-  renderStale,
-  renderText,
-  setAssumption,
-  staleReports,
-  updateFile,
-} from "@mozak/core";
+// MOZAK v2 CLI. Thin transport over the shared executeOperation facade in @mozak/core.
+// Strict flags: unknown and duplicate flags are rejected. No shell, no eval, request files are data.
+// The actor is chosen by route here (owner for decide/init/repair, agent otherwise). No flag sets it.
 
-const args = process.argv.slice(2);
-const cmd = args[0];
-const flag = (name: string) => args.includes(`--${name}`);
-const value = (name: string) => {
-  const i = args.indexOf(`--${name}`);
-  return i >= 0 ? args[i + 1] : undefined;
+import { closeSync, fstatSync, openSync, readSync } from "node:fs";
+import { parseArgs } from "node:util";
+import { executeOperation, loadInventory, MAX_REQUEST_BYTES, type OperationOutput } from "@mozak/core";
+
+const OWNER_ROUTES = new Set(["decide", "init", "repair"]);
+
+type Route = {
+  operation: string;
+  flags: readonly string[];
+  requires: readonly string[];
+  requestFile: boolean;
+  mode?: "scope" | "all";
 };
 
-function configPath(): string {
-  return resolve(value("config") ?? process.env.MOZAK_CONFIG ?? join(homedir(), ".config", "mozak", "config.json"));
+const ROUTES: Record<string, Route> = {
+  "scope init": { operation: "init", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
+  context: { operation: "context", flags: ["config", "scope", "json"], requires: ["config", "scope"], requestFile: false },
+  plans: {
+    operation: "plans",
+    flags: ["config", "scope", "all", "include-rejected", "limit", "continuation", "json"],
+    requires: ["config"],
+    requestFile: false,
+    mode: "scope",
+  },
+  "review show": { operation: "review", flags: ["config", "scope", "plan", "purpose", "outcome", "json"], requires: ["config", "scope", "plan"], requestFile: false },
+  check: { operation: "check", flags: ["config", "scope", "json"], requires: ["config", "scope"], requestFile: false },
+  operation: { operation: "operation", flags: ["config", "scope", "id", "json"], requires: ["config", "scope", "id"], requestFile: false },
+  "plan propose": { operation: "propose", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
+  "plan revise": { operation: "revise", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
+  "plan complete": { operation: "complete", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
+  observe: { operation: "observe", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
+  "review decide": { operation: "decide", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
+  "projection repair": { operation: "repair", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
+  translate: { operation: "translate", flags: ["config", "scope", "idea", "from", "to", "assumption", "write"], requires: ["config"], requestFile: false },
+  resolve: { operation: "resolve", flags: ["config", "scope", "in", "idea", "n"], requires: ["config"], requestFile: false },
+  init: { operation: "legacy-init", flags: ["config", "kind", "id"], requires: ["config"], requestFile: false },
+};
+
+const ROUTE_NAMES = Object.keys(ROUTES);
+const BOOLEAN_FLAGS = new Set(["json", "include-rejected", "all", "write"]);
+
+class UsageError extends Error {}
+
+function usage(): string {
+  return [
+    "usage: mozak <route> --config FILE [flags]",
+    "  mozak scope init --scope ID --request FILE          (owner)",
+    "  mozak context --scope ID [--json]",
+    "  mozak plans (--scope ID | --all) [--include-rejected] [--limit 1..100] [--continuation TOKEN] [--json]",
+    "  mozak review show --scope ID --plan ID [--purpose P] [--outcome ID] [--json]",
+    "  mozak check --scope ID [--json]",
+    "  mozak operation --scope ID --id OP [--json]",
+    "  mozak plan propose|revise|complete --scope ID --request FILE",
+    "  mozak observe --scope ID --request FILE",
+    "  mozak review decide --scope ID --request FILE        (owner)",
+    "  mozak projection repair --scope ID --request FILE    (owner)",
+    "Exit: 0 success, 2 invalid or unavailable, 3 stale/conflict/owner-review, 4 busy/recovery,",
+    "      5 committed with unfinished projection or cleanup, 6 partial all-scope coverage.",
+  ].join("\n");
 }
 
-if (cmd === "check") {
-  const r = checkScope(resolve(args[1] && !args[1].startsWith("--") ? args[1] : "."));
-  if (r.ok) {
-    console.log(`ok: ${r.doc?.id} (${r.doc?.kind}), ${r.doc?.links.length} links, ${r.doc?.translations.length} translations`);
-  } else {
-    for (const i of r.issues) console.error(`${i.code}${i.line ? `:${i.line}` : ""}: ${i.message}`);
-    process.exitCode = 1;
+/** Reject duplicate flags before parseArgs, which would silently keep the last value. */
+function assertNoDuplicates(argv: string[]): void {
+  const seen = new Set<string>();
+  for (const token of argv) {
+    if (!token.startsWith("--")) continue;
+    const name = token.slice(2).split("=")[0] ?? "";
+    if (seen.has(name)) throw new UsageError(`duplicate flag --${name}`);
+    seen.add(name);
   }
-} else if (cmd === "graph") {
-  const p = configPath();
-  if (!existsSync(p)) {
-    console.error(`no config at ${p}. Create it with {"roots": ["/path/to/vault", "/path/to/repos"]} or pass --config FILE`);
-    process.exitCode = 2;
-  } else {
-    const g = buildGraph(loadConfig(p));
-    console.log(flag("mermaid") ? renderMermaid(g) : flag("json") ? JSON.stringify(g, null, 2) : renderText(g));
-    if (g.problems.length) process.exitCode = 1;
+}
+
+/** Read a request file as bytes, capped at 1 MiB, before any parsing. Never sourced or evaluated. */
+function readRequestFile(path: string): unknown {
+  let fd: number;
+  try {
+    fd = openSync(path, "r");
+  } catch {
+    throw new UsageError(`cannot open request file ${path}`);
   }
-} else if (cmd === "translate" || cmd === "resolve") {
-  const p = configPath();
-  if (!existsSync(p)) {
-    console.error(`no config at ${p}`);
-    process.exitCode = 2;
-  } else {
-    const g = buildGraph(loadConfig(p));
-    const dirOf = (id: string) => g.nodes.find((n) => n.id === id)?.dir;
+  try {
+    const stats = fstatSync(fd);
+    if (!stats.isFile()) throw new UsageError(`request must be a regular file: ${path}`);
+    if (stats.size > MAX_REQUEST_BYTES) throw new UsageError(`request file exceeds 1 MiB: ${path}`);
+    const buffer = Buffer.alloc(Math.min(stats.size, MAX_REQUEST_BYTES) + 1);
+    let total = 0;
+    for (;;) {
+      const n = readSync(fd, buffer, total, buffer.length - total, null);
+      if (n === 0) break;
+      total += n;
+      if (total > MAX_REQUEST_BYTES) throw new UsageError(`request file exceeds 1 MiB: ${path}`);
+    }
     try {
-      if (cmd === "translate") {
-        // mozak translate --idea TITLE --from SRC --to TARGET --assumption A [--assumption B ...] [--write]
-        const idea = value("idea");
-        const from = value("from");
-        const to = value("to");
-        const assumptions = args.flatMap((a, i) => (a === "--assumption" ? [args[i + 1]] : []));
-        if (!idea || !from || !to) throw new Error("need --idea, --from, --to and at least one --assumption");
-        const sDir = dirOf(from);
-        const tDir = dirOf(to);
-        if (!sDir) throw new Error(`source scope "${from}" not found under the configured roots`);
-        if (!tDir) throw new Error(`target scope "${to}" not found under the configured roots`);
-        const draft = { title: idea, source: from, target: to, assumptions };
-        const packet = buildPacket(parseMozak(readFileSync(join(sDir, "MOZAK.md"), "utf8")), parseMozak(readFileSync(join(tDir, "MOZAK.md"), "utf8")), draft);
-        if (flag("write")) {
-          updateFile(join(tDir, "MOZAK.md"), (t) => insertTranslation(t, packet.draft, idea));
-          console.log(`wrote draft to ${join(tDir, "MOZAK.md")} with ${assumptions.length} open assumptions`);
-        } else {
-          console.log(JSON.stringify(packet, null, 2));
-        }
-      } else {
-        // mozak resolve --in TARGET --idea TITLE --n 1
-        const inScope = value("in");
-        const idea = value("idea");
-        const n = Number(value("n"));
-        if (!inScope || !idea || !Number.isInteger(n)) throw new Error("need --in, --idea and --n");
-        const tDir = dirOf(inScope);
-        if (!tDir) throw new Error(`scope "${inScope}" not found under the configured roots`);
-        updateFile(join(tDir, "MOZAK.md"), (t) => setAssumption(t, idea, n, "re-derived"));
-        console.log(`assumption ${n} of "${idea}" marked re-derived in ${inScope}`);
-      }
-    } catch (e) {
-      console.error((e as Error).message);
-      process.exitCode = 1;
+      return JSON.parse(buffer.subarray(0, total).toString("utf8"));
+    } catch {
+      throw new UsageError(`request file is not valid JSON: ${path}`);
+    }
+  } finally {
+    closeSync(fd);
+  }
+}
+
+interface Parsed {
+  route: Route;
+  routeName: string;
+  values: Record<string, string | boolean | undefined>;
+}
+
+function parseCommand(argv: string[]): Parsed {
+  // Route is one or two leading words. Anything else is an unknown route.
+  const twoWord = argv.slice(0, 2).join(" ");
+  let routeName: string | undefined;
+  let rest: string[];
+  if (ROUTE_NAMES.includes(twoWord)) {
+    routeName = twoWord;
+    rest = argv.slice(2);
+  } else if (ROUTE_NAMES.includes(argv[0] ?? "")) {
+    routeName = argv[0];
+    rest = argv.slice(1);
+  } else {
+    throw new UsageError(`unknown route "${argv.slice(0, 2).join(" ")}"`);
+  }
+  const route = ROUTES[routeName as string] as Route;
+
+  assertNoDuplicates(rest);
+  // Every route accepts --json. Each result is already a JSON envelope, so the flag is a uniform no-op.
+  const allowed = [...new Set(["config", "json", ...route.flags])];
+  const options: Record<string, { type: "string" | "boolean"; multiple: false }> = {};
+  for (const flag of allowed) {
+    options[flag] = { type: BOOLEAN_FLAGS.has(flag) ? "boolean" : "string", multiple: false };
+  }
+
+  let parsed;
+  try {
+    parsed = parseArgs({ args: rest, options, strict: true, allowPositionals: false });
+  } catch (err) {
+    throw new UsageError(err instanceof Error ? err.message : String(err));
+  }
+  const values = parsed.values as Record<string, string | boolean | undefined>;
+
+  for (const flag of ["config", ...route.requires]) {
+    if (values[flag] === undefined) throw new UsageError(`missing --${flag}`);
+  }
+  for (const flag of Object.keys(values)) {
+    if (values[flag] !== undefined && flag !== "config" && !allowed.includes(flag)) {
+      throw new UsageError(`flag --${flag} is not valid for "${routeName}"`);
     }
   }
-} else if (cmd === "stale") {
-  // mozak stale [scope-id] [--plan-only] [--json] [--config FILE]   read only
-  const p = configPath();
-  if (!existsSync(p)) {
-    console.error(`no config at ${p}`);
-    process.exitCode = 2;
-  } else {
-    const only = args[1] && !args[1].startsWith("--") ? args[1] : undefined;
-    const reports = staleReports(loadConfig(p), only, { planOnly: flag("plan-only") });
-    if (only && reports.length === 0) {
-      console.error(`scope "${only}" not found under the configured roots`);
-      process.exitCode = 1;
-    } else {
-      console.log(flag("json") ? JSON.stringify(reports, null, 2) : renderStale(reports));
-      if (reports.some((r) => r.verdict === "inputs-changed")) process.exitCode = 3;
+  // A continuation pins its own selector, so it may stand alone. Mixed selectors are refused by the facade.
+  if (route.mode === "scope" && values.continuation === undefined) {
+    const hasScope = values.scope !== undefined;
+    const hasAll = values.all !== undefined;
+    if (hasScope === hasAll) throw new UsageError(`plans needs exactly one of --scope or --all, or --continuation alone`);
+  }
+  return { route, routeName: routeName as string, values };
+}
+
+/** Human-readable plans view. JSON output is unchanged and remains the machine contract. */
+interface HumanRow {
+  planId: string;
+  rowKind: string;
+  title?: string;
+  outcome?: string;
+  date?: string;
+  paused?: boolean;
+  reason?: string;
+  continuation?: string;
+}
+function renderPlansHuman(data: {
+  status: string;
+  uniquePlanCount?: number;
+  reviewItemCount?: number;
+  groups?: Record<string, { count: number; rows: HumanRow[]; hasMore: boolean; continuation: string | null }>;
+  issues?: { code: string; message: string; scope?: string }[];
+}): string {
+  const lines: string[] = [`status: ${data.status}`, `plans: ${data.uniquePlanCount ?? 0}, review items: ${data.reviewItemCount ?? 0}`];
+  // Fixed order, then rejected only if the facade returned it (it does so only with --include-rejected).
+  const order = ["completed", "open", "awaiting", "rejected"];
+  for (const group of order) {
+    const g = data.groups?.[group];
+    if (!g) continue;
+    lines.push("", `${group} (${g.count})${g.count === 0 ? " none" : ""}`);
+    for (const row of g.rows) {
+      const title = row.title ?? row.planId;
+      lines.push(`  - ${title}  [${row.planId}]`);
+      if (row.outcome) lines.push(`      outcome: ${row.outcome}`);
+      if (row.date) lines.push(`      date: ${row.date}`);
+      if (row.paused) lines.push(`      paused${row.reason ? `: ${row.reason}` : ""}`);
+      else if (row.reason) lines.push(`      reason: ${row.reason}`);
     }
+    if (g.hasMore && g.continuation) lines.push(`  more: --continuation ${g.continuation}`);
   }
-} else if (cmd === "init") {
-  // mozak init [dir] --kind project|topic [--id ID]
-  const dir = args[1] && !args[1].startsWith("--") ? args[1] : ".";
-  const kind = value("kind");
-  if (kind !== "project" && kind !== "topic") {
-    console.error("need --kind project or --kind topic");
-    process.exitCode = 2;
+  for (const issue of data.issues ?? []) lines.push(`issue ${issue.scope ? `[${issue.scope}] ` : ""}${issue.code}: ${issue.message}`);
+  return `${lines.join("\n")}\n`;
+}
+
+function printEnvelope(output: OperationOutput, json: boolean, routeName: string): void {
+  if (json || routeName !== "plans") {
+    process.stdout.write(`${JSON.stringify(output.data, null, 2)}\n`);
+    return;
+  }
+  process.stdout.write(renderPlansHuman(output.data as Parameters<typeof renderPlansHuman>[0]));
+}
+
+function run(argv: string[]): number {
+  if (argv.length === 0 || argv[0] === "--help" || argv[0] === "-h") {
+    process.stdout.write(`${usage()}\n`);
+    return 0;
+  }
+
+  let parsed: Parsed;
+  try {
+    parsed = parseCommand(argv);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    process.stderr.write(`${message}\n${usage()}\n`);
+    return 2;
+  }
+
+  const { route, routeName, values } = parsed;
+  const configPath = values.config as string;
+
+  let inventory;
+  try {
+    inventory = loadInventory(configPath);
+  } catch (err) {
+    const code = typeof (err as { code?: unknown }).code === "string" ? (err as { code: string }).code : "inventory-unavailable";
+    const message = err instanceof Error ? err.message : String(err);
+    process.stdout.write(`${JSON.stringify({ status: code, committed: false, snapshot: null, projectionStatus: null, projectionUpdated: false, issues: [{ code, message }] }, null, 2)}\n`);
+    return 2;
+  }
+
+  let args: Record<string, unknown>;
+  if (route.operation === "plans") {
+    args =
+      values.continuation !== undefined
+        ? {
+            // Only what the user typed is forwarded. The facade refuses any selector or filter beside a token.
+            continuation: values.continuation,
+            ...(values.scope !== undefined ? { scope: values.scope } : {}),
+            ...(values.all !== undefined ? { all: true } : {}),
+            ...(values["include-rejected"] ? { includeRejected: true } : {}),
+            ...(values.limit !== undefined ? { limit: Number(values.limit) } : {}),
+          }
+        : {
+            ...(values.scope !== undefined ? { scope: values.scope } : { all: true }),
+            ...(values["include-rejected"] ? { includeRejected: true } : {}),
+            ...(values.limit !== undefined ? { limit: Number(values.limit) } : {}),
+          };
+    if (values.limit !== undefined && !/^[0-9]+$/.test(String(values.limit))) {
+      process.stderr.write("limit must be an integer from 1 to 100\n");
+      return 2;
+    }
+  } else if (route.operation === "review") {
+    args = { scope: values.scope, plan: values.plan, ...(values.purpose !== undefined ? { purpose: values.purpose } : {}), ...(values.outcome !== undefined ? { outcome: values.outcome } : {}) };
+  } else if (route.operation === "operation") {
+    args = { scope: values.scope, id: values.id };
+  } else if (route.requestFile) {
+    try {
+      args = { scope: values.scope, request: readRequestFile(values.request as string) };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      process.stdout.write(`${JSON.stringify({ status: "invalid-input", committed: false, snapshot: null, projectionStatus: null, projectionUpdated: false, issues: [{ code: "invalid-input", message }] }, null, 2)}\n`);
+      return 2;
+    }
   } else {
-    const r = initScope(dir, { kind, id: value("id") });
-    for (const f of r.created) console.log(`created ${f}`);
-    for (const f of r.skipped) console.log(`kept existing ${f}`);
+    args = { scope: values.scope };
   }
-} else if (cmd === "audit") {
-  // mozak audit [dir] [--kind project|topic] [--json]   read only
-  const dir = args[1] && !args[1].startsWith("--") ? args[1] : ".";
-  const kind = value("kind") === "topic" ? "topic" : "project";
-  const a = auditProject(dir, kind);
-  if (flag("json")) console.log(JSON.stringify(a, null, 2));
-  else {
-    console.log(`${a.dir}: ${a.hasOldState ? "old .mozak/ found" : "no old state"}`);
-    for (const [k, n] of Object.entries(a.counts)) console.log(`  ${k}: ${n} file${n === 1 ? "" : "s"}`);
-    for (const n of a.notes) console.log(`- ${n}`);
-    console.log("\nProposed MOZAK.md (nothing was written):\n");
-    console.log(a.draft);
-  }
-} else {
-  console.error(
-    [
-      "usage: mozak init [dir] --kind project|topic [--id ID]",
-      "       mozak check [scope-dir]",
-      "       mozak audit [dir] [--kind project|topic] [--json]",
-      "       mozak graph [--config FILE] [--mermaid|--json]",
-      "       mozak stale [scope-id] [--plan-only] [--json]   what changed after each scope (exit 3 if any input changed)",
-      "       mozak translate --idea TITLE --from SRC --to TARGET --assumption TEXT [--assumption TEXT ...] [--write]",
-      "       mozak resolve --in TARGET --idea TITLE --n N",
-    ].join("\n"),
-  );
-  process.exitCode = cmd ? 2 : 0;
+
+  const actor = OWNER_ROUTES.has(route.operation) ? "owner" : "agent";
+  const output = executeOperation(inventory, route.operation, args, actor);
+  printEnvelope(output, values.json === true || routeName !== "plans", routeName);
+  return output.exitCode;
+}
+
+try {
+  process.exitCode = run(process.argv.slice(2));
+} catch (err) {
+  // Unexpected failures are reported, never dressed up as a domain result.
+  const message = err instanceof Error ? err.message : String(err);
+  process.stderr.write(`internal error: ${message}\n`);
+  process.exitCode = 1;
 }

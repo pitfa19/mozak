@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { auditProject, checkScope } from "../src/index.ts";
-import { initScope } from "../src/init.ts";
+import { checkScope } from "../src/check.ts";
+import { auditProject, initScope } from "../src/init.ts";
 
 const tmp = () => mkdtempSync(join(tmpdir(), "mozak-i-"));
 
