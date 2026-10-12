@@ -1,20 +1,20 @@
 # Installation, safety, and recovery
 
-This guide covers building MOZAK from source, the planned portable installer, exit codes, and recovery. The short version is in the [README](../README.md).
+This guide covers building MOZAK from source, the portable installer, exit codes, and recovery. The short version is in the [README](../README.md).
 
 **Status key:** *Verified* means checked in this repo. *Planned* means specified but not yet implemented. *Pending* means not yet run on the target platform.
 
 | Area | Status |
 | --- | --- |
-| Source build and tests on Linux, Node 24.11.0 | Verified in an isolated relocation check. It reused the local npm cache. |
+| Source build and tests on Linux, Node 24.11.0 | Verified: 334 core tests and 69 installer tests pass. They reused the local npm cache. |
 | Source build and tests on macOS | Pending. Needs a real Mac run. |
-| Portable installer `scripts/install.mjs` | Planned (Package 3A). Not in the repo yet. |
-| CI on Ubuntu and macOS | Planned. No workflow file exists yet. |
+| Portable installer `scripts/install.mjs` | Verified on Linux. Real CLI and MCP subprocesses, including paths with spaces and Unicode. |
+| CI on Ubuntu and macOS | Workflow file written with pinned actions. It has not run on GitHub, because it is not pushed. |
 | Public remote matches local commits | Lagging. Local commits may include changes that are not pushed yet. |
 
 ## 1. Prerequisites
 
-- **Node.js 24.11.0 or later in major 24.** Node 24 is the only tested major. The package engines field is planned to match `>=24.11.0 <25`.
+- **Node.js 24.11.0 or later in major 24.** Node 24 is the only tested major. The package engines field is `>=24.11.0 <25`, and the installer refuses other Node versions.
 - **npm**, which ships with Node.
 - **Git**, to get the source.
 - **Linux or macOS.** Other systems are not supported.
@@ -23,7 +23,7 @@ MOZAK does not install Node, npm, or Git for you. It does not edit shell profile
 
 ## 2. Build from source
 
-Use this path today. It needs no installer.
+Build first. The installer in section 3 copies these built files.
 
 ```bash
 git clone https://github.com/pitfa19/mozak.git
@@ -43,9 +43,9 @@ Notes:
 - The public remote can lag the newest local commits. Build the exact commit you were given, and check it with `git log --oneline -1`.
 - Building or testing does not install MOZAK globally. It does not create any scope or project state.
 
-## 3. Portable installer (planned)
+## 3. Portable installer
 
-The installer is specified in [Package 3A](implementation-package-3-portable-workspace.md#6-first-implementation-contract-portable-local-installation-3a). It is not implemented yet. The command below shows the target interface.
+The installer follows [Package 3A](implementation-package-3-portable-workspace.md#6-first-implementation-contract-portable-local-installation-3a). Run it from the built source checkout. It is not on the public remote until the work is pushed.
 
 ```bash
 mkdir -p "$HOME/.local/share"
@@ -181,9 +181,9 @@ If a write saved the JSON but not the generated `MOZAK.md` bridge, the result sa
 
 ## 7. Known limits
 
-- The installer is planned. Until Package 3A lands and is verified, the only supported route is the source build in section 2.
-- macOS has not been run. Do not assume macOS works until the Mac run passes.
-- The repo copy of the conversation skill names the developer checkout path. A rendered installed copy is planned to fix that.
+- The installer is verified on Linux only. macOS has not been run. Do not assume macOS works until the Mac run passes.
+- The source copy of the conversation skill is a template. The installer refuses an unrendered template. Load the skill only from the installed folder.
+- Restoring a workspace from GitHub and a private vault is not built. Only the local installer is.
 - Crash durability is not promised. Rename and exclusive folder creation do not imply fsync.
 - Network filesystems and concurrent editors are not covered by the locking guarantees.
 - Older scope formats are refused. MOZAK does not migrate them.
@@ -195,7 +195,9 @@ If a write saved the JSON but not the generated `MOZAK.md` bridge, the result sa
 | Linux relocation from a git archive, Node 24.11.0, `npm ci --offline --ignore-scripts`, build, tests | Passed: 334 tests, 0 failed. Reused the local npm cache. Not a clean machine. |
 | Public GitHub clone and install | Not done. |
 | Mac install and restore | Pending. |
-| CI on Ubuntu and macOS | Planned. |
-| Installed skill activated by exact path | Planned. Needs a real host session. |
+| Installer suite (69 tests): install, check, unchanged, conflict, partial, concurrency, symlinks, bounds, timeouts, unreadable target | Passed on Linux. |
+| Installed CLI, MCP and rendered skill from a new prefix | Passed. The installed skill's own commands read a saved trial scope without changing it. |
+| CI on Ubuntu and macOS | Workflow written. Not run, because it is not pushed. |
+| Installed skill activated in a separate fresh host session | Not done. |
 
 Record the actual results of any new check here before claiming it passed.

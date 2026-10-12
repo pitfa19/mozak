@@ -1,0 +1,44 @@
+name: Linux and macOS
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Node 24.11.0 / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up tested Node runtime
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24.11.0'
+          package-manager-cache: false
+      - name: Prepare canonical test scratch
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/mozak-tests"
+          canonical=$(cd "$RUNNER_TEMP/mozak-tests" && pwd -P)
+          printf 'TMPDIR=%s\nJCODE_SCRATCH_DIR=%s\n' "$canonical" "$canonical" >> "$GITHUB_ENV"
+      - name: Install locked build dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts
+      - name: Build
+        run: npm run build
+      - name: Core, CLI and fresh MCP regression suite
+        run: npm test
+      - name: Standalone installation and failure-path checks
+        run: npm run test:install

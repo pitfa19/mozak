@@ -1,6 +1,6 @@
 # Package 3 proposal: official delivery and portable workspace
 
-Status: preparation draft, not an implementation or publication grant.
+Status: the complete workspace roadmap remains proposed. **Package 3A (section 6) was separately approved for implementation on 2026-10-12 at 20:36:36 UTC**, against commit `8fc2340` and document SHA-256 `28bd938ea7dc28d2264f67011bb4dd5e43d157d297d7e97b1ffea80458e67445`. The owner also requested a clear, comprehensive repository README. This approval covers only 3A's listed source changes and isolated checks, not publication, private restore or global cutover.
 
 ## Owner direction and unresolved boundary
 
@@ -126,7 +126,7 @@ Any delivery artifact other than the tested source checkout needs its own unpack
 
 ## 6. First implementation contract: portable local installation (3A)
 
-This is the first separately bounded implementation proposal, not approval to build. It leaves the complete workspace outcome above open. No GitHub/vault restore operation is implemented in 3A.
+This is the first separately bounded implementation slice, approved as recorded above. It leaves the complete workspace outcome above open. No GitHub/vault restore operation is implemented in 3A.
 
 ### Public entrypoints and inputs
 

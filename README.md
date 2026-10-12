@@ -28,11 +28,11 @@ MOZAK keeps a project's direction, decisions, and evidence in one canonical file
 - CLI and agent MCP server, both driven by an explicit inventory
 - Repo conversation skill, loaded by its exact path
 
-**Being built** (Package 3A, portable local install)
+**Built, Linux-tested** (Package 3A, portable local install)
 
-- Installer that writes a self-contained copy to a folder you name
+- Installer that writes a self-contained copy to a folder you name (69 installer tests, real CLI and MCP subprocesses)
 - Installed skill and MCP wrapper that point at that copy
-- CI on Linux and macOS
+- Linux and macOS CI workflow. It has not run on GitHub yet, because it is not pushed.
 
 **Not started**
 
@@ -46,7 +46,7 @@ The real owner trial and a fresh-host check are still open.
 
 | Platform | Status |
 | --- | --- |
-| Linux | Source build and full test suite (334 tests) passed in an isolated relocation check on Node 24.11.0. It reused the local npm cache, so it is not a clean-machine test. |
+| Linux | Build, the 334-test suite and the 69-test installer suite pass on Node 24.11.0. An isolated relocation check also passed. Both reused the local npm cache, so this is not a clean-machine test. |
 | macOS | Target. **Pending:** not run on a Mac yet. |
 
 ## Architecture
@@ -137,14 +137,14 @@ The scope must already exist. Creating one (`scope init`) is owner-only.
 | Read or check a project | CLI | `node packages/cli/dist/index.js` |
 | Let an agent read and propose through MCP | MCP server | `node packages/mcp/dist/index.js --config FILE` |
 | Run the conversation flow from this repo | Repo skill | `skills/mozak-conversation/SKILL.md` |
-| Use a portable copy (planned) | Installed skill | `PREFIX/skills/mozak-conversation/SKILL.md` |
-| Use a portable copy (planned) | Installed CLI and MCP | `PREFIX/bin/mozak` and `PREFIX/bin/mozak-mcp --config FILE` |
+| Use a portable copy | Installed skill | `PREFIX/skills/mozak-conversation/SKILL.md` |
+| Use a portable copy | Installed CLI and MCP | `PREFIX/bin/mozak` and `PREFIX/bin/mozak-mcp --config FILE` |
 
 Use only the paths above. Do not use a bare `mozak` command or a skill found elsewhere on your machine. Load skills by their exact path.
 
-## Portable install (planned)
+## Portable install
 
-**Not on the public remote yet.** This is the target command once Package 3A lands. It writes only into the new folder you name. It does not use `sudo`, edit shell profiles, change `PATH`, use the network, run Git, or read credentials.
+**Not on the public remote yet.** The installer exists in this working copy only until it is pushed. Build first (`npm ci --ignore-scripts`, then `npm run build`). It writes only into the new folder you name. It does not use `sudo`, edit shell profiles, change `PATH`, use the network, run Git, or read credentials.
 
 ```bash
 mkdir -p "$HOME/.local/share"
@@ -158,7 +158,8 @@ node scripts/install.mjs --prefix "$PREFIX" --json
 - `--check` writes nothing. Run it first.
 - `--prefix` must be an absolute path to a folder that does not exist yet.
 - Accepted flags are `--prefix`, `--check` and `--json`. `--json` is required. Unknown or repeated flags fail.
-- The installer never replaces an existing install.
+- The installer never replaces an existing install. Re-running on an identical install changes nothing and reports `unchanged`. A different or damaged install is a `conflict`.
+- It checks that the installed CLI and MCP server actually start before it marks the install complete.
 
 Exit codes, the installed layout, and recovery steps are in [docs/installation.md](docs/installation.md).
 
@@ -174,9 +175,10 @@ Exit codes, the installed layout, and recovery steps are in [docs/installation.m
 
 - Owner approval follows a trusted-host convention. It is not authentication.
 - Concurrency guarantees cover cooperating processes on a tested local filesystem. They do not cover network filesystems or power loss.
-- The repo copy of the conversation skill still names the developer checkout path. The installer will render a copy for its own folder.
+- Load the skill from the installed folder only. The source copy under `skills/` is a template and is refused until rendered.
 - Older scope formats are refused, not migrated.
-- macOS is unverified until the Mac run passes.
+- macOS is unverified until the Mac run passes. The Linux results above do not transfer to it.
+- Restoring a workspace from GitHub and a private vault is not built. Only the local installer is.
 
 ## Transition from the old checkout
 

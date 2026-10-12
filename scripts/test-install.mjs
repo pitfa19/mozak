@@ -444,12 +444,63 @@ test('FIFO source is refused promptly without opening or modifying it', t => {
   assert.deepEqual(snapshot(f.root), before);
 });
 
-test('a hung real CLI smoke child is bounded by the installer timeout', () => {
+test('a SIGTERM-resistant real CLI smoke child is bounded by the installer timeout', async () => {
   const f = fixture(), file = join(f.source, 'packages/cli/dist/index.js');
-  writeFileSync(file, `${readFileSync(file, 'utf8')}\nsetInterval(() => {}, 1000);\n`);
+  writeFileSync(file, `${readFileSync(file, 'utf8')}\nprocess.on('SIGTERM', () => {}); setInterval(() => {}, 1000);\n`);
   const start = performance.now();
-  const failed = install(f, 'partial-install');
+  // Own a detached process group so even a regressed installer cannot leave an
+  // orphan smoke child when the independent test deadline fires.
+  const failed = await new Promise((done, fail) => {
+    const child = spawn(process.execPath, [join(f.source, 'scripts/install.mjs'), '--prefix', f.prefix, '--json'], {
+      cwd: f.cwd, env: f.env, detached: true, stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let stdout = '', stderr = '';
+    const killGroup = () => {
+      if (!child.pid) return;
+      try { process.kill(-child.pid, 'SIGKILL'); } catch (error) { if (error.code !== 'ESRCH') throw error; }
+    };
+    const timer = setTimeout(() => {
+      killGroup();
+      fail(new Error(`installer exceeded the independent 20-second deadline: ${stdout} ${stderr}`));
+    }, 20000);
+    child.stdout.on('data', chunk => { stdout += chunk; });
+    child.stderr.on('data', chunk => { stderr += chunk; });
+    child.on('error', error => { clearTimeout(timer); killGroup(); fail(error); });
+    child.on('close', (status, signal) => {
+      clearTimeout(timer);
+      try {
+        killGroup();
+        assert.equal(signal, null);
+        done(result({ stdout, stderr, status }, 'partial-install'));
+      } catch (error) { fail(error); }
+    });
+  });
   assert.ok(performance.now() - start >= 9000, 'the real child stayed alive until the timeout');
   assert.ok(failed.issues.some(issue => /smoke/i.test(`${issue.code} ${issue.message}`)));
   assert.ok(!existsSync(join(f.prefix, 'installation.json')));
+});
+
+for (const check of [false, true]) test(`source change during existing-target ${check ? 'check' : 'no-op'} verification cannot report success`, () => {
+  const f = fixture(); install(f);
+  const before = snapshot(f.prefix);
+  const preload = join(f.root, 'change-source-during-target-verification.mjs');
+  const file = join(f.source, 'LICENSE');
+  const marker = '\nsynthetic source edit during target verification\n';
+  writeFileSync(preload, `import fs from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
+const readdir = fs.readdirSync;
+let changed = false;
+fs.readdirSync = function(path, ...args) {
+  if (String(path) === ${JSON.stringify(f.prefix)} && !changed) {
+    changed = true;
+    fs.appendFileSync(${JSON.stringify(file)}, ${JSON.stringify(marker)});
+  }
+  return readdir.call(this, path, ...args);
+};
+syncBuiltinESMExports();
+`);
+  const failed = install(f, 'source-unavailable', check ? ['--check'] : [], { nodeArgs: ['--import', preload] });
+  assert.ok(failed.issues.some(issue => /source.*chang|chang.*source/i.test(`${issue.code} ${issue.message}`)));
+  assert.ok(readFileSync(file, 'utf8').endsWith(marker), 'fault actually happened');
+  assert.deepEqual(snapshot(f.prefix), before, 'existing target stays byte- and metadata-identical');
 });
