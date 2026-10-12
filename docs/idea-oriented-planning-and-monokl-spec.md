@@ -4,6 +4,8 @@
 
 **Later bounded execution:** the owner separately approved package 1 at `2026-10-12T08:16:20.810Z` against checkpoint `caffffa`. Its local MOZAK plan-state/review implementation and A01–A15 checks are complete, with 239/239 tests passing. See `implementation-package-1-acceptance.md`. Monokl, the actual pilot, global setup, migration and publication remain outside that grant.
 
+**Design handoff record:** `detailed-specification-handoff.md` indexes the actual owner design decisions, requirement coverage and downstream package status. Completion of the specification workflow does not imply completion or approval of future implementation and pilot work.
+
 This specification implements the expectations accepted at **2026-10-11T23:09:39Z**. The owner subsequently requested the detailed specification, not coding. Accepted product requirements are marked **R**. Concrete engineering choices made in this document remain **proposed** except for the explicitly recorded P1–P5 approvals below, and are not retroactively attributed to the owner. Approval of this document must name whether it approves the design only or also authorises a bounded implementation package.
 
 ## Problem Statement
