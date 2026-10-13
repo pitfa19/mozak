@@ -14,6 +14,7 @@ import {
   type ScopeRead,
 } from "./scope-store.ts";
 import { contextView, reviewRows, reviewShow } from "./review.ts";
+import { scopeIndex } from "./scope-list.ts";
 import { canonical, digest } from "./understanding.ts";
 
 export type Actor = "agent" | "owner";
@@ -25,6 +26,7 @@ export interface OperationOutput {
 export const OPERATIONS = [
   "context",
   "plans",
+  "scopes",
   "review",
   "check",
   "operation",
@@ -497,6 +499,26 @@ function plansOp(inv: ScopeInventory, a: Record<string, unknown>): OperationOutp
 function readOp(inv: ScopeInventory, operation: string, a: Record<string, unknown>): OperationOutput {
   if (operation === "plans") return plansOp(inv, a);
 
+  if (operation === "scopes") {
+    closed(a, "scopes arguments", [], []);
+    const index = scopeIndex(inv);
+    return {
+      exitCode: index.coverage.complete ? 0 : 6,
+      data: {
+        status: "ok",
+        committed: false,
+        operation,
+        snapshot: null,
+        projectionStatus: null,
+        projectionUpdated: false,
+        issues: [],
+        inventory: index.inventory,
+        coverage: index.coverage,
+        scopes: index.scopes,
+      },
+    };
+  }
+
   if (operation === "review") {
     const o = closed(a, "review arguments", ["scope", "plan"], ["purpose", "outcome"]);
     const scope = nonEmpty(o.scope, "scope");
@@ -648,7 +670,7 @@ export function executeOperation(inv: ScopeInventory, operation: string, args: u
     if (!(OPERATIONS as readonly string[]).includes(operation)) {
       throw new DomainError("unsupported-operation", `unknown operation "${operation}"`, 2);
     }
-    if (["context", "plans", "review", "check", "operation"].includes(operation)) {
+    if (["context", "plans", "scopes", "review", "check", "operation"].includes(operation)) {
       if (!isPlain(args)) throw invalid("arguments must be an object");
       return readOp(inv, operation, args);
     }

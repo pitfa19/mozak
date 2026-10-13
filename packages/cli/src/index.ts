@@ -28,6 +28,7 @@ const ROUTES: Record<string, Route> = {
     mode: "scope",
   },
   "review show": { operation: "review", flags: ["config", "scope", "plan", "purpose", "outcome", "json"], requires: ["config", "scope", "plan"], requestFile: false },
+  scopes: { operation: "scopes", flags: ["config", "json"], requires: ["config"], requestFile: false },
   check: { operation: "check", flags: ["config", "scope", "json"], requires: ["config", "scope"], requestFile: false },
   operation: { operation: "operation", flags: ["config", "scope", "id", "json"], requires: ["config", "scope", "id"], requestFile: false },
   "plan propose": { operation: "propose", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
@@ -54,6 +55,7 @@ function usage(): string {
     "  mozak scope init --scope ID --request FILE          (owner)",
     "  mozak context --scope ID [--json]",
     "  mozak plans (--scope ID | --all) [--include-rejected] [--limit 1..100] [--continuation TOKEN] [--json]",
+    "  mozak scopes [--json]                                (read-only index of every scope: id, folder, title, plan counts)",
     "  mozak review show --scope ID --plan ID [--purpose P] [--outcome ID] [--json]",
     "  mozak check --scope ID [--json]",
     "  mozak operation --scope ID --id OP [--json]",
@@ -214,7 +216,42 @@ function renderPlansHuman(data: {
   return `${lines.join("\n")}\n`;
 }
 
+/** Human-readable scope index. JSON output is unchanged and remains the machine contract. */
+interface IndexRow {
+  id: string;
+  root: string;
+  status: string;
+  code?: string;
+  message?: string;
+  title?: string;
+  kind?: string;
+  plans?: { completed: number; open: number; awaiting: number };
+  entryFiles: string[];
+}
+function renderScopesHuman(data: { coverage?: { selected: number; ok: number; failed: number }; scopes?: IndexRow[] }): string {
+  const c = data.coverage;
+  const lines: string[] = [`scopes: ${c?.selected ?? 0} (ok ${c?.ok ?? 0}, failed ${c?.failed ?? 0})`, ""];
+  for (const s of data.scopes ?? []) {
+    if (s.status === "ok") {
+      const p = s.plans ?? { completed: 0, open: 0, awaiting: 0 };
+      lines.push(`${s.id}  [${s.kind}]  ${s.title}`);
+      lines.push(`    folder: ${s.root}`);
+      lines.push(`    plans: ${p.completed} completed, ${p.open} open, ${p.awaiting} awaiting`);
+      lines.push(`    files: ${s.entryFiles.join(", ") || "none"}`);
+    } else {
+      lines.push(`${s.id}  failed (${s.code})`);
+      lines.push(`    folder: ${s.root}`);
+      lines.push(`    ${s.message}`);
+    }
+  }
+  return `${lines.join("\n")}\n`;
+}
+
 function printEnvelope(output: OperationOutput, json: boolean, routeName: string): void {
+  if (!json && routeName === "scopes") {
+    process.stdout.write(renderScopesHuman(output.data as Parameters<typeof renderScopesHuman>[0]));
+    return;
+  }
   if (json || routeName !== "plans") {
     process.stdout.write(`${JSON.stringify(output.data, null, 2)}\n`);
     return;
@@ -271,6 +308,8 @@ function run(argv: string[]): number {
       process.stderr.write("limit must be an integer from 1 to 100\n");
       return 2;
     }
+  } else if (route.operation === "scopes") {
+    args = {};
   } else if (route.operation === "review") {
     args = { scope: values.scope, plan: values.plan, ...(values.purpose !== undefined ? { purpose: values.purpose } : {}), ...(values.outcome !== undefined ? { outcome: values.outcome } : {}) };
   } else if (route.operation === "operation") {
@@ -289,7 +328,7 @@ function run(argv: string[]): number {
 
   const actor = OWNER_ROUTES.has(route.operation) ? "owner" : "agent";
   const output = executeOperation(inventory, route.operation, args, actor);
-  printEnvelope(output, values.json === true || routeName !== "plans", routeName);
+  printEnvelope(output, values.json === true || (routeName !== "plans" && routeName !== "scopes"), routeName);
   return output.exitCode;
 }
 

@@ -13,6 +13,7 @@ import { initScopeState, loadInventory } from "@mozak/core";
 const READ_TOOLS: Record<string, { op: string; args: string[]; required: string[] }> = {
   mozak_context: { op: "context", args: ["scope"], required: ["scope"] },
   mozak_plans: { op: "plans", args: ["scope", "all", "includeRejected", "limit", "continuation"], required: [] },
+  mozak_scopes: { op: "scopes", args: [], required: [] },
   mozak_review_show: { op: "review", args: ["scope", "plan", "purpose", "outcome"], required: ["scope", "plan"] },
   mozak_check: { op: "check", args: ["scope"], required: ["scope"] },
   mozak_operation: { op: "operation", args: ["scope", "id"], required: ["scope", "id"] },
@@ -171,7 +172,7 @@ async function snapshotOf(s: Server): Promise<{ revision: string; graphHash: str
 
 // ---- tool metadata -------------------------------------------------------
 
-test("tools/list advertises exactly the nine permitted tools", () => {
+test("tools/list advertises exactly the twelve permitted tools", () => {
   const r = handle({ jsonrpc: "2.0", id: 1, method: "tools/list" }, { inventory: emptyInventory(), execute: spyExecute().execute }) as {
     result: { tools: { name: string }[] };
   };
@@ -929,4 +930,38 @@ test("A04 control: the same valid observe without injection commits, so refusals
   assert.equal(ok.isError, false, `valid observe commits: ${ok.text}`);
   assert.equal(JSON.parse(ok.text).committed, true, "the clean observation is committed");
   assert.notEqual(bytes(f.scopeDir), "", "the scope bytes changed");
+});
+
+// ---------- mozak_scopes: read-only navigation index ----------
+
+test("mozak_scopes takes no arguments and refuses any, so an agent cannot choose a path or scope", () => {
+  const def = TOOLS.find((t) => t.name === "mozak_scopes")!;
+  assert.deepEqual(def.inputSchema.properties, {});
+  assert.deepEqual(def.inputSchema.required, []);
+  assert.equal(def.inputSchema.additionalProperties, false);
+});
+
+test("mozak_scopes is dispatched as a read-only agent operation and never as an owner action", () => {
+  const calls: { op: string; actor: string }[] = [];
+  const runtime = {
+    inventory: { format: "mozak.local/v2", scopes: [], digest: "x" },
+    execute: (_inv: unknown, op: string, _args: unknown, actor: string) => {
+      calls.push({ op, actor });
+      return { exitCode: 0, data: { status: "ok", committed: false, operation: op } };
+    },
+  };
+  const reply = handle({ jsonrpc: "2.0", id: 9, method: "tools/call", params: { name: "mozak_scopes", arguments: {} } }, runtime as never);
+  assert.ok(reply);
+  assert.deepEqual(calls, [{ op: "scopes", actor: "agent" }]);
+});
+
+test("mozak_scopes rejects an unexpected argument before reaching the core", () => {
+  let reached = false;
+  const runtime = {
+    inventory: { format: "mozak.local/v2", scopes: [], digest: "x" },
+    execute: () => { reached = true; return { exitCode: 0, data: {} }; },
+  };
+  const reply = handle({ jsonrpc: "2.0", id: 10, method: "tools/call", params: { name: "mozak_scopes", arguments: { root: "/etc" } } }, runtime as never) as { error?: unknown; result?: { isError?: boolean } };
+  assert.equal(reached, false);
+  assert.ok(reply.error || reply.result?.isError);
 });

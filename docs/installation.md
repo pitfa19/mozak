@@ -128,6 +128,8 @@ The result JSON has exactly these keys: `status`, `committed`, `prefix`, `conten
 | 5 | A change was saved, but the generated bridge or cleanup is unfinished. |
 | 6 | All-scope read covered only part of the scopes. |
 
+`mozak scopes` and `plans --all` use exit 6 when at least one scope could not be read. `scopes` still lists that scope, with its error code, so partial coverage is never silent.
+
 **A nonzero exit does not mean nothing changed.** Read `committed`, `projectionUpdated`, `projectionStatus`, and the operation receipt before retrying.
 
 ## 5. Recovery
@@ -196,6 +198,7 @@ If a write saved the JSON but not the generated `MOZAK.md` bridge, the result sa
 | Public GitHub clone and install | Not done. |
 | Mac install and restore | Pending. |
 | Installer suite (69 tests): install, check, unchanged, conflict, partial, concurrency, symlinks, bounds, timeouts, unreadable target | Passed on Linux. |
+| `mozak scopes` and `mozak_scopes` (11 CLI tests, 3 MCP tests) | Passed on Linux. A fresh MCP session listed all ten scopes of a real workspace and refused an extra argument. |
 | Installed CLI, MCP and rendered skill from a new prefix | Passed. The installed skill's own commands read a saved trial scope without changing it. |
 | CI on Ubuntu and macOS | Passed for `c324d45` on GitHub-hosted runners. A personal Mac run is still pending. |
 | Installed skill activated in a separate fresh host session | Not done. |

@@ -64,6 +64,13 @@ export const TOOLS: ToolDef[] = [
     [],
   ),
   tool(
+    "mozak_scopes",
+    "scopes",
+    "Index of every scope in the explicit inventory: id, folder, title, kind, plan counts and which entry documents exist. Use it first to find where things are. Returns no plan text or decisions, and failed scopes are listed with their error code.",
+    {},
+    [],
+  ),
+  tool(
     "mozak_review_show",
     "review",
     "Accepted meaning, pending proposal, changed fields, and the review digest for one exact plan action. Reading creates no approval.",

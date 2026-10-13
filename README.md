@@ -72,6 +72,8 @@ A **scope** is a git repo or a notes folder. You list the scopes you want in one
 
 Open `plans --all` and you see every scope grouped as **Completed**, **Open**, and **Awaiting approval**.
 
+To find out what exists, run `mozak scopes`. It lists every scope in your inventory with its folder, title, plan counts, and which entry files are present. Your agent gets the same index from the `mozak_scopes` MCP tool, so it can navigate a whole vault without being told where anything is. The index is read-only. It returns no plan text, evidence, or decisions, and a scope it cannot read is listed with its error instead of being skipped.
+
 ## See it run
 
 <div align="center">
@@ -86,6 +88,7 @@ A side-by-side video for sharing is [docs/assets/demo-split-screen.mp4](docs/ass
 
 | You want | Use |
 | --- | --- |
+| Find every scope and where it lives | `mozak scopes`, or the `mozak_scopes` MCP tool |
 | Read or check a project | `mozak context`, `plans`, `check` |
 | Let an agent read and propose over MCP | `mozak-mcp --config inventory.json` (any MCP client) |
 | Run the guided conversation | the installed skill at `PREFIX/skills/mozak-conversation/SKILL.md` |
