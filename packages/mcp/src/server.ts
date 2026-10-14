@@ -71,6 +71,13 @@ export const TOOLS: ToolDef[] = [
     [],
   ),
   tool(
+    "mozak_sync",
+    "sync",
+    "Force-refresh remote scopes (git sparse copies) from their remotes. Reads already refresh a remote scope when it is older than 10 minutes and mark it stale when offline. Optionally limit to one scope. Returns per-scope stale, lastFetchAt and error.",
+    { scope: SCOPE },
+    [],
+  ),
+  tool(
     "mozak_review_show",
     "review",
     "Accepted meaning, pending proposal, changed fields, and the review digest for one exact plan action. Reading creates no approval.",

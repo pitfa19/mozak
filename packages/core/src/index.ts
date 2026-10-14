@@ -15,3 +15,5 @@ export * from "./scope-store.ts";
 export * from "./scope-list.ts";
 export * from "./review.ts";
 export * from "./api.ts";
+export * from "./remote-meta.ts";
+export * from "./remote.ts";

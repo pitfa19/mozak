@@ -1,10 +1,14 @@
 import { createHash } from "node:crypto";
-import { lstatSync, readFileSync, realpathSync, statSync, type Stats } from "node:fs";
+import { existsSync, lstatSync, readFileSync, realpathSync, statSync, type Stats } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { DomainError } from "./errors.ts";
+import { cacheRootFor, parseRemoteSpec, readRemoteMeta, DEFAULT_REF, REF_PATTERN, type RemoteInfo } from "./remote-meta.ts";
 
 /** Pilot-local explicit inventory. Never a global registration or a directory scan. */
-export const INVENTORY_FORMAT = "mozak.local/v2" as const;
+export const INVENTORY_FORMAT_V2 = "mozak.local/v2" as const;
+/** v3 adds optional remote scope entries. v2 inventories are still accepted unchanged. */
+export const INVENTORY_FORMAT = "mozak.local/v3" as const;
+export type InventoryFormat = typeof INVENTORY_FORMAT_V2 | typeof INVENTORY_FORMAT;
 export const WRITE_LOCK_DIR = ".mozak-write-lock";
 const GRAPH_FILE = "MOZAK.json";
 const BRIDGE_FILE = "MOZAK.md";
@@ -13,10 +17,12 @@ export interface ScopeEntry {
   id: string;
   /** Canonical absolute root as observed at inventory load (or lexical path for a root not yet present). */
   root: string;
+  /** Present only for a remote scope. `root` is then the cache working copy, or the full clone after `mozak pull`. */
+  remote?: RemoteInfo;
 }
 
 export interface ScopeInventory {
-  format: typeof INVENTORY_FORMAT;
+  format: InventoryFormat;
   scopes: ScopeEntry[];
   /** SHA-256 over the normalized explicit inventory: format plus sorted id and canonical root. */
   digest: string;
@@ -24,6 +30,8 @@ export interface ScopeInventory {
 
 const INVENTORY_KEYS = ["format", "scopes"] as const;
 const ENTRY_KEYS = ["id", "root"] as const;
+const REMOTE_ENTRY_KEYS = ["id", "remote", "ref"] as const;
+const REMOTE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -78,7 +86,10 @@ function canonicalPath(path: string): string {
 function digestOf(format: string, scopes: ScopeEntry[]): string {
   const canonical = JSON.stringify({
     format,
-    scopes: scopes.map((scope) => ({ id: scope.id, root: scope.root })),
+    // Local entries keep the exact v2 shape, so existing digests do not change.
+    scopes: scopes.map((scope) =>
+      scope.remote ? { id: scope.id, root: scope.root, remote: scope.remote.spec, ref: scope.remote.ref } : { id: scope.id, root: scope.root },
+    ),
   });
   return createHash("sha256").update(canonical, "utf8").digest("hex");
 }
@@ -106,9 +117,10 @@ export function loadInventory(configPath: string): ScopeInventory {
 
   if (!isPlainObject(raw)) throw invalidInventory(file, "inventory must be a JSON object");
   assertClosedObject(raw, INVENTORY_KEYS, "inventory", file);
-  if (raw.format !== INVENTORY_FORMAT) {
-    throw invalidInventory(file, `format must be "${INVENTORY_FORMAT}"`);
+  if (raw.format !== INVENTORY_FORMAT && raw.format !== INVENTORY_FORMAT_V2) {
+    throw invalidInventory(file, `format must be "${INVENTORY_FORMAT}" or "${INVENTORY_FORMAT_V2}"`);
   }
+  const format: InventoryFormat = raw.format;
   if (!Array.isArray(raw.scopes)) throw invalidInventory(file, `"scopes" must be an array`);
 
   const base = dirname(file);
@@ -118,15 +130,49 @@ export function loadInventory(configPath: string): ScopeInventory {
 
   for (const entry of raw.scopes) {
     if (!isPlainObject(entry)) throw invalidInventory(file, "each scope must be an object");
-    assertClosedObject(entry, ENTRY_KEYS, "scope entry", file);
+    const isRemote = format === INVENTORY_FORMAT && "remote" in entry;
+    if (isRemote) {
+      // Exactly one of root or remote. The ref is optional and defaults to main. The object stays closed.
+      for (const key of Object.keys(entry)) {
+        if (!(REMOTE_ENTRY_KEYS as readonly string[]).includes(key)) {
+          throw invalidInventory(file, key === "root" ? `scope entry must have exactly one of "root" or "remote"` : `unknown key "${key}" in scope entry`);
+        }
+      }
+      if (!("id" in entry)) throw invalidInventory(file, `missing "id" in scope entry`);
+    } else {
+      assertClosedObject(entry, ENTRY_KEYS, "scope entry", file);
+    }
 
     const id = entry.id;
-    const root = entry.root;
     if (typeof id !== "string" || id.trim() === "") {
       throw invalidInventory(file, "scope id must be a nonempty string");
     }
-    if (typeof root !== "string" || root.trim() === "") {
-      throw invalidInventory(file, `scope "${id}" root must be a nonempty string`);
+    let root: string;
+    let remote: RemoteInfo | undefined;
+    if (isRemote) {
+      if (!REMOTE_ID_PATTERN.test(id)) {
+        throw invalidInventory(file, `remote scope id "${id}" must use letters, digits, ".", "_" or "-" (it names a cache folder)`);
+      }
+      if (typeof entry.remote !== "string") throw invalidInventory(file, `scope "${id}" remote must be a string`);
+      const ref = entry.ref === undefined ? DEFAULT_REF : entry.ref;
+      if (typeof ref !== "string" || !REF_PATTERN.test(ref)) {
+        throw invalidInventory(file, `scope "${id}" ref must be a plain branch name`);
+      }
+      const parsed = parseRemoteSpec(entry.remote);
+      if (!parsed) {
+        throw invalidInventory(file, `scope "${id}" remote must look like "github:owner/repo", an https:// URL or an absolute file:// URL`);
+      }
+      const cacheRoot = canonicalPath(cacheRootFor(base, id));
+      const meta = readRemoteMeta(base, id);
+      const fullClone = meta.fullClone !== null && existsSync(join(meta.fullClone, ".git")) && existsSync(join(meta.fullClone, "MOZAK.json")) ? canonicalPath(meta.fullClone) : null;
+      root = fullClone ?? cacheRoot;
+      remote = { spec: entry.remote, url: parsed.url, ref, repoName: parsed.repoName, baseDir: base, cacheRoot, fullClone };
+    } else {
+      const rawRoot = entry.root;
+      if (typeof rawRoot !== "string" || rawRoot.trim() === "") {
+        throw invalidInventory(file, `scope "${id}" root must be a nonempty string`);
+      }
+      root = canonicalPath(resolve(base, rawRoot));
     }
 
     if (seenIds.has(id)) {
@@ -134,7 +180,7 @@ export function loadInventory(configPath: string): ScopeInventory {
     }
     seenIds.add(id);
 
-    const canonical = canonicalPath(resolve(base, root));
+    const canonical = root;
     const prior = seenRoots.get(canonical);
     if (prior !== undefined) {
       throw new DomainError(
@@ -143,11 +189,11 @@ export function loadInventory(configPath: string): ScopeInventory {
       );
     }
     seenRoots.set(canonical, id);
-    scopes.push({ id, root: canonical });
+    scopes.push(remote ? { id, root: canonical, remote } : { id, root: canonical });
   }
 
   scopes.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-  return { format: INVENTORY_FORMAT, scopes, digest: digestOf(INVENTORY_FORMAT, scopes) };
+  return { format, scopes, digest: digestOf(format, scopes) };
 }
 
 /**
@@ -171,7 +217,8 @@ export function resolveScope(inv: ScopeInventory, id: string): ScopeEntry {
     stats = statSync(real);
   } catch (err) {
     if (isMissing(err)) {
-      throw new DomainError("scope-root-missing", `scope "${id}" root is missing: ${entry.root}`);
+      const hint = entry.remote ? " (remote scope not fetched yet: run `mozak sync`)" : "";
+      throw new DomainError("scope-root-missing", `scope "${id}" root is missing: ${entry.root}${hint}`);
     }
     throw new DomainError("scope-root-unreadable", `scope "${id}" root is unreadable: ${entry.root}`);
   }
@@ -185,7 +232,7 @@ export function resolveScope(inv: ScopeInventory, id: string): ScopeEntry {
       `scope "${id}" root now resolves to ${real}, not the inventoried ${entry.root}`,
     );
   }
-  return { id: entry.id, root: real };
+  return entry.remote ? { id: entry.id, root: real, remote: entry.remote } : { id: entry.id, root: real };
 }
 
 function lstatOrNull(path: string): Stats | null {

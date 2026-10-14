@@ -14,6 +14,7 @@ const READ_TOOLS: Record<string, { op: string; args: string[]; required: string[
   mozak_context: { op: "context", args: ["scope"], required: ["scope"] },
   mozak_plans: { op: "plans", args: ["scope", "all", "includeRejected", "limit", "continuation"], required: [] },
   mozak_scopes: { op: "scopes", args: [], required: [] },
+  mozak_sync: { op: "sync", args: ["scope"], required: [] },
   mozak_review_show: { op: "review", args: ["scope", "plan", "purpose", "outcome"], required: ["scope", "plan"] },
   mozak_check: { op: "check", args: ["scope"], required: ["scope"] },
   mozak_operation: { op: "operation", args: ["scope", "id"], required: ["scope", "id"] },
@@ -172,7 +173,7 @@ async function snapshotOf(s: Server): Promise<{ revision: string; graphHash: str
 
 // ---- tool metadata -------------------------------------------------------
 
-test("tools/list advertises exactly the twelve permitted tools", () => {
+test("tools/list advertises exactly the thirteen permitted tools", () => {
   const r = handle({ jsonrpc: "2.0", id: 1, method: "tools/list" }, { inventory: emptyInventory(), execute: spyExecute().execute }) as {
     result: { tools: { name: string }[] };
   };

@@ -7,7 +7,7 @@ import { closeSync, fstatSync, openSync, readSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { executeOperation, loadInventory, MAX_REQUEST_BYTES, type OperationOutput } from "@mozak/core";
 
-const OWNER_ROUTES = new Set(["decide", "init", "repair"]);
+const OWNER_ROUTES = new Set(["decide", "init", "repair", "pull"]);
 
 type Route = {
   operation: string;
@@ -29,6 +29,8 @@ const ROUTES: Record<string, Route> = {
   },
   "review show": { operation: "review", flags: ["config", "scope", "plan", "purpose", "outcome", "json"], requires: ["config", "scope", "plan"], requestFile: false },
   scopes: { operation: "scopes", flags: ["config", "json"], requires: ["config"], requestFile: false },
+  sync: { operation: "sync", flags: ["config", "scope", "json"], requires: ["config"], requestFile: false },
+  pull: { operation: "pull", flags: ["config", "scope", "into", "json"], requires: ["config", "scope"], requestFile: false },
   check: { operation: "check", flags: ["config", "scope", "json"], requires: ["config", "scope"], requestFile: false },
   operation: { operation: "operation", flags: ["config", "scope", "id", "json"], requires: ["config", "scope", "id"], requestFile: false },
   "plan propose": { operation: "propose", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
@@ -56,6 +58,8 @@ function usage(): string {
     "  mozak context --scope ID [--json]",
     "  mozak plans (--scope ID | --all) [--include-rejected] [--limit 1..100] [--continuation TOKEN] [--json]",
     "  mozak scopes [--json]                                (read-only index of every scope: id, folder, title, plan counts)",
+    "  mozak sync [--scope ID] [--json]                     (force-refresh remote scopes; reads refresh them after 10 minutes)",
+    "  mozak pull --scope ID [--into PATH]                  (owner; turn a remote scope into a full working clone)",
     "  mozak review show --scope ID --plan ID [--purpose P] [--outcome ID] [--json]",
     "  mozak check --scope ID [--json]",
     "  mozak operation --scope ID --id OP [--json]",
@@ -187,7 +191,12 @@ interface HumanRow {
   reason?: string;
   continuation?: string;
 }
+interface RemoteInfoRow { scope: string; remote: string; ref: string; stale: boolean; lastFetchAt: string | null; error?: string; source: string }
+function remoteLines(remote: RemoteInfoRow[] | undefined): string[] {
+  return (remote ?? []).map((r) => `remote ${r.scope}: ${r.remote}@${r.ref}${r.stale ? ` STALE (cached copy, ${r.error ?? "fetch failed"})` : ""}${r.lastFetchAt ? `, last fetch ${r.lastFetchAt}` : ""}`);
+}
 function renderPlansHuman(data: {
+  remote?: RemoteInfoRow[];
   status: string;
   uniquePlanCount?: number;
   reviewItemCount?: number;
@@ -213,6 +222,7 @@ function renderPlansHuman(data: {
     if (g.hasMore && g.continuation) lines.push(`  more: --continuation ${g.continuation}`);
   }
   for (const issue of data.issues ?? []) lines.push(`issue ${issue.scope ? `[${issue.scope}] ` : ""}${issue.code}: ${issue.message}`);
+  lines.push(...remoteLines(data.remote));
   return `${lines.join("\n")}\n`;
 }
 
@@ -227,6 +237,11 @@ interface IndexRow {
   kind?: string;
   plans?: { completed: number; open: number; awaiting: number };
   entryFiles: string[];
+  remote?: string;
+  ref?: string;
+  stale?: boolean;
+  staleReason?: string;
+  lastFetchAt?: string | null;
 }
 function renderScopesHuman(data: { coverage?: { selected: number; ok: number; failed: number }; scopes?: IndexRow[] }): string {
   const c = data.coverage;
@@ -234,12 +249,13 @@ function renderScopesHuman(data: { coverage?: { selected: number; ok: number; fa
   for (const s of data.scopes ?? []) {
     if (s.status === "ok") {
       const p = s.plans ?? { completed: 0, open: 0, awaiting: 0 };
-      lines.push(`${s.id}  [${s.kind}]  ${s.title}`);
+      lines.push(`${s.id}  [${s.kind}]  ${s.title}${s.remote ? "  [remote" + (s.stale ? ", STALE" : "") + "]" : ""}`);
+      if (s.remote) lines.push(`    remote: ${s.remote}@${s.ref}${s.stale ? ` (cached copy, ${s.staleReason ?? "fetch failed"})` : ""}`);
       lines.push(`    folder: ${s.root}`);
       lines.push(`    plans: ${p.completed} completed, ${p.open} open, ${p.awaiting} awaiting`);
       lines.push(`    files: ${s.entryFiles.join(", ") || "none"}`);
     } else {
-      lines.push(`${s.id}  failed (${s.code})`);
+      lines.push(`${s.id}  failed (${s.code})${s.remote ? "  [remote" + (s.stale ? ", STALE" : "") + "]" : ""}`);
       lines.push(`    folder: ${s.root}`);
       lines.push(`    ${s.message}`);
     }
@@ -247,7 +263,18 @@ function renderScopesHuman(data: { coverage?: { selected: number; ok: number; fa
   return `${lines.join("\n")}\n`;
 }
 
+function renderSyncHuman(data: { remote?: RemoteInfoRow[]; issues?: { code: string; message: string }[] }): string {
+  const rows = data.remote ?? [];
+  if (rows.length === 0) return "no remote scopes in the inventory\n";
+  const warn = (data.issues ?? []).filter((i) => i.code === "cache-not-ignored").map((i) => `warning: ${i.message}`);
+  return `${[...remoteLines(rows), ...warn].join("\n")}\n`;
+}
+
 function printEnvelope(output: OperationOutput, json: boolean, routeName: string): void {
+  if (!json && routeName === "sync") {
+    process.stdout.write(renderSyncHuman(output.data as Parameters<typeof renderSyncHuman>[0]));
+    return;
+  }
   if (!json && routeName === "scopes") {
     process.stdout.write(renderScopesHuman(output.data as Parameters<typeof renderScopesHuman>[0]));
     return;
@@ -310,6 +337,10 @@ function run(argv: string[]): number {
     }
   } else if (route.operation === "scopes") {
     args = {};
+  } else if (route.operation === "sync") {
+    args = values.scope !== undefined ? { scope: values.scope } : {};
+  } else if (route.operation === "pull") {
+    args = { scope: values.scope, ...(values.into !== undefined ? { into: values.into } : {}) };
   } else if (route.operation === "review") {
     args = { scope: values.scope, plan: values.plan, ...(values.purpose !== undefined ? { purpose: values.purpose } : {}), ...(values.outcome !== undefined ? { outcome: values.outcome } : {}) };
   } else if (route.operation === "operation") {
@@ -328,7 +359,7 @@ function run(argv: string[]): number {
 
   const actor = OWNER_ROUTES.has(route.operation) ? "owner" : "agent";
   const output = executeOperation(inventory, route.operation, args, actor);
-  printEnvelope(output, values.json === true || (routeName !== "plans" && routeName !== "scopes"), routeName);
+  printEnvelope(output, values.json === true || (routeName !== "plans" && routeName !== "scopes" && routeName !== "sync"), routeName);
   return output.exitCode;
 }
 
