@@ -2,7 +2,7 @@
 format: 3
 id: "mozak"
 kind: project
-graph_sha256: e9287cbcee75a9e31718036a38aee79f06d6205b0b2a43de2e2cfc096caf8f57
+graph_sha256: b18443ac6f0161b112bed5a9ca8cad052b15b8d3bf48ea47dbce91d5f981bf25
 ---
 
 # MOZAK

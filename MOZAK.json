@@ -124,6 +124,21 @@
           "recordedAt": "2026-10-14T11:50:54.546Z",
           "reviewDigest": "67fbbb8c45d78e57227a4b66910bea725eba07bba878efb1bb64e64053533458",
           "revisionId": "34a1b664-9060-45ac-9024-4c6d3eb0ab0e"
+        },
+        {
+          "challengeIds": [],
+          "contentDigest": "2566cae7d72198130d4387414a5b8ee997528e0d0493e946a1a8b6cbbfe7c608",
+          "evidenceDigest": "e7c583be63ec784d1840fd143a6652a940f28ec76715d655a59978679734245c",
+          "id": "e5b38365-4605-4dc9-9991-9b5bb7049836",
+          "outcomeId": "hero-animation",
+          "ownerMessageAt": "2026-10-14T11:50:11.248Z",
+          "ownerRef": "host-assertion: jcode session (fork of session_orangutan_1791970070709_dd8f6bada9abdf39), owner message 2026-10-14T11:50:11.248Z \"its perfect commit and push, only thing left is to record the video for demo\", after viewing the README on GitHub, not a native message ID",
+          "planId": "readme-publish-ready",
+          "purpose": "accept-outcome",
+          "reason": "Owner viewed it on GitHub and said it is perfect.",
+          "recordedAt": "2026-10-14T11:50:57.596Z",
+          "reviewDigest": "87f219fffb18cf17b642a201705f53cc1e23bcbe184e81f22685e2b4f3052da9",
+          "revisionId": "34a1b664-9060-45ac-9024-4c6d3eb0ab0e"
         }
       ],
       "discussion": null,
@@ -217,10 +232,21 @@
         }
       ],
       "specifications": [],
-      "updatedAt": "2026-10-14T11:50:54.546Z"
+      "updatedAt": "2026-10-14T11:50:57.596Z"
     }
   ],
   "receipts": {
+    "accept-hero-animation-006": {
+      "recordedAt": "2026-10-14T11:50:57.596Z",
+      "requestDigest": "3a65f23a33d109aa206cd1795fe1beaa6afc7bcc5c972c9ca85be3b57ff55a00",
+      "result": {
+        "action": "accept-outcome",
+        "ids": [
+          "e5b38365-4605-4dc9-9991-9b5bb7049836"
+        ]
+      },
+      "storageRevision": "d1ad867a-ed96-4d2c-91f4-6a608db2a4eb"
+    },
     "accept-hero-icon-005": {
       "recordedAt": "2026-10-14T11:50:54.546Z",
       "requestDigest": "b04add65c6d489eefbd48c501411ebe9653635555f35013ab78680d87e98c76c",
@@ -309,9 +335,9 @@
   "storage": {
     "previousBridge": {
       "exists": true,
-      "sha256": "4fb94310dc7a563a1638f53169161da1830fde2822bf7b5bc30064879cd08504"
+      "sha256": "11432de127dda79350558117365b554ee241094b9121fe3dd6235633723a5784"
     },
-    "revision": "3bd045c8-3ba4-4857-852e-5c6938cd27d6",
-    "updatedAt": "2026-10-14T11:50:54.546Z"
+    "revision": "d1ad867a-ed96-4d2c-91f4-6a608db2a4eb",
+    "updatedAt": "2026-10-14T11:50:57.596Z"
   }
 }
