@@ -1,7 +1,108 @@
 {
   "connections": [],
   "format": "mozak.scope/v3",
-  "plans": [],
+  "plans": [
+    {
+      "accepted": null,
+      "completionRecords": [],
+      "createdAt": "2026-10-14T11:18:41.926Z",
+      "decisions": [],
+      "discussion": null,
+      "downstreamSpec": null,
+      "id": "readme-publish-ready",
+      "implementationAuthorization": null,
+      "implementationAuthorizations": [],
+      "lifecycle": {
+        "state": "unaccepted"
+      },
+      "observations": [],
+      "pending": {
+        "baseAcceptedDigest": null,
+        "baseAcceptedRevision": null,
+        "content": {
+          "constraints": [
+            {
+              "id": "no-overclaim",
+              "text": "Claim only checks that actually ran. Record real results in docs/installation.md before claiming them."
+            },
+            {
+              "id": "keep-safety",
+              "text": "Keep the owner-approval and local-first message intact. The rewrite simplifies wording, not the safety rules."
+            }
+          ],
+          "nonGoals": [
+            "Publishing to npm or the Obsidian community plugin directory is a separate decision.",
+            "No new product features in this plan."
+          ],
+          "outcomes": [
+            {
+              "acceptance": "owner",
+              "criterion": "The owner sees the new hero at the top of the README on GitHub and approves it.",
+              "id": "hero-icon",
+              "statement": "The README opens with a new MOZAK hero icon that matches the Obsidian plugin's brain icon and gold, purple, green palette."
+            },
+            {
+              "acceptance": "owner",
+              "criterion": "The owner reads the new README top to bottom and approves it as understandable for a first-time reader.",
+              "id": "readme-clarity",
+              "statement": "The README explains what MOZAK is, who it is for and how to start in plain words, with the first screen answering 'what is this and why would I use it'."
+            },
+            {
+              "acceptance": "objective",
+              "criterion": "Every command and requirement in the README matches the current code and docs/installation.md, and each command shown runs as written on a Mac with Node 26.",
+              "id": "readme-current",
+              "statement": "The README describes today's features correctly: Node 24.11 or newer including 26, remote scopes by GitHub URL, and the Obsidian plugin."
+            },
+            {
+              "acceptance": "owner",
+              "criterion": "The owner reviews the list of fixed and documented gaps and agrees it is enough to publish.",
+              "id": "publish-blockers",
+              "statement": "Known gaps that would mislead a new user are fixed or stated honestly: docs/installation.md still says macOS install is unverified although it ran on this Mac on 2026-10-14, and the installer has no upgrade path, so a new version needs a fresh prefix."
+            }
+          ],
+          "purpose": "Get MOZAK ready for a public launch: a new hero icon at the top of the README and a README a first-time reader understands in one pass, plus the small fixes that would embarrass a launch.",
+          "questions": [
+            {
+              "id": "icon-form",
+              "text": "Should the hero be a static icon with the name and tagline, or keep an animation next to a new icon?"
+            },
+            {
+              "id": "launch-target",
+              "text": "Where is MOZAK being published first: GitHub only, or also Show HN and Reddit?"
+            }
+          ],
+          "rationale": "The owner wants to publish MOZAK. The current README hero is an animated architecture GIF and the text is dense, and some of its statements are now out of date after the 2026-10-14 work on Node 26, remote scopes and the plugin.",
+          "sources": [
+            {
+              "anchor": null,
+              "id": "readme",
+              "limitations": [],
+              "locator": "README.md",
+              "observedAt": "2026-10-14T11:18:00.000Z",
+              "version": "7d00553"
+            },
+            {
+              "anchor": "8. Verification status",
+              "id": "install-doc",
+              "limitations": [],
+              "locator": "docs/installation.md",
+              "observedAt": "2026-10-14T11:18:00.000Z",
+              "version": "7d00553"
+            }
+          ],
+          "title": "Make the README publish-ready"
+        },
+        "contentDigest": "5b98ab1bc7070a9ad5b1a945205d0c718e69f1c3b5c852bcef75d95123b21077",
+        "createdAt": "2026-10-14T11:18:41.926Z",
+        "id": "41971718-80d4-4a55-9bec-7a111b4ff65c",
+        "rejectionDecisionId": null,
+        "reviewState": "awaiting"
+      },
+      "reasoningLinks": [],
+      "specifications": [],
+      "updatedAt": "2026-10-14T11:18:41.926Z"
+    }
+  ],
   "receipts": {
     "init-mozak-001": {
       "recordedAt": "2026-10-14T10:59:21.182Z",
@@ -13,6 +114,18 @@
         ]
       },
       "storageRevision": "bca41171-8142-452d-86c7-1adc36e994a1"
+    },
+    "propose-readme-publish-001": {
+      "recordedAt": "2026-10-14T11:18:41.926Z",
+      "requestDigest": "2d4a2880097bce04a9445ba4895869a1227d0721314256b9094cdbe696e5a25b",
+      "result": {
+        "action": "propose",
+        "ids": [
+          "readme-publish-ready",
+          "41971718-80d4-4a55-9bec-7a111b4ff65c"
+        ]
+      },
+      "storageRevision": "a61318ff-dee2-4fb5-ba8e-9a772f681e89"
     }
   },
   "scope": {
@@ -29,10 +142,10 @@
   },
   "storage": {
     "previousBridge": {
-      "exists": false,
-      "sha256": null
+      "exists": true,
+      "sha256": "4f70bf4b12b560c5da3100880bc7ccbf68c3dcf5f443ae7d86cc5a588294a432"
     },
-    "revision": "bca41171-8142-452d-86c7-1adc36e994a1",
-    "updatedAt": "2026-10-14T10:59:21.182Z"
+    "revision": "a61318ff-dee2-4fb5-ba8e-9a772f681e89",
+    "updatedAt": "2026-10-14T11:18:41.926Z"
   }
 }
