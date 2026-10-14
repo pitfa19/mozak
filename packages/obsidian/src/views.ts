@@ -256,6 +256,19 @@ export class PlanView extends ItemView {
     await super.setState(state, result);
   }
 
+  /** Re-read this plan from disk. Keeps the last snapshot when the scope cannot be read. */
+  reload(): void {
+    if (!this.data) return;
+    const path = this.plugin.inventory().path;
+    if (!path) return;
+    try {
+      const model = loadScopesModel(path);
+      const scope = model.scopes.find((s) => s.id === this.data!.scope.id);
+      const plan = scope?.plans.find((p) => p.id === this.data!.plan.id);
+      if (scope && plan) { this.data = { scope, plan }; this.render(); }
+    } catch { /* keep the snapshot */ }
+  }
+
   private render(): void {
     const root = this.contentEl;
     root.empty();

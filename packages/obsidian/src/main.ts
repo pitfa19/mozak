@@ -1,13 +1,23 @@
 import { FileSystemAdapter, Notice, Plugin, PluginSettingTab, Setting, TFile, type App, type WorkspaceLeaf } from "obsidian";
 import { chooseInventory } from "./discover.ts";
+import { syncRemoteScopes } from "./load.ts";
+import { startWatching, watchTargets } from "./watch.ts";
 import { resolveOpenTarget, type PlanVM, type ScopeVM } from "./model.ts";
 import { PlanView, PLAN_VIEW_TYPE, ScopesView, SCOPES_VIEW_TYPE } from "./views.ts";
 
-export interface MozakSettings { inventoryPath: string }
-const DEFAULTS: MozakSettings = { inventoryPath: "" };
+export interface MozakSettings {
+  inventoryPath: string;
+  /** Refresh automatically when a plan file changes. */
+  autoRefresh: boolean;
+  /** Seconds between automatic syncs of remote (repo) scopes. 0 turns polling off. */
+  remotePollSeconds: number;
+}
+const DEFAULTS: MozakSettings = { inventoryPath: "", autoRefresh: true, remotePollSeconds: 60 };
 
 export default class MozakPlugin extends Plugin {
   settings: MozakSettings = { ...DEFAULTS };
+  private stopWatch: (() => void) | null = null;
+  private pollTimer: number | null = null;
 
   async onload(): Promise<void> {
     this.settings = { ...DEFAULTS, ...(await this.loadData()) };
@@ -16,6 +26,40 @@ export default class MozakPlugin extends Plugin {
     this.addRibbonIcon("brain-circuit", "MOZAK: open scopes", () => void this.activateScopes());
     this.addCommand({ id: "open-scopes", name: "MOZAK: open scopes", callback: () => void this.activateScopes() });
     this.addSettingTab(new MozakSettingTab(this.app, this));
+    this.app.workspace.onLayoutReady(() => this.restartAutoRefresh());
+  }
+
+  onunload(): void { this.stopAutoRefresh(); }
+
+  private stopAutoRefresh(): void {
+    this.stopWatch?.();
+    this.stopWatch = null;
+    if (this.pollTimer !== null) window.clearInterval(this.pollTimer);
+    this.pollTimer = null;
+  }
+
+  /** (Re)start file watching for local scopes and repo polling for remote scopes, per settings. */
+  restartAutoRefresh(): void {
+    this.stopAutoRefresh();
+    if (!this.settings.autoRefresh) return;
+    const path = this.inventory().path;
+    if (!path) return;
+    this.stopWatch = startWatching(watchTargets(path), () => this.refreshAll());
+    const secs = Math.max(0, Math.floor(this.settings.remotePollSeconds));
+    if (secs > 0) {
+      this.pollTimer = window.setInterval(() => this.pollRemotes(path), Math.max(15, secs) * 1000);
+    }
+  }
+
+  /** Pull remote (repo) scopes. A changed cache is picked up by the file watcher. Quiet unless it fails. */
+  private pollRemotes(path: string): void {
+    try { syncRemoteScopes(path); } catch { /* offline or unreadable: keep the cached copy */ }
+  }
+
+  /** Reload every open MOZAK view from disk. */
+  refreshAll(): void {
+    this.app.workspace.getLeavesOfType(SCOPES_VIEW_TYPE).forEach((l) => (l.view as ScopesView).refresh());
+    this.app.workspace.getLeavesOfType(PLAN_VIEW_TYPE).forEach((l) => (l.view as PlanView).reload());
   }
 
   vaultBase(): string | null {
@@ -27,7 +71,8 @@ export default class MozakPlugin extends Plugin {
 
   async saveSettings(): Promise<void> {
     await this.saveData(this.settings);
-    this.app.workspace.getLeavesOfType(SCOPES_VIEW_TYPE).forEach((l) => (l.view as ScopesView).refresh());
+    this.refreshAll();
+    this.restartAutoRefresh();
   }
 
   async activateScopes(): Promise<void> {
@@ -90,5 +135,21 @@ class MozakSettingTab extends PluginSettingTab {
           await this.plugin.saveSettings();
         }),
       );
+    new Setting(containerEl)
+      .setName("Auto-refresh")
+      .setDesc("Reload MOZAK views as soon as a plan changes on disk.")
+      .addToggle((t) => t.setValue(this.plugin.settings.autoRefresh).onChange(async (v) => {
+        this.plugin.settings.autoRefresh = v;
+        await this.plugin.saveSettings();
+      }));
+    new Setting(containerEl)
+      .setName("Repo sync interval (seconds)")
+      .setDesc("How often remote (repo) scopes are pulled so repo plan changes appear automatically. 0 turns it off. Minimum 15.")
+      .addText((t) => t.setValue(String(this.plugin.settings.remotePollSeconds)).onChange(async (v) => {
+        const n = Number(v);
+        if (!Number.isFinite(n) || n < 0) return;
+        this.plugin.settings.remotePollSeconds = n;
+        await this.plugin.saveSettings();
+      }));
   }
 }
