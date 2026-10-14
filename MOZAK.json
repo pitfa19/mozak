@@ -1,0 +1,38 @@
+{
+  "connections": [],
+  "format": "mozak.scope/v3",
+  "plans": [],
+  "receipts": {
+    "init-mozak-001": {
+      "recordedAt": "2026-10-14T10:59:21.182Z",
+      "requestDigest": "170feb5b80becc27b1d5064792d1045b6ee245aeaf3ac62b6c605d6bf808a04a",
+      "result": {
+        "action": "init",
+        "ids": [
+          "mozak"
+        ]
+      },
+      "storageRevision": "bca41171-8142-452d-86c7-1adc36e994a1"
+    }
+  },
+  "scope": {
+    "createdAt": "2026-10-14T10:59:21.182Z",
+    "id": "mozak",
+    "initialization": {
+      "operationId": "init-mozak-001",
+      "ownerMessageAt": "2026-10-14T10:56:11.596Z",
+      "ownerRef": "host-assertion: jcode session session_orangutan_1791970070709_dd8f6bada9abdf39, owner message 2026-10-14T10:56:11.596Z \"first repo that we should index is mozak itself\" and 2026-10-14T10:57:49.508Z \"all projects, notes we work on we onboard them to mozak do that automatically\", not a native message ID",
+      "recordedAt": "2026-10-14T10:59:21.182Z"
+    },
+    "kind": "project",
+    "title": "MOZAK"
+  },
+  "storage": {
+    "previousBridge": {
+      "exists": false,
+      "sha256": null
+    },
+    "revision": "bca41171-8142-452d-86c7-1adc36e994a1",
+    "updatedAt": "2026-10-14T10:59:21.182Z"
+  }
+}
