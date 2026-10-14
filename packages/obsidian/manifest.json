@@ -1,0 +1,9 @@
+{
+  "id": "mozak",
+  "name": "MOZAK",
+  "version": "0.1.0",
+  "minAppVersion": "1.5.0",
+  "description": "Read-only view of every MOZAK scope and its plans.",
+  "author": "pitfa19",
+  "isDesktopOnly": true
+}

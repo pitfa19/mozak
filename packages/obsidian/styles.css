@@ -1,0 +1,42 @@
+.mozak-root { padding: var(--size-4-3); }
+.mozak-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--size-4-2); }
+.mozak-title { font-weight: var(--font-semibold); font-size: var(--font-ui-medium); }
+.mozak-muted { color: var(--text-muted); font-size: var(--font-ui-smaller); }
+.mozak-summary { margin-bottom: var(--size-4-2); }
+.mozak-empty { padding: var(--size-4-4); border: 1px dashed var(--background-modifier-border); border-radius: var(--radius-m); }
+.mozak-empty-title { font-weight: var(--font-semibold); margin-bottom: var(--size-4-1); }
+.mozak-scope { border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); margin-bottom: var(--size-4-2); background: var(--background-primary); }
+.mozak-scope.is-failed { border-color: var(--text-error); }
+.mozak-scope-row { display: flex; gap: var(--size-4-2); padding: var(--size-4-2); cursor: pointer; align-items: flex-start; }
+.mozak-scope-row:hover { background: var(--background-modifier-hover); }
+.mozak-scope-main { flex: 1; min-width: 0; }
+.mozak-scope-top { display: flex; gap: var(--size-4-2); align-items: baseline; }
+.mozak-scope-title { font-weight: var(--font-medium); overflow-wrap: anywhere; }
+.mozak-kind { font-size: var(--font-ui-smaller); color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.04em; }
+.mozak-error { color: var(--text-error); font-size: var(--font-ui-smaller); overflow-wrap: anywhere; }
+.mozak-chevron { color: var(--text-muted); display: flex; padding-top: 2px; }
+.mozak-plans { border-top: 1px solid var(--background-modifier-border); padding: var(--size-4-1) var(--size-4-2) var(--size-4-2); }
+.mozak-plan-row { display: flex; gap: var(--size-4-2); align-items: center; padding: var(--size-4-1) var(--size-4-2); border-radius: var(--radius-s); cursor: pointer; }
+.mozak-plan-row:hover { background: var(--background-modifier-hover); }
+.mozak-plan-title { overflow-wrap: anywhere; }
+.mozak-noplans { padding: var(--size-4-1) var(--size-4-2); }
+.mozak-scope-actions { display: flex; justify-content: space-between; gap: var(--size-4-2); align-items: center; margin-top: var(--size-4-2); }
+.mozak-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
+.mozak-link { background: none; box-shadow: none; color: var(--text-accent); padding: 0 var(--size-4-1); height: auto; cursor: pointer; white-space: nowrap; }
+.mozak-link:hover { text-decoration: underline; }
+.mozak-badge { font-size: var(--font-ui-smaller); padding: 0 var(--size-4-2); border-radius: var(--radius-l); white-space: nowrap; background: var(--background-modifier-border); color: var(--text-muted); }
+.mozak-badge.state-open { background: var(--interactive-accent); color: var(--text-on-accent); }
+.mozak-badge.state-completed { background: var(--background-modifier-success); color: var(--text-on-accent); }
+.mozak-badge.state-awaiting { background: var(--background-modifier-warning, var(--text-warning)); color: var(--text-on-accent); }
+.mozak-badge.state-paused { background: var(--text-faint); color: var(--text-on-accent); }
+.mozak-badge.state-rejected { background: var(--background-modifier-error); color: var(--text-on-accent); }
+.mozak-detail { max-width: 52rem; margin: 0 auto; user-select: text; }
+.mozak-h1 { margin: var(--size-4-1) 0 var(--size-4-2); }
+.mozak-meta { display: flex; flex-wrap: wrap; gap: var(--size-4-2); align-items: center; margin-bottom: var(--size-4-4); }
+.mozak-section { margin-bottom: var(--size-4-4); }
+.mozak-h2 { font-size: var(--font-ui-medium); margin-bottom: var(--size-4-1); border-bottom: 1px solid var(--background-modifier-border); padding-bottom: var(--size-4-1); }
+.mozak-h2.mozak-pending { color: var(--text-warning); }
+.mozak-outcome { padding: var(--size-4-2); border-left: 3px solid var(--interactive-accent); background: var(--background-secondary); border-radius: var(--radius-s); margin-bottom: var(--size-4-2); }
+.mozak-outcome-title { display: flex; gap: var(--size-4-2); justify-content: space-between; align-items: baseline; }
+.mozak-obs { display: flex; gap: var(--size-4-2); margin-bottom: var(--size-4-1); }
+.mozak-list { margin: 0; padding-left: var(--size-4-5); }
