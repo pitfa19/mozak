@@ -80,7 +80,9 @@ export class ScopesView extends ItemView {
     root.empty();
     root.addClass("mozak-root");
     const head = el(root, "div", "mozak-header");
-    el(head, "span", "mozak-title", "MOZAK");
+    const title = el(head, "span", "mozak-title");
+    setIcon(el(title, "span", "mozak-title-icon"), this.getIcon());
+    el(title, "span", undefined, "MOZAK");
     const tools = el(head, "div", "mozak-tools");
     if (this.model && countRemote(this.model.scopes).remote > 0) {
       const sync = el(tools, "button", "clickable-icon mozak-sync");

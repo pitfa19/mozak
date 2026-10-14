@@ -10,6 +10,9 @@
 /* ---------- Sidebar header ---------- */
 .mozak-header { display: flex; align-items: center; justify-content: space-between; padding: 0 2px; margin-bottom: 6px; }
 .mozak-title { font-weight: var(--font-semibold); font-size: var(--font-ui-small); letter-spacing: 0.08em; color: var(--text-muted); }
+.mozak-title { display: flex; align-items: center; gap: 6px; }
+.mozak-title-icon { display: flex; color: var(--mozak-gold); }
+.mozak-title-icon svg { width: 16px; height: 16px; }
 .mozak-tools { display: flex; gap: 2px; }
 .mozak-tools .clickable-icon { padding: 3px; }
 .mozak-tools svg { width: 15px; height: 15px; }
