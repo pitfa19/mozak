@@ -119,11 +119,90 @@
       "lifecycle": {
         "state": "open"
       },
-      "observations": [],
+      "observations": [
+        {
+          "classification": "observed",
+          "evidence": [
+            {
+              "activity": {
+                "description": "Owner viewed the README on GitHub with the animated pixel logo as hero, the static hero.svg kept in docs/assets, and the rewritten intro.",
+                "kind": "read"
+              },
+              "anchor": null,
+              "id": "ev-readme-github",
+              "inspectedAt": "2026-10-14T11:50:11.248Z",
+              "limitations": [
+                "The owner's verdict is relayed by the host, not a native message ID."
+              ],
+              "locator": "https://github.com/pitfa19/mozak#readme",
+              "result": {
+                "summary": "Owner called it perfect. Animated logo replaces the static hero at the top; static SVG kept as an asset.",
+                "verdict": "pass"
+              },
+              "version": "b7a1da8"
+            }
+          ],
+          "id": "obs-readme-live",
+          "recordedAt": "2026-10-14T11:50:51.536Z",
+          "summary": "README with the animated pixel hero and clearer text is live on GitHub at b7a1da8. Remaining: the owner's Obsidian demo recording and the docs fixes in publish-blockers."
+        }
+      ],
       "pending": null,
-      "reasoningLinks": [],
+      "reasoningLinks": [
+        {
+          "from": {
+            "id": "obs-readme-live",
+            "kind": "observation",
+            "planId": "readme-publish-ready",
+            "revisionId": null
+          },
+          "id": "link-hero-icon",
+          "rationale": "Shown live on GitHub and approved by the owner.",
+          "relation": "supports",
+          "to": {
+            "id": "hero-icon",
+            "kind": "outcome",
+            "planId": "readme-publish-ready",
+            "revisionId": "34a1b664-9060-45ac-9024-4c6d3eb0ab0e"
+          }
+        },
+        {
+          "from": {
+            "id": "obs-readme-live",
+            "kind": "observation",
+            "planId": "readme-publish-ready",
+            "revisionId": null
+          },
+          "id": "link-hero-animation",
+          "rationale": "Shown live on GitHub and approved by the owner.",
+          "relation": "supports",
+          "to": {
+            "id": "hero-animation",
+            "kind": "outcome",
+            "planId": "readme-publish-ready",
+            "revisionId": "34a1b664-9060-45ac-9024-4c6d3eb0ab0e"
+          }
+        },
+        {
+          "from": {
+            "id": "obs-readme-live",
+            "kind": "observation",
+            "planId": "readme-publish-ready",
+            "revisionId": null
+          },
+          "id": "link-readme-clarity",
+          "rationale": "Shown live on GitHub and approved by the owner.",
+          "relation": "supports",
+          "to": {
+            "id": "readme-clarity",
+            "kind": "outcome",
+            "planId": "readme-publish-ready",
+            "revisionId": "34a1b664-9060-45ac-9024-4c6d3eb0ab0e"
+          }
+        }
+      ],
       "specifications": [],
-      "updatedAt": "2026-10-14T11:36:11.111Z"
+      "updatedAt": "2026-10-14T11:50:51.536Z"
     }
   ],
   "receipts": {
@@ -149,6 +228,20 @@
         ]
       },
       "storageRevision": "bca41171-8142-452d-86c7-1adc36e994a1"
+    },
+    "observe-readme-live-004": {
+      "recordedAt": "2026-10-14T11:50:51.536Z",
+      "requestDigest": "80ce2a9adff3ede9f6e0419b86efa4e71d7f9f65aa8b9ddee369e65d2c4641dd",
+      "result": {
+        "action": "observe",
+        "ids": [
+          "obs-readme-live",
+          "link-hero-icon",
+          "link-hero-animation",
+          "link-readme-clarity"
+        ]
+      },
+      "storageRevision": "83231ce5-58d6-4b8a-8b82-117e115b5b23"
     },
     "propose-readme-publish-001": {
       "recordedAt": "2026-10-14T11:18:41.926Z",
@@ -190,9 +283,9 @@
   "storage": {
     "previousBridge": {
       "exists": true,
-      "sha256": "15894a74dae4c3adf095bd9196d01aee443cde4de7ddea8ad6a514e69ab6103b"
+      "sha256": "706342f12b2005736321d55be05edfd3391703de5a9e576dabc7f390e9ae50a2"
     },
-    "revision": "380ca3fe-5eaf-4bc8-a7b9-f33b419638c0",
-    "updatedAt": "2026-10-14T11:36:11.111Z"
+    "revision": "83231ce5-58d6-4b8a-8b82-117e115b5b23",
+    "updatedAt": "2026-10-14T11:50:51.536Z"
   }
 }
