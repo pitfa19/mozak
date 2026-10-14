@@ -44,11 +44,20 @@ export default class MozakPlugin extends Plugin {
     if (!this.settings.autoRefresh) return;
     const path = this.inventory().path;
     if (!path) return;
-    this.stopWatch = startWatching(watchTargets(path), () => this.refreshAll());
+    this.startFileWatch(path);
     const secs = Math.max(0, Math.floor(this.settings.remotePollSeconds));
     if (secs > 0) {
       this.pollTimer = window.setInterval(() => this.pollRemotes(path), Math.max(15, secs) * 1000);
     }
+  }
+
+  /** Watch files for the current inventory. After every change the targets are rebuilt, so scopes added to the inventory get watched too. */
+  private startFileWatch(path: string): void {
+    this.stopWatch?.();
+    this.stopWatch = startWatching(watchTargets(path), () => {
+      this.refreshAll();
+      if (this.settings.autoRefresh) this.startFileWatch(path);
+    });
   }
 
   /** Pull remote (repo) scopes. A changed cache is picked up by the file watcher. Quiet unless it fails. */
