@@ -1,5 +1,5 @@
 import { ItemView, Notice, setIcon, type ViewStateResult, type WorkspaceLeaf } from "obsidian";
-import { countRemote, countsSummary, planMatches, scopesModel, type ContentVM, type PlanFilter, type PlanVM, type ScopeVM, type ScopesModel } from "./model.ts";
+import { countRemote, planMatches, scopesModel, type ContentVM, type PlanFilter, type PlanVM, type ScopeVM, type ScopesModel } from "./model.ts";
 import { loadScopesModel, describeError, syncRemoteScopes } from "./load.ts";
 import type MozakPlugin from "./main.ts";
 
@@ -12,11 +12,18 @@ function el(parent: HTMLElement, tag: string, cls?: string, text?: string): HTML
   return e;
 }
 
-const FILTERS: { id: PlanFilter; label: string; icon: string }[] = [
-  { id: "all", label: "All", icon: "layers" },
-  { id: "open", label: "Open", icon: "circle-dot" },
-  { id: "completed", label: "Completed", icon: "check-circle-2" },
+const FILTERS: { id: PlanFilter; label: string; tip: string }[] = [
+  { id: "all", label: "All", tip: "All plans" },
+  { id: "open", label: "Open", tip: "Open, awaiting approval or paused" },
+  { id: "completed", label: "Done", tip: "Completed plans" },
 ];
+
+/** Scopes with open plans first, then ones with only completed plans, then empty, then failed. Stable within a group. */
+function rank(s: ScopeVM): number {
+  if (s.status === "failed") return 3;
+  if (s.plans.some((p) => planMatches(p, "open"))) return 0;
+  return s.plans.length ? 1 : 2;
+}
 
 export class ScopesView extends ItemView {
   private model: ScopesModel | null = null;
@@ -53,7 +60,7 @@ export class ScopesView extends ItemView {
   private syncRemote(button: HTMLElement): void {
     const path = this.plugin.inventory().path;
     if (!path) return;
-    button.setText("Syncing...");
+    button.addClass("is-busy");
     button.setAttr("disabled", "true");
     // Let the label paint before the synchronous core call blocks the UI thread.
     setTimeout(() => {
@@ -73,16 +80,18 @@ export class ScopesView extends ItemView {
     root.empty();
     root.addClass("mozak-root");
     const head = el(root, "div", "mozak-header");
-    el(head, "span", "mozak-title", "MOZAK scopes");
-    const btn = el(head, "button", "clickable-icon mozak-refresh");
+    el(head, "span", "mozak-title", "MOZAK");
+    const tools = el(head, "div", "mozak-tools");
+    if (this.model && countRemote(this.model.scopes).remote > 0) {
+      const sync = el(tools, "button", "clickable-icon mozak-sync");
+      sync.setAttr("aria-label", "Sync remote scopes");
+      setIcon(sync, "cloud-download");
+      sync.addEventListener("click", () => this.syncRemote(sync));
+    }
+    const btn = el(tools, "button", "clickable-icon mozak-refresh");
     btn.setAttr("aria-label", "Refresh");
     setIcon(btn, "refresh-cw");
     btn.addEventListener("click", () => this.refresh());
-    if (this.model && countRemote(this.model.scopes).remote > 0) {
-      const sync = el(head, "button", "mozak-sync", "Sync remote scopes");
-      sync.setAttr("aria-label", "Sync remote scopes");
-      sync.addEventListener("click", () => this.syncRemote(sync));
-    }
 
     if (this.error) {
       const box = el(root, "div", "mozak-empty");
@@ -93,17 +102,21 @@ export class ScopesView extends ItemView {
     const m = this.model;
     if (!m) return;
     this.renderFilter(root, m);
-    el(root, "div", "mozak-muted mozak-summary",
-      `${m.totals.scopes} scopes, ${countsSummary(m.totals)}${m.totals.failed ? `, ${m.totals.failed} unreadable` : ""}${countRemote(m.scopes).stale ? `, ${countRemote(m.scopes).stale} remote stale` : ""}`);
-    const visible = this.filter === "all"
-      ? m.scopes
-      : m.scopes.filter((s) => s.plans.some((p) => planMatches(p, this.filter)));
+    const stale = countRemote(m.scopes).stale;
+    if (m.totals.failed || stale) {
+      el(root, "div", "mozak-warn",
+        [m.totals.failed ? `${m.totals.failed} unreadable` : "", stale ? `${stale} remote stale` : ""].filter(Boolean).join(", "));
+    }
+    const visible = (this.filter === "all"
+      ? [...m.scopes]
+      : m.scopes.filter((s) => s.plans.some((p) => planMatches(p, this.filter))))
+      .sort((a, b) => rank(a) - rank(b));
     if (visible.length === 0) {
-      const box = el(root, "div", "mozak-empty");
-      el(box, "div", "mozak-muted", this.filter === "open" ? "No open plans. Nice." : "No completed plans yet.");
+      el(root, "div", "mozak-muted mozak-none", this.filter === "open" ? "No open plans. Nice." : "No completed plans yet.");
       return;
     }
-    for (const scope of visible) this.renderScope(root, scope);
+    const list = el(root, "div", "mozak-list-scopes");
+    for (const scope of visible) this.renderScope(list, scope);
   }
 
   private renderFilter(root: HTMLElement, m: ScopesModel): void {
@@ -115,7 +128,7 @@ export class ScopesView extends ItemView {
       const pill = el(bar, "button", `mozak-pill pill-${f.id}${this.filter === f.id ? " is-active" : ""}`);
       pill.setAttr("role", "tab");
       pill.setAttr("aria-selected", String(this.filter === f.id));
-      setIcon(el(pill, "span", "mozak-pill-icon"), f.icon);
+      pill.setAttr("aria-label", f.tip);
       el(pill, "span", "mozak-pill-label", f.label);
       el(pill, "span", "mozak-pill-count", String(n));
       pill.addEventListener("click", () => { this.filter = f.id; this.render(); });
@@ -126,25 +139,34 @@ export class ScopesView extends ItemView {
     // A filter only shows scopes with matching plans, so open them to show those plans directly.
     const filtered = this.filter !== "all";
     const open = filtered ? !this.collapsed.has(scope.id) : this.expanded.has(scope.id);
-    const box = el(parent, "div", "mozak-scope" + (scope.status === "failed" ? " is-failed" : ""));
+    const openN = scope.plans.filter((p) => planMatches(p, "open")).length;
+    const doneN = scope.plans.filter((p) => planMatches(p, "completed")).length;
+    const empty = scope.status === "ok" && scope.plans.length === 0;
+    const box = el(parent, "div", "mozak-scope" + (scope.status === "failed" ? " is-failed" : "") + (empty ? " is-empty" : "") + (open ? " is-open" : ""));
     const row = el(box, "div", "mozak-scope-row");
+    row.setAttr("title", `${scope.title}\n${scope.id} (${scope.kind})\n${scope.root}`);
     const chev = el(row, "span", "mozak-chevron");
     setIcon(chev, open ? "chevron-down" : "chevron-right");
-    const main = el(row, "div", "mozak-scope-main");
-    const top = el(main, "div", "mozak-scope-top");
-    el(top, "span", "mozak-scope-title", scope.title);
-    el(top, "span", "mozak-kind", scope.kind);
+    el(row, "span", "mozak-scope-title", scope.title);
     if (scope.remote) {
-      el(top, "span", "mozak-badge mozak-remote", "remote");
-      if (scope.remote.stale) {
-        const s = el(top, "span", "mozak-badge mozak-stale", "stale");
-        s.setAttr("title", `Cached copy. ${scope.remote.staleReason ?? ""}${scope.remote.lastFetchAt ? ` Last fetch ${scope.remote.lastFetchAt}.` : ""}`.trim());
-      }
+      const r = el(row, "span", "mozak-tag mozak-remote");
+      setIcon(r, "cloud");
+      r.setAttr("aria-label", scope.remote.stale ? "Remote scope, cached copy is stale" : "Remote scope");
+      if (scope.remote.stale) r.addClass("is-stale");
     }
+    const counts = el(row, "span", "mozak-counts");
     if (scope.status === "failed") {
-      el(main, "div", "mozak-error", `${scope.errorCode}: ${scope.errorMessage}`);
+      const e = el(counts, "span", "mozak-count is-error");
+      setIcon(e, "alert-triangle");
     } else {
-      el(main, "div", "mozak-muted", `${scope.counts.completed} completed, ${scope.counts.open} open, ${scope.counts.awaiting} awaiting`);
+      if (openN) el(counts, "span", "mozak-count c-open", String(openN)).setAttr("aria-label", `${openN} open`);
+      if (doneN) el(counts, "span", "mozak-count c-done", String(doneN)).setAttr("aria-label", `${doneN} completed`);
+    }
+    if (scope.hasMozakMd) {
+      const md = el(row, "span", "clickable-icon mozak-md");
+      setIcon(md, "file-text");
+      md.setAttr("aria-label", "Open MOZAK.md");
+      md.addEventListener("click", (ev) => { ev.stopPropagation(); void this.plugin.openMozakMd(scope); });
     }
     row.addEventListener("click", () => {
       const set = filtered ? this.collapsed : this.expanded;
@@ -154,18 +176,17 @@ export class ScopesView extends ItemView {
     });
     if (!open) return;
     const body = el(box, "div", "mozak-plans");
-    if (scope.status === "ok" && scope.plans.length === 0) el(body, "div", "mozak-muted mozak-noplans", "No plans yet.");
+    if (scope.status === "failed") el(body, "div", "mozak-error", `${scope.errorCode}: ${scope.errorMessage}`);
+    if (empty) el(body, "div", "mozak-muted mozak-noplans", "No plans yet");
     for (const plan of scope.plans.filter((p) => planMatches(p, this.filter))) {
       const p = el(body, "div", `mozak-plan-row row-${plan.state}`);
-      el(p, "span", `mozak-badge state-${plan.state}`, plan.stateLabel);
+      p.setAttr("title", `${plan.stateLabel}: ${plan.title}`);
+      el(p, "span", `mozak-dot dot-${plan.state}`);
       el(p, "span", "mozak-plan-title", plan.title);
+      if (plan.state === "awaiting" || plan.state === "paused" || plan.state === "rejected") {
+        el(p, "span", `mozak-mini state-${plan.state}`, plan.stateLabel);
+      }
       p.addEventListener("click", () => void this.plugin.openPlan(scope, plan));
-    }
-    const actions = el(body, "div", "mozak-scope-actions");
-    el(actions, "span", "mozak-muted mozak-path", scope.root);
-    if (scope.hasMozakMd) {
-      const b = el(actions, "button", "mozak-link", "Open MOZAK.md");
-      b.addEventListener("click", () => void this.plugin.openMozakMd(scope));
     }
   }
 }
