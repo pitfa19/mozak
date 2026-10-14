@@ -70,6 +70,29 @@ A **scope** is a git repo or a notes folder. You list the scopes you want in one
 }
 ```
 
+**Remote scopes.**
+
+A scope can live in a GitHub repo instead of a local folder. List it with `remote` and no `root` (exactly one of the two), in a `mozak.local/v3` inventory. `v2` inventories still load unchanged.
+
+```json
+{
+  "format": "mozak.local/v3",
+  "scopes": [
+    { "id": "atlas-app",  "root": "./atlas-app" },
+    { "id": "genome-mcp", "remote": "github:pitfa19/genome-mcp", "ref": "main" }
+  ]
+}
+```
+
+`remote` is `github:owner/repo`, an `https://` URL, or an absolute `file://` URL. `ref` is a plain branch name and defaults to `main`.
+
+- **Fetch.** MOZAK makes a sparse, blobless, depth 1 git clone under `.mozak-cache/<id>/` next to the inventory file. Only `README.md`, `MOZAK.json`, `MOZAK.md` and `AGENTS.md` are checked out. It is real git, so you can also commit and push normally. Add `.mozak-cache/` to the `.gitignore` of the inventory folder if it is a git repo (`mozak sync` warns when it is not ignored).
+- **Freshness.** `mozak scopes`, `plans` and `context` refresh a remote scope when the last fetch is older than 10 minutes. `mozak sync [--scope ID]` forces a refresh. If the fetch fails (offline, auth), the cached copy is used and marked `stale` (JSON: `stale`, `lastFetchAt`, `remote[]`, a `remote-stale` issue). The MCP tool `mozak_sync` does the same as `mozak sync`.
+- **Writes.** `propose`, `revise`, `complete`, `observe` and the rest work against the sparse copy. After a successful write MOZAK commits only `MOZAK.json` and `MOZAK.md` and pushes. Owner approval rules are unchanged. A write refuses with `remote-stale` if the copy cannot be refreshed first. If the push fails, the commit stays local, the result is exit 5 with `remote-push-failed`, and the next `mozak sync` pushes it.
+- **Pull.** `mozak pull --scope ID [--into PATH]` (owner) makes a full working clone, default `~/Documents/<repo-name>`. It refuses a destination that exists and is not a clone of the same remote. Afterwards the inventory still says `remote`, but reads and writes use the full clone (recorded in `.mozak-cache/<id>.meta.json`). A sync of a full clone only fast-forwards it. It never overwrites your working tree.
+- **Auth.** MOZAK shells out to `git` (no shell, hard timeouts, no prompts), so your credential helper, for example `gh auth setup-git`, is used.
+- A repo with no `MOZAK.json` at its root is reported as `scope-uninitialized` ("not a scope").
+
 Open `plans --all` and you see every scope grouped as **Completed**, **Open**, and **Awaiting approval**.
 
 To find out what exists, run `mozak scopes`. It lists every scope in your inventory with its folder, title, plan counts, and which entry files are present. Your agent gets the same index from the `mozak_scopes` MCP tool, so it can navigate a whole vault without being told where anything is. The index is read-only. It returns no plan text, evidence, or decisions, and a scope it cannot read is listed with its error instead of being skipped.

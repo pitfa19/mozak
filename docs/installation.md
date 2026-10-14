@@ -182,11 +182,37 @@ If a write saved the JSON but not the generated `MOZAK.md` bridge, the result sa
 - **Use only the scopes you list.** The inventory file is explicit. Every CLI and MCP call needs `--config FILE`. The MCP server needs it at startup.
 - **Do not onboard real projects while testing.** Use an isolated test folder and synthetic data.
 
+## 6b. Remote scopes
+
+A scope can live in a GitHub repo instead of a local folder. List it with `remote` and no `root` (exactly one of the two), in a `mozak.local/v3` inventory. `v2` inventories still load unchanged.
+
+```json
+{
+  "format": "mozak.local/v3",
+  "scopes": [
+    { "id": "atlas-app",  "root": "./atlas-app" },
+    { "id": "genome-mcp", "remote": "github:pitfa19/genome-mcp", "ref": "main" }
+  ]
+}
+```
+
+`remote` is `github:owner/repo`, an `https://` URL, or an absolute `file://` URL. `ref` is a plain branch name and defaults to `main`.
+
+- **Fetch.** MOZAK makes a sparse, blobless, depth 1 git clone under `.mozak-cache/<id>/` next to the inventory file. Only `README.md`, `MOZAK.json`, `MOZAK.md` and `AGENTS.md` are checked out. It is real git, so you can also commit and push normally. Add `.mozak-cache/` to the `.gitignore` of the inventory folder if it is a git repo (`mozak sync` warns when it is not ignored).
+- **Freshness.** `mozak scopes`, `plans` and `context` refresh a remote scope when the last fetch is older than 10 minutes. `mozak sync [--scope ID]` forces a refresh. If the fetch fails (offline, auth), the cached copy is used and marked `stale` (JSON: `stale`, `lastFetchAt`, `remote[]`, a `remote-stale` issue). The MCP tool `mozak_sync` does the same as `mozak sync`.
+- **Writes.** `propose`, `revise`, `complete`, `observe` and the rest work against the sparse copy. After a successful write MOZAK commits only `MOZAK.json` and `MOZAK.md` and pushes. Owner approval rules are unchanged. A write refuses with `remote-stale` if the copy cannot be refreshed first. If the push fails, the commit stays local, the result is exit 5 with `remote-push-failed`, and the next `mozak sync` pushes it.
+- **Pull.** `mozak pull --scope ID [--into PATH]` (owner) makes a full working clone, default `~/Documents/<repo-name>`. It refuses a destination that exists and is not a clone of the same remote. Afterwards the inventory still says `remote`, but reads and writes use the full clone (recorded in `.mozak-cache/<id>.meta.json`). A sync of a full clone only fast-forwards it. It never overwrites your working tree.
+- **Auth.** MOZAK shells out to `git` (no shell, hard timeouts, no prompts), so your credential helper, for example `gh auth setup-git`, is used.
+- A repo with no `MOZAK.json` at its root is reported as `scope-uninitialized` ("not a scope").
+
+Cache layout: `.mozak-cache/<id>/` (sparse git clone) and `.mozak-cache/<id>.meta.json` (last fetch time, last error, full clone path). Deleting the cache is safe once everything is pushed. Unpushed commits in a sparse copy are pushed by the next `mozak sync`.
+
 ## 7. Known limits
 
 - The installer is verified on Linux only. macOS has not been run. Do not assume macOS works until the Mac run passes.
 - The source copy of the conversation skill is a template. The installer refuses an unrendered template. Load the skill only from the installed folder.
 - Restoring a workspace from GitHub and a private vault is not built. Only the local installer is.
+- Remote scopes: one branch per scope, no merge handling (a diverged remote makes a write or sync fail and the scope shows stale), and the installer does not edit your `.gitignore`.
 - Crash durability is not promised. Rename and exclusive folder creation do not imply fsync.
 - Network filesystems and concurrent editors are not covered by the locking guarantees.
 - Older scope formats are refused. MOZAK does not migrate them.
