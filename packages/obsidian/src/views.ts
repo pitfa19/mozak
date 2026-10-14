@@ -1,6 +1,6 @@
-import { ItemView, setIcon, type ViewStateResult, type WorkspaceLeaf } from "obsidian";
-import { countsSummary, planMatches, scopesModel, type ContentVM, type PlanFilter, type PlanVM, type ScopeVM, type ScopesModel } from "./model.ts";
-import { loadScopesModel, describeError } from "./load.ts";
+import { ItemView, Notice, setIcon, type ViewStateResult, type WorkspaceLeaf } from "obsidian";
+import { countRemote, countsSummary, planMatches, scopesModel, type ContentVM, type PlanFilter, type PlanVM, type ScopeVM, type ScopesModel } from "./model.ts";
+import { loadScopesModel, describeError, syncRemoteScopes } from "./load.ts";
 import type MozakPlugin from "./main.ts";
 
 export const SCOPES_VIEW_TYPE = "mozak-scopes";
@@ -50,6 +50,24 @@ export class ScopesView extends ItemView {
     this.render();
   }
 
+  private syncRemote(button: HTMLElement): void {
+    const path = this.plugin.inventory().path;
+    if (!path) return;
+    button.setText("Syncing...");
+    button.setAttr("disabled", "true");
+    // Let the label paint before the synchronous core call blocks the UI thread.
+    setTimeout(() => {
+      try {
+        const result = syncRemoteScopes(path);
+        new Notice(`MOZAK: ${result.message}`, result.ok ? 4000 : 10000);
+      } catch (err) {
+        const d = describeError(err);
+        new Notice(`MOZAK: sync failed: ${d.message}`, 10000);
+      }
+      this.refresh();
+    }, 30);
+  }
+
   private render(): void {
     const root = this.contentEl;
     root.empty();
@@ -60,6 +78,11 @@ export class ScopesView extends ItemView {
     btn.setAttr("aria-label", "Refresh");
     setIcon(btn, "refresh-cw");
     btn.addEventListener("click", () => this.refresh());
+    if (this.model && countRemote(this.model.scopes).remote > 0) {
+      const sync = el(head, "button", "mozak-sync", "Sync remote scopes");
+      sync.setAttr("aria-label", "Sync remote scopes");
+      sync.addEventListener("click", () => this.syncRemote(sync));
+    }
 
     if (this.error) {
       const box = el(root, "div", "mozak-empty");
@@ -71,7 +94,7 @@ export class ScopesView extends ItemView {
     if (!m) return;
     this.renderFilter(root, m);
     el(root, "div", "mozak-muted mozak-summary",
-      `${m.totals.scopes} scopes, ${countsSummary(m.totals)}${m.totals.failed ? `, ${m.totals.failed} unreadable` : ""}`);
+      `${m.totals.scopes} scopes, ${countsSummary(m.totals)}${m.totals.failed ? `, ${m.totals.failed} unreadable` : ""}${countRemote(m.scopes).stale ? `, ${countRemote(m.scopes).stale} remote stale` : ""}`);
     const visible = this.filter === "all"
       ? m.scopes
       : m.scopes.filter((s) => s.plans.some((p) => planMatches(p, this.filter)));
@@ -111,6 +134,13 @@ export class ScopesView extends ItemView {
     const top = el(main, "div", "mozak-scope-top");
     el(top, "span", "mozak-scope-title", scope.title);
     el(top, "span", "mozak-kind", scope.kind);
+    if (scope.remote) {
+      el(top, "span", "mozak-badge mozak-remote", "remote");
+      if (scope.remote.stale) {
+        const s = el(top, "span", "mozak-badge mozak-stale", "stale");
+        s.setAttr("title", `Cached copy. ${scope.remote.staleReason ?? ""}${scope.remote.lastFetchAt ? ` Last fetch ${scope.remote.lastFetchAt}.` : ""}`.trim());
+      }
+    }
     if (scope.status === "failed") {
       el(main, "div", "mozak-error", `${scope.errorCode}: ${scope.errorMessage}`);
     } else {

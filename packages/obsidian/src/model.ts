@@ -33,6 +33,14 @@ export interface PlanVM {
   pendingRevision: ContentVM | null;
   observations: { id: string; classification: string; summary: string; recordedAt: string }[];
 }
+export interface RemoteVM {
+  spec: string;
+  ref: string;
+  /** Last fetch failed, never happened, or is older than ten minutes. The cached copy is still shown. */
+  stale: boolean;
+  lastFetchAt: string | null;
+  staleReason: string | null;
+}
 export interface ScopeCounts { completed: number; open: number; awaiting: number }
 export interface ScopeVM {
   id: string;
@@ -44,6 +52,8 @@ export interface ScopeVM {
   plans: PlanVM[];
   entryFiles: string[];
   hasMozakMd: boolean;
+  /** Null for a local scope. */
+  remote: RemoteVM | null;
   errorCode: string | null;
   errorMessage: string | null;
 }
@@ -64,6 +74,7 @@ export interface ScopeLoad {
   /** Awaiting rows from core reviewRows, only identity is used. */
   awaitingRows?: { planId: string; rowKind: string }[];
   reviewNeededPlanIds?: string[];
+  remote?: RemoteVM;
   error?: { code: string; message: string };
 }
 
@@ -155,6 +166,7 @@ export function scopeViewModel(load: ScopeLoad): ScopeVM {
       plans: [],
       entryFiles: load.entryFiles,
       hasMozakMd,
+      remote: load.remote ?? null,
       errorCode: load.error?.code ?? "unknown",
       errorMessage: load.error?.message ?? "scope could not be read",
     };
@@ -173,6 +185,7 @@ export function scopeViewModel(load: ScopeLoad): ScopeVM {
     plans,
     entryFiles: load.entryFiles,
     hasMozakMd,
+    remote: load.remote ?? null,
     errorCode: null,
     errorMessage: null,
   };
@@ -206,6 +219,27 @@ export function planMatches(plan: Pick<PlanVM, "state">, filter: PlanFilter): bo
   if (filter === "all") return true;
   if (filter === "completed") return plan.state === "completed";
   return plan.state === "open" || plan.state === "awaiting" || plan.state === "paused";
+}
+
+/** Staleness of a remote scope's cached copy without touching the network. Mirrors core's ten minute window. */
+export function remoteVM(
+  spec: string,
+  ref: string,
+  meta: { lastFetchAt: string | null; lastError: string | null },
+  now = new Date(),
+  freshMs = 10 * 60 * 1000,
+): RemoteVM {
+  const age = meta.lastFetchAt ? now.getTime() - Date.parse(meta.lastFetchAt) : Infinity;
+  let staleReason: string | null = null;
+  if (meta.lastError) staleReason = meta.lastError;
+  else if (!meta.lastFetchAt) staleReason = "never fetched";
+  else if (age >= freshMs) staleReason = "last fetch older than 10 minutes";
+  return { spec, ref, stale: staleReason !== null, lastFetchAt: meta.lastFetchAt, staleReason };
+}
+
+export function countRemote(scopes: ScopeVM[]): { remote: number; stale: number } {
+  const remote = scopes.filter((s) => s.remote);
+  return { remote: remote.length, stale: remote.filter((s) => s.remote?.stale).length };
 }
 
 export type OpenTarget = { kind: "vault"; path: string } | { kind: "external"; path: string };

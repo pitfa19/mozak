@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chooseInventory, discoverInventory } from "../src/discover.ts";
-import { countsSummary, planMatches, resolveOpenTarget, scopesModel, scopeViewModel } from "../src/model.ts";
+import { countRemote, countsSummary, planMatches, remoteVM, resolveOpenTarget, scopesModel, scopeViewModel } from "../src/model.ts";
 import { loadScopesModel } from "../src/load.ts";
 
 test("planMatches: all shows every state, open groups in-play states, completed is exact", () => {
@@ -60,4 +60,22 @@ test("loadScopesModel reads a real core inventory, one scope failing without hid
   assert.equal(m.totals.failed, 2);
   assert.equal(m.scopes.find((s) => s.id === "gone")?.errorCode, "scope-root-missing");
   assert.equal(m.scopes.find((s) => s.id === "empty")?.errorCode, "scope-uninitialized");
+});
+
+test("remoteVM marks a copy stale when never fetched, failed, or older than ten minutes", () => {
+  const now = new Date("2026-10-14T12:00:00Z");
+  const iso = (minAgo: number) => new Date(now.getTime() - minAgo * 60_000).toISOString();
+  assert.equal(remoteVM("github:o/r", "main", { lastFetchAt: iso(2), lastError: null }, now).stale, false);
+  assert.equal(remoteVM("github:o/r", "main", { lastFetchAt: iso(11), lastError: null }, now).stale, true);
+  assert.equal(remoteVM("github:o/r", "main", { lastFetchAt: null, lastError: null }, now).staleReason, "never fetched");
+  assert.equal(remoteVM("github:o/r", "main", { lastFetchAt: iso(1), lastError: "offline" }, now).staleReason, "offline");
+});
+
+test("remote scopes carry their badge data through the view model and are counted", () => {
+  const remote = remoteVM("github:o/r", "main", { lastFetchAt: null, lastError: null });
+  const a = scopeViewModel({ id: "r", root: "/c", entryFiles: [], error: { code: "scope-root-missing", message: "x" }, remote });
+  const b = scopeViewModel({ id: "l", root: "/l", entryFiles: [], error: { code: "x", message: "y" } });
+  assert.equal(a.remote?.spec, "github:o/r");
+  assert.equal(b.remote, null);
+  assert.deepEqual(countRemote([a, b]), { remote: 1, stale: 1 });
 });

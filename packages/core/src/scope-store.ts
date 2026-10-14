@@ -88,7 +88,7 @@ export function readScope(entry: ScopeEntry, options: StoreOptions = {}): ScopeR
   assertScopeFiles(entry.root);
   for (let attempt = 0; attempt < 3; attempt++) {
     const a = file(join(entry.root, "MOZAK.json"));
-    if (a.bytes === null) throw new DomainError("scope-uninitialized", `no MOZAK.json for ${entry.id}`);
+    if (a.bytes === null) throw new DomainError("scope-uninitialized", entry.remote ? `not a scope: ${entry.remote.spec}@${entry.remote.ref} has no MOZAK.json at its root` : `no MOZAK.json for ${entry.id}`);
     let bridge: ReturnType<typeof file> | null = null;
     let bridgeIssue: ScopeIssue | null = null;
     try { bridge = file(join(entry.root, "MOZAK.md"), MAX_SCOPE_BYTES * 2); }

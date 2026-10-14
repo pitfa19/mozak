@@ -65,3 +65,6 @@
 .mozak-plan-row.row-completed { border-left-color: var(--mozak-green); }
 .mozak-scope { border-left: 3px solid var(--mozak-gold); }
 .mozak-scope.is-failed { border-left-color: var(--text-error); }
+.mozak-badge.mozak-remote { background: transparent; border: 1px solid var(--text-faint); color: var(--text-muted); }
+.mozak-badge.mozak-stale { background: var(--background-modifier-warning, var(--text-warning)); color: var(--text-on-accent); }
+.mozak-sync { margin-left: auto; margin-right: var(--size-4-1); font-size: var(--font-ui-smaller); }

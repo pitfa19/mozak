@@ -7,6 +7,7 @@ Read-only, desktop-only Obsidian plugin that lists every MOZAK scope from `mozak
 - Ribbon icon or command **MOZAK: open scopes** opens the sidebar. It refreshes on open and with the refresh button.
 - Each scope shows title, kind and completed/open/awaiting counts. Unreadable scopes show their error code. Expand a scope for its plans with state badges.
 - Click a plan for a read-only detail tab (purpose, outcomes, constraints, non-goals, rationale, questions, sources, observations). **Open MOZAK.md** opens the file in Obsidian when it is inside the vault, otherwise with the OS default app.
+- **Remote scopes** (inventory entries with `remote` instead of `root`) show a `remote` badge, plus a `stale` badge when the cached copy is older than 10 minutes, the last fetch failed, or it was never fetched. The header shows **Sync remote scopes** when the inventory has any. It runs core's sync (the same code as `mozak sync`), then refreshes. Refreshing the view alone never touches the network and shows the cache as it is. The plugin stays read-only: it never writes MOZAK files or pushes plans.
 - Setting **Inventory path**: empty means walk up from the vault folder looking for `mozak-inventory.json`.
 
 ## Build and install
