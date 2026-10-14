@@ -7,14 +7,15 @@ This guide covers building MOZAK from source, the portable installer, exit codes
 | Area | Status |
 | --- | --- |
 | Source build and tests on Linux, Node 24.11.0 | Verified: 334 core tests and 69 installer tests pass. They reused the local npm cache. |
-| Source build and tests on macOS | Pending. Needs a real Mac run. |
+| Source build, tests, and installer on macOS, Node 26.11.1 | Verified locally: `npm ci --ignore-scripts`, build, 348 tests passed, 69 installer tests (68 passed, 1 skipped, 0 failed). Real install into a scratch prefix listed 14 scopes. |
+| Source build and tests on macOS | Verified on Node 26.11.1, see the row below. |
 | Portable installer `scripts/install.mjs` | Verified on Linux. Real CLI and MCP subprocesses, including paths with spaces and Unicode. |
 | CI on Ubuntu and macOS | Passed on GitHub's Ubuntu and macOS runners for the pushed commit `c324d45`. Not run on a personal Mac yet. |
 | Public remote matches local commits | In sync as of the last push. Check `git log --oneline -1`. |
 
 ## 1. Prerequisites
 
-- **Node.js 24.11.0 or later in major 24.** Node 24 is the only tested major. The package engines field is `>=24.11.0 <25`, and the installer refuses other Node versions.
+- **Node.js 24.11.0 or later, any major.** CI tests 24.11.0 and 26. The package engines field is `>=24.11.0`, and the installer refuses older Node versions.
 - **npm**, which ships with Node.
 - **Git**, to get the source.
 - **Linux or macOS.** Other systems are not supported.

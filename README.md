@@ -8,7 +8,7 @@ You own the plan. The agent does the work.
 
 [![CI](https://github.com/pitfa19/mozak/actions/workflows/ci.yml/badge.svg)](https://github.com/pitfa19/mozak/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
-[![Node 24](https://img.shields.io/badge/node-24.11%2B-339933?style=flat-square)](docs/installation.md)
+[![Node 24.11+](https://img.shields.io/badge/node-24.11%2B-339933?style=flat-square)](docs/installation.md)
 [![Platforms](https://img.shields.io/badge/platforms-Linux%20%7C%20macOS-blue?style=flat-square)](docs/installation.md)
 
 <img src="docs/assets/overview.gif" alt="A purple packet travels between GitHub, an agent, and Obsidian, lighting up MOZAK at the centre each time information passes through" width="760">
@@ -32,7 +32,7 @@ MOZAK keeps each project's plan, decisions, and evidence in plain files inside t
 
 ## Install
 
-You need Git, npm, and Node 24.11 or later.
+You need Git, npm, and Node 24.11 or later (Node 26 is tested).
 
 ```bash
 git clone https://github.com/pitfa19/mozak.git && cd mozak

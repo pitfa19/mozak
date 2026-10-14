@@ -102,7 +102,7 @@ function verifyManifest(prefix, expected) {
   assert.deepEqual(Object.keys(manifest).sort(), ['contentDigest', 'files', 'format', 'nodeRange', 'version']);
   assert.equal(manifest.format, 'mozak.installation/v1');
   assert.equal(manifest.version, '0.1.0');
-  assert.equal(manifest.nodeRange, '>=24.11.0 <25');
+  assert.equal(manifest.nodeRange, '>=24.11.0');
   assert.ok(Array.isArray(manifest.files));
   assert.deepEqual(manifest.files.map(f => f.path), codePointSort([...new Set(manifest.files.map(f => f.path))]));
   for (const file of manifest.files) {
@@ -370,7 +370,7 @@ test('two real simultaneous installers yield one create-only winner and a verifi
 
 // These are explicit environment fault injections, not evidence of execution on
 // another host/Node version. Real macOS and host skill activation remain separate gates.
-for (const [property, value] of [['platform', 'win32'], ['version', 'v22.11.0'], ['version', 'v24.10.0'], ['version', 'v25.0.0']]) {
+for (const [property, value] of [['platform', 'win32'], ['version', 'v22.11.0'], ['version', 'v24.10.0'], ['version', 'v23.99.0']]) {
   test(`unsupported host preflight (synthetic ${property}=${value}) writes nothing`, () => {
     const f = fixture();
     const preload = join(f.root, 'unsupported-host.mjs');

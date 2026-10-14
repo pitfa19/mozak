@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 
 const FORMAT = 'mozak.installation/v1';
 const VERSION = '0.1.0';
-const NODE_RANGE = '>=24.11.0 <25';
+const NODE_RANGE = '>=24.11.0';
 const MAX_FILE = 16 * 1024 * 1024;
 const MAX_TOTAL = 64 * 1024 * 1024;
 const MAX_FILES = 4096;
@@ -262,8 +262,8 @@ function main() {
     const args = parse(process.argv.slice(2));
     prefix = args.prefix;
     const version = process.versions.node.split('.').map(Number);
-    if (!['linux', 'darwin'].includes(process.platform) || version[0] !== 24 || version[1] < 11) {
-      refuse('unsupported-platform', 'runtime', null, 'Requires Linux or macOS and Node >=24.11.0 <25.');
+    if (!['linux', 'darwin'].includes(process.platform) || version[0] < 24 || (version[0] === 24 && version[1] < 11)) {
+      refuse('unsupported-platform', 'runtime', null, 'Requires Linux or macOS and Node >=24.11.0.');
     }
     const parent = dirname(prefix);
     const parentIdentity = canonicalDirectory(parent, 'invalid-input');
