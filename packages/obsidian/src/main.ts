@@ -48,7 +48,12 @@ export default class MozakPlugin extends Plugin {
 
   /** Open the scope's MOZAK.md: in Obsidian when inside this vault, otherwise with the OS default app. */
   async openMozakMd(scope: ScopeVM): Promise<void> {
-    const file = `${scope.root}/MOZAK.md`;
+    return this.openScopeFile(scope, "MOZAK.md");
+  }
+
+  /** Open a file at the scope root: in Obsidian when inside this vault, otherwise with the OS default app. */
+  async openScopeFile(scope: ScopeVM, name: string): Promise<void> {
+    const file = `${scope.root}/${name}`;
     const target = resolveOpenTarget(this.vaultBase() ?? "", file);
     if (target.kind === "vault") {
       const abstract = this.app.vault.getAbstractFileByPath(target.path);

@@ -18,6 +18,25 @@ const FILTERS: { id: PlanFilter; label: string; tip: string }[] = [
   { id: "completed", label: "Done", tip: "Completed plans" },
 ];
 
+/** "github:owner/repo" or an https URL to a browsable GitHub URL. Null for file:// remotes. */
+function repoUrl(spec: string): string | null {
+  if (spec.startsWith("github:")) return `https://github.com/${spec.slice(7)}`;
+  if (spec.startsWith("https://")) return spec.replace(/\.git$/, "");
+  return null;
+}
+
+function repoLabel(spec: string): string {
+  return spec.replace(/^github:/, "").replace(/^https:\/\/github\.com\//, "").replace(/\.git$/, "");
+}
+
+function ago(iso: string): string {
+  const min = Math.round((Date.now() - Date.parse(iso)) / 60000);
+  if (min < 1) return "just now";
+  if (min < 60) return `${min} min ago`;
+  const h = Math.round(min / 60);
+  return h < 48 ? `${h} h ago` : `${Math.round(h / 24)} days ago`;
+}
+
 /** Scopes with open plans first, then ones with only completed plans, then empty, then failed. Stable within a group. */
 function rank(s: ScopeVM): number {
   if (s.status === "failed") return 3;
@@ -118,7 +137,16 @@ export class ScopesView extends ItemView {
       return;
     }
     const list = el(root, "div", "mozak-list-scopes");
-    for (const scope of visible) this.renderScope(list, scope);
+    const notes = visible.filter((s) => !s.remote);
+    const repos = visible.filter((s) => s.remote);
+    if (repos.length && notes.length) el(list, "div", "mozak-group", "Notes");
+    for (const scope of notes) this.renderScope(list, scope);
+    if (repos.length) {
+      const g = el(list, "div", "mozak-group");
+      setIcon(el(g, "span", "mozak-group-icon"), "github");
+      el(g, "span", undefined, "Repos");
+    }
+    for (const scope of repos) this.renderScope(list, scope);
   }
 
   private renderFilter(root: HTMLElement, m: ScopesModel): void {
@@ -149,13 +177,12 @@ export class ScopesView extends ItemView {
     row.setAttr("title", `${scope.title}\n${scope.id} (${scope.kind})\n${scope.root}`);
     const chev = el(row, "span", "mozak-chevron");
     setIcon(chev, open ? "chevron-down" : "chevron-right");
-    el(row, "span", "mozak-scope-title", scope.title);
     if (scope.remote) {
-      const r = el(row, "span", "mozak-tag mozak-remote");
-      setIcon(r, "cloud");
-      r.setAttr("aria-label", scope.remote.stale ? "Remote scope, cached copy is stale" : "Remote scope");
-      if (scope.remote.stale) r.addClass("is-stale");
+      const r = el(row, "span", "mozak-tag mozak-remote" + (scope.remote.stale ? " is-stale" : ""));
+      setIcon(r, "github");
+      r.setAttr("aria-label", `${repoLabel(scope.remote.spec)}${scope.remote.stale ? " (cached copy is stale)" : ""}`);
     }
+    el(row, "span", "mozak-scope-title", scope.title);
     const counts = el(row, "span", "mozak-counts");
     if (scope.status === "failed") {
       const e = el(counts, "span", "mozak-count is-error");
@@ -178,6 +205,24 @@ export class ScopesView extends ItemView {
     });
     if (!open) return;
     const body = el(box, "div", "mozak-plans");
+    if (scope.remote) {
+      const links = el(body, "div", "mozak-repo-links");
+      const url = repoUrl(scope.remote.spec);
+      if (url) {
+        const gh = el(links, "a", "mozak-repo-link");
+        setIcon(el(gh, "span", "mozak-repo-link-icon"), "external-link");
+        el(gh, "span", undefined, repoLabel(scope.remote.spec));
+        gh.setAttr("href", url);
+        gh.setAttr("aria-label", "Open on GitHub");
+      }
+      if (scope.entryFiles.includes("README.md")) {
+        const rd = el(links, "span", "mozak-repo-link");
+        setIcon(el(rd, "span", "mozak-repo-link-icon"), "book-open");
+        el(rd, "span", undefined, "README");
+        rd.addEventListener("click", () => void this.plugin.openScopeFile(scope, "README.md"));
+      }
+      if (scope.remote.stale) el(links, "span", "mozak-stale-note", scope.remote.lastFetchAt ? `cached ${ago(scope.remote.lastFetchAt)}` : "not fetched yet");
+    }
     if (scope.status === "failed") el(body, "div", "mozak-error", `${scope.errorCode}: ${scope.errorMessage}`);
     if (empty) el(body, "div", "mozak-muted mozak-noplans", "No plans yet");
     for (const plan of scope.plans.filter((p) => planMatches(p, this.filter))) {

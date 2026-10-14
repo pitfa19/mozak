@@ -67,9 +67,20 @@
 .mozak-count.is-error { color: var(--text-error); }
 .mozak-count svg { width: 13px; height: 13px; }
 
-.mozak-tag { display: flex; color: var(--text-faint); flex: none; }
+.mozak-tag { display: flex; color: var(--text-muted); flex: none; }
 .mozak-tag svg { width: 13px; height: 13px; }
 .mozak-remote.is-stale { color: var(--text-warning); }
+
+.mozak-group { display: flex; align-items: center; gap: 5px; margin: 10px 4px 3px; font-size: 10px; font-weight: var(--font-semibold); letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint); }
+.mozak-group:first-child { margin-top: 2px; }
+.mozak-group-icon { display: flex; }
+.mozak-group-icon svg { width: 12px; height: 12px; }
+.mozak-repo-links { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 2px 6px 4px; font-size: var(--font-ui-smaller); }
+.mozak-repo-link { display: inline-flex; align-items: center; gap: 4px; color: var(--text-accent); cursor: pointer; text-decoration: none; }
+.mozak-repo-link:hover { text-decoration: underline; }
+.mozak-repo-link-icon { display: flex; }
+.mozak-repo-link-icon svg { width: 12px; height: 12px; }
+.mozak-stale-note { color: var(--text-warning); }
 
 .mozak-md { flex: none; padding: 2px; opacity: 0; transition: opacity 100ms ease; }
 .mozak-md svg { width: 14px; height: 14px; }
