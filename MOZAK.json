@@ -28,18 +28,29 @@
             {
               "id": "keep-safety",
               "text": "Keep the owner-approval and local-first message intact. The rewrite simplifies wording, not the safety rules."
+            },
+            {
+              "id": "aseprite-needed",
+              "text": "The animated hero needs Aseprite 1.3+ installed and the aseprite-ai-artist extension, which are not on this Mac yet. The static hero does not depend on it."
             }
           ],
           "nonGoals": [
             "Publishing to npm or the Obsidian community plugin directory is a separate decision.",
-            "No new product features in this plan."
+            "No new product features in this plan.",
+            "No Show HN or Reddit launch yet. That waits for the owner's own Obsidian usage recording and an animation of what happens in the background, done later."
           ],
           "outcomes": [
             {
               "acceptance": "owner",
-              "criterion": "The owner sees the new hero at the top of the README on GitHub and approves it.",
+              "criterion": "The owner sees the static hero at the top of the README on GitHub in light and dark mode and approves it.",
               "id": "hero-icon",
-              "statement": "The README opens with a new MOZAK hero icon that matches the Obsidian plugin's brain icon and gold, purple, green palette."
+              "statement": "The README opens with a static MOZAK hero icon that matches the Obsidian plugin's brain icon and the gold, purple, green palette, readable in GitHub light and dark mode."
+            },
+            {
+              "acceptance": "owner",
+              "criterion": "The owner watches the exported animation on the README page on GitHub and approves it.",
+              "id": "hero-animation",
+              "statement": "An animated pixel-art version of the hero is made with the Aseprite AI Artist skill (/aseprite:studio) and exported as a GIF the README can show alongside or instead of the static icon."
             },
             {
               "acceptance": "owner",
@@ -60,18 +71,9 @@
               "statement": "Known gaps that would mislead a new user are fixed or stated honestly: docs/installation.md still says macOS install is unverified although it ran on this Mac on 2026-10-14, and the installer has no upgrade path, so a new version needs a fresh prefix."
             }
           ],
-          "purpose": "Get MOZAK ready for a public launch: a new hero icon at the top of the README and a README a first-time reader understands in one pass, plus the small fixes that would embarrass a launch.",
-          "questions": [
-            {
-              "id": "icon-form",
-              "text": "Should the hero be a static icon with the name and tagline, or keep an animation next to a new icon?"
-            },
-            {
-              "id": "launch-target",
-              "text": "Where is MOZAK being published first: GitHub only, or also Show HN and Reddit?"
-            }
-          ],
-          "rationale": "The owner wants to publish MOZAK. The current README hero is an animated architecture GIF and the text is dense, and some of its statements are now out of date after the 2026-10-14 work on Node 26, remote scopes and the plugin.",
+          "purpose": "Get MOZAK ready to look good on GitHub: a static hero icon and an animated pixel-art hero at the top of the README, a README a first-time reader understands in one pass, and the small fixes that would mislead a new user. Show HN and Reddit come later, after the owner records a real Obsidian usage video.",
+          "questions": [],
+          "rationale": "The owner wants MOZAK to look good on GitHub first. The current README hero is an animated architecture GIF and the text is dense, and some statements are out of date after the 2026-10-14 work on Node 26, remote scopes and the plugin. Owner answers on 2026-10-14: static hero plus an animated pixel version, GitHub only for now.",
           "sources": [
             {
               "anchor": null,
@@ -88,19 +90,29 @@
               "locator": "docs/installation.md",
               "observedAt": "2026-10-14T11:18:00.000Z",
               "version": "7d00553"
+            },
+            {
+              "anchor": null,
+              "id": "owner-answer",
+              "limitations": [
+                "Host assertion of an owner message, not a native message ID."
+              ],
+              "locator": "jcode session, owner message 2026-10-14T11:26:37.423Z",
+              "observedAt": "2026-10-14T11:26:37.423Z",
+              "version": null
             }
           ],
           "title": "Make the README publish-ready"
         },
-        "contentDigest": "5b98ab1bc7070a9ad5b1a945205d0c718e69f1c3b5c852bcef75d95123b21077",
-        "createdAt": "2026-10-14T11:18:41.926Z",
-        "id": "41971718-80d4-4a55-9bec-7a111b4ff65c",
+        "contentDigest": "2566cae7d72198130d4387414a5b8ee997528e0d0493e946a1a8b6cbbfe7c608",
+        "createdAt": "2026-10-14T11:27:24.673Z",
+        "id": "fc377590-bfb5-4e02-a912-5e5581f346af",
         "rejectionDecisionId": null,
         "reviewState": "awaiting"
       },
       "reasoningLinks": [],
       "specifications": [],
-      "updatedAt": "2026-10-14T11:18:41.926Z"
+      "updatedAt": "2026-10-14T11:27:24.673Z"
     }
   ],
   "receipts": {
@@ -126,6 +138,18 @@
         ]
       },
       "storageRevision": "a61318ff-dee2-4fb5-ba8e-9a772f681e89"
+    },
+    "revise-readme-publish-002": {
+      "recordedAt": "2026-10-14T11:27:24.673Z",
+      "requestDigest": "3641ffa717b6ac5740840cf2f88ceea3b4524289e64044cd0d5e48765ec774be",
+      "result": {
+        "action": "revise",
+        "ids": [
+          "readme-publish-ready",
+          "fc377590-bfb5-4e02-a912-5e5581f346af"
+        ]
+      },
+      "storageRevision": "a0afc7f9-c53e-48ea-87d0-6d6648cf238b"
     }
   },
   "scope": {
@@ -143,9 +167,9 @@
   "storage": {
     "previousBridge": {
       "exists": true,
-      "sha256": "4f70bf4b12b560c5da3100880bc7ccbf68c3dcf5f443ae7d86cc5a588294a432"
+      "sha256": "96314b51daaa1a0c04b340d7bc7b9a1b4c93bc55209f6c60bdfc90146775b3df"
     },
-    "revision": "a61318ff-dee2-4fb5-ba8e-9a772f681e89",
-    "updatedAt": "2026-10-14T11:18:41.926Z"
+    "revision": "a0afc7f9-c53e-48ea-87d0-6d6648cf238b",
+    "updatedAt": "2026-10-14T11:27:24.673Z"
   }
 }
