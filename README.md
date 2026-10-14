@@ -1,8 +1,12 @@
 <div align="center">
 
-<img src="docs/assets/hero.svg" alt="MOZAK: You own the plan. The agent does the work." width="760">
+<img src="docs/assets/hero-pixel.gif" width="160" alt="Pixel-art MOZAK brain: a spark runs along the gold, purple and green circuits in turn">
 
-**Plans for your projects that you and every AI agent share. Plain files in git and Obsidian.**
+# MOZAK
+
+**You own the plan. The agent does the work.**
+
+Plans for your projects that you and every AI agent share. Plain files in git and Obsidian.
 
 [![CI](https://github.com/pitfa19/mozak/actions/workflows/ci.yml/badge.svg)](https://github.com/pitfa19/mozak/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
@@ -16,8 +20,6 @@
 ---
 
 ## What it is
-
-<img src="docs/assets/hero-pixel.gif" align="right" width="128" alt="Pixel-art MOZAK brain: a spark runs along the gold, purple and green circuits in turn">
 
 You work with AI agents across many repos and note folders. Every new session, the agent has forgotten what you agreed, and you explain it all again.
 
