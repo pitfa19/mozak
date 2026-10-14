@@ -248,6 +248,89 @@
       ],
       "specifications": [],
       "updatedAt": "2026-10-14T11:51:00.565Z"
+    },
+    {
+      "accepted": null,
+      "completionRecords": [],
+      "createdAt": "2026-10-14T11:51:16.130Z",
+      "decisions": [],
+      "discussion": null,
+      "downstreamSpec": null,
+      "id": "demo-video",
+      "implementationAuthorization": null,
+      "implementationAuthorizations": [],
+      "lifecycle": {
+        "state": "unaccepted"
+      },
+      "observations": [],
+      "pending": {
+        "baseAcceptedDigest": null,
+        "baseAcceptedRevision": null,
+        "content": {
+          "constraints": [
+            {
+              "id": "owner-records",
+              "text": "The owner records the Obsidian part themselves. Agents do not fake or generate the usage footage."
+            },
+            {
+              "id": "no-private-data",
+              "text": "No private notes, personal identifiers or credentials visible in the recording or the animation."
+            }
+          ],
+          "nonGoals": [
+            "Posting to Show HN or Reddit. That is a separate step after this plan."
+          ],
+          "outcomes": [
+            {
+              "acceptance": "owner",
+              "criterion": "The owner has recorded it and is happy with the take.",
+              "id": "owner-recording",
+              "statement": "A screen recording of the owner using MOZAK in Obsidian: the sidebar with notes and GitHub repos, filters, opening a plan, and an agent proposing a plan that then appears."
+            },
+            {
+              "acceptance": "owner",
+              "criterion": "The owner watches the animation next to the recording and approves it.",
+              "id": "background-animation",
+              "statement": "An animation of what happens behind the recording: the inventory, the sparse fetch of a GitHub repo, the agent proposing, the owner approving, and MOZAK committing and pushing MOZAK.json and MOZAK.md."
+            },
+            {
+              "acceptance": "owner",
+              "criterion": "The owner sees the demo on the GitHub README and approves it.",
+              "id": "readme-demo",
+              "statement": "The README's See it run section shows the new demo instead of the synthetic terminal recording."
+            }
+          ],
+          "purpose": "Show MOZAK in real use before posting to Show HN and Reddit: the owner records how they use it in Obsidian, then an animation explains what happens in the background while they work.",
+          "questions": [
+            {
+              "id": "anim-tool",
+              "text": "Should the background animation be pixel art in Aseprite like the logo, or a diagram-style animation?"
+            }
+          ],
+          "rationale": "On 2026-10-14 the owner accepted the README and logo and said the only thing left is to record the demo video, to be done later.",
+          "sources": [
+            {
+              "anchor": null,
+              "id": "owner-msg",
+              "limitations": [
+                "Host assertion of an owner message, not a native message ID."
+              ],
+              "locator": "jcode session, owner message 2026-10-14T11:50:11.248Z",
+              "observedAt": "2026-10-14T11:50:11.248Z",
+              "version": null
+            }
+          ],
+          "title": "Record the Obsidian demo and animate the background"
+        },
+        "contentDigest": "adb1946be2e4605d27799582a4557fa64affe7647d2e630bbea1bf1acb25a91e",
+        "createdAt": "2026-10-14T11:51:16.130Z",
+        "id": "98d31904-ae34-48e1-a42f-e4e7308bc21e",
+        "rejectionDecisionId": null,
+        "reviewState": "awaiting"
+      },
+      "reasoningLinks": [],
+      "specifications": [],
+      "updatedAt": "2026-10-14T11:51:16.130Z"
     }
   ],
   "receipts": {
@@ -321,6 +404,18 @@
       },
       "storageRevision": "83231ce5-58d6-4b8a-8b82-117e115b5b23"
     },
+    "propose-demo-video-008": {
+      "recordedAt": "2026-10-14T11:51:16.130Z",
+      "requestDigest": "8a3a086f4da50e106440680b46135cc8048d60c3576d4b5e3c773dadd95223f8",
+      "result": {
+        "action": "propose",
+        "ids": [
+          "demo-video",
+          "98d31904-ae34-48e1-a42f-e4e7308bc21e"
+        ]
+      },
+      "storageRevision": "118cd1ed-70c5-4b50-811c-3f4d8df72aa0"
+    },
     "propose-readme-publish-001": {
       "recordedAt": "2026-10-14T11:18:41.926Z",
       "requestDigest": "2d4a2880097bce04a9445ba4895869a1227d0721314256b9094cdbe696e5a25b",
@@ -361,9 +456,9 @@
   "storage": {
     "previousBridge": {
       "exists": true,
-      "sha256": "94b14ff4a9a3be11a1def4ca781c69bcc27f83aa0b8a7d96d17c7b10be0e743f"
+      "sha256": "8098ae23db8af3e4af92cfd54aa2af6f5d6dbae3835edc14b6d7f3455f7b7da9"
     },
-    "revision": "de31b05d-3eb8-454e-9d81-b31003a1f953",
-    "updatedAt": "2026-10-14T11:51:00.565Z"
+    "revision": "118cd1ed-70c5-4b50-811c-3f4d8df72aa0",
+    "updatedAt": "2026-10-14T11:51:16.130Z"
   }
 }
