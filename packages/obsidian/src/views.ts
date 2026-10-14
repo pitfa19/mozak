@@ -81,7 +81,7 @@ export class ScopesView extends ItemView {
     root.addClass("mozak-root");
     const head = el(root, "div", "mozak-header");
     const title = el(head, "span", "mozak-title");
-    setIcon(el(title, "span", "mozak-title-icon"), this.getIcon());
+    setIcon(el(title, "span", `mozak-title-icon icon-${this.filter}`), this.getIcon());
     el(title, "span", undefined, "MOZAK");
     const tools = el(head, "div", "mozak-tools");
     if (this.model && countRemote(this.model.scopes).remote > 0) {
