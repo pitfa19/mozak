@@ -1,38 +1,38 @@
 <div align="center">
 
-# MOZAK
+<img src="docs/assets/hero.svg" alt="MOZAK: You own the plan. The agent does the work." width="760">
 
-**Agentic planning for developers and researchers. Plain files in git and Obsidian.**
-
-You own the plan. The agent does the work.
+**Plans for your projects that you and every AI agent share. Plain files in git and Obsidian.**
 
 [![CI](https://github.com/pitfa19/mozak/actions/workflows/ci.yml/badge.svg)](https://github.com/pitfa19/mozak/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 [![Node 24.11+](https://img.shields.io/badge/node-24.11%2B-339933?style=flat-square)](docs/installation.md)
 [![Platforms](https://img.shields.io/badge/platforms-Linux%20%7C%20macOS-blue?style=flat-square)](docs/installation.md)
 
-<img src="docs/assets/overview.gif" alt="A purple packet travels between GitHub, an agent, and Obsidian, lighting up MOZAK at the centre each time information passes through" width="760">
-
-[Install](#install) · [How it works](#how-it-works) · [Demo](#see-it-run) · [Safety](#safety) · [Docs](docs/installation.md)
+[What it is](#what-it-is) · [Install](#install) · [How it works](#how-it-works) · [Obsidian](#see-everything-in-obsidian) · [Safety](#safety) · [Docs](docs/installation.md)
 
 </div>
 
 ---
 
-## Why
+## What it is
 
-Your work lives in git repos and note folders. Your agent forgets both between sessions, so you explain everything again, and nothing stops two agents from overwriting each other.
+<img src="docs/assets/hero-pixel.gif" align="right" width="128" alt="Pixel-art MOZAK brain: a spark runs along the gold, purple and green circuits in turn">
 
-MOZAK keeps each project's plan, decisions, and evidence in plain files inside the project itself. Any agent can read them. Nothing changes until you approve it.
+You work with AI agents across many repos and note folders. Every new session, the agent has forgotten what you agreed, and you explain it all again.
 
-- **Local-first.** No cloud, no account, no background process.
-- **Plain files.** `MOZAK.json` is the plan. `MOZAK.md` is a readable bridge. Both live in your repo or Obsidian vault, and git keeps the history.
-- **You approve.** Direction and implementation are separate decisions. One "yes" never covers both.
-- **Safe with several agents.** A stale write is refused, never merged silently.
+**MOZAK gives each project one written plan that lives inside the project.** Agents read it at the start of a session and propose changes to it. Nothing becomes the plan until you say yes.
+
+- **It is just files.** `MOZAK.json` holds the plan, `MOZAK.md` is a readable copy. They sit next to your `README.md`, and git keeps the history. No cloud, no account, no background service.
+- **You stay in charge.** Agreeing on *what* to do and agreeing to *start building* are two separate yeses.
+- **Many agents, no mess.** An agent that writes from an out-of-date copy is refused instead of overwriting someone else's work.
+- **Repos and notes together.** A project can be a local folder, an Obsidian vault folder, or a GitHub repo you have not even cloned.
+
+It is for developers and researchers who already use agents such as Claude Code, Codex or jcode and want them to remember the plan.
 
 ## Install
 
-You need Git, npm, and Node 24.11 or later (Node 26 is tested).
+You need Git, npm and Node 24.11 or newer (Node 26 works).
 
 ```bash
 git clone https://github.com/pitfa19/mozak.git && cd mozak
@@ -41,61 +41,49 @@ mkdir -p "$HOME/.local/share"
 node scripts/install.mjs --prefix "$(cd "$HOME/.local/share" && pwd -P)/mozak" --json
 ```
 
-The installer copies a self-contained build into a new folder. It uses no `sudo`, makes no network calls, and changes no shell profile or `PATH`. It never overwrites an existing install. Add `--check` to preview first. Then use the installed commands:
+The installer copies a self-contained build into that folder. It uses no `sudo`, makes no network calls and does not touch your shell profile. It never overwrites an existing install, so install a newer version into a new folder. Add `--check` to preview first.
 
 ```bash
 "$HOME/.local/share/mozak/bin/mozak" --help
-"$HOME/.local/share/mozak/bin/mozak-mcp" --config inventory.json   # MCP server over stdio
 ```
 
-Details, exit codes, and recovery: [docs/installation.md](docs/installation.md).
+Details, exit codes and recovery: [docs/installation.md](docs/installation.md).
 
 ## How it works
 
-A **scope** is a git repo or a notes folder. You list the scopes you want in one `inventory.json`. MOZAK reads only those and never crawls your disk.
-
-1. **Register.** Each scope gets a `MOZAK.json` next to its `README.md` and `AGENTS.md`.
-2. **Propose.** An agent drafts a plan. It waits as *awaiting approval*.
-3. **Approve.** You approve the direction. This starts planning, not coding.
-4. **Build.** A spec is attached. You approve implementation separately, then bounded work runs.
-5. **Remember.** Decisions and evidence are saved back into the scope's files, so the next session picks up where the last one stopped.
-
-```json
-{
-  "format": "mozak.local/v2",
-  "scopes": [
-    { "id": "atlas-app",   "root": "./atlas-app" },
-    { "id": "field-notes", "root": "./field-notes" }
-  ]
-}
-```
-
-**Remote scopes.**
-
-A scope can live in a GitHub repo instead of a local folder. List it with `remote` and no `root` (exactly one of the two), in a `mozak.local/v3` inventory. `v2` inventories still load unchanged.
+**1. List your projects.** One `inventory.json` names every project MOZAK may look at. It never searches your disk.
 
 ```json
 {
   "format": "mozak.local/v3",
   "scopes": [
-    { "id": "atlas-app",  "root": "./atlas-app" },
-    { "id": "genome-mcp", "remote": "github:pitfa19/genome-mcp", "ref": "main" }
+    { "id": "my-app",     "root": "./my-app" },
+    { "id": "lab-notes",  "root": "./vault/lab-notes" },
+    { "id": "genome-mcp", "remote": "github:you/genome-mcp", "ref": "main" }
   ]
 }
 ```
 
-`remote` is `github:owner/repo`, an `https://` URL, or an absolute `file://` URL. `ref` is a plain branch name and defaults to `main`.
+A project with `root` is a local folder. A project with `remote` is a GitHub repo: MOZAK downloads only its `README.md`, `AGENTS.md` and the two MOZAK files, a few kilobytes, and pushes plan changes back. When you are ready to build, `mozak pull` makes a full clone in `~/Documents`.
 
-- **Fetch.** MOZAK makes a sparse, blobless, depth 1 git clone under `.mozak-cache/<id>/` next to the inventory file. Only `README.md`, `MOZAK.json`, `MOZAK.md` and `AGENTS.md` are checked out. It is real git, so you can also commit and push normally. Add `.mozak-cache/` to the `.gitignore` of the inventory folder if it is a git repo (`mozak sync` warns when it is not ignored).
-- **Freshness.** `mozak scopes`, `plans` and `context` refresh a remote scope when the last fetch is older than 10 minutes. `mozak sync [--scope ID]` forces a refresh. If the fetch fails (offline, auth), the cached copy is used and marked `stale` (JSON: `stale`, `lastFetchAt`, `remote[]`, a `remote-stale` issue). The MCP tool `mozak_sync` does the same as `mozak sync`.
-- **Writes.** `propose`, `revise`, `complete`, `observe` and the rest work against the sparse copy. After a successful write MOZAK commits only `MOZAK.json` and `MOZAK.md` and pushes. Owner approval rules are unchanged. A write refuses with `remote-stale` if the copy cannot be refreshed first. If the push fails, the commit stays local, the result is exit 5 with `remote-push-failed`, and the next `mozak sync` pushes it.
-- **Pull.** `mozak pull --scope ID [--into PATH]` (owner) makes a full working clone, default `~/Documents/<repo-name>`. It refuses a destination that exists and is not a clone of the same remote. Afterwards the inventory still says `remote`, but reads and writes use the full clone (recorded in `.mozak-cache/<id>.meta.json`). A sync of a full clone only fast-forwards it. It never overwrites your working tree.
-- **Auth.** MOZAK shells out to `git` (no shell, hard timeouts, no prompts), so your credential helper, for example `gh auth setup-git`, is used.
-- A repo with no `MOZAK.json` at its root is reported as `scope-uninitialized` ("not a scope").
+**2. Agree on a plan.**
 
-Open `plans --all` and you see every scope grouped as **Completed**, **Open**, and **Awaiting approval**.
+1. **Propose.** An agent drafts a plan. It waits as *awaiting approval*.
+2. **Approve the direction.** You say yes to *what*. This starts planning, not coding.
+3. **Approve the build.** A spec is attached and you approve implementation separately.
+4. **Remember.** Decisions and evidence are saved into the project's files, so the next session starts where the last one stopped.
 
-To find out what exists, run `mozak scopes`. It lists every scope in your inventory with its folder, title, plan counts, and which entry files are present. Your agent gets the same index from the `mozak_scopes` MCP tool, so it can navigate a whole vault without being told where anything is. The index is read-only. It returns no plan text, evidence, or decisions, and a scope it cannot read is listed with its error instead of being skipped.
+**3. Let agents find their way.** `mozak scopes` lists every project with its plan counts. Agents get the same list from the MCP server, so they can navigate all your work without being told where anything is.
+
+## See everything in Obsidian
+
+The Obsidian plugin in [`packages/obsidian`](packages/obsidian) shows every project from your inventory in the sidebar, notes and GitHub repos alike. Filter by **All**, **Open** or **Done**, and click a plan to read it. It only reads, it never changes a plan.
+
+```bash
+node scripts/install-obsidian-plugin.mjs /path/to/your/vault --build
+```
+
+Then turn on **MOZAK** under Settings, Community plugins.
 
 ## See it run
 
@@ -103,35 +91,35 @@ To find out what exists, run `mozak scopes`. It lists every scope in your invent
 <img src="docs/assets/demo-terminal.gif" alt="Terminal recording: register two scopes, propose, approve, a stale write is refused, a new process recovers the saved plan, git shows the diff" width="760">
 </div>
 
-Real commands against a throwaway repo and notes folder. The typing pace is scripted and the output is the real CLI's. The data is synthetic.
-
-A side-by-side video for sharing is [docs/assets/demo-split-screen.mp4](docs/assets/demo-split-screen.mp4). To regenerate the media, see [docs/assets/src](docs/assets/src).
+Real commands against a throwaway repo and notes folder. The typing pace is scripted, the output is the real CLI's, the data is synthetic.
 
 ## Use it with your agent
 
 | You want | Use |
 | --- | --- |
-| Find every scope and where it lives | `mozak scopes`, or the `mozak_scopes` MCP tool |
-| Read or check a project | `mozak context`, `plans`, `check` |
-| Let an agent read and propose over MCP | `mozak-mcp --config inventory.json` (any MCP client) |
-| Run the guided conversation | the installed skill at `PREFIX/skills/mozak-conversation/SKILL.md` |
+| See every project and where it lives | `mozak scopes`, or the `mozak_scopes` MCP tool |
+| Read one project's plan | `mozak context`, `mozak plans`, `mozak check` |
+| Refresh GitHub projects now | `mozak sync` |
+| Let any MCP agent read and propose | `mozak-mcp --config inventory.json` |
+| Run the guided planning conversation | the installed skill at `PREFIX/skills/mozak-conversation/SKILL.md` |
 
-Every call needs an explicit `--config`. MOZAK never falls back to a global setting. Load the skill by its exact installed path.
+Every command needs an explicit `--config`. MOZAK never falls back to a global setting.
 
 ## Safety
 
-- **Real approvals only.** Only an owner decision that matches what was displayed counts. Quotes, tool output, and reminders do not.
-- **No overwrites.** Writes carry the snapshot they were based on. A write based on an out-of-date snapshot is refused, and nothing is overwritten.
-- **No credentials.** Nothing here asks for, prints, or stores them.
-- **Honest limits.** Owner approval follows a trusted-host convention and is not authentication. Concurrency guarantees cover cooperating processes on a local filesystem, not network drives or power loss.
+- **Real approvals only.** Only your own decision on what was shown to you counts. Quotes, tool output and reminders do not.
+- **No overwrites.** A write based on an out-of-date copy is refused.
+- **Small pushes.** For GitHub projects, MOZAK commits and pushes only `MOZAK.json` and `MOZAK.md`.
+- **No credentials.** MOZAK never asks for, prints or stores them. GitHub access uses your existing git login.
+- **Honest limits.** Approval follows a trusted-host convention, it is not authentication. Concurrency guarantees cover cooperating processes on a local disk, not network drives or power loss.
 
 ## Works well with
 
-[**Monokl**](https://github.com/pitfa19/monokl) is a separate, optional research tool: a small agent-agnostic research runner with durable evidence and explicit human approval. It is a companion, not a requirement, and MOZAK works fully without it.
+[**Monokl**](https://github.com/pitfa19/monokl) is a separate, optional research runner with durable evidence and explicit human approval. MOZAK works fully without it.
 
 ## Platforms
 
-Linux and macOS, on Node 24.11 or later. CI runs both on every push.
+Linux and macOS, Node 24.11 or newer. CI runs Ubuntu and macOS on Node 24 and 26 on every push.
 
 ## Contributing
 
@@ -140,7 +128,7 @@ npm ci --ignore-scripts && npm run build
 npm test && npm run test:install
 ```
 
-Run the tests before opening a pull request.
+Run the tests before opening a pull request. The full format and remote-scope details are in [docs/installation.md](docs/installation.md) and [SPEC.md](SPEC.md).
 
 ## License
 
