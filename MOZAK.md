@@ -2,7 +2,7 @@
 format: 3
 id: "mozak"
 kind: project
-graph_sha256: 72f69e8d63144cb6d63687c22da8c4567f22cffa8fd6167a2659849232ec35d4
+graph_sha256: bdfdd5131dcbca5196eab9b28e0c76f5de22c643f7effc1cf27a933e41c1df26
 ---
 
 # MOZAK
@@ -14,6 +14,7 @@ Implementation eligibility requires a fresh canonical and local specification ch
 ## Plans
 
 - demo-video: Record the Obsidian demo and animate the background (unaccepted) [awaiting approval]
+- private-plan-storage: Private plan files for public GitHub scopes (unaccepted) [awaiting approval]
 - readme-publish-ready: Make the README publish-ready (open)
 
 ## Connections

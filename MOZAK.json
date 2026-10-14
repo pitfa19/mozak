@@ -331,6 +331,113 @@
       "reasoningLinks": [],
       "specifications": [],
       "updatedAt": "2026-10-14T11:51:16.130Z"
+    },
+    {
+      "accepted": null,
+      "completionRecords": [],
+      "createdAt": "2026-10-14T16:03:37.567Z",
+      "decisions": [],
+      "discussion": null,
+      "downstreamSpec": null,
+      "id": "private-plan-storage",
+      "implementationAuthorization": null,
+      "implementationAuthorizations": [],
+      "lifecycle": {
+        "state": "unaccepted"
+      },
+      "observations": [],
+      "pending": {
+        "baseAcceptedDigest": null,
+        "baseAcceptedRevision": null,
+        "content": {
+          "constraints": [
+            {
+              "id": "c1",
+              "text": "Default behaviour for existing remote scopes does not change: without the new option, MOZAK still commits and pushes MOZAK.json and MOZAK.md as today."
+            },
+            {
+              "id": "c2",
+              "text": "Private plan storage never writes plan content into the linked repo's tracked files, commits, branches or remote, including on error and recovery paths."
+            },
+            {
+              "id": "c3",
+              "text": "No credentials are added: GitHub access keeps using the existing git login."
+            }
+          ],
+          "nonGoals": [
+            "Encrypting plan files",
+            "Hosting plan storage on a MOZAK server",
+            "Changing how local root scopes work"
+          ],
+          "outcomes": [
+            {
+              "acceptance": "objective",
+              "criterion": "With the option set, plan operations on a remote scope leave the linked repo's git history and working tree unchanged, verified by a test against a throwaway repo.",
+              "id": "private-storage",
+              "statement": "A remote scope can be configured so its plan files are stored outside the linked repo, and MOZAK never commits or pushes them there."
+            },
+            {
+              "acceptance": "owner",
+              "criterion": "mozak scopes and the Obsidian sidebar show the scope as remote, with its plans, while the plan files live in the private location.",
+              "id": "shows-as-repo",
+              "statement": "A scope using private plan storage is still listed as a GitHub repo in mozak scopes, the MCP server and the Obsidian plugin, with its remote and ref."
+            },
+            {
+              "acceptance": "objective",
+              "criterion": "Plans, observations and receipts are identical before and after the switch; mozak check reports no issues.",
+              "id": "migration",
+              "statement": "An existing local scope on a clone (like obsidian-plugins-mcp today) can be switched to a remote scope with private plan storage without losing plan history."
+            }
+          ],
+          "purpose": "Let a GitHub-linked (remote) scope keep its MOZAK.json and MOZAK.md private, so a public repo can show in MOZAK as a repo without publishing its plans.",
+          "questions": [
+            {
+              "id": "q-storage-location",
+              "text": "Where should private plan files live: a separate private git repo, a folder in the vault, or a path chosen per scope in the inventory?"
+            },
+            {
+              "id": "q-inventory-shape",
+              "text": "What does the inventory entry look like, for example remote plus a planStore field, and how does it interact with mozak pull?"
+            },
+            {
+              "id": "q-bridge",
+              "text": "Should README.md and AGENTS.md still be read from the public repo while MOZAK.json and MOZAK.md come from the private store?"
+            }
+          ],
+          "rationale": "Remote scopes commit and push MOZAK.json and MOZAK.md into the linked repo. For a public repo that publishes plans, goals and evidence. The workaround today is a local 'root' scope on the clone, with the plan files kept out of git by hand (.git/info/exclude plus a pre-commit hook), which then shows as a plain folder, not a repo. First hit on 2026-10-14 with the public repo pitfa19/obsidian-community-plugins-mcp. Every public project will hit the same problem.",
+          "sources": [
+            {
+              "anchor": "repo",
+              "id": "s1",
+              "limitations": [
+                "Motivating example only; its scope currently uses the local-root workaround."
+              ],
+              "locator": "https://github.com/pitfa19/obsidian-community-plugins-mcp",
+              "observedAt": "2026-10-14T16:02:31Z",
+              "version": "v1.2.0"
+            },
+            {
+              "anchor": "commitAndPush",
+              "id": "s2",
+              "limitations": [
+                "Read from the installed dist build, not the source tree."
+              ],
+              "locator": "packages/core/src/remote (commitAndPush, syncRemote)",
+              "observedAt": "2026-10-14T15:46:29Z",
+              "version": "installed mozak-v2 build"
+            }
+          ],
+          "title": "Private plan files for public GitHub scopes"
+        },
+        "contentDigest": "952b03ab77535a1c622c3154a594c9328678a18b245b6d57bada14be76e474ab",
+        "createdAt": "2026-10-14T16:03:37.567Z",
+        "id": "073ddcaf-cbfe-4fdf-89ec-fadb8c503255",
+        "rejectionDecisionId": null,
+        "reviewState": "awaiting"
+      },
+      "reasoningLinks": [],
+      "specifications": [],
+      "updatedAt": "2026-10-14T16:03:37.567Z"
     }
   ],
   "receipts": {
@@ -416,6 +523,18 @@
       },
       "storageRevision": "118cd1ed-70c5-4b50-811c-3f4d8df72aa0"
     },
+    "propose-private-plan-storage-002": {
+      "recordedAt": "2026-10-14T16:03:37.567Z",
+      "requestDigest": "ab12c2b7bb0aeaead3a39571eda29ca4c05610ce857f3f0e6d584f8e430ccb89",
+      "result": {
+        "action": "propose",
+        "ids": [
+          "private-plan-storage",
+          "073ddcaf-cbfe-4fdf-89ec-fadb8c503255"
+        ]
+      },
+      "storageRevision": "67423efa-1399-42ce-9f41-3ed4d9e4da7c"
+    },
     "propose-readme-publish-001": {
       "recordedAt": "2026-10-14T11:18:41.926Z",
       "requestDigest": "2d4a2880097bce04a9445ba4895869a1227d0721314256b9094cdbe696e5a25b",
@@ -456,9 +575,9 @@
   "storage": {
     "previousBridge": {
       "exists": true,
-      "sha256": "8098ae23db8af3e4af92cfd54aa2af6f5d6dbae3835edc14b6d7f3455f7b7da9"
+      "sha256": "140d65fa2a18db559443388c0d8f5b7688fdb34c596b5da1f79723c8ef9fcff8"
     },
-    "revision": "118cd1ed-70c5-4b50-811c-3f4d8df72aa0",
-    "updatedAt": "2026-10-14T11:51:16.130Z"
+    "revision": "67423efa-1399-42ce-9f41-3ed4d9e4da7c",
+    "updatedAt": "2026-10-14T16:03:37.567Z"
   }
 }
