@@ -4,8 +4,16 @@ import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chooseInventory, discoverInventory } from "../src/discover.ts";
-import { countsSummary, resolveOpenTarget, scopesModel, scopeViewModel } from "../src/model.ts";
+import { countsSummary, planMatches, resolveOpenTarget, scopesModel, scopeViewModel } from "../src/model.ts";
 import { loadScopesModel } from "../src/load.ts";
+
+test("planMatches: all shows every state, open groups in-play states, completed is exact", () => {
+  const states = ["open", "awaiting", "paused", "completed", "rejected"] as const;
+  const pick = (f: "all" | "open" | "completed") => states.filter((s) => planMatches({ state: s }, f));
+  assert.deepEqual(pick("all"), [...states]);
+  assert.deepEqual(pick("open"), ["open", "awaiting", "paused"]);
+  assert.deepEqual(pick("completed"), ["completed"]);
+});
 
 test("countsSummary omits zero parts", () => {
   assert.equal(countsSummary({ completed: 0, open: 0, awaiting: 0 }), "no plans");

@@ -199,6 +199,15 @@ export function countsSummary(c: ScopeCounts): string {
   return parts.length ? parts.join(", ") : "no plans";
 }
 
+export type PlanFilter = "all" | "open" | "completed";
+
+/** Open means still in play: open, awaiting approval, or paused. Rejected plans only show under All. */
+export function planMatches(plan: Pick<PlanVM, "state">, filter: PlanFilter): boolean {
+  if (filter === "all") return true;
+  if (filter === "completed") return plan.state === "completed";
+  return plan.state === "open" || plan.state === "awaiting" || plan.state === "paused";
+}
+
 export type OpenTarget = { kind: "vault"; path: string } | { kind: "external"; path: string };
 
 /** Decide whether a file lives inside the vault (open in Obsidian) or outside (OS default app). */

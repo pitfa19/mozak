@@ -1,4 +1,10 @@
-.mozak-root { padding: var(--size-4-3); }
+.mozak-root {
+  padding: var(--size-4-3);
+  --mozak-gold: #d4a017;
+  --mozak-purple: #8b5cf6;
+  --mozak-green: #22a55b;
+}
+.theme-dark .mozak-root { --mozak-gold: #e8b931; --mozak-purple: #a78bfa; --mozak-green: #34c06f; }
 .mozak-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--size-4-2); }
 .mozak-title { font-weight: var(--font-semibold); font-size: var(--font-ui-medium); }
 .mozak-muted { color: var(--text-muted); font-size: var(--font-ui-smaller); }
@@ -25,8 +31,8 @@
 .mozak-link { background: none; box-shadow: none; color: var(--text-accent); padding: 0 var(--size-4-1); height: auto; cursor: pointer; white-space: nowrap; }
 .mozak-link:hover { text-decoration: underline; }
 .mozak-badge { font-size: var(--font-ui-smaller); padding: 0 var(--size-4-2); border-radius: var(--radius-l); white-space: nowrap; background: var(--background-modifier-border); color: var(--text-muted); }
-.mozak-badge.state-open { background: var(--interactive-accent); color: var(--text-on-accent); }
-.mozak-badge.state-completed { background: var(--background-modifier-success); color: var(--text-on-accent); }
+.mozak-badge.state-open { background: var(--mozak-purple); color: #fff; }
+.mozak-badge.state-completed { background: var(--mozak-green); color: #fff; }
 .mozak-badge.state-awaiting { background: var(--background-modifier-warning, var(--text-warning)); color: var(--text-on-accent); }
 .mozak-badge.state-paused { background: var(--text-faint); color: var(--text-on-accent); }
 .mozak-badge.state-rejected { background: var(--background-modifier-error); color: var(--text-on-accent); }
@@ -40,3 +46,22 @@
 .mozak-outcome-title { display: flex; gap: var(--size-4-2); justify-content: space-between; align-items: baseline; }
 .mozak-obs { display: flex; gap: var(--size-4-2); margin-bottom: var(--size-4-1); }
 .mozak-list { margin: 0; padding-left: var(--size-4-5); }
+
+/* Filter pills: All gold, Open purple, Completed green */
+.mozak-filter { display: flex; gap: var(--size-4-1); padding: 3px; margin-bottom: var(--size-4-2); background: var(--background-secondary); border-radius: 999px; border: 1px solid var(--background-modifier-border); }
+.mozak-pill { --pill: var(--mozak-gold); flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; height: 28px; padding: 0 var(--size-4-2); border-radius: 999px; border: none; box-shadow: none; background: transparent; color: var(--text-muted); font-size: var(--font-ui-small); font-weight: var(--font-medium); cursor: pointer; transition: background 120ms ease, color 120ms ease; }
+.mozak-pill.pill-open { --pill: var(--mozak-purple); }
+.mozak-pill.pill-completed { --pill: var(--mozak-green); }
+.mozak-pill:hover { background: color-mix(in srgb, var(--pill) 14%, transparent); color: var(--pill); }
+.mozak-pill.is-active { background: var(--pill); color: #fff; box-shadow: 0 1px 3px color-mix(in srgb, var(--pill) 45%, transparent); }
+.mozak-pill-icon { display: flex; }
+.mozak-pill-icon svg { width: 14px; height: 14px; }
+.mozak-pill-count { min-width: 18px; padding: 0 5px; border-radius: 999px; font-size: var(--font-ui-smaller); background: color-mix(in srgb, var(--pill) 18%, transparent); color: var(--pill); }
+.mozak-pill.is-active .mozak-pill-count { background: rgba(255, 255, 255, 0.25); color: #fff; }
+
+/* Plan rows get a colored stripe matching their state */
+.mozak-plan-row { border-left: 3px solid transparent; }
+.mozak-plan-row.row-open, .mozak-plan-row.row-awaiting, .mozak-plan-row.row-paused { border-left-color: var(--mozak-purple); }
+.mozak-plan-row.row-completed { border-left-color: var(--mozak-green); }
+.mozak-scope { border-left: 3px solid var(--mozak-gold); }
+.mozak-scope.is-failed { border-left-color: var(--text-error); }

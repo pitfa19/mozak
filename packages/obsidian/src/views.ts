@@ -1,5 +1,5 @@
 import { ItemView, setIcon, type ViewStateResult, type WorkspaceLeaf } from "obsidian";
-import { countsSummary, scopesModel, type ContentVM, type PlanVM, type ScopeVM, type ScopesModel } from "./model.ts";
+import { countsSummary, planMatches, scopesModel, type ContentVM, type PlanFilter, type PlanVM, type ScopeVM, type ScopesModel } from "./model.ts";
 import { loadScopesModel, describeError } from "./load.ts";
 import type MozakPlugin from "./main.ts";
 
@@ -12,10 +12,18 @@ function el(parent: HTMLElement, tag: string, cls?: string, text?: string): HTML
   return e;
 }
 
+const FILTERS: { id: PlanFilter; label: string; icon: string }[] = [
+  { id: "all", label: "All", icon: "layers" },
+  { id: "open", label: "Open", icon: "circle-dot" },
+  { id: "completed", label: "Completed", icon: "check-circle-2" },
+];
+
 export class ScopesView extends ItemView {
   private model: ScopesModel | null = null;
   private error: string | null = null;
   private expanded = new Set<string>();
+  private collapsed = new Set<string>();
+  private filter: PlanFilter = "all";
 
   private plugin: MozakPlugin;
   constructor(leaf: WorkspaceLeaf, plugin: MozakPlugin) { super(leaf); this.plugin = plugin; }
@@ -61,13 +69,40 @@ export class ScopesView extends ItemView {
     }
     const m = this.model;
     if (!m) return;
+    this.renderFilter(root, m);
     el(root, "div", "mozak-muted mozak-summary",
       `${m.totals.scopes} scopes, ${countsSummary(m.totals)}${m.totals.failed ? `, ${m.totals.failed} unreadable` : ""}`);
-    for (const scope of m.scopes) this.renderScope(root, scope);
+    const visible = this.filter === "all"
+      ? m.scopes
+      : m.scopes.filter((s) => s.plans.some((p) => planMatches(p, this.filter)));
+    if (visible.length === 0) {
+      const box = el(root, "div", "mozak-empty");
+      el(box, "div", "mozak-muted", this.filter === "open" ? "No open plans. Nice." : "No completed plans yet.");
+      return;
+    }
+    for (const scope of visible) this.renderScope(root, scope);
+  }
+
+  private renderFilter(root: HTMLElement, m: ScopesModel): void {
+    const all = m.scopes.flatMap((s) => s.plans);
+    const bar = el(root, "div", "mozak-filter");
+    bar.setAttr("role", "tablist");
+    for (const f of FILTERS) {
+      const n = all.filter((p) => planMatches(p, f.id)).length;
+      const pill = el(bar, "button", `mozak-pill pill-${f.id}${this.filter === f.id ? " is-active" : ""}`);
+      pill.setAttr("role", "tab");
+      pill.setAttr("aria-selected", String(this.filter === f.id));
+      setIcon(el(pill, "span", "mozak-pill-icon"), f.icon);
+      el(pill, "span", "mozak-pill-label", f.label);
+      el(pill, "span", "mozak-pill-count", String(n));
+      pill.addEventListener("click", () => { this.filter = f.id; this.render(); });
+    }
   }
 
   private renderScope(parent: HTMLElement, scope: ScopeVM): void {
-    const open = this.expanded.has(scope.id);
+    // A filter only shows scopes with matching plans, so open them to show those plans directly.
+    const filtered = this.filter !== "all";
+    const open = filtered ? !this.collapsed.has(scope.id) : this.expanded.has(scope.id);
     const box = el(parent, "div", "mozak-scope" + (scope.status === "failed" ? " is-failed" : ""));
     const row = el(box, "div", "mozak-scope-row");
     const chev = el(row, "span", "mozak-chevron");
@@ -82,14 +117,16 @@ export class ScopesView extends ItemView {
       el(main, "div", "mozak-muted", `${scope.counts.completed} completed, ${scope.counts.open} open, ${scope.counts.awaiting} awaiting`);
     }
     row.addEventListener("click", () => {
-      if (open) this.expanded.delete(scope.id); else this.expanded.add(scope.id);
+      const set = filtered ? this.collapsed : this.expanded;
+      const add = filtered ? open : !open;
+      if (add) set.add(scope.id); else set.delete(scope.id);
       this.render();
     });
     if (!open) return;
     const body = el(box, "div", "mozak-plans");
     if (scope.status === "ok" && scope.plans.length === 0) el(body, "div", "mozak-muted mozak-noplans", "No plans yet.");
-    for (const plan of scope.plans) {
-      const p = el(body, "div", "mozak-plan-row");
+    for (const plan of scope.plans.filter((p) => planMatches(p, this.filter))) {
+      const p = el(body, "div", `mozak-plan-row row-${plan.state}`);
       el(p, "span", `mozak-badge state-${plan.state}`, plan.stateLabel);
       el(p, "span", "mozak-plan-title", plan.title);
       p.addEventListener("click", () => void this.plugin.openPlan(scope, plan));
