@@ -3,22 +3,8 @@
   "format": "mozak.scope/v3",
   "plans": [
     {
-      "accepted": null,
-      "completionRecords": [],
-      "createdAt": "2026-10-14T11:18:41.926Z",
-      "decisions": [],
-      "discussion": null,
-      "downstreamSpec": null,
-      "id": "readme-publish-ready",
-      "implementationAuthorization": null,
-      "implementationAuthorizations": [],
-      "lifecycle": {
-        "state": "unaccepted"
-      },
-      "observations": [],
-      "pending": {
-        "baseAcceptedDigest": null,
-        "baseAcceptedRevision": null,
+      "accepted": {
+        "acceptedFromRevision": "fc377590-bfb5-4e02-a912-5e5581f346af",
         "content": {
           "constraints": [
             {
@@ -105,17 +91,54 @@
           "title": "Make the README publish-ready"
         },
         "contentDigest": "2566cae7d72198130d4387414a5b8ee997528e0d0493e946a1a8b6cbbfe7c608",
-        "createdAt": "2026-10-14T11:27:24.673Z",
-        "id": "fc377590-bfb5-4e02-a912-5e5581f346af",
-        "rejectionDecisionId": null,
-        "reviewState": "awaiting"
+        "createdAt": "2026-10-14T11:36:11.111Z",
+        "directionDecisionId": "ddc814d1-906e-45ca-b102-4ff854c5c1c6",
+        "id": "34a1b664-9060-45ac-9024-4c6d3eb0ab0e"
       },
+      "completionRecords": [],
+      "createdAt": "2026-10-14T11:18:41.926Z",
+      "decisions": [
+        {
+          "contentDigest": "2566cae7d72198130d4387414a5b8ee997528e0d0493e946a1a8b6cbbfe7c608",
+          "id": "ddc814d1-906e-45ca-b102-4ff854c5c1c6",
+          "ownerMessageAt": "2026-10-14T11:35:54.083Z",
+          "ownerRef": "host-assertion: jcode session (fork of session_orangutan_1791970070709_dd8f6bada9abdf39), owner message 2026-10-14T11:35:54.083Z \"approved direction\", given after the revised plan was shown, not a native message ID",
+          "planId": "readme-publish-ready",
+          "purpose": "approve-direction",
+          "reason": "Owner approved the direction of the revised plan: static hero, animated pixel hero via Aseprite AI Artist, clearer README, GitHub only for now.",
+          "recordedAt": "2026-10-14T11:36:11.111Z",
+          "reviewDigest": "abe0a51aa8d98a05bfa4a6c6d4a4d4694c1e178df450468d990069110c71aeb1",
+          "revisionId": "fc377590-bfb5-4e02-a912-5e5581f346af"
+        }
+      ],
+      "discussion": null,
+      "downstreamSpec": null,
+      "id": "readme-publish-ready",
+      "implementationAuthorization": null,
+      "implementationAuthorizations": [],
+      "lifecycle": {
+        "state": "open"
+      },
+      "observations": [],
+      "pending": null,
       "reasoningLinks": [],
       "specifications": [],
-      "updatedAt": "2026-10-14T11:27:24.673Z"
+      "updatedAt": "2026-10-14T11:36:11.111Z"
     }
   ],
   "receipts": {
+    "approve-direction-readme-003": {
+      "recordedAt": "2026-10-14T11:36:11.111Z",
+      "requestDigest": "7b11f7f71f9264c48ce0a354bab8971bb36f737f168e75c9b0a52c36aef7387e",
+      "result": {
+        "action": "approve-direction",
+        "ids": [
+          "ddc814d1-906e-45ca-b102-4ff854c5c1c6",
+          "34a1b664-9060-45ac-9024-4c6d3eb0ab0e"
+        ]
+      },
+      "storageRevision": "380ca3fe-5eaf-4bc8-a7b9-f33b419638c0"
+    },
     "init-mozak-001": {
       "recordedAt": "2026-10-14T10:59:21.182Z",
       "requestDigest": "170feb5b80becc27b1d5064792d1045b6ee245aeaf3ac62b6c605d6bf808a04a",
@@ -167,9 +190,9 @@
   "storage": {
     "previousBridge": {
       "exists": true,
-      "sha256": "96314b51daaa1a0c04b340d7bc7b9a1b4c93bc55209f6c60bdfc90146775b3df"
+      "sha256": "15894a74dae4c3adf095bd9196d01aee443cde4de7ddea8ad6a514e69ab6103b"
     },
-    "revision": "a0afc7f9-c53e-48ea-87d0-6d6648cf238b",
-    "updatedAt": "2026-10-14T11:27:24.673Z"
+    "revision": "380ca3fe-5eaf-4bc8-a7b9-f33b419638c0",
+    "updatedAt": "2026-10-14T11:36:11.111Z"
   }
 }

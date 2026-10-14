@@ -2,7 +2,7 @@
 format: 3
 id: "mozak"
 kind: project
-graph_sha256: a01fa72a31eb063746ab6e089286f841c7a04b8ba24664de7ae6f2ce31adb121
+graph_sha256: 1980b03236b4421c1531d9d250998ccbd6c349b764c76a66a4d721d5891d3707
 ---
 
 # MOZAK
@@ -13,7 +13,7 @@ Implementation eligibility requires a fresh canonical and local specification ch
 
 ## Plans
 
-- readme-publish-ready: Make the README publish-ready (unaccepted) [awaiting approval]
+- readme-publish-ready: Make the README publish-ready (open)
 
 ## Connections
 
