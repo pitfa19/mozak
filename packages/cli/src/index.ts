@@ -71,6 +71,10 @@ function usage(): string {
     "  mozak projection repair --scope ID --request FILE    (owner)",
     "Exit: 0 success, 2 invalid or unavailable, 3 stale/conflict/owner-review, 4 busy/recovery,",
     "      5 committed with unfinished projection or cleanup, 6 partial all-scope coverage.",
+    "Config: FILE is the explicit inventory JSON. There is no default path and no directory scan.",
+    '  Shape: { "format": "mozak.local/v3", "scopes": [ { "id": "name", "root": "path" } ] }',
+    "  Relative roots resolve against the inventory file's directory. Ask the owner for the path;",
+    "  first use (creating an inventory or a scope) is documented in the skill's references/bootstrap.md.",
   ].join("\n");
 }
 

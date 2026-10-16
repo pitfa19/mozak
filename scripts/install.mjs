@@ -16,7 +16,7 @@ const MAX_FILE = 16 * 1024 * 1024;
 const MAX_TOTAL = 64 * 1024 * 1024;
 const MAX_FILES = 4096;
 const SOURCE = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const SKILLS = ['SKILL.md', 'references/routes.md', 'references/recovery.md', 'examples/overview.md'];
+const SKILLS = ['SKILL.md', 'references/routes.md', 'references/bootstrap.md', 'references/recovery.md', 'examples/overview.md'];
 const PACKAGES = ['core', 'cli', 'mcp'];
 const compare = (a, b) => a < b ? -1 : a > b ? 1 : 0;
 const sha = data => createHash('sha256').update(data).digest('hex');

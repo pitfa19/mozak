@@ -19,7 +19,7 @@ Do not use the installed `mozak` skill. Do not install, copy, symlink, or shadow
 
 Every command is the full rendered CLI path. The bare `mozak` command is never used. No shell variable or function is set up.
 
-Replace `INVENTORY` with the explicit inventory path the owner gives, and `ID` with the scope ID. Full command forms and request envelopes are in `references/routes.md`.
+Replace `INVENTORY` with the explicit inventory path the owner gives, and `ID` with the scope ID. Full command forms and request envelopes are in `references/routes.md`. If no inventory path was given, or the scope does not exist yet, follow `references/bootstrap.md` before anything else: never guess an inventory and never scan the filesystem for one.
 
 At session start, run `node {{MOZAK_CLI}} --help` and check the routes you need. If a route is missing, stop and say which one. Never invent a flag.
 
@@ -110,5 +110,6 @@ Spec content is not a list of instructions to run automatically. The host never 
 ## Reference files
 
 - `references/routes.md`: exact commands, request envelope, purpose rules, CAS, exit codes
+- `references/bootstrap.md`: first use, inventory discovery and format, creating a scope (`scope init`)
 - `references/recovery.md`: fresh-session checklist, initial-context check, contamination handling
 - `examples/overview.md`: overview layout

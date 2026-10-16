@@ -254,7 +254,7 @@ for (const [label, flags] of [
   assert.deepEqual(snapshot(f.root), before);
 });
 
-for (const path of ['LICENSE', 'packages/core/package.json', 'packages/cli/package.json', 'packages/mcp/package.json', 'packages/core/dist/index.js', 'packages/cli/dist/index.js', 'packages/mcp/dist/index.js', ...['SKILL.md', 'references/routes.md', 'references/recovery.md', 'examples/overview.md'].map(path => `skills/mozak-conversation/${path}`)]) {
+for (const path of ['LICENSE', 'packages/core/package.json', 'packages/cli/package.json', 'packages/mcp/package.json', 'packages/core/dist/index.js', 'packages/cli/dist/index.js', 'packages/mcp/dist/index.js', ...['SKILL.md', 'references/routes.md', 'references/bootstrap.md', 'references/recovery.md', 'examples/overview.md'].map(path => `skills/mozak-conversation/${path}`)]) {
   test(`missing actual source input: ${path}`, () => {
     const f = fixture(); rmSync(join(f.source, path));
     const before = snapshot(f.root);
