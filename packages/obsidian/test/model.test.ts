@@ -1,11 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { executeOperation, initScopeState, loadInventory, mutateScope, readScope, renderBridgeLegacy } from "@mozak/core";
 import { chooseInventory, discoverInventory } from "../src/discover.ts";
-import { countRemote, countsSummary, planMatches, remoteVM, resolveOpenTarget, scopesModel, scopeViewModel } from "../src/model.ts";
-import { loadScopesModel } from "../src/load.ts";
+import { countRemote, countsSummary, headingLine, planMatches, remoteVM, resolveOpenTarget, scopesModel, scopeViewModel, stripVM } from "../src/model.ts";
+import { loadScopesModel, renderStaleProjections } from "../src/load.ts";
 
 test("planMatches: all shows every state, open groups in-play states, completed is exact", () => {
   const states = ["open", "awaiting", "paused", "completed", "rejected"] as const;
@@ -78,4 +80,97 @@ test("remote scopes carry their badge data through the view model and are counte
   assert.equal(a.remote?.spec, "github:o/r");
   assert.equal(b.remote, null);
   assert.deepEqual(countRemote([a, b]), { remote: 1, stale: 1 });
+});
+
+// ---------- roadmap navigation (plan obsidian-roadmap) ----------
+
+const scratchBase = process.env.JCODE_SCRATCH_DIR ?? tmpdir();
+const OWNER_AT = "2026-10-12T08:00:00.000Z";
+const roadContent = {
+  title: "Road [one]", purpose: "Walk", constraints: [], nonGoals: [], rationale: "r", questions: [], sources: [],
+  outcomes: [
+    { id: "first-stop", statement: "First", acceptance: "objective", criterion: "c" },
+    { id: "second-stop", statement: "Second", acceptance: "owner", criterion: "c" },
+  ],
+};
+/** A synthetic inventory with one accepted plan whose first outcome has passing evidence. */
+function roadWorld() {
+  const top = mkdtempSync(join(scratchBase, "mozak-obs-road-"));
+  mkdirSync(join(top, "road"));
+  writeFileSync(join(top, "road", "README.md"), "# r\n");
+  writeFileSync(join(top, "road", "AGENTS.md"), "# a\n");
+  writeFileSync(join(top, "mozak-inventory.json"), JSON.stringify({ format: "mozak.local/v3", scopes: [{ id: "road", root: "road" }] }));
+  const entry = { id: "road", root: join(top, "road") };
+  initScopeState(entry, { operationId: "init", scopeId: "road", kind: "project", title: "Road scope", expectedAbsent: { graph: true, bridge: true }, ownerRef: "synthetic-owner:init", ownerMessageAt: OWNER_AT });
+  let n = 0;
+  const change = (action: string, payload: unknown, actor: "agent" | "owner" = "agent") =>
+    mutateScope(entry, { operationId: `op-${++n}`, scopeId: "road", expected: readScope(entry).snapshot, action, payload }, actor);
+  change("propose", { planId: "road-plan", content: roadContent });
+  const pending = readScope(entry).state.plans[0]!.pending!;
+  const out = executeOperation(loadInventory(join(top, "mozak-inventory.json")), "review", { scope: "road", plan: "road-plan" }, "agent");
+  const review = out.data.review as { reviewDigest: string };
+  change("approve-direction", { planId: "road-plan", revisionId: pending.id, reviewDigest: review.reviewDigest, ownerRef: "synthetic-owner:approve", ownerMessageAt: OWNER_AT, reason: "fixture" }, "owner");
+  const rev = readScope(entry).state.plans[0]!.accepted!.id;
+  change("observe", {
+    planId: "road-plan",
+    observation: { id: "obs1", classification: "observed", summary: "first done", evidence: [{ id: "e1", locator: "test", anchor: null, version: null, inspectedAt: OWNER_AT, activity: { kind: "run", description: "ran" }, result: { verdict: "pass", summary: "ok" }, limitations: [] }] },
+    reasoningLinks: [{ id: "l1", relation: "supports", from: { planId: "road-plan", revisionId: null, kind: "observation", id: "obs1" }, to: { planId: "road-plan", revisionId: rev, kind: "outcome", id: "first-stop" }, rationale: "fixture" }],
+  });
+  return { top, entry, inventory: join(top, "mozak-inventory.json") };
+}
+
+test("strip: one segment per outcome, done / current, from real core state", () => {
+  const { entry } = roadWorld();
+  const state = readScope(entry).state;
+  const strip = stripVM(state, state.plans[0]!)!;
+  assert.deepEqual(strip.stops.map((s) => s.key), ["done", "current"]);
+  assert.equal(strip.done, 1);
+  assert.equal(strip.total, 2);
+});
+
+test("plan row carries a strip and the exact MOZAK.md heading; the heading line is found in the rendered file", () => {
+  const { inventory, entry } = roadWorld();
+  const m = loadScopesModel(inventory);
+  const plan = m.scopes[0]!.plans[0]!;
+  assert.equal(plan.strip?.total, 2);
+  assert.ok(plan.heading.startsWith("## Road \\[one\\] · `road-plan`"));
+  const md = readFileSync(join(entry.root, "MOZAK.md"), "utf8");
+  const line = headingLine(md, plan.heading);
+  assert.notEqual(line, null);
+  assert.equal(md.split("\n")[line!], plan.heading);
+  assert.equal(headingLine("# nothing here\n", plan.heading), null);
+});
+
+test("awaiting plans have no strip", () => {
+  const { entry } = roadWorld();
+  const state = readScope(entry).state;
+  const fake = { ...state.plans[0]!, accepted: null, lifecycle: { state: "unaccepted" as const } };
+  assert.equal(stripVM(state, fake as typeof state.plans[0]), null);
+});
+
+test("renderStaleProjections rewrites only MOZAK.md, leaves MOZAK.json byte-identical and spares hand edits", () => {
+  const { inventory, entry } = roadWorld();
+  const sha = (p: string) => createHash("sha256").update(readFileSync(p)).digest("hex");
+  const read = readScope(entry);
+  writeFileSync(join(entry.root, "MOZAK.md"), renderBridgeLegacy(read.state, read.snapshot.graphHash));
+  const json = sha(join(entry.root, "MOZAK.json"));
+  const files = readdirSync(entry.root).sort();
+  const r = renderStaleProjections(inventory);
+  assert.equal(r.ok, true);
+  assert.equal(r.rendered, 1);
+  assert.equal(sha(join(entry.root, "MOZAK.json")), json);
+  assert.deepEqual(readdirSync(entry.root).sort(), files);
+  assert.ok(readFileSync(join(entry.root, "MOZAK.md"), "utf8").includes("```mermaid"));
+  writeFileSync(join(entry.root, "MOZAK.md"), "my edits\n");
+  const again = renderStaleProjections(inventory);
+  assert.equal(again.ok, false);
+  assert.equal(readFileSync(join(entry.root, "MOZAK.md"), "utf8"), "my edits\n");
+});
+
+test("the plan detail tab is gone: no PlanView class or registration remains", () => {
+  const src = (f: string) => readFileSync(new URL(`../src/${f}`, import.meta.url), "utf8");
+  for (const f of ["views.ts", "main.ts", "model.ts"]) {
+    assert.ok(!/class PlanView|new PlanView|registerView\(\s*LEGACY_PLAN_VIEW_TYPE/.test(src(f)), f);
+  }
+  assert.ok(src("main.ts").includes("getLeavesOfType(LEGACY_PLAN_VIEW_TYPE).forEach((l) => l.detach())"));
 });

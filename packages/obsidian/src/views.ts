@@ -1,10 +1,11 @@
-import { ItemView, Notice, setIcon, type ViewStateResult, type WorkspaceLeaf } from "obsidian";
-import { countRemote, planMatches, scopesModel, type ContentVM, type PlanFilter, type PlanVM, type ScopeVM, type ScopesModel } from "./model.ts";
+import { ItemView, Notice, setIcon, type WorkspaceLeaf } from "obsidian";
+import { countRemote, planMatches, scopesModel, type PlanFilter, type PlanVM, type ScopeVM, type ScopesModel, type StripVM } from "./model.ts";
 import { loadScopesModel, describeError, syncRemoteScopes } from "./load.ts";
 import type MozakPlugin from "./main.ts";
 
 export const SCOPES_VIEW_TYPE = "mozak-scopes";
-export const PLAN_VIEW_TYPE = "mozak-plan";
+/** Retired detail tab. Kept only so leftover leaves from older versions can be closed on load. */
+export const LEGACY_PLAN_VIEW_TYPE = "mozak-plan";
 
 function el(parent: HTMLElement, tag: string, cls?: string, text?: string): HTMLElement {
   const e = parent.createEl(tag as keyof HTMLElementTagNameMap, { cls });
@@ -110,9 +111,9 @@ export class ScopesView extends ItemView {
       sync.addEventListener("click", () => this.syncRemote(sync));
     }
     const btn = el(tools, "button", "clickable-icon mozak-refresh");
-    btn.setAttr("aria-label", "Refresh");
+    btn.setAttr("aria-label", "Refresh (regenerates stale MOZAK.md files)");
     setIcon(btn, "refresh-cw");
-    btn.addEventListener("click", () => this.refresh());
+    btn.addEventListener("click", () => { this.plugin.renderProjections(); this.refresh(); });
 
     if (this.error) {
       const box = el(root, "div", "mozak-empty");
@@ -227,117 +228,26 @@ export class ScopesView extends ItemView {
     if (empty) el(body, "div", "mozak-muted mozak-noplans", "No plans yet");
     for (const plan of scope.plans.filter((p) => planMatches(p, this.filter))) {
       const p = el(body, "div", `mozak-plan-row row-${plan.state}`);
-      p.setAttr("title", `${plan.stateLabel}: ${plan.title}`);
+      p.setAttr("title", `${plan.stateLabel}: ${plan.title}${plan.strip ? `\n${plan.strip.done}/${plan.strip.total} outcomes done` : ""}\nOpen in MOZAK.md`);
       el(p, "span", `mozak-dot dot-${plan.state}`);
       el(p, "span", "mozak-plan-title", plan.title);
       if (plan.state === "awaiting" || plan.state === "paused" || plan.state === "rejected") {
         el(p, "span", `mozak-mini state-${plan.state}`, plan.stateLabel);
+      } else if (plan.state === "open" && plan.strip) {
+        renderStrip(p, plan.strip);
       }
       p.addEventListener("click", () => void this.plugin.openPlan(scope, plan));
     }
   }
 }
 
-interface PlanViewState { scope: ScopeVM; plan: PlanVM }
-
-export class PlanView extends ItemView {
-  private data: PlanViewState | null = null;
-  private plugin: MozakPlugin;
-  constructor(leaf: WorkspaceLeaf, plugin: MozakPlugin) { super(leaf); this.plugin = plugin; }
-  getViewType() { return PLAN_VIEW_TYPE; }
-  getDisplayText() { return this.data?.plan.title ?? "MOZAK plan"; }
-  getIcon() { return "list-checks"; }
-
-  getState(): Record<string, unknown> { return this.data ? { ...this.data } : {}; }
-  async setState(state: unknown, result: ViewStateResult): Promise<void> {
-    const s = state as Partial<PlanViewState> | null;
-    if (s?.scope && s.plan) this.data = { scope: s.scope, plan: s.plan };
-    this.render();
-    await super.setState(state, result);
-  }
-
-  /** Re-read this plan from disk. Keeps the last snapshot when the scope cannot be read. */
-  reload(): void {
-    if (!this.data) return;
-    const path = this.plugin.inventory().path;
-    if (!path) return;
-    try {
-      const model = loadScopesModel(path);
-      const scope = model.scopes.find((s) => s.id === this.data!.scope.id);
-      const plan = scope?.plans.find((p) => p.id === this.data!.plan.id);
-      if (scope && plan) { this.data = { scope, plan }; this.render(); }
-    } catch { /* keep the snapshot */ }
-  }
-
-  private render(): void {
-    const root = this.contentEl;
-    root.empty();
-    root.addClass("mozak-root", "mozak-detail");
-    if (!this.data) { el(root, "div", "mozak-muted", "No plan selected."); return; }
-    const { scope, plan } = this.data;
-    el(root, "div", "mozak-muted", `${scope.title} / ${plan.id}`);
-    el(root, "h1", "mozak-h1", plan.title);
-    const meta = el(root, "div", "mozak-meta");
-    el(meta, "span", `mozak-badge state-${plan.state}`, plan.stateLabel);
-    for (const f of plan.flags) el(meta, "span", "mozak-badge state-flag", f);
-    el(meta, "span", "mozak-muted", `updated ${plan.updatedAt}`);
-    if (plan.completedAt) el(meta, "span", "mozak-muted", `completed ${plan.completedAt}`);
-    if (scope.hasMozakMd) {
-      const b = el(meta, "button", "mozak-link", "Open MOZAK.md");
-      b.addEventListener("click", () => void this.plugin.openMozakMd(scope));
-    }
-    if (plan.reason) section(root, "Reason", (s) => el(s, "p", undefined, plan.reason!));
-    renderContent(root, plan.content);
-    if (plan.pendingRevision) {
-      const h = el(root, "h2", "mozak-h2", "Pending revision (awaiting approval)");
-      h.addClass("mozak-pending");
-      renderContent(root, plan.pendingRevision);
-    }
-    if (plan.limitations.length) section(root, "Completion limitations", (s) => list(s, plan.limitations));
-    if (plan.observations.length) {
-      section(root, "Observations", (s) => {
-        for (const o of plan.observations) {
-          const d = el(s, "div", "mozak-obs");
-          el(d, "span", "mozak-badge state-flag", o.classification);
-          el(d, "span", undefined, o.summary);
-        }
-      });
-    }
-  }
-}
-
-function section(parent: HTMLElement, title: string, fill: (s: HTMLElement) => void): void {
-  const s = el(parent, "section", "mozak-section");
-  el(s, "h2", "mozak-h2", title);
-  fill(s);
-}
-
-function list(parent: HTMLElement, items: string[]): void {
-  const ul = el(parent, "ul", "mozak-list");
-  for (const i of items) el(ul, "li", undefined, i);
-}
-
-function renderContent(root: HTMLElement, c: ContentVM): void {
-  if (c.purpose) section(root, "Purpose", (s) => el(s, "p", undefined, c.purpose));
-  if (c.outcomes.length) {
-    section(root, "Outcomes", (s) => {
-      for (const o of c.outcomes) {
-        const d = el(s, "div", "mozak-outcome");
-        const t = el(d, "div", "mozak-outcome-title");
-        el(t, "span", undefined, o.statement);
-        el(t, "span", "mozak-badge state-flag", o.acceptance);
-        if (o.criterion) el(d, "div", "mozak-muted", `Criterion: ${o.criterion}`);
-      }
-    });
-  }
-  if (c.constraints.length) section(root, "Constraints", (s) => list(s, c.constraints));
-  if (c.nonGoals.length) section(root, "Non-goals", (s) => list(s, c.nonGoals));
-  if (c.rationale) section(root, "Rationale", (s) => el(s, "p", undefined, c.rationale));
-  if (c.questions.length) section(root, "Open questions", (s) => list(s, c.questions));
-  if (c.sources.length) {
-    section(root, "Sources", (s) =>
-      list(s, c.sources.map((x) => [x.locator, x.anchor, x.version].filter(Boolean).join(" | "))));
-  }
+/** One segment per outcome (done green, evidence gold, current purple, todo faint), then done/total. Display only. */
+function renderStrip(parent: HTMLElement, strip: StripVM): void {
+  const s = el(parent, "span", "mozak-strip");
+  s.setAttr("aria-label", `${strip.done} of ${strip.total} outcomes done`);
+  const segs = el(s, "span", "mozak-strip-segs");
+  for (const stop of strip.stops) el(segs, "span", `mozak-seg seg-${stop.key}`).setAttr("title", stop.label);
+  el(s, "span", "mozak-strip-count", `${strip.done}/${strip.total}`);
 }
 
 export { scopesModel };

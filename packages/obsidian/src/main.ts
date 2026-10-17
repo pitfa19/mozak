@@ -1,9 +1,10 @@
-import { FileSystemAdapter, Notice, Plugin, PluginSettingTab, Setting, TFile, type App, type WorkspaceLeaf } from "obsidian";
+import { FileSystemAdapter, MarkdownView, Notice, Plugin, PluginSettingTab, Setting, TFile, type App, type WorkspaceLeaf } from "obsidian";
+import { readFileSync } from "node:fs";
 import { chooseInventory } from "./discover.ts";
-import { syncRemoteScopes } from "./load.ts";
+import { renderStaleProjections, syncRemoteScopes } from "./load.ts";
 import { startWatching, watchTargets } from "./watch.ts";
-import { resolveOpenTarget, type PlanVM, type ScopeVM } from "./model.ts";
-import { PlanView, PLAN_VIEW_TYPE, ScopesView, SCOPES_VIEW_TYPE } from "./views.ts";
+import { headingLine, resolveOpenTarget, type PlanVM, type ScopeVM } from "./model.ts";
+import { LEGACY_PLAN_VIEW_TYPE, ScopesView, SCOPES_VIEW_TYPE } from "./views.ts";
 
 export interface MozakSettings {
   inventoryPath: string;
@@ -22,11 +23,14 @@ export default class MozakPlugin extends Plugin {
   async onload(): Promise<void> {
     this.settings = { ...DEFAULTS, ...(await this.loadData()) };
     this.registerView(SCOPES_VIEW_TYPE, (leaf) => new ScopesView(leaf, this));
-    this.registerView(PLAN_VIEW_TYPE, (leaf) => new PlanView(leaf, this));
     this.addRibbonIcon("brain-circuit", "MOZAK: open scopes", () => void this.activateScopes());
     this.addCommand({ id: "open-scopes", name: "MOZAK: open scopes", callback: () => void this.activateScopes() });
     this.addSettingTab(new MozakSettingTab(this.app, this));
-    this.app.workspace.onLayoutReady(() => this.restartAutoRefresh());
+    this.app.workspace.onLayoutReady(() => {
+      // The plan detail tab is retired: plans are read in MOZAK.md. Close tabs restored from older versions.
+      this.app.workspace.getLeavesOfType(LEGACY_PLAN_VIEW_TYPE).forEach((l) => l.detach());
+      this.restartAutoRefresh();
+    });
   }
 
   onunload(): void { this.stopAutoRefresh(); }
@@ -68,7 +72,19 @@ export default class MozakPlugin extends Plugin {
   /** Reload every open MOZAK view from disk. */
   refreshAll(): void {
     this.app.workspace.getLeavesOfType(SCOPES_VIEW_TYPE).forEach((l) => (l.view as ScopesView).refresh());
-    this.app.workspace.getLeavesOfType(PLAN_VIEW_TYPE).forEach((l) => (l.view as PlanView).reload());
+  }
+
+  /**
+   * Regenerate stale MOZAK.md projections of local scopes through core (the same code as `mozak render`).
+   * Never writes MOZAK.json; conflicting hand edits are left alone. Quiet unless something fails.
+   */
+  renderProjections(): void {
+    const path = this.inventory().path;
+    if (!path) return;
+    try {
+      const r = renderStaleProjections(path);
+      if (!r.ok) new Notice(`MOZAK: ${r.message}`, 8000);
+    } catch { /* unreadable inventory is reported by the view itself */ }
   }
 
   vaultBase(): string | null {
@@ -94,10 +110,30 @@ export default class MozakPlugin extends Plugin {
     if (leaf) await workspace.revealLeaf(leaf);
   }
 
+  /** Open the scope's MOZAK.md scrolled to this plan's heading. Plans are read there, not in a plugin pane. */
   async openPlan(scope: ScopeVM, plan: PlanVM): Promise<void> {
-    const leaf = this.app.workspace.getLeaf("tab");
-    await leaf.setViewState({ type: PLAN_VIEW_TYPE, active: true, state: { scope, plan } });
-    await this.app.workspace.revealLeaf(leaf);
+    const file = `${scope.root}/MOZAK.md`;
+    const target = resolveOpenTarget(this.vaultBase() ?? "", file);
+    if (target.kind === "vault") {
+      const abstract = this.app.vault.getAbstractFileByPath(target.path);
+      if (abstract instanceof TFile) {
+        const leaf = this.app.workspace.getLeaf(false);
+        await leaf.openFile(abstract);
+        const line = headingLine(await this.app.vault.cachedRead(abstract), plan.heading);
+        const view = leaf.view;
+        if (line !== null && view instanceof MarkdownView) {
+          view.setEphemeralState({ line });
+          if (view.getMode() === "source") view.editor.setCursor({ line, ch: 0 });
+        }
+        return;
+      }
+    }
+    // Outside the vault (remote cache, other folders): open the file itself. External apps cannot jump to a heading.
+    let found = false;
+    try { found = headingLine(readFileSync(file, "utf8"), plan.heading) !== null; } catch { /* reported below */ }
+    const err = await this.openExternal(file);
+    if (err) new Notice(`MOZAK: could not open ${file}: ${err}`);
+    else if (!found) new Notice("MOZAK: this MOZAK.md is not rendered with plan sections yet. Run `mozak render` or refresh.", 6000);
   }
 
   /** Open the scope's MOZAK.md: in Obsidian when inside this vault, otherwise with the OS default app. */

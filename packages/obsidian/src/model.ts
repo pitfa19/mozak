@@ -1,19 +1,12 @@
 // Pure view models. Turns core ScopeState plus review rows into plain data for the UI. No IO.
-import type { Plan, PlanContent, ScopeState } from "@mozak/core";
+// Plans are read in MOZAK.md, so the sidebar only needs identity, state, progress and a heading to jump to.
+import { planHeading, planRoadmap, type Plan, type ScopeState } from "@mozak/core";
 
 export type PlanStateKey = "completed" | "open" | "paused" | "awaiting" | "rejected";
+export type StopKey = "done" | "evidence" | "current" | "todo";
 
-export interface OutcomeVM { id: string; statement: string; acceptance: string; criterion: string }
-export interface ContentVM {
-  title: string;
-  purpose: string;
-  outcomes: OutcomeVM[];
-  constraints: string[];
-  nonGoals: string[];
-  rationale: string;
-  questions: string[];
-  sources: { locator: string; anchor: string | null; version: string | null }[];
-}
+/** One sidebar segment per outcome, in roadmap order. */
+export interface StripVM { stops: { key: StopKey; label: string }[]; done: number; total: number }
 export interface PlanVM {
   scopeId: string;
   id: string;
@@ -25,13 +18,12 @@ export interface PlanVM {
   createdAt: string;
   updatedAt: string;
   completedAt: string | null;
-  limitations: string[];
   /** Reason recorded for a pause or a rejection, when present. */
   reason: string | null;
-  content: ContentVM;
-  /** A pending revision shown next to an accepted plan. Null when there is none. */
-  pendingRevision: ContentVM | null;
-  observations: { id: string; classification: string; summary: string; recordedAt: string }[];
+  /** Progress over accepted outcomes. Null before the first approval. */
+  strip: StripVM | null;
+  /** Exact heading line of this plan in MOZAK.md ("## ..."). The plugin finds this line and opens the file there. */
+  heading: string;
 }
 export interface RemoteVM {
   spec: string;
@@ -92,17 +84,20 @@ const ROW_FLAG: Record<string, string> = {
 };
 const STATE_ORDER: Record<PlanStateKey, number> = { awaiting: 0, open: 1, paused: 2, completed: 3, rejected: 4 };
 
-export function contentVM(c: PlanContent): ContentVM {
+export function stripVM(state: ScopeState, plan: Plan): StripVM | null {
+  const r = planRoadmap(state, plan);
+  if (!r || r.total === 0) return null;
   return {
-    title: c.title,
-    purpose: c.purpose,
-    outcomes: c.outcomes.map((o) => ({ id: o.id, statement: o.statement, acceptance: o.acceptance, criterion: o.criterion })),
-    constraints: c.constraints.map((t) => t.text),
-    nonGoals: [...c.nonGoals],
-    rationale: c.rationale,
-    questions: c.questions.map((t) => t.text),
-    sources: c.sources.map((s) => ({ locator: s.locator, anchor: s.anchor, version: s.version })),
+    stops: r.stops.map((s) => ({ key: s.current ? "current" : s.status, label: s.statement })),
+    done: r.done,
+    total: r.total,
   };
+}
+
+/** Zero-based line of a plan heading in MOZAK.md text, or null when the projection is stale or the plan is not rendered. */
+export function headingLine(markdown: string, heading: string): number | null {
+  const i = markdown.split("\n").indexOf(heading);
+  return i < 0 ? null : i;
 }
 
 export function planState(plan: Plan): PlanStateKey {
@@ -117,6 +112,7 @@ export function planViewModel(
   plan: Plan,
   awaitingRows: { planId: string; rowKind: string }[] = [],
   reviewNeeded = false,
+  scopeState?: ScopeState,
 ): PlanVM {
   const state = planState(plan);
   const shown = plan.accepted ?? plan.pending;
@@ -145,11 +141,9 @@ export function planViewModel(
     createdAt: plan.createdAt,
     updatedAt: plan.updatedAt,
     completedAt: completion?.recordedAt ?? null,
-    limitations: completion ? [...completion.limitations] : [],
     reason,
-    content: contentVM(shown.content),
-    pendingRevision: plan.accepted && plan.pending?.reviewState === "awaiting" ? contentVM(plan.pending.content) : null,
-    observations: plan.observations.map((o) => ({ id: o.id, classification: o.classification, summary: o.summary, recordedAt: o.recordedAt })),
+    strip: scopeState ? stripVM(scopeState, plan) : null,
+    heading: planHeading(plan),
   };
 }
 
@@ -173,7 +167,7 @@ export function scopeViewModel(load: ScopeLoad): ScopeVM {
   }
   const needed = new Set(load.reviewNeededPlanIds ?? []);
   const plans = load.state.plans
-    .map((p) => planViewModel(load.id, p, load.awaitingRows ?? [], needed.has(p.id)))
+    .map((p) => planViewModel(load.id, p, load.awaitingRows ?? [], needed.has(p.id), load.state))
     .sort((a, b) => STATE_ORDER[a.state] - STATE_ORDER[b.state] || (a.title < b.title ? -1 : a.title > b.title ? 1 : 0));
   return {
     id: load.id,

@@ -103,24 +103,13 @@
 .mozak-mini.state-awaiting { color: var(--mozak-purple); background: color-mix(in srgb, var(--mozak-purple) 16%, transparent); }
 .mozak-noplans { padding: 2px 6px; color: var(--text-faint); }
 
-/* ---------- Plan detail tab ---------- */
-.mozak-badge { font-size: var(--font-ui-smaller); padding: 0 var(--size-4-2); border-radius: var(--radius-l); white-space: nowrap; background: var(--background-modifier-border); color: var(--text-muted); }
-.mozak-badge.state-open { background: var(--mozak-purple); color: #fff; }
-.mozak-badge.state-completed { background: var(--mozak-green); color: #fff; }
-.mozak-badge.state-awaiting { background: color-mix(in srgb, var(--mozak-purple) 70%, #000); color: #fff; }
-.mozak-badge.state-paused { background: var(--text-faint); color: var(--text-on-accent); }
-.mozak-badge.state-rejected { background: var(--background-modifier-error); color: var(--text-on-accent); }
-.mozak-link { background: none; box-shadow: none; color: var(--text-accent); padding: 0 var(--size-4-1); height: auto; cursor: pointer; white-space: nowrap; }
-.mozak-link:hover { text-decoration: underline; }
-.mozak-detail { max-width: 52rem; margin: 0 auto; padding: var(--size-4-4); user-select: text; }
-.mozak-h1 { margin: var(--size-4-1) 0 var(--size-4-2); }
-.mozak-meta { display: flex; flex-wrap: wrap; gap: var(--size-4-2); align-items: center; margin-bottom: var(--size-4-4); }
-.mozak-section { margin-bottom: var(--size-4-4); }
-.mozak-h2 { font-size: var(--font-ui-medium); margin-bottom: var(--size-4-1); border-bottom: 1px solid var(--background-modifier-border); padding-bottom: var(--size-4-1); }
-.mozak-h2.mozak-pending { color: var(--text-warning); }
-.mozak-outcome { padding: var(--size-4-2); border-left: 3px solid var(--mozak-purple); background: var(--background-secondary); border-radius: var(--radius-s); margin-bottom: var(--size-4-2); }
-.mozak-outcome-title { display: flex; gap: var(--size-4-2); justify-content: space-between; align-items: baseline; }
-.mozak-obs { display: flex; gap: var(--size-4-2); margin-bottom: var(--size-4-1); }
-.mozak-list { margin: 0; padding-left: var(--size-4-5); }
+/* ---------- Progress strip: one segment per outcome, display only ---------- */
+.mozak-strip { flex: none; display: inline-flex; align-items: center; gap: 5px; }
+.mozak-strip-segs { display: inline-flex; gap: 2px; }
+.mozak-seg { width: 7px; height: 7px; border-radius: 2px; background: var(--background-modifier-border); }
+.mozak-seg.seg-done { background: var(--mozak-green); }
+.mozak-seg.seg-evidence { background: var(--mozak-gold); }
+.mozak-seg.seg-current { background: transparent; box-shadow: inset 0 0 0 1.5px var(--mozak-purple); }
+.mozak-strip-count { font-size: 10px; font-variant-numeric: tabular-nums; color: var(--text-faint); }
 .mozak-sync.is-busy svg { animation: mozak-spin 0.9s linear infinite; }
 @keyframes mozak-spin { to { transform: rotate(360deg); } }

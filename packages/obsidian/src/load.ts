@@ -1,5 +1,6 @@
 // Impure loader. Reuses core for parsing and validation: loadInventory, resolveScope, readScope, reviewRows
-// (the same functions behind `mozak scopes` and `mozak plans`). Read-only: nothing here writes.
+// (the same functions behind `mozak scopes` and `mozak plans`). Reading never writes. The single write path,
+// renderStaleProjections, regenerates MOZAK.md through core and never touches MOZAK.json.
 import { lstatSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { DomainError, executeOperation, loadInventory, readRemoteMeta, readScope, resolveScope, reviewRows } from "@mozak/core";
@@ -52,6 +53,20 @@ export function loadScopesModel(inventoryPath: string): ScopesModel {
 }
 
 export { fail as describeError };
+
+/**
+ * Regenerate stale MOZAK.md projections through core's render operation (the same code as `mozak render --all`).
+ * The only write the plugin makes: MOZAK.md of local scopes, never MOZAK.json. Conflicts are reported, not overwritten.
+ */
+export function renderStaleProjections(inventoryPath: string): { ok: boolean; rendered: number; message: string } {
+  const inv = loadInventory(inventoryPath);
+  const out = executeOperation(inv, "render", { all: true }, "agent");
+  const rows = (out.data.scopes ?? []) as { scope: string; result: string }[];
+  const rendered = rows.filter((r) => r.result === "rendered").length;
+  const bad = rows.filter((r) => r.result === "conflict" || r.result === "failed");
+  if (bad.length === 0) return { ok: true, rendered, message: rendered ? `Regenerated ${rendered} MOZAK.md file${rendered === 1 ? "" : "s"}.` : "All MOZAK.md files are current." };
+  return { ok: false, rendered, message: `MOZAK.md not regenerated for ${bad.map((r) => `${r.scope} (${r.result === "conflict" ? "edited by hand, needs owner repair" : "unreadable"})`).join(", ")}.` };
+}
 
 /** Force-refresh every remote scope through core (the same code as `mozak sync`). Returns a one line summary. */
 export function syncRemoteScopes(inventoryPath: string): { ok: boolean; message: string } {
