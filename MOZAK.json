@@ -438,6 +438,132 @@
       "reasoningLinks": [],
       "specifications": [],
       "updatedAt": "2026-10-14T16:03:37.567Z"
+    },
+    {
+      "accepted": null,
+      "completionRecords": [],
+      "createdAt": "2026-10-17T22:02:41.439Z",
+      "decisions": [],
+      "discussion": null,
+      "downstreamSpec": null,
+      "id": "obsidian-roadmap",
+      "implementationAuthorization": null,
+      "implementationAuthorizations": [],
+      "lifecycle": {
+        "state": "unaccepted"
+      },
+      "observations": [],
+      "pending": {
+        "baseAcceptedDigest": null,
+        "baseAcceptedRevision": null,
+        "content": {
+          "constraints": [
+            {
+              "id": "schema-untouched",
+              "text": "The mozak.scope/v3 content schema does not change. Roadmap order is outcome array order. dependsOn branching is a future revision, not this plan."
+            },
+            {
+              "id": "projection-only-writes",
+              "text": "Neither the renderer, the render command, nor the plugin ever writes MOZAK.json or canonical state. Projection writes go through core and stay hash-verified (bridge-stale / bridge-conflict detection keeps working)."
+            },
+            {
+              "id": "display-only",
+              "text": "No interactive checkboxes or clickable status anywhere in MOZAK.md. Status is symbols and mermaid only, so the owner cannot tick a box that lies."
+            },
+            {
+              "id": "agents-unaffected",
+              "text": "Agents keep reading canonical state via the CLI. Nothing in this plan changes context, plans, review or decide behavior."
+            }
+          ],
+          "nonGoals": [
+            "Changing the plan content schema (order or dependsOn fields).",
+            "Any write path for approvals, proposals or observations from Obsidian.",
+            "Redesigning the sidebar beyond progress strips and click-through.",
+            "Rendering pending revisions as full second roadmaps."
+          ],
+          "outcomes": [
+            {
+              "acceptance": "owner",
+              "criterion": "The owner opens a regenerated MOZAK.md for a scope with a multi-outcome plan (e.g. ai-native-box) in Obsidian, sees the rendered roadmap and table, and accepts it as skimmable by titles and understandable in one pass.",
+              "id": "rich-bridge",
+              "statement": "Core's renderBridge renders each plan in MOZAK.md as a readable document: purpose, a mermaid roadmap of outcomes in array order with the current stop (first incomplete outcome) highlighted, an outcome status table (todo / evidence recorded / accepted, derived from observations, reasoning links and accept-outcome decisions), then constraints, non-goals, rationale, open questions and sources skimmable by headings. When a pending revision awaits approval, the accepted content is shown with a one-line delta summary, not a second full copy."
+            },
+            {
+              "acceptance": "objective",
+              "criterion": "Unit tests in packages/core cover each status, the current-stop inference, and that rendering a scope never changes MOZAK.json.",
+              "id": "derived-status",
+              "statement": "Outcome status in projections is derived only from canonical state: accepted when an effective accept-outcome decision exists, evidence recorded when a supporting observation with a pass verdict is linked, otherwise todo. The current stop is the first outcome in array order that is not accepted. Nothing in the projection is interactive or hand-editable."
+            },
+            {
+              "acceptance": "objective",
+              "criterion": "Running mozak render over the owner's inventory rewrites every local MOZAK.md to the new format, mozak check reports projections current, and MOZAK.json files are byte-identical before and after.",
+              "id": "render-command",
+              "statement": "A new 'mozak render' CLI route regenerates MOZAK.md projections (one scope or all local scopes) without changing canonical state, so existing stale bridges can be refreshed after the renderer changes."
+            },
+            {
+              "acceptance": "owner",
+              "criterion": "The owner uses the rebuilt plugin in their vault: skims progress strips across scopes, clicks a plan, lands on its heading in the rendered MOZAK.md, and accepts the flow as better than the old detail tab.",
+              "id": "plugin-navigation",
+              "statement": "The Obsidian plugin drops the PlanView detail tab. Plan rows in the sidebar show a micro progress strip (accepted outcomes / total) for open plans, and clicking a plan opens MOZAK.md at that plan's heading. The plugin may rewrite a stale MOZAK.md projection on refresh using core's renderer, but never writes MOZAK.json or any canonical state."
+            },
+            {
+              "acceptance": "objective",
+              "criterion": "The reworded guarantee appears in packages/obsidian/README.md and the rendered MOZAK.md header, and a test asserts the plugin write path can only touch MOZAK.md.",
+              "id": "honest-docs",
+              "statement": "The plugin README and plugin description change from 'never writes MOZAK files' to 'never writes canonical state; may regenerate MOZAK.md projections', and the projection header still says it is generated and not to be edited."
+            }
+          ],
+          "purpose": "Make MOZAK plans human-understandable inside Obsidian. MOZAK.md becomes the primary reading surface: per plan it renders the purpose, a display-only mermaid roadmap over the outcomes (array order, current stop = first incomplete), an outcome status table with status derived from recorded observations and owner acceptances, the full skimmable sections, and a one-line delta when a revision awaits approval. The Obsidian plugin becomes pure navigation: the PlanView detail tab is removed, plan rows gain micro progress strips, and clicking a plan jumps to its heading in MOZAK.md.",
+          "questions": [
+            {
+              "id": "q-multi-plan-layout",
+              "text": "When a scope has many plans (e.g. personal with 3+), should MOZAK.md render every plan fully, or completed plans collapsed to one line with the full rendering only for open plans?"
+            },
+            {
+              "id": "q-strip-style",
+              "text": "Micro progress strip style in the sidebar: segment blocks per outcome, or a thin fill bar with a 2/5 count?"
+            }
+          ],
+          "rationale": "Decided with the owner on 2026-10-17. The owner reads plans as notes in the Obsidian editor, not in plugin panes, so the generated MOZAK.md, which today is only a plan index, is the right place for a readable rendering, and Obsidian renders mermaid in notes natively. The old PlanView mirrored schema order and read like a form; every field it showed lives in MOZAK.json and stays available via CLI, so removing it loses nothing. Settled choices: outcomes are the roadmap stops (array order), current stop is inferred as the first incomplete, full content but skimmable by titles, accepted content plus a delta line when a revision is pending, and the plugin may refresh stale projections.",
+          "sources": [
+            {
+              "anchor": "renderBridge",
+              "id": "renderer",
+              "limitations": [],
+              "locator": "packages/core/src/scope-store.ts (renderBridge)",
+              "observedAt": "2026-10-17T20:43:19.000Z",
+              "version": "97fd00c"
+            },
+            {
+              "anchor": null,
+              "id": "plugin",
+              "limitations": [],
+              "locator": "packages/obsidian/src/views.ts",
+              "observedAt": "2026-10-17T21:02:29.000Z",
+              "version": "97fd00c"
+            },
+            {
+              "anchor": null,
+              "id": "owner-decisions",
+              "limitations": [
+                "Host assertion of owner messages, not native message IDs."
+              ],
+              "locator": "jcode session session_daisy_1792266821990_1ab3b8a7037dd2c9, owner messages 2026-10-17T20:56:01Z through 2026-10-17T21:29:19Z",
+              "observedAt": "2026-10-17T21:29:19.931Z",
+              "version": null
+            }
+          ],
+          "title": "Readable MOZAK.md with a roadmap; plugin becomes pure navigation"
+        },
+        "contentDigest": "308e0e758e747ea5bc1284835ddc0c098b6f978ff9deae38edb9349955c9f0b5",
+        "createdAt": "2026-10-17T22:02:41.439Z",
+        "id": "b9699226-97d8-4ec5-97d3-23a3767b1075",
+        "rejectionDecisionId": null,
+        "reviewState": "awaiting"
+      },
+      "reasoningLinks": [],
+      "specifications": [],
+      "updatedAt": "2026-10-17T22:02:41.439Z"
     }
   ],
   "receipts": {
@@ -523,6 +649,18 @@
       },
       "storageRevision": "118cd1ed-70c5-4b50-811c-3f4d8df72aa0"
     },
+    "propose-obsidian-roadmap-20261017-01": {
+      "recordedAt": "2026-10-17T22:02:41.439Z",
+      "requestDigest": "8fa4d0820b434dd23c153158181bdd40a25ee37f79e12644f876ae243a91c706",
+      "result": {
+        "action": "propose",
+        "ids": [
+          "obsidian-roadmap",
+          "b9699226-97d8-4ec5-97d3-23a3767b1075"
+        ]
+      },
+      "storageRevision": "cdde511b-09ba-4942-8ff1-d61f74b68366"
+    },
     "propose-private-plan-storage-002": {
       "recordedAt": "2026-10-14T16:03:37.567Z",
       "requestDigest": "ab12c2b7bb0aeaead3a39571eda29ca4c05610ce857f3f0e6d584f8e430ccb89",
@@ -575,9 +713,9 @@
   "storage": {
     "previousBridge": {
       "exists": true,
-      "sha256": "140d65fa2a18db559443388c0d8f5b7688fdb34c596b5da1f79723c8ef9fcff8"
+      "sha256": "ee4396a0dd7dedf77afea60c33e86242e08787f34021f3589f0caf0be8b34a29"
     },
-    "revision": "67423efa-1399-42ce-9f41-3ed4d9e4da7c",
-    "updatedAt": "2026-10-14T16:03:37.567Z"
+    "revision": "cdde511b-09ba-4942-8ff1-d61f74b68366",
+    "updatedAt": "2026-10-17T22:02:41.439Z"
   }
 }
