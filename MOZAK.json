@@ -604,7 +604,7 @@
         "summary": "Both open questions settled by the owner on 2026-10-17: completed plans collapse to one line in MOZAK.md while open plans render in full; sidebar progress strips use one segment block per outcome. Ready for spec.",
         "updatedAt": "2026-10-17T23:17:13.789Z"
       },
-      "downstreamSpec": null,
+      "downstreamSpec": "b8ed2844-e88f-4482-99a2-fffa49316248",
       "id": "obsidian-roadmap",
       "implementationAuthorization": null,
       "implementationAuthorizations": [],
@@ -614,8 +614,73 @@
       "observations": [],
       "pending": null,
       "reasoningLinks": [],
-      "specifications": [],
-      "updatedAt": "2026-10-17T23:17:13.789Z"
+      "specifications": [
+        {
+          "acceptedContentDigest": "308e0e758e747ea5bc1284835ddc0c098b6f978ff9deae38edb9349955c9f0b5",
+          "acceptedRevisionId": "a6e44a37-3adf-45a6-b31b-e91942e3191d",
+          "bounds": {
+            "allowedPaths": [
+              "packages/core/src",
+              "packages/core/test",
+              "packages/cli/src",
+              "packages/cli/test",
+              "packages/obsidian/src",
+              "packages/obsidian/test",
+              "packages/obsidian/styles.css",
+              "packages/obsidian/README.md",
+              "packages/obsidian/manifest.json",
+              "README.md",
+              "AGENTS.md",
+              "SPEC.md",
+              "docs/obsidian-roadmap-spec.md",
+              "scratch/preview"
+            ],
+            "excludedActions": [
+              "Writing any MOZAK.json, or any real scope's MOZAK.md (vault scopes, ~/Documents/mozak, external scope roots).",
+              "Running render or any mutating route against ~/Documents/obsidian/mozak-inventory.json.",
+              "Installing, reinstalling or upgrading the CLI or skills (~/.local/share/mozak-v2, ~/.claude/skills).",
+              "Installing the plugin into the real vault (.obsidian/plugins).",
+              "Changing the mozak.scope/v3 content schema.",
+              "Pushing to GitHub or publishing packages."
+            ],
+            "limitations": [
+              "plugin-navigation and rich-bridge final owner acceptance on real scopes needs the CLI upgrade, which is a separate owner-approved step outside these bounds.",
+              "Mermaid classDef colors may be overridden by some Obsidian themes."
+            ],
+            "outcomeChecks": [
+              {
+                "criterion": "Owner opens the scratch preview MOZAK.md for copies of creations and mozak in Obsidian and accepts the roadmap, table and skimmable layout.",
+                "outcomeId": "rich-bridge"
+              },
+              {
+                "criterion": "packages/core/test/roadmap.test.ts covers todo/evidence/done, owner vs objective, challenges, current stop and completed plans; npm test passes.",
+                "outcomeId": "derived-status"
+              },
+              {
+                "criterion": "Render route tests show stale rewritten, current skipped, conflict refused, legacy-format bridge treated as stale, MOZAK.json bytes unchanged; npm test passes.",
+                "outcomeId": "render-command"
+              },
+              {
+                "criterion": "PlanView is gone, model tests cover strips and heading targets, plugin builds; owner acceptance happens after the separate CLI upgrade and vault install.",
+                "outcomeId": "plugin-navigation"
+              },
+              {
+                "criterion": "Plugin README, manifest description and AGENTS.md state 'never writes canonical state, may regenerate MOZAK.md'; the rendered header carries the not-clickable line.",
+                "outcomeId": "honest-docs"
+              }
+            ],
+            "summary": "Implement the roadmap renderer, outcome status derivation, a projection-only render route and the plugin navigation rebuild in the mozak repo, verified against temp fixtures and a scratch preview of copied scopes. No real scope projections are rewritten and the installed CLI is not changed."
+          },
+          "boundsDigest": "a877558572ed344bae9717223910492b64da3abbee72a7545f119333af6f1d24",
+          "byteLength": 9281,
+          "discussionDigest": "91c160f954558a82e27d96e91130a612fbf42184a02cb7f95f48a7bf7ae857ce",
+          "id": "b8ed2844-e88f-4482-99a2-fffa49316248",
+          "path": "docs/obsidian-roadmap-spec.md",
+          "recordedAt": "2026-10-17T23:20:26.586Z",
+          "sha256": "800b6be58eb63eca6726c888918b28f506c592ba4ba8faee6249fe11e56804c4"
+        }
+      ],
+      "updatedAt": "2026-10-17T23:20:26.586Z"
     }
   ],
   "receipts": {
@@ -675,6 +740,17 @@
         ]
       },
       "storageRevision": "380ca3fe-5eaf-4bc8-a7b9-f33b419638c0"
+    },
+    "attach-spec-obsidian-roadmap-20261017-01": {
+      "recordedAt": "2026-10-17T23:20:26.586Z",
+      "requestDigest": "4574c6bdaa169052f8fcb57b82025db4d1661792f59d01f1a70101b3241b02b7",
+      "result": {
+        "action": "attach-spec",
+        "ids": [
+          "b8ed2844-e88f-4482-99a2-fffa49316248"
+        ]
+      },
+      "storageRevision": "e71f4b24-c1b7-4b8f-9189-e118a26a5119"
     },
     "discussion-obsidian-roadmap-20261017-01": {
       "recordedAt": "2026-10-17T23:17:13.789Z",
@@ -830,9 +906,9 @@
   "storage": {
     "previousBridge": {
       "exists": true,
-      "sha256": "8d712792794e2cf0cb2b954442ba6bbe6a3b1d82b4d3d13cf627f5eabc1cfdf5"
+      "sha256": "f0c08d22c833a9bca39e06e843f6cd132848f72ff634b86f48d55848b2ba06e3"
     },
-    "revision": "9562791f-fca2-411b-aef0-10bd75c4ee19",
-    "updatedAt": "2026-10-17T23:17:13.789Z"
+    "revision": "e71f4b24-c1b7-4b8f-9189-e118a26a5119",
+    "updatedAt": "2026-10-17T23:20:26.586Z"
   }
 }
