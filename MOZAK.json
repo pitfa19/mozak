@@ -562,7 +562,48 @@
           "revisionId": "b9699226-97d8-4ec5-97d3-23a3767b1075"
         }
       ],
-      "discussion": null,
+      "discussion": {
+        "acceptedRevisionId": "a6e44a37-3adf-45a6-b31b-e91942e3191d",
+        "id": "3e793f21-5a59-4127-ab13-642353a32310",
+        "pendingRevisionId": null,
+        "questions": [
+          {
+            "answers": [
+              {
+                "basis": "owner",
+                "evidence": [],
+                "ownerMessageAt": "2026-10-17T23:16:25.110Z",
+                "ownerRef": "host-assertion: jcode session session_seedling_1792269695819_a70d3683894c5bc4, owner message 2026-10-17T23:16:25.110Z \"i approve with your takes\", answering the displayed recommendation, not a native message ID",
+                "recordedAt": "2026-10-17T23:17:13.789Z",
+                "summary": "Collapse completed plans to one line; render open (and awaiting) plans in full."
+              }
+            ],
+            "id": "e4ae99ed-6ccd-4df1-bff6-318bc1a3fe41",
+            "reopenings": [],
+            "status": "answered",
+            "text": "When a scope has many plans, should MOZAK.md render every plan fully, or completed plans collapsed to one line with the full rendering only for open plans?"
+          },
+          {
+            "answers": [
+              {
+                "basis": "owner",
+                "evidence": [],
+                "ownerMessageAt": "2026-10-17T23:16:25.110Z",
+                "ownerRef": "host-assertion: jcode session session_seedling_1792269695819_a70d3683894c5bc4, owner message 2026-10-17T23:16:25.110Z \"i approve with your takes\", answering the displayed recommendation, not a native message ID",
+                "recordedAt": "2026-10-17T23:17:13.789Z",
+                "summary": "Segment blocks, one per outcome (stops metaphor)."
+              }
+            ],
+            "id": "789c2c99-c489-4632-84f9-ce064848b129",
+            "reopenings": [],
+            "status": "answered",
+            "text": "Micro progress strip style in the sidebar: segment blocks per outcome, or a thin fill bar with a count?"
+          }
+        ],
+        "stage": "ready-for-spec",
+        "summary": "Both open questions settled by the owner on 2026-10-17: completed plans collapse to one line in MOZAK.md while open plans render in full; sidebar progress strips use one segment block per outcome. Ready for spec.",
+        "updatedAt": "2026-10-17T23:17:13.789Z"
+      },
       "downstreamSpec": null,
       "id": "obsidian-roadmap",
       "implementationAuthorization": null,
@@ -574,7 +615,7 @@
       "pending": null,
       "reasoningLinks": [],
       "specifications": [],
-      "updatedAt": "2026-10-17T22:07:27.666Z"
+      "updatedAt": "2026-10-17T23:17:13.789Z"
     }
   ],
   "receipts": {
@@ -634,6 +675,59 @@
         ]
       },
       "storageRevision": "380ca3fe-5eaf-4bc8-a7b9-f33b419638c0"
+    },
+    "discussion-obsidian-roadmap-20261017-01": {
+      "recordedAt": "2026-10-17T23:17:13.789Z",
+      "requestDigest": "4e906b739e9c3405b9497f7ef546e6f3682e81d5620f3144532c9bf77a79d78d",
+      "result": {
+        "action": "save-discussion",
+        "discussion": {
+          "acceptedRevisionId": "a6e44a37-3adf-45a6-b31b-e91942e3191d",
+          "id": "3e793f21-5a59-4127-ab13-642353a32310",
+          "pendingRevisionId": null,
+          "questions": [
+            {
+              "answers": [
+                {
+                  "basis": "owner",
+                  "evidence": [],
+                  "ownerMessageAt": "2026-10-17T23:16:25.110Z",
+                  "ownerRef": "host-assertion: jcode session session_seedling_1792269695819_a70d3683894c5bc4, owner message 2026-10-17T23:16:25.110Z \"i approve with your takes\", answering the displayed recommendation, not a native message ID",
+                  "recordedAt": "2026-10-17T23:17:13.789Z",
+                  "summary": "Collapse completed plans to one line; render open (and awaiting) plans in full."
+                }
+              ],
+              "id": "e4ae99ed-6ccd-4df1-bff6-318bc1a3fe41",
+              "reopenings": [],
+              "status": "answered",
+              "text": "When a scope has many plans, should MOZAK.md render every plan fully, or completed plans collapsed to one line with the full rendering only for open plans?"
+            },
+            {
+              "answers": [
+                {
+                  "basis": "owner",
+                  "evidence": [],
+                  "ownerMessageAt": "2026-10-17T23:16:25.110Z",
+                  "ownerRef": "host-assertion: jcode session session_seedling_1792269695819_a70d3683894c5bc4, owner message 2026-10-17T23:16:25.110Z \"i approve with your takes\", answering the displayed recommendation, not a native message ID",
+                  "recordedAt": "2026-10-17T23:17:13.789Z",
+                  "summary": "Segment blocks, one per outcome (stops metaphor)."
+                }
+              ],
+              "id": "789c2c99-c489-4632-84f9-ce064848b129",
+              "reopenings": [],
+              "status": "answered",
+              "text": "Micro progress strip style in the sidebar: segment blocks per outcome, or a thin fill bar with a count?"
+            }
+          ],
+          "stage": "ready-for-spec",
+          "summary": "Both open questions settled by the owner on 2026-10-17: completed plans collapse to one line in MOZAK.md while open plans render in full; sidebar progress strips use one segment block per outcome. Ready for spec.",
+          "updatedAt": "2026-10-17T23:17:13.789Z"
+        },
+        "ids": [
+          "3e793f21-5a59-4127-ab13-642353a32310"
+        ]
+      },
+      "storageRevision": "9562791f-fca2-411b-aef0-10bd75c4ee19"
     },
     "init-mozak-001": {
       "recordedAt": "2026-10-14T10:59:21.182Z",
@@ -736,9 +830,9 @@
   "storage": {
     "previousBridge": {
       "exists": true,
-      "sha256": "10163b862a5fe5b3125457468441f530ef7f5fb42a2c6f009682ece491cb0e0e"
+      "sha256": "8d712792794e2cf0cb2b954442ba6bbe6a3b1d82b4d3d13cf627f5eabc1cfdf5"
     },
-    "revision": "d8d2ea3f-f173-45fc-9992-2bbbc4926063",
-    "updatedAt": "2026-10-17T22:07:27.666Z"
+    "revision": "9562791f-fca2-411b-aef0-10bd75c4ee19",
+    "updatedAt": "2026-10-17T23:17:13.789Z"
   }
 }
