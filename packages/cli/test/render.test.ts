@@ -56,6 +56,21 @@ test("legacy-format bridge reads as stale, not conflict", () => {
   assert.equal(readScope(entries[0]!).projectionStatus, "bridge-stale");
 });
 
+test("an older self-verifying render of the same graph is stale (a renderer change never makes a conflict)", () => {
+  const { entries } = world(["alpha"]);
+  const entry = entries[0]!;
+  const md = join(entry.root, "MOZAK.md");
+  const body = "\n# Older layout\n";
+  const older = readFileSync(md, "utf8").replace(/projection_sha256: [a-f0-9]{64}\n---\n[\s\S]*$/, `projection_sha256: ${createHash("sha256").update(body).digest("hex")}\n---\n${body}`);
+  writeFileSync(md, older);
+  assert.equal(readScope(entry).projectionStatus, "bridge-stale");
+  const r = mutateScope(entry, { operationId: "p3", scopeId: entry.id, expected: readScope(entry).snapshot, action: "propose", payload: { planId: "road-3", content } }, "agent");
+  assert.equal(r.status, "ok");
+  writeFileSync(md, older.replace("Older", "Edited"));
+  // Edited after rendering: digest broken, so it is a conflict again (current graph no longer matches either).
+  assert.equal(readScope(entry).projectionStatus, "bridge-conflict");
+});
+
 test("a hand-edited bridge stays a conflict and render refuses to overwrite it", () => {
   const { entries } = world(["alpha"]);
   const md = join(entries[0]!.root, "MOZAK.md");

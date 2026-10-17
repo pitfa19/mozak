@@ -6,7 +6,7 @@ import { canonical, digest, hashBytes, validateScope, SCOPE_FORMAT, MAX_REQUEST_
 import { applyMutation, validateMutation, specificationKey, type MutationAction, type ReviewEnvironment } from "./review.ts";
 import { assertScopeFiles, type ScopeEntry } from "./scope-index.ts";
 import { inspectSpecification } from "./spec-file.ts";
-import { renderBridge, renderBridgeLegacy } from "./bridge.ts";
+import { renderBridge, renderBridgeLegacy, isGeneratedBridgeFor } from "./bridge.ts";
 
 export { renderBridge, renderBridgeLegacy } from "./bridge.ts";
 
@@ -76,20 +76,25 @@ function decode(bytes: string, entry: ScopeEntry): ScopeState {
   return state;
 }
 /**
- * current: bridge bytes equal today's render. stale: they equal the bridge the last write left behind, or the
- * pre-roadmap render of this exact state (an old-format projection, safe to regenerate). Anything else is a
- * conflict and is preserved for the owner.
+ * current: bridge bytes equal today's render. stale: they equal the bridge the last write left behind, or they
+ * are an unedited generated projection of this exact graph from an older renderer (self-digest intact, or the
+ * pre-digest legacy format). Safe to regenerate. Anything else is a conflict and is preserved for the owner.
  */
 function projectStatus(state: ScopeState, graphHash: string, bridge: ReturnType<typeof file>): ProjectionStatus {
   if (bridge.token.exists && bridge.token.sha256 === hashBytes(renderBridge(state, graphHash))) return "current";
   if (same(bridge.token, state.storage.previousBridge)) return "bridge-stale";
-  if (bridge.token.exists && bridge.token.sha256 === hashBytes(renderBridgeLegacy(state, graphHash))) return "bridge-stale";
+  if (bridge.bytes !== null && bridge.validUtf8 && isOlderRender(state, graphHash, bridge.bytes)) return "bridge-stale";
   return "bridge-conflict";
 }
-/** True when the bridge is exactly the pre-roadmap render of this state. A write may replace it like a current one. */
-function isLegacyBridge(read: ScopeRead): boolean {
-  const b = read.snapshot.bridge;
-  return !!b?.exists && b.sha256 === hashBytes(renderBridgeLegacy(read.state, read.snapshot.graphHash));
+/** Only byte-exact UTF-8 can be recognised as a generated render. Lossy decoding must never look current or stale. */
+function isOlderRender(state: ScopeState, graphHash: string, bytes: string): boolean {
+  return isGeneratedBridgeFor(bytes, graphHash) || hashBytes(bytes) === hashBytes(renderBridgeLegacy(state, graphHash));
+}
+/** True when the bridge is an unedited older render of this state. A write may replace it like a current one. */
+function isLegacyBridge(entry: ScopeEntry, read: ScopeRead): boolean {
+  if (!read.snapshot.bridge?.exists) return false;
+  const bridge = file(join(entry.root, "MOZAK.md"), MAX_SCOPE_BYTES * 2);
+  return bridge.bytes !== null && bridge.validUtf8 && same(bridge.token, read.snapshot.bridge) && isOlderRender(read.state, read.snapshot.graphHash, bridge.bytes);
 }
 export function readScope(entry: ScopeEntry, options: StoreOptions = {}): ScopeRead {
   assertScopeFiles(entry.root);
@@ -309,7 +314,7 @@ export function mutateScope(entry: ScopeEntry, input: unknown, actor: "agent" | 
     const replay = receipt(read, operationId, digest(input), tx, entry);
     if (replay) return replay;
     match(read, snapshot);
-    if (read.projectionStatus !== "current" && !isLegacyBridge(read)) throw new DomainError(read.projectionStatus, "projection requires explicit repair or conflict resolution before new writes", 3);
+    if (read.projectionStatus !== "current" && !isLegacyBridge(entry, read)) throw new DomainError(read.projectionStatus, "projection requires explicit repair or conflict resolution before new writes", 3);
     const now = new Date().toISOString();
     const environment: ReviewEnvironment = { storageUsable: true, specifications: Object.create(null) };
     const payload = r.payload as Record<string, unknown>;
