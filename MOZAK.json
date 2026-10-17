@@ -440,22 +440,8 @@
       "updatedAt": "2026-10-14T16:03:37.567Z"
     },
     {
-      "accepted": null,
-      "completionRecords": [],
-      "createdAt": "2026-10-17T22:02:41.439Z",
-      "decisions": [],
-      "discussion": null,
-      "downstreamSpec": null,
-      "id": "obsidian-roadmap",
-      "implementationAuthorization": null,
-      "implementationAuthorizations": [],
-      "lifecycle": {
-        "state": "unaccepted"
-      },
-      "observations": [],
-      "pending": {
-        "baseAcceptedDigest": null,
-        "baseAcceptedRevision": null,
+      "accepted": {
+        "acceptedFromRevision": "b9699226-97d8-4ec5-97d3-23a3767b1075",
         "content": {
           "constraints": [
             {
@@ -556,14 +542,39 @@
           "title": "Readable MOZAK.md with a roadmap; plugin becomes pure navigation"
         },
         "contentDigest": "308e0e758e747ea5bc1284835ddc0c098b6f978ff9deae38edb9349955c9f0b5",
-        "createdAt": "2026-10-17T22:02:41.439Z",
-        "id": "b9699226-97d8-4ec5-97d3-23a3767b1075",
-        "rejectionDecisionId": null,
-        "reviewState": "awaiting"
+        "createdAt": "2026-10-17T22:07:27.666Z",
+        "directionDecisionId": "fdb35d19-1228-4b66-b02e-bede1ab6fceb",
+        "id": "a6e44a37-3adf-45a6-b31b-e91942e3191d"
       },
+      "completionRecords": [],
+      "createdAt": "2026-10-17T22:02:41.439Z",
+      "decisions": [
+        {
+          "contentDigest": "308e0e758e747ea5bc1284835ddc0c098b6f978ff9deae38edb9349955c9f0b5",
+          "id": "fdb35d19-1228-4b66-b02e-bede1ab6fceb",
+          "ownerMessageAt": "2026-10-17T22:06:23.641Z",
+          "ownerRef": "host-assertion: jcode session session_seedling_1792269695819_a70d3683894c5bc4, owner message 2026-10-17T22:06:23.641Z \"approved\", given directly after the direction subject for obsidian-roadmap (revision b9699226, review digest 474244ea...) was displayed, not a native message ID",
+          "planId": "obsidian-roadmap",
+          "purpose": "approve-direction",
+          "reason": "Owner approved the direction after a grilled design conversation: MOZAK.md becomes the readable roadmap surface, PlanView is removed, plugin becomes navigation with progress strips, projection-only writes, schema untouched.",
+          "recordedAt": "2026-10-17T22:07:27.666Z",
+          "reviewDigest": "474244eac1c3d3279d862a48457498cd033a5003cd9814b959579f1647dba486",
+          "revisionId": "b9699226-97d8-4ec5-97d3-23a3767b1075"
+        }
+      ],
+      "discussion": null,
+      "downstreamSpec": null,
+      "id": "obsidian-roadmap",
+      "implementationAuthorization": null,
+      "implementationAuthorizations": [],
+      "lifecycle": {
+        "state": "open"
+      },
+      "observations": [],
+      "pending": null,
       "reasoningLinks": [],
       "specifications": [],
-      "updatedAt": "2026-10-17T22:02:41.439Z"
+      "updatedAt": "2026-10-17T22:07:27.666Z"
     }
   ],
   "receipts": {
@@ -599,6 +610,18 @@
         ]
       },
       "storageRevision": "de31b05d-3eb8-454e-9d81-b31003a1f953"
+    },
+    "approve-direction-obsidian-roadmap-20261017-01": {
+      "recordedAt": "2026-10-17T22:07:27.666Z",
+      "requestDigest": "327a299d13bebf56e68c0303d064c855810c894d3ec80f0bbac8723c9d1d4b9a",
+      "result": {
+        "action": "approve-direction",
+        "ids": [
+          "fdb35d19-1228-4b66-b02e-bede1ab6fceb",
+          "a6e44a37-3adf-45a6-b31b-e91942e3191d"
+        ]
+      },
+      "storageRevision": "d8d2ea3f-f173-45fc-9992-2bbbc4926063"
     },
     "approve-direction-readme-003": {
       "recordedAt": "2026-10-14T11:36:11.111Z",
@@ -713,9 +736,9 @@
   "storage": {
     "previousBridge": {
       "exists": true,
-      "sha256": "ee4396a0dd7dedf77afea60c33e86242e08787f34021f3589f0caf0be8b34a29"
+      "sha256": "10163b862a5fe5b3125457468441f530ef7f5fb42a2c6f009682ece491cb0e0e"
     },
-    "revision": "cdde511b-09ba-4942-8ff1-d61f74b68366",
-    "updatedAt": "2026-10-17T22:02:41.439Z"
+    "revision": "d8d2ea3f-f173-45fc-9992-2bbbc4926063",
+    "updatedAt": "2026-10-17T22:07:27.666Z"
   }
 }

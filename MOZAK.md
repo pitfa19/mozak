@@ -2,7 +2,7 @@
 format: 3
 id: "mozak"
 kind: project
-graph_sha256: c92dd29162903cd5815b399d6eda4fe24c72579dc90c23b4320d3e81b35a7350
+graph_sha256: a49b252229ac749de1b29c4587416a493866669ed8b512e198cf9dcae601dc17
 ---
 
 # MOZAK
@@ -14,7 +14,7 @@ Implementation eligibility requires a fresh canonical and local specification ch
 ## Plans
 
 - demo-video: Record the Obsidian demo and animate the background (unaccepted) [awaiting approval]
-- obsidian-roadmap: Readable MOZAK.md with a roadmap; plugin becomes pure navigation (unaccepted) [awaiting approval]
+- obsidian-roadmap: Readable MOZAK.md with a roadmap; plugin becomes pure navigation (open)
 - private-plan-storage: Private plan files for public GitHub scopes (unaccepted) [awaiting approval]
 - readme-publish-ready: Make the README publish-ready (open)
 
