@@ -636,9 +636,122 @@
       "lifecycle": {
         "state": "open"
       },
-      "observations": [],
+      "observations": [
+        {
+          "classification": "observed",
+          "evidence": [
+            {
+              "activity": {
+                "description": "npm run build && npm test with GIT_CONFIG_GLOBAL=/dev/null (the owner's global pre-push identity hook otherwise fails one pre-existing remote test that pushes synthetic t@t commits)",
+                "kind": "run"
+              },
+              "anchor": "packages/core/test/roadmap.test.ts, packages/cli/test/render.test.ts, packages/obsidian/test/model.test.ts",
+              "id": "ev-test-suite",
+              "inspectedAt": "2026-10-17T23:46:35.000Z",
+              "limitations": [
+                "Baseline needed the isolated git config for one unrelated remote test; same result before the change (364/364)."
+              ],
+              "locator": "npm test (repo root)",
+              "result": {
+                "summary": "397 tests, 397 pass, 0 fail. Covers todo/evidence/done, owner vs objective, challenges, current stop, completed plans, pure derivation; render stale/current/conflict, legacy and self-digest stale, MOZAK.json unchanged; plugin strips, heading lookup, projection-only writes, PlanView removed.",
+                "verdict": "pass"
+              },
+              "version": "b095b7f"
+            },
+            {
+              "activity": {
+                "description": "node packages/cli/dist/index.js render --config scratch/preview/mozak-inventory.json --all, with sha256 of every MOZAK.json and of the real scope files before and after",
+                "kind": "run"
+              },
+              "anchor": null,
+              "id": "ev-preview",
+              "inspectedAt": "2026-10-17T23:46:43.000Z",
+              "limitations": [
+                "Preview copies, not the real scopes. Real scopes are rendered only after the separate CLI upgrade."
+              ],
+              "locator": "scratch/preview (gitignored) with scratch/preview/mozak-inventory.json",
+              "result": {
+                "summary": "creations, mozak, personal: old-format bridges detected as stale and rendered; 3/3 preview MOZAK.json and 6/6 real files unchanged; check reports projection current.",
+                "verdict": "pass"
+              },
+              "version": "b095b7f"
+            },
+            {
+              "activity": {
+                "description": "Read the reworded guarantee in each file and the rendered MOZAK.md header line",
+                "kind": "read"
+              },
+              "anchor": null,
+              "id": "ev-docs",
+              "inspectedAt": "2026-10-17T23:41:30.000Z",
+              "limitations": [],
+              "locator": "packages/obsidian/README.md, packages/obsidian/manifest.json, AGENTS.md, README.md",
+              "result": {
+                "summary": "All four state the plugin never writes canonical state (MOZAK.json) and may regenerate MOZAK.md; rendered header carries 'Status is computed from MOZAK.json. Nothing here is clickable or editable.'; a plugin test asserts the write path only touches MOZAK.md.",
+                "verdict": "pass"
+              },
+              "version": "40e6478"
+            }
+          ],
+          "id": "obs-impl-tests",
+          "recordedAt": "2026-10-17T23:49:29.639Z",
+          "summary": "Implemented in the mozak repo (6bf5e69, 49a767f, 40e6478, b095b7f). Full suite 397/397 passing with an isolated git config. Scratch preview of copies of creations, personal and mozak rendered; their MOZAK.json and the real scope files were byte-identical before and after. Mermaid output validated with mermaid-cli 11."
+        }
+      ],
       "pending": null,
-      "reasoningLinks": [],
+      "reasoningLinks": [
+        {
+          "from": {
+            "id": "obs-impl-tests",
+            "kind": "observation",
+            "planId": "obsidian-roadmap",
+            "revisionId": null
+          },
+          "id": "link-derived-status",
+          "rationale": "roadmap.test.ts covers every status rule and purity; suite passes.",
+          "relation": "supports",
+          "to": {
+            "id": "derived-status",
+            "kind": "outcome",
+            "planId": "obsidian-roadmap",
+            "revisionId": "a6e44a37-3adf-45a6-b31b-e91942e3191d"
+          }
+        },
+        {
+          "from": {
+            "id": "obs-impl-tests",
+            "kind": "observation",
+            "planId": "obsidian-roadmap",
+            "revisionId": null
+          },
+          "id": "link-render-command",
+          "rationale": "render.test.ts plus the preview run show stale rewritten, current skipped, conflicts refused, MOZAK.json unchanged.",
+          "relation": "supports",
+          "to": {
+            "id": "render-command",
+            "kind": "outcome",
+            "planId": "obsidian-roadmap",
+            "revisionId": "a6e44a37-3adf-45a6-b31b-e91942e3191d"
+          }
+        },
+        {
+          "from": {
+            "id": "obs-impl-tests",
+            "kind": "observation",
+            "planId": "obsidian-roadmap",
+            "revisionId": null
+          },
+          "id": "link-honest-docs",
+          "rationale": "Reworded guarantee present in all docs and header; write-path test passes.",
+          "relation": "supports",
+          "to": {
+            "id": "honest-docs",
+            "kind": "outcome",
+            "planId": "obsidian-roadmap",
+            "revisionId": "a6e44a37-3adf-45a6-b31b-e91942e3191d"
+          }
+        }
+      ],
       "specifications": [
         {
           "acceptedContentDigest": "308e0e758e747ea5bc1284835ddc0c098b6f978ff9deae38edb9349955c9f0b5",
@@ -705,7 +818,7 @@
           "sha256": "800b6be58eb63eca6726c888918b28f506c592ba4ba8faee6249fe11e56804c4"
         }
       ],
-      "updatedAt": "2026-10-17T23:22:12.749Z"
+      "updatedAt": "2026-10-17T23:49:29.639Z"
     }
   ],
   "receipts": {
@@ -853,6 +966,20 @@
       },
       "storageRevision": "bca41171-8142-452d-86c7-1adc36e994a1"
     },
+    "observe-obsidian-roadmap-20261017-01": {
+      "recordedAt": "2026-10-17T23:49:29.639Z",
+      "requestDigest": "7a618127c6aeea91ee0d50f61dd3629651b1739f82daf320826ba2561fa6e3ba",
+      "result": {
+        "action": "observe",
+        "ids": [
+          "obs-impl-tests",
+          "link-derived-status",
+          "link-render-command",
+          "link-honest-docs"
+        ]
+      },
+      "storageRevision": "efca691b-3fc1-437a-ad41-3c8493b72cfb"
+    },
     "observe-readme-live-004": {
       "recordedAt": "2026-10-14T11:50:51.536Z",
       "requestDigest": "80ce2a9adff3ede9f6e0419b86efa4e71d7f9f65aa8b9ddee369e65d2c4641dd",
@@ -943,9 +1070,9 @@
   "storage": {
     "previousBridge": {
       "exists": true,
-      "sha256": "10880f9a5aac78b0b714c5ab2f3154d715b9155b97130b6d92c029dcee7b7eb0"
+      "sha256": "99ce6b5ed736a69f8291c509c22e3a9fedd192883a3dc81b56db117e3714ba4c"
     },
-    "revision": "ece91757-7330-43cb-b310-e619d0675bbe",
-    "updatedAt": "2026-10-17T23:22:12.749Z"
+    "revision": "efca691b-3fc1-437a-ad41-3c8493b72cfb",
+    "updatedAt": "2026-10-17T23:49:29.639Z"
   }
 }
