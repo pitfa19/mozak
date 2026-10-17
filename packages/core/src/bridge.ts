@@ -1,7 +1,7 @@
 // MOZAK.md projection. Pure text from canonical state: deterministic, display-only, never authority.
 import { planRoadmap, type Roadmap, type RoadmapStop } from "./roadmap.ts";
 import { pendingChangedFields } from "./review.ts";
-import { hashBytes, type Plan, type PlanContent, type ScopeState } from "./understanding.ts";
+import { type Plan, type PlanContent, type ScopeState } from "./understanding.ts";
 
 const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
@@ -157,18 +157,16 @@ function overviewLine(state: ScopeState, plan: Plan): string {
 
 export function renderBridge(state: ScopeState, graphHash: string): string {
   const body = renderBody(state);
-  return `---\nformat: 3\nid: ${JSON.stringify(state.scope.id)}\nkind: ${state.scope.kind}\ngraph_sha256: ${graphHash}\nprojection_sha256: ${hashBytes(body)}\n---\n${body}`;
+  return `---\nformat: 3\nid: ${JSON.stringify(state.scope.id)}\nkind: ${state.scope.kind}\ngraph_sha256: ${graphHash}\n---\n${body}`;
 }
 
-/**
- * True when `bytes` is an unedited projection that some MOZAK renderer generated for exactly this canonical
- * graph: the front matter names this graph hash and the body still matches its own digest. Such a file holds
- * nothing that is not in MOZAK.json, so a newer renderer may regenerate it. Any hand edit breaks the digest.
- */
-export function isGeneratedBridgeFor(bytes: string, graphHash: string): boolean {
-  const m = /^---\nformat: 3\nid: [^\n]*\nkind: [^\n]*\ngraph_sha256: ([a-f0-9]{64})\nprojection_sha256: ([a-f0-9]{64})\n---\n/.exec(bytes);
-  if (!m || m[1] !== graphHash) return false;
-  return hashBytes(bytes.slice(m[0].length)) === m[2];
+/** Exact collapsed line, shared with sidebar navigation so completed plans remain reachable. */
+export function completedPlanLine(plan: Plan): string {
+  const life = plan.lifecycle;
+  const rec = life.state === "completed" ? plan.completionRecords.find(c => c.id === life.completionId) : undefined;
+  const date = (rec?.recordedAt ?? plan.updatedAt).slice(0, 10);
+  const content = plan.accepted?.content ?? plan.pending!.content;
+  return `- ✅ ${mdText(content.title || plan.id)} (${mdText(plan.id)}), completed ${date}`;
 }
 
 function renderBody(state: ScopeState): string {
@@ -176,11 +174,6 @@ function renderBody(state: ScopeState): string {
   const full = plans.filter(p => ["open", "paused", "awaiting"].includes(planDisplayState(p)));
   const completed = plans.filter(p => planDisplayState(p) === "completed");
   // Rejected plans stay out of the projection. They remain in MOZAK.json and `plans --include-rejected`.
-  const completedAt = (p: Plan) => {
-    const life = p.lifecycle;
-    const rec = life.state === "completed" ? p.completionRecords.find(c => c.id === life.completionId) : undefined;
-    return (rec?.recordedAt ?? p.updatedAt).slice(0, 10);
-  };
   const lines: string[] = [
     "",
     `# ${mdText(state.scope.title)}`, "",
@@ -193,7 +186,7 @@ function renderBody(state: ScopeState): string {
   else {
     lines.push("## Overview", "", ...[...full, ...completed].map(p => overviewLine(state, p)), "");
     for (const p of full) lines.push(...renderPlan(state, p));
-    if (completed.length) lines.push("## Completed", "", ...completed.map(p => `- ✅ ${mdText((p.accepted?.content ?? p.pending!.content).title || p.id)} (${mdText(p.id)}), completed ${completedAt(p)}`), "");
+    if (completed.length) lines.push("## Completed", "", ...completed.map(completedPlanLine), "");
   }
   lines.push("## Connections", "", "No accepted cross-scope declarations are supported by this package.", "");
   return lines.join("\n");

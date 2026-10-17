@@ -112,6 +112,10 @@ export default class MozakPlugin extends Plugin {
 
   /** Open the scope's MOZAK.md scrolled to this plan's heading. Plans are read there, not in a plugin pane. */
   async openPlan(scope: ScopeVM, plan: PlanVM): Promise<void> {
+    if (plan.state === "rejected") {
+      new Notice("MOZAK: rejected plans are not shown in MOZAK.md. Their record remains in MOZAK.json.", 6000);
+      return;
+    }
     const file = `${scope.root}/MOZAK.md`;
     const target = resolveOpenTarget(this.vaultBase() ?? "", file);
     if (target.kind === "vault") {
@@ -124,6 +128,8 @@ export default class MozakPlugin extends Plugin {
         if (line !== null && view instanceof MarkdownView) {
           view.setEphemeralState({ line });
           if (view.getMode() === "source") view.editor.setCursor({ line, ch: 0 });
+        } else if (line === null) {
+          new Notice("MOZAK: this plan is missing from the projection. Run `mozak render` or refresh.", 6000);
         }
         return;
       }

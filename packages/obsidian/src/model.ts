@@ -1,6 +1,6 @@
 // Pure view models. Turns core ScopeState plus review rows into plain data for the UI. No IO.
 // Plans are read in MOZAK.md, so the sidebar only needs identity, state, progress and a heading to jump to.
-import { planHeading, planRoadmap, type Plan, type ScopeState } from "@mozak/core";
+import { completedPlanLine, planHeading, planRoadmap, type Plan, type ScopeState } from "@mozak/core";
 
 export type PlanStateKey = "completed" | "open" | "paused" | "awaiting" | "rejected";
 export type StopKey = "done" | "evidence" | "current" | "todo";
@@ -22,7 +22,7 @@ export interface PlanVM {
   reason: string | null;
   /** Progress over accepted outcomes. Null before the first approval. */
   strip: StripVM | null;
-  /** Exact heading line of this plan in MOZAK.md ("## ..."). The plugin finds this line and opens the file there. */
+  /** Exact heading or collapsed completed-plan line in MOZAK.md. */
   heading: string;
 }
 export interface RemoteVM {
@@ -143,7 +143,7 @@ export function planViewModel(
     completedAt: completion?.recordedAt ?? null,
     reason,
     strip: scopeState ? stripVM(scopeState, plan) : null,
-    heading: planHeading(plan),
+    heading: state === "completed" ? completedPlanLine(plan) : planHeading(plan),
   };
 }
 

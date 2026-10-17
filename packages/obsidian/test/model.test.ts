@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from
 import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { executeOperation, initScopeState, loadInventory, mutateScope, readScope, renderBridgeLegacy } from "@mozak/core";
+import { applyMutation, executeOperation, initScopeState, loadInventory, mutateScope, readScope, renderBridge, renderBridgeLegacy, reviewShow } from "@mozak/core";
 import { chooseInventory, discoverInventory } from "../src/discover.ts";
 import { countRemote, countsSummary, headingLine, planMatches, remoteVM, resolveOpenTarget, scopesModel, scopeViewModel, stripVM } from "../src/model.ts";
 import { loadScopesModel, renderStaleProjections } from "../src/load.ts";
@@ -146,6 +146,30 @@ test("awaiting plans have no strip", () => {
   const state = readScope(entry).state;
   const fake = { ...state.plans[0]!, accepted: null, lifecycle: { state: "unaccepted" as const } };
   assert.equal(stripVM(state, fake as typeof state.plans[0]), null);
+});
+
+test("completed sidebar rows resolve to their collapsed line in the real renderer", () => {
+  const { entry } = roadWorld();
+  let state = readScope(entry).state;
+  const planId = "road-plan";
+  const revisionId = state.plans[0]!.accepted!.id;
+  const apply = (action: string, payload: unknown, actor = "agent") => {
+    state = applyMutation(state, action, payload, actor, OWNER_AT).state;
+  };
+  apply("observe", {
+    planId,
+    observation: { id: "obs2", classification: "observed", summary: "second done", evidence: [{ id: "e2", locator: "test", anchor: null, version: null, inspectedAt: OWNER_AT, activity: { kind: "run", description: "ran" }, result: { verdict: "pass", summary: "ok" }, limitations: [] }] },
+    reasoningLinks: [{ id: "l2", relation: "supports", from: { planId, revisionId: null, kind: "observation", id: "obs2" }, to: { planId, revisionId, kind: "outcome", id: "second-stop" }, rationale: "fixture" }],
+  });
+  const review = reviewShow(state, planId, "accept-outcome", "second-stop");
+  apply("accept-outcome", { planId, revisionId, outcomeId: "second-stop", reviewDigest: review.reviewDigest, ownerRef: "synthetic-owner:accept", ownerMessageAt: OWNER_AT, reason: "fixture" }, "owner");
+  apply("complete", { planId, revisionId });
+  const model = scopeViewModel({ id: entry.id, root: entry.root, entryFiles: ["MOZAK.md"], state });
+  const target = model.plans[0]!.heading;
+  assert.match(target, /^- ✅ /);
+  const md = renderBridge(state, "a".repeat(64));
+  assert.notEqual(headingLine(md, target), null);
+  assert.ok(headingLine(md, target)! > headingLine(md, "## Completed")!);
 });
 
 test("renderStaleProjections rewrites only MOZAK.md, leaves MOZAK.json byte-identical and spares hand edits", () => {

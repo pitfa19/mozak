@@ -56,19 +56,48 @@ test("legacy-format bridge reads as stale, not conflict", () => {
   assert.equal(readScope(entries[0]!).projectionStatus, "bridge-stale");
 });
 
-test("an older self-verifying render of the same graph is stale (a renderer change never makes a conflict)", () => {
+test("a self-asserted body digest never authorizes overwriting unknown text", () => {
   const { entries } = world(["alpha"]);
   const entry = entries[0]!;
   const md = join(entry.root, "MOZAK.md");
   const body = "\n# Older layout\n";
-  const older = readFileSync(md, "utf8").replace(/projection_sha256: [a-f0-9]{64}\n---\n[\s\S]*$/, `projection_sha256: ${createHash("sha256").update(body).digest("hex")}\n---\n${body}`);
+  const graph = readScope(entry).snapshot.graphHash;
+  const older = `---\nformat: 3\nid: "alpha"\nkind: project\ngraph_sha256: ${graph}\nprojection_sha256: ${createHash("sha256").update(body).digest("hex")}\n---\n${body}`;
   writeFileSync(md, older);
-  assert.equal(readScope(entry).projectionStatus, "bridge-stale");
-  const r = mutateScope(entry, { operationId: "p3", scopeId: entry.id, expected: readScope(entry).snapshot, action: "propose", payload: { planId: "road-3", content } }, "agent");
-  assert.equal(r.status, "ok");
-  writeFileSync(md, older.replace("Older", "Edited"));
-  // Edited after rendering: digest broken, so it is a conflict again (current graph no longer matches either).
   assert.equal(readScope(entry).projectionStatus, "bridge-conflict");
+  assert.equal(renderProjection(entry).result, "conflict");
+  assert.equal(readFileSync(md, "utf8"), older);
+  assert.throws(() => mutateScope(entry, { operationId: "p3", scopeId: entry.id, expected: readScope(entry).snapshot, action: "propose", payload: { planId: "road-3", content } }, "agent"), { code: "bridge-conflict" });
+});
+
+test("render reports a failed cleanup even if the projection was already published", () => {
+  const { entries } = world(["alpha"]);
+  const entry = entries[0]!;
+  makeLegacy(entry);
+  const json = sha(join(entry.root, "MOZAK.json"));
+  const result = renderProjection(entry, { onPhase(phase) {
+    if (phase === "before-release") throw new Error("injected release failure");
+  } });
+  assert.equal(result.result, "failed");
+  assert.equal(result.outcome.status, "projection-updated-lock-held");
+  assert.equal(result.outcome.projectionUpdated, true);
+  assert.equal(result.outcome.committed, false);
+  assert.equal(result.outcome.projectionStatus, "current");
+  assert.equal(sha(join(entry.root, "MOZAK.json")), json);
+});
+
+test("direct render refuses remote scopes before touching their cache", () => {
+  const { config, entries } = world(["alpha"]);
+  writeFileSync(config, JSON.stringify({ format: "mozak.local/v3", scopes: [{ id: "alpha", remote: "github:example/sample", ref: "main" }] }));
+  const remote = loadInventory(config).scopes[0]!;
+  const entry = { ...entries[0]!, remote: remote.remote };
+  makeLegacy(entries[0]!);
+  const before = sha(join(entry.root, "MOZAK.md"));
+  assert.throws(() => renderProjection(entry), { code: "remote-render-refused" });
+  assert.equal(sha(join(entry.root, "MOZAK.md")), before);
+  const out = executeOperation(loadInventory(config), "render", { all: true }, "agent");
+  assert.equal(out.exitCode, 0);
+  assert.equal((out.data.scopes as { result: string }[])[0]!.result, "remote-skipped");
 });
 
 test("a hand-edited bridge stays a conflict and render refuses to overwrite it", () => {

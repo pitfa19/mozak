@@ -738,17 +738,17 @@ function renderOp(inv: ScopeInventory, a: Record<string, unknown>): OperationOut
   if ((o.scope === undefined) === !all) throw invalid("render needs exactly one of scope or all");
   const targets = all ? inv.scopes : [resolveScope(inv, nonEmpty(o.scope, "scope"))];
   const rows = targets.map((entry) => {
-    if (entry.remote) return { scope: entry.id, result: "remote-skipped" };
+    if (entry.remote) return { scope: entry.id, result: "remote-skipped", exitCode: 0 };
     try {
       const { result, outcome } = renderProjection(entry);
-      return { scope: entry.id, result, projectionStatus: outcome.projectionStatus, ...(outcome.issues.length ? { issues: outcome.issues } : {}) };
+      return { scope: entry.id, result, exitCode: resultExit(outcome), code: outcome.status, projectionUpdated: outcome.projectionUpdated, projectionStatus: outcome.projectionStatus, ...(outcome.issues.length ? { issues: outcome.issues } : {}) };
     } catch (err) {
       if (!(err instanceof DomainError)) throw err;
-      return { scope: entry.id, result: "failed", code: err.code, message: err.message };
+      return { scope: entry.id, result: "failed", exitCode: err.exitCode, code: err.code, message: err.message };
     }
   });
   const bad = rows.filter((r) => r.result === "conflict" || r.result === "failed").length;
-  const exitCode = bad === 0 ? 0 : all ? 6 : rows[0]!.result === "conflict" ? 3 : 2;
+  const exitCode = bad === 0 ? 0 : all ? 6 : rows[0]!.exitCode;
   return {
     exitCode,
     data: {
@@ -757,7 +757,7 @@ function renderOp(inv: ScopeInventory, a: Record<string, unknown>): OperationOut
       operation: "render",
       snapshot: null,
       projectionStatus: null,
-      projectionUpdated: rows.some((r) => r.result === "rendered"),
+      projectionUpdated: rows.some((r) => "projectionUpdated" in r && r.projectionUpdated),
       issues: rows.flatMap((r) => (r.result === "conflict" || r.result === "failed" ? [{ code: r.result === "conflict" ? "bridge-conflict" : (r as { code: string }).code, message: `${r.scope}: ${r.result}`, scope: r.scope }] : [])),
       scopes: rows,
     },

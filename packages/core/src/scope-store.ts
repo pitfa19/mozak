@@ -6,7 +6,7 @@ import { canonical, digest, hashBytes, validateScope, SCOPE_FORMAT, MAX_REQUEST_
 import { applyMutation, validateMutation, specificationKey, type MutationAction, type ReviewEnvironment } from "./review.ts";
 import { assertScopeFiles, type ScopeEntry } from "./scope-index.ts";
 import { inspectSpecification } from "./spec-file.ts";
-import { renderBridge, renderBridgeLegacy, isGeneratedBridgeFor } from "./bridge.ts";
+import { renderBridge, renderBridgeLegacy } from "./bridge.ts";
 
 export { renderBridge, renderBridgeLegacy } from "./bridge.ts";
 
@@ -77,8 +77,8 @@ function decode(bytes: string, entry: ScopeEntry): ScopeState {
 }
 /**
  * current: bridge bytes equal today's render. stale: they equal the bridge the last write left behind, or they
- * are an unedited generated projection of this exact graph from an older renderer (self-digest intact, or the
- * pre-digest legacy format). Safe to regenerate. Anything else is a conflict and is preserved for the owner.
+ * are a byte-exact legacy projection of this graph. Only known renderer output is safe to regenerate.
+ * A digest stored in the bridge itself is not proof of provenance. Other content is preserved as a conflict.
  */
 function projectStatus(state: ScopeState, graphHash: string, bridge: ReturnType<typeof file>): ProjectionStatus {
   if (bridge.token.exists && bridge.token.sha256 === hashBytes(renderBridge(state, graphHash))) return "current";
@@ -88,7 +88,7 @@ function projectStatus(state: ScopeState, graphHash: string, bridge: ReturnType<
 }
 /** Only byte-exact UTF-8 can be recognised as a generated render. Lossy decoding must never look current or stale. */
 function isOlderRender(state: ScopeState, graphHash: string, bytes: string): boolean {
-  return isGeneratedBridgeFor(bytes, graphHash) || hashBytes(bytes) === hashBytes(renderBridgeLegacy(state, graphHash));
+  return hashBytes(bytes) === hashBytes(renderBridgeLegacy(state, graphHash));
 }
 /** True when the bridge is an unedited older render of this state. A write may replace it like a current one. */
 function isLegacyBridge(entry: ScopeEntry, read: ScopeRead): boolean {
@@ -333,12 +333,13 @@ export function mutateScope(entry: ScopeEntry, input: unknown, actor: "agent" | 
     return publishGraph(entry, next.state, read.snapshot.bridge!, tx, options);
   });
 }
-export type RenderResult = "rendered" | "current" | "conflict";
+export type RenderResult = "rendered" | "current" | "conflict" | "failed";
 /**
  * Regenerate a stale MOZAK.md from canonical state. Agent-safe: never opens MOZAK.json for writing, never
  * overwrites a conflicting bridge (that stays an owner repair), and runs inside the scope lock.
  */
 export function renderProjection(entry: ScopeEntry, options: StoreOptions = {}): { result: RenderResult; outcome: OperationResult } {
+  if (entry.remote) throw new DomainError("remote-render-refused", "render only regenerates local projections", 2);
   let result: RenderResult = "current";
   const tx: Transaction = { committed: false, projectionUpdated: false, temporary: [] };
   const out = transaction(entry, options, tx, () => {
@@ -352,6 +353,7 @@ export function renderProjection(entry: ScopeEntry, options: StoreOptions = {}):
     tx.projectionUpdated = true; result = "rendered";
     return outcome(entry, tx, "ok");
   });
+  if (!["ok", "already-current", "bridge-conflict"].includes(out.status)) result = "failed";
   return { result, outcome: out };
 }
 export function repairProjection(entry: ScopeEntry, input: unknown, options: StoreOptions = {}): OperationResult {

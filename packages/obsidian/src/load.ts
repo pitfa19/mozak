@@ -64,8 +64,9 @@ export function renderStaleProjections(inventoryPath: string): { ok: boolean; re
   const rows = (out.data.scopes ?? []) as { scope: string; result: string }[];
   const rendered = rows.filter((r) => r.result === "rendered").length;
   const bad = rows.filter((r) => r.result === "conflict" || r.result === "failed");
-  if (bad.length === 0) return { ok: true, rendered, message: rendered ? `Regenerated ${rendered} MOZAK.md file${rendered === 1 ? "" : "s"}.` : "All MOZAK.md files are current." };
-  return { ok: false, rendered, message: `MOZAK.md not regenerated for ${bad.map((r) => `${r.scope} (${r.result === "conflict" ? "edited by hand, needs owner repair" : "unreadable"})`).join(", ")}.` };
+  if (out.exitCode !== 0 && bad.length === 0) return { ok: false, rendered, message: `Projection refresh failed (${String(out.data.status ?? "unknown")}).` };
+  if (bad.length === 0) return { ok: true, rendered, message: rendered ? `Regenerated ${rendered} MOZAK.md file${rendered === 1 ? "" : "s"}.` : "Local MOZAK.md projections are current. Remote scopes are skipped." };
+  return { ok: false, rendered, message: `MOZAK.md not regenerated for ${bad.map((r) => `${r.scope} (${r.result === "conflict" ? "unrecognized content preserved for owner review" : "render failed, inspect mozak render output"})`).join(", ")}.` };
 }
 
 /** Force-refresh every remote scope through core (the same code as `mozak sync`). Returns a one line summary. */
