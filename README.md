@@ -79,7 +79,7 @@ A project with `root` is a local folder. A project with `remote` is a GitHub rep
 
 ## See everything in Obsidian
 
-The Obsidian plugin in [`packages/obsidian`](packages/obsidian) shows every project from your inventory in the sidebar, notes and GitHub repos alike. Filter by **All**, **Open** or **Done**, and click a plan to read it. It only reads, it never changes a plan.
+The Obsidian plugin in [`packages/obsidian`](packages/obsidian) shows every project from your inventory in the sidebar, notes and GitHub repos alike. Filter by **All**, **Open** or **Done**. Open plans show a small progress strip, one segment per outcome. Click a plan to open its section in the scope's `MOZAK.md`, which reads like a note: purpose, a roadmap of the outcomes with the current stop, a status table and the full plan text. The plugin never writes canonical state (`MOZAK.json`) and never changes a plan. It may regenerate a stale `MOZAK.md`, the same as `mozak render`.
 
 ```bash
 node scripts/install-obsidian-plugin.mjs /path/to/your/vault --build
