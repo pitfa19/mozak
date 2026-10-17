@@ -11,6 +11,7 @@ import {
   readScope,
   readScopeView,
   repairProjection,
+  renderProjection,
   type OperationResult,
   type ScopeRead,
 } from "./scope-store.ts";
@@ -44,6 +45,7 @@ export const OPERATIONS = [
   "repair",
   "sync",
   "pull",
+  "render",
 ] as const;
 
 /** Owner-only: refused for every other actor before any file is touched. */
@@ -727,6 +729,42 @@ function attachRemote(output: OperationOutput, statuses: RemoteStatus[]): Operat
 }
 
 /**
+ * Regenerate stale MOZAK.md projections for one local scope or every local scope. Writes only MOZAK.md.
+ * Remote scopes are skipped: their projection follows their next sync or write. Conflicts are reported, not overwritten.
+ */
+function renderOp(inv: ScopeInventory, a: Record<string, unknown>): OperationOutput {
+  const o = closed(a, "render arguments", [], ["scope", "all"]);
+  const all = strictBoolean(o.all, "all");
+  if ((o.scope === undefined) === !all) throw invalid("render needs exactly one of scope or all");
+  const targets = all ? inv.scopes : [resolveScope(inv, nonEmpty(o.scope, "scope"))];
+  const rows = targets.map((entry) => {
+    if (entry.remote) return { scope: entry.id, result: "remote-skipped" };
+    try {
+      const { result, outcome } = renderProjection(entry);
+      return { scope: entry.id, result, projectionStatus: outcome.projectionStatus, ...(outcome.issues.length ? { issues: outcome.issues } : {}) };
+    } catch (err) {
+      if (!(err instanceof DomainError)) throw err;
+      return { scope: entry.id, result: "failed", code: err.code, message: err.message };
+    }
+  });
+  const bad = rows.filter((r) => r.result === "conflict" || r.result === "failed").length;
+  const exitCode = bad === 0 ? 0 : all ? 6 : rows[0]!.result === "conflict" ? 3 : 2;
+  return {
+    exitCode,
+    data: {
+      status: bad === 0 ? "ok" : all ? "partial" : rows[0]!.result,
+      committed: false,
+      operation: "render",
+      snapshot: null,
+      projectionStatus: null,
+      projectionUpdated: rows.some((r) => r.result === "rendered"),
+      issues: rows.flatMap((r) => (r.result === "conflict" || r.result === "failed" ? [{ code: r.result === "conflict" ? "bridge-conflict" : (r as { code: string }).code, message: `${r.scope}: ${r.result}`, scope: r.scope }] : [])),
+      scopes: rows,
+    },
+  };
+}
+
+/**
  * Single entry point for every operation. Expected domain failures come back as a structured
  * envelope with an exit code. Only unexpected, non-domain errors are rethrown. The caller's
  * transport supplies the actor. This function never reads it from the arguments.
@@ -744,6 +782,10 @@ export function executeOperation(inv: ScopeInventory, operation: string, args: u
       if (OWNER_ONLY.has(operation)) requireOwner(operation, actor);
       if (!isPlain(args)) throw invalid("arguments must be an object");
       return remoteOp(inv, operation, args);
+    }
+    if (operation === "render") {
+      if (!isPlain(args)) throw invalid("arguments must be an object");
+      return renderOp(inv, args);
     }
     if (REMOTE_READ_OPS.has(operation)) {
       if (!isPlain(args)) throw invalid("arguments must be an object");

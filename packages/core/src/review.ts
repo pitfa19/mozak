@@ -408,6 +408,35 @@ function boundDecision(state: ScopeState, plan: Plan, accepted: AcceptedRevision
   );
 }
 
+export type OutcomeStatus = "todo" | "evidence" | "done";
+
+/**
+ * Display status of one accepted outcome, using the same evidence and owner-binding rules as `complete`.
+ * todo: no supporting observed pass. evidence: supported, but still needs a bound owner acceptance.
+ * done: supported and either objective without challenges, or bound to an owner acceptance.
+ */
+export function outcomeStatus(state: ScopeState, plan: Plan, outcomeId: string): OutcomeStatus {
+  if (plan.lifecycle.state === "completed") return "done";
+  const accepted = plan.accepted;
+  if (!accepted) return "todo";
+  const outcome = accepted.content.outcomes.find((o) => o.id === outcomeId);
+  if (!outcome) return "todo";
+  let review: OutcomeReview;
+  try { review = outcomeReview(state, plan, accepted, outcomeId); }
+  catch { return "todo"; }
+  if (review.evidenceIds.length === 0) return "todo";
+  if (outcome.acceptance === "owner" || review.challengeIds.length > 0) {
+    return boundDecision(state, plan, accepted, review) ? "done" : "evidence";
+  }
+  return "done";
+}
+
+/** Fields that differ between accepted and awaiting pending content, in schema key order. */
+export function pendingChangedFields(plan: Plan): string[] {
+  if (!plan.accepted || plan.pending?.reviewState !== "awaiting") return [];
+  return changedKeys(plan.accepted.content, plan.pending.content);
+}
+
 /** Direction digest excludes unrelated observations. Outcome digest adds evidence and challenge sets. */
 function reviewDigestOf(state: ScopeState, purpose: DecisionPurpose, planId: string, subject: Subject, review?: OutcomeReview): string {
   const base = { scopeId: state.scope.id, purpose, planId, revisionId: subject.id, contentDigest: subject.contentDigest };

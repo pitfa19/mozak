@@ -14,6 +14,8 @@ export * from "./scope-index.ts";
 export * from "./scope-store.ts";
 export * from "./scope-list.ts";
 export * from "./review.ts";
+export * from "./roadmap.ts";
+export { mdText, stopLabel, planHeading, planDisplayState, progressStrip, type PlanDisplayState } from "./bridge.ts";
 export * from "./api.ts";
 export * from "./remote-meta.ts";
 export * from "./remote.ts";

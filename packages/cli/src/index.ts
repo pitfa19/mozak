@@ -41,6 +41,7 @@ const ROUTES: Record<string, Route> = {
   "discussion save": { operation: "save-discussion", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
   "spec attach": { operation: "attach-spec", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
   "projection repair": { operation: "repair", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
+  render: { operation: "render", flags: ["config", "scope", "all", "json"], requires: ["config"], requestFile: false },
   translate: { operation: "translate", flags: ["config", "scope", "idea", "from", "to", "assumption", "write"], requires: ["config"], requestFile: false },
   resolve: { operation: "resolve", flags: ["config", "scope", "in", "idea", "n"], requires: ["config"], requestFile: false },
   init: { operation: "legacy-init", flags: ["config", "kind", "id"], requires: ["config"], requestFile: false },
@@ -69,6 +70,7 @@ function usage(): string {
     "  mozak spec attach --scope ID --request FILE          (agent; descriptor only, no approval)",
     "  mozak review decide --scope ID --request FILE        (owner)",
     "  mozak projection repair --scope ID --request FILE    (owner)",
+    "  mozak render (--scope ID | --all) [--json]           (regenerate stale MOZAK.md only; never MOZAK.json)",
     "Exit: 0 success, 2 invalid or unavailable, 3 stale/conflict/owner-review, 4 busy/recovery,",
     "      5 committed with unfinished projection or cleanup, 6 partial all-scope coverage.",
     "Config: FILE is the explicit inventory JSON. There is no default path and no directory scan.",
@@ -343,6 +345,12 @@ function run(argv: string[]): number {
     args = {};
   } else if (route.operation === "sync") {
     args = values.scope !== undefined ? { scope: values.scope } : {};
+  } else if (route.operation === "render") {
+    if ((values.scope === undefined) === (values.all === undefined)) {
+      process.stderr.write(`render needs exactly one of --scope or --all\n${usage()}\n`);
+      return 2;
+    }
+    args = values.all ? { all: true } : { scope: values.scope };
   } else if (route.operation === "pull") {
     args = { scope: values.scope, ...(values.into !== undefined ? { into: values.into } : {}) };
   } else if (route.operation === "review") {
