@@ -560,6 +560,20 @@
           "recordedAt": "2026-10-17T22:07:27.666Z",
           "reviewDigest": "474244eac1c3d3279d862a48457498cd033a5003cd9814b959579f1647dba486",
           "revisionId": "b9699226-97d8-4ec5-97d3-23a3767b1075"
+        },
+        {
+          "authorizationId": "9d8d59e6-d89c-4e39-9340-59a36edeca3b",
+          "contentDigest": "308e0e758e747ea5bc1284835ddc0c098b6f978ff9deae38edb9349955c9f0b5",
+          "id": "98bc711b-640b-41f4-8d99-62ade16755a5",
+          "ownerMessageAt": "2026-10-17T23:21:46.276Z",
+          "ownerRef": "host-assertion: jcode session session_seedling_1792269695819_a70d3683894c5bc4, owner message 2026-10-17T23:21:46.276Z \"approve implementation\", given directly after the implementation subject (spec docs/obsidian-roadmap-spec.md sha256 800b6be5..., bounds a8775585..., review digest 9ecc3645...) was displayed, not a native message ID",
+          "planId": "obsidian-roadmap",
+          "purpose": "approve-implementation",
+          "reason": "Owner approved implementation of the attached spec within its bounds: repo code and tests plus scratch preview only, no real scope projections, no CLI or vault install.",
+          "recordedAt": "2026-10-17T23:22:12.749Z",
+          "reviewDigest": "9ecc364520292a9f51205c0aaacc0a58432b1fc72b78f12deb66f2109abef20b",
+          "revisionId": "a6e44a37-3adf-45a6-b31b-e91942e3191d",
+          "specificationId": "b8ed2844-e88f-4482-99a2-fffa49316248"
         }
       ],
       "discussion": {
@@ -606,8 +620,19 @@
       },
       "downstreamSpec": "b8ed2844-e88f-4482-99a2-fffa49316248",
       "id": "obsidian-roadmap",
-      "implementationAuthorization": null,
-      "implementationAuthorizations": [],
+      "implementationAuthorization": "9d8d59e6-d89c-4e39-9340-59a36edeca3b",
+      "implementationAuthorizations": [
+        {
+          "acceptedContentDigest": "308e0e758e747ea5bc1284835ddc0c098b6f978ff9deae38edb9349955c9f0b5",
+          "acceptedRevisionId": "a6e44a37-3adf-45a6-b31b-e91942e3191d",
+          "boundsDigest": "a877558572ed344bae9717223910492b64da3abbee72a7545f119333af6f1d24",
+          "decisionId": "98bc711b-640b-41f4-8d99-62ade16755a5",
+          "id": "9d8d59e6-d89c-4e39-9340-59a36edeca3b",
+          "recordedAt": "2026-10-17T23:22:12.749Z",
+          "specificationDigest": "800b6be58eb63eca6726c888918b28f506c592ba4ba8faee6249fe11e56804c4",
+          "specificationId": "b8ed2844-e88f-4482-99a2-fffa49316248"
+        }
+      ],
       "lifecycle": {
         "state": "open"
       },
@@ -680,7 +705,7 @@
           "sha256": "800b6be58eb63eca6726c888918b28f506c592ba4ba8faee6249fe11e56804c4"
         }
       ],
-      "updatedAt": "2026-10-17T23:20:26.586Z"
+      "updatedAt": "2026-10-17T23:22:12.749Z"
     }
   ],
   "receipts": {
@@ -740,6 +765,18 @@
         ]
       },
       "storageRevision": "380ca3fe-5eaf-4bc8-a7b9-f33b419638c0"
+    },
+    "approve-implementation-obsidian-roadmap-20261017-01": {
+      "recordedAt": "2026-10-17T23:22:12.749Z",
+      "requestDigest": "d7460a101f7c8119d26b53fac722bcba51402665759fcf9911235d87bef4491e",
+      "result": {
+        "action": "approve-implementation",
+        "ids": [
+          "98bc711b-640b-41f4-8d99-62ade16755a5",
+          "9d8d59e6-d89c-4e39-9340-59a36edeca3b"
+        ]
+      },
+      "storageRevision": "ece91757-7330-43cb-b310-e619d0675bbe"
     },
     "attach-spec-obsidian-roadmap-20261017-01": {
       "recordedAt": "2026-10-17T23:20:26.586Z",
@@ -906,9 +943,9 @@
   "storage": {
     "previousBridge": {
       "exists": true,
-      "sha256": "f0c08d22c833a9bca39e06e843f6cd132848f72ff634b86f48d55848b2ba06e3"
+      "sha256": "10880f9a5aac78b0b714c5ab2f3154d715b9155b97130b6d92c029dcee7b7eb0"
     },
-    "revision": "e71f4b24-c1b7-4b8f-9189-e118a26a5119",
-    "updatedAt": "2026-10-17T23:20:26.586Z"
+    "revision": "ece91757-7330-43cb-b310-e619d0675bbe",
+    "updatedAt": "2026-10-17T23:22:12.749Z"
   }
 }
