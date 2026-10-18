@@ -2,6 +2,13 @@
 
 User-visible changes, newest first. Releases are git tags `vX.Y.Z` on `main`; `mozak upgrade` installs the newest one.
 
+## Unreleased
+
+### Fixed
+
+- `mozak doctor` checks `mozak-mcp` with a real handshake (0.2.0 reported a false "did not answer" note) and fails the installation check when it does not answer.
+- The MCP server reports its real version in the handshake instead of `0.0.0`.
+
 ## 0.2.0 (2026-10-19)
 
 First tagged release.

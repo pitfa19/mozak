@@ -3,6 +3,12 @@
 // fixed tool names, closed argument objects, a fixed agent actor and no config input.
 
 import { executeOperation, type ScopeInventory } from "@mozak/core";
+import { readFileSync } from "node:fs";
+
+/** This package's version, reported in the MCP handshake. */
+const VERSION = (() => {
+  try { return (JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version?: string }).version ?? "unknown"; } catch { return "unknown"; }
+})();
 
 export interface ToolResult {
   content: { type: "text"; text: string }[];
@@ -222,7 +228,7 @@ export function handle(msg: unknown, rt: Runtime): Reply | null {
         return reply({
           protocolVersion: typeof params.protocolVersion === "string" ? params.protocolVersion : "2024-11-05",
           capabilities: { tools: { listChanged: false } },
-          serverInfo: { name: "mozak", version: "0.0.0" },
+          serverInfo: { name: "mozak", version: VERSION },
         });
       }
       case "ping":

@@ -4,7 +4,8 @@
 
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { chmodSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, realpathSync, renameSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, realpathSync, renameSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { delimiter, dirname, join, resolve } from "node:path";
 import { cachedUpdateNotice, executeOperation, installedVersion, loadInventory } from "@mozak/core";
 
@@ -63,6 +64,18 @@ function verifyInstallation(prefix: string): string | null {
 function runs(prefix: string, bin: string, args: string[], input?: string): boolean {
   const r = spawnSync(process.execPath, [join(prefix, "bin", bin), ...args], { encoding: "utf8", timeout: 20_000, input, env: { ...process.env, MOZAK_NO_UPDATE_CHECK: "1" } });
   return r.status === 0 && (bin !== "mozak-mcp" || r.stdout.includes('"serverInfo"'));
+}
+
+/** MCP handshake against an empty inventory in a temporary folder, removed afterwards. */
+function mcpAnswers(prefix: string): boolean {
+  const dir = mkdtempSync(join(tmpdir(), "mozak-doctor-"));
+  try {
+    const inventory = join(dir, "inventory.json");
+    writeFileSync(inventory, JSON.stringify({ format: "mozak.local/v3", scopes: [] }));
+    return runs(prefix, "mozak-mcp", ["--config", inventory], `${JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2024-11-05" } })}\n`);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 }
 
 function onPath(name: string, env: NodeJS.ProcessEnv): string | null {
@@ -160,9 +173,10 @@ export function doctor(args: DoctorArgs): { exitCode: number; data: Record<strin
   } else {
     const bad = verifyInstallation(prefix);
     const cliOk = !bad && runs(prefix, "mozak", ["--help"]);
-    const mcpOk = !bad && runs(prefix, "mozak-mcp", ["--config", "/dev/null"], `${JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2024-11-05" } })}\n`);
+    const mcpOk = !bad && mcpAnswers(prefix);
     if (bad || !cliOk) add({ id: "installation", state: "fail", message: `${prefix} (${version}): ${bad ?? "bin/mozak does not run"}`, fix: `Move ${prefix} to the Trash, then: ${reinstall}` });
-    else add({ id: "installation", state: "ok", message: `${prefix} is MOZAK ${version}${mcpOk ? "" : " (mozak-mcp did not answer a handshake)"}` });
+    else if (!mcpOk) add({ id: "installation", state: "fail", message: `${prefix} (${version}): bin/mozak-mcp does not answer an MCP handshake`, fix: `Move ${prefix} to the Trash, then: ${reinstall}` });
+    else add({ id: "installation", state: "ok", message: `${prefix} is MOZAK ${version}; mozak and mozak-mcp run` });
     if (!source) add({ id: "source", state: "warn", message: "installation.json does not record its source checkout, so mozak upgrade needs --source PATH", fix: `mozak upgrade --source /path/to/mozak` });
     else if (!existsSync(join(source, ".git"))) add({ id: "source", state: "warn", message: `source checkout ${source} is gone, so mozak upgrade needs --source PATH`, fix: "git clone https://github.com/pitfa19/mozak, then mozak upgrade --source <that folder>" });
     else add({ id: "source", state: "ok", message: `upgrades build from ${source}` });
