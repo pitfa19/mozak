@@ -7,6 +7,7 @@ import { applyMutation, validateMutation, specificationKey, type MutationAction,
 import { assertScopeFiles, type ScopeEntry } from "./scope-index.ts";
 import { inspectSpecification } from "./spec-file.ts";
 import { renderBridge, renderBridgeLegacy } from "./bridge.ts";
+import { removeLeftoverTempFiles, replaceFileDurable, writeFileDurable, fsyncDir } from "./durable.ts";
 
 export { renderBridge, renderBridgeLegacy } from "./bridge.ts";
 
@@ -201,7 +202,8 @@ function acquire(root: string, options: StoreOptions): () => void {
   }
   // A failure here intentionally leaves the lock behind for offline recovery.
   options.onPhase?.("after-lock-mkdir");
-  writeFileSync(ownerPath, canonical({ token: ownerToken, pid: process.pid, processStartHint: new Date(Date.now() - process.uptime() * 1000).toISOString(), acquiredAt: new Date().toISOString() }), { flag: "wx", mode: 0o600 });
+  writeFileDurable(ownerPath, canonical({ token: ownerToken, pid: process.pid, processStartHint: new Date(Date.now() - process.uptime() * 1000).toISOString(), acquiredAt: new Date().toISOString() }));
+  fsyncDir(lock);
   return () => {
     const owner = JSON.parse(readFileSync(ownerPath, "utf8"));
     if (owner.token !== ownerToken || readdirSync(lock).some(n => n !== "owner.json")) throw new DomainError("lock-ownership-conflict", "lock ownership changed or unexpected contents found; not removing it", 4);
@@ -223,7 +225,7 @@ function transaction(entry: ScopeEntry, options: StoreOptions, tx: Transaction, 
   const release = acquire(entry.root, options);
   let result: OperationResult | undefined;
   let failure: unknown;
-  try { options.onPhase?.("after-lock"); result = work(); } catch (e) { failure = e; }
+  try { options.onPhase?.("after-lock"); removeLeftoverTempFiles(entry.root); result = work(); } catch (e) { failure = e; }
   let cleanupError: unknown;
   for (const path of tx.temporary) { try { unlinkSync(path); } catch (e) { if ((e as NodeJS.ErrnoException).code !== "ENOENT") cleanupError = e; } }
   // Capture our result while we still own the lock. A successor may commit immediately
@@ -243,11 +245,8 @@ function transaction(entry: ScopeEntry, options: StoreOptions, tx: Transaction, 
   }
   return result!;
 }
-function publish(path: string, bytes: string, tx: Transaction): void {
-  const temporary = `${path}.${randomUUID()}.tmp`;
-  tx.temporary.push(temporary);
-  writeFileSync(temporary, bytes, { flag: "wx", mode: 0o600 });
-  renameSync(temporary, path);
+function publish(path: string, bytes: string, tx: Transaction, options: StoreOptions = {}): void {
+  replaceFileDurable(path, bytes, (temporary) => tx.temporary.push(temporary), () => options.onPhase?.(`temp-written:${path.endsWith("MOZAK.json") ? "graph" : "bridge"}`));
 }
 function publishGraph(entry: ScopeEntry, state: ScopeState, previousBridge: FileToken, tx: Transaction, options: StoreOptions): OperationResult {
   state.storage.previousBridge = previousBridge;
@@ -255,12 +254,12 @@ function publishGraph(entry: ScopeEntry, state: ScopeState, previousBridge: File
   const bytes = canonical(state);
   if (Buffer.byteLength(bytes) > MAX_SCOPE_BYTES) throw new DomainError("capacity-exceeded", "canonical state would exceed 4 MiB");
   options.onPhase?.("before-graph");
-  publish(join(entry.root, "MOZAK.json"), bytes, tx);
+  publish(join(entry.root, "MOZAK.json"), bytes, tx, options);
   tx.committed = true; tx.state = state;
   options.onPhase?.("after-graph");
   const bridge = file(join(entry.root, "MOZAK.md"), MAX_SCOPE_BYTES * 2);
   if (!same(bridge.token, previousBridge)) throw new DomainError("bridge-conflict", "bridge changed after canonical commit", 3);
-  publish(join(entry.root, "MOZAK.md"), renderBridge(state, hashBytes(bytes)), tx);
+  publish(join(entry.root, "MOZAK.md"), renderBridge(state, hashBytes(bytes)), tx, options);
   tx.projectionUpdated = true;
   options.onPhase?.("after-bridge");
   return outcome(entry, tx, "ok");

@@ -20,6 +20,7 @@ import { scopeIndex } from "./scope-list.ts";
 import { cacheIgnoreWarning, commitAndPush, pullRemote, remoteEntries, repoEntries, statusOf, syncRemote } from "./remote.ts";
 import type { RemoteStatus } from "./remote-meta.ts";
 import { cachedVisibility, publicRepoPlansMessage, scopeVisibility } from "./visibility.ts";
+import { leftoverTempFiles } from "./durable.ts";
 import { canonical, digest } from "./understanding.ts";
 
 export type Actor = "agent" | "owner";
@@ -628,6 +629,8 @@ function readOp(inv: ScopeInventory, operation: string, a: Record<string, unknow
     };
   }
   const findings = read.issues;
+  // Leftover temp files from an interrupted write are informational: the next write removes them.
+  const leftovers = leftoverTempFiles(entry.root).map((name) => ({ code: "leftover-temp-file", message: `${name} is left over from an interrupted write; the next write removes it` }));
   return {
     exitCode: findings.length > 0 ? 3 : 0,
     data: {
@@ -637,7 +640,7 @@ function readOp(inv: ScopeInventory, operation: string, a: Record<string, unknow
       snapshot: read.snapshot,
       projectionStatus: read.projectionStatus,
       projectionUpdated: false,
-      issues: findings,
+      issues: [...findings, ...leftovers],
     },
   };
 }

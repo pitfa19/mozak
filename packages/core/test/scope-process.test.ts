@@ -597,3 +597,46 @@ test("A15 offline-only recovery: a test root's stale lock is removed only after 
   assert.equal(next.ok, true, `post-recovery write failed: ${next.code} ${next.message}`);
 });
 
+
+// ---------- prelaunch-hardening: crash-safe writes ----------
+
+for (const phase of ["temp-written:graph", "temp-written:bridge"] as const) {
+  test(`crash mid-write (${phase}): the scope reads as old or new, never broken, and the next write removes the temp file`, async () => {
+    const { entry } = await withPlan(`crash-${phase.replace(":", "-")}`);
+    const before = await readViaChild(entry);
+    const { child, phase: reached } = await startPaused(
+      { mode: "mutate", root: entry.root, scopeId: entry.id, request: observeRequest(entry, before.outcome.snapshot, `obs-crash-${phase}`, "c1"), pauseAt: phase },
+      `crash-${phase.replace(":", "-")}`,
+    );
+    assert.equal(reached, phase);
+    await killAndJoin(child);
+    // An offline operator removes the dead holder's lock, as docs/installation.md describes.
+    rmSync(lockPath(entry.root), { recursive: true, force: true });
+
+    const temps = readdirSync(entry.root).filter((n) => /^MOZAK\.(json|md)\.[0-9a-f-]{36}\.tmp$/.test(n));
+    assert.equal(temps.length, 1, "the interrupted write left exactly one flushed temp file");
+    // The temp file is complete: it was flushed before the crash point.
+    const tempBytes = readFileSync(join(entry.root, temps[0]!), "utf8");
+    if (phase === "temp-written:graph") assert.doesNotThrow(() => JSON.parse(tempBytes));
+
+    const after = await readViaChild(entry);
+    assert.equal(after.ok, true, `scope must read after the crash: ${after.code} ${after.message}`);
+    if (phase === "temp-written:graph") {
+      assert.deepEqual(after.outcome.observationIds, before.outcome.observationIds, "graph rename never happened: old state");
+      assert.equal(after.outcome.projectionStatus, "current");
+    } else {
+      assert.ok(after.outcome.observationIds.includes("c1"), "graph committed: new state");
+      assert.equal(after.outcome.projectionStatus, "bridge-stale", "bridge rename never happened: repairable stale bridge");
+      const repaired = await runChild({ mode: "repair", root: entry.root, scopeId: entry.id, request: { requestId: "crash-repair", scopeId: entry.id, expected: after.outcome.snapshot } }, { jobName: "crash-repair" });
+      assert.equal(repaired.ok, true, `repair after crash: ${repaired.code} ${repaired.message}`);
+    }
+
+    // The next write takes the lock and removes leftover temp files before doing its work.
+    const next = await runChild({
+      mode: "mutate", root: entry.root, scopeId: entry.id,
+      request: observeRequest(entry, (await readViaChild(entry)).outcome.snapshot, `obs-after-${phase}`, "c2"),
+    }, { jobName: "crash-next" });
+    assert.equal(next.ok, true, `write after crash: ${next.code} ${next.message}`);
+    assert.deepEqual(readdirSync(entry.root).filter((n) => n.endsWith(".tmp")), [], "leftover temp files removed");
+  });
+}

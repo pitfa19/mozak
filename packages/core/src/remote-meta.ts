@@ -1,9 +1,9 @@
 // Pure helpers for remote scopes: spec parsing and the small cache metadata file. No git and no network here,
 // so the inventory loader can use them. All git work lives in remote.ts.
 
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { randomUUID } from "node:crypto";
+import { replaceFileDurable } from "./durable.ts";
 
 export const CACHE_DIR = ".mozak-cache";
 export const DEFAULT_REF = "main";
@@ -91,10 +91,7 @@ export function readRemoteMeta(baseDir: string, id: string): RemoteMeta {
 
 export function writeRemoteMeta(baseDir: string, id: string, meta: RemoteMeta): void {
   mkdirSync(join(baseDir, CACHE_DIR), { recursive: true });
-  const path = metaPath(baseDir, id);
-  const tmp = `${path}.${randomUUID()}.tmp`;
-  writeFileSync(tmp, `${JSON.stringify(meta, null, 2)}\n`, { flag: "wx", mode: 0o600 });
-  renameSync(tmp, path);
+  replaceFileDurable(metaPath(baseDir, id), `${JSON.stringify(meta, null, 2)}\n`);
 }
 
 /** Status shown next to a remote scope in every read output. */
