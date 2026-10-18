@@ -7,9 +7,11 @@ This guide covers building MOZAK from source, the portable installer, exit codes
 | Area | Status |
 | --- | --- |
 | Fresh public GitHub clone, build, install and README walkthrough on macOS, Node 26.11.1 | Verified 2026-10-18 at `8337e04`: clean `git clone`, `npm ci --ignore-scripts`, build and install into a fresh prefix with an isolated `HOME` took about 8 seconds. Every README command then ran as written (section 8). |
-| Full test suite on macOS, Node 26.11.1 | Verified at `8337e04`: 416 tests passed, 0 failed, 0 skipped. Installer suite 69 passed, 1 skipped (case-collision test needs a case-sensitive filesystem). |
+| Full test suite on macOS, Node 26.11.1 | Verified at `2bd8cfc` (0.2.0 plus tests): 437 tests passed, 0 failed, 0 skipped. Installer suite 69 passed, 1 skipped (case-collision test needs a case-sensitive filesystem). |
 | Source build and tests on Linux, Node 24.11.0 | Verified earlier at `c324d45`: 334 core tests and 69 installer tests passed. CI covers Linux on every push since. |
-| CI on Ubuntu and macOS, Node 24 and 26 | Passing on every push, latest `8337e04`. |
+| CI on Ubuntu and macOS, Node 24 and 26 | Passing on every push, latest `2bd8cfc`. Release `v0.2.0` tagged at `e73179d` after CI passed. |
+| `mozak upgrade` on a real installation | Verified 2026-10-18 on macOS: 0.1.0 to 0.2.0 with `--source` (0.1.0 did not record it), five vaults got the 0.2.0 plugin, the old installation kept as `mozak.previous-0.1.0`, the checkout returned to `main`; the installed `mozak upgrade` then reported `up-to-date`. |
+| `mozak doctor` on a real setup | Verified 2026-10-18 on macOS: 16 checks ok (installation, PATH, two skill links, two MCP configs, 21 scopes readable, five vault plugins at 0.2.0) and one warning (no skill link in an existing `~/.codex/skills`). Fresh user account or machine: pending (owner). |
 
 ## 1. Prerequisites
 
@@ -268,7 +270,7 @@ Cache layout: `.mozak-cache/<id>/` (sparse git clone) and `.mozak-cache/<id>.met
 | Installer suite (70 tests): install, check, unchanged, conflict, partial, concurrency, symlinks, bounds, timeouts, unreadable target | Passed on macOS (69, 1 skipped) and Linux. |
 | `mozak scopes` and `mozak_scopes` | Passed on both platforms. A fresh MCP session listed all scopes of a real workspace. |
 | Installed skill loaded by a fresh agent host | Passed: jcode registered and loaded `/mozak` through a symlink to the installed skill. |
-| CI on Ubuntu and macOS | Passing on every push, latest `8337e04`. |
+| CI on Ubuntu and macOS | Passing on every push, latest `2bd8cfc`. |
 | Restoring a workspace from GitHub and a private vault | Built (`mozak doctor --fix`). Owner run on a fresh account or machine pending. |
 
 Record the actual results of any new check here before claiming it passed.
