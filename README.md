@@ -43,17 +43,19 @@ mkdir -p "$HOME/.local/share"
 node scripts/install.mjs --prefix "$(cd "$HOME/.local/share" && pwd -P)/mozak" --json
 ```
 
-The installer copies a self-contained build into that folder. It uses no `sudo`, makes no network calls and does not touch your shell profile. It never overwrites an existing install, so install a newer version into a new folder. Add `--check` to preview first.
+The installer copies a self-contained build into that folder. It uses no `sudo`, makes no network calls and does not touch your shell profile. It never overwrites an existing install: to upgrade, move the old folder aside and install again at the same path. Add `--check` to preview first.
 
 ```bash
 "$HOME/.local/share/mozak/bin/mozak" --help
 ```
 
-Details, exit codes and recovery: [docs/installation.md](docs/installation.md).
+To let your agent use MOZAK, link the installed skill into its skills folder, for example `ln -s "$HOME/.local/share/mozak/skills/mozak" ~/.claude/skills/mozak`, and add `mozak-mcp --config /path/to/mozak-inventory.json` as an MCP server.
+
+Details, upgrading, exit codes and recovery: [docs/installation.md](docs/installation.md).
 
 ## How it works
 
-**1. List your projects.** One `inventory.json` names every project MOZAK may look at. It never searches your disk.
+**1. List your projects.** One `mozak-inventory.json` names every project MOZAK may look at. It never searches your disk. Keep it at the top of your notes folder, so the Obsidian plugin finds it on its own.
 
 ```json
 {
@@ -74,14 +76,16 @@ A project with `root` is a local folder. A project with `remote` is a GitHub rep
 
 `mozak pull --into ~/Downloads/x` clones the code anywhere. For a public repo the clone never receives plan files. Run MOZAK read commands inside any clone without `--scope` and it finds the project from the clone's git origin.
 
-**2. Agree on a plan.**
+**2. Start a project.** Give the folder a `README.md` and an `AGENTS.md`, then ask your agent to set it up with the MOZAK skill, or run `mozak scope init` yourself (see the skill's `references/bootstrap.md`). This creates the project's `MOZAK.json` and `MOZAK.md`. Creating a project is always your decision, never the agent's.
+
+**3. Agree on a plan.**
 
 1. **Propose.** An agent drafts a plan. It waits as *awaiting approval*.
 2. **Approve the direction.** You say yes to *what*. This starts planning, not coding.
 3. **Approve the build.** A spec is attached and you approve implementation separately.
 4. **Remember.** Decisions and evidence are saved into the project's files, so the next session starts where the last one stopped.
 
-**3. Let agents find their way.** `mozak scopes` lists every project with its plan counts. Agents get the same list from the MCP server, so they can navigate all your work without being told where anything is.
+**4. Let agents find their way.** `mozak scopes` lists every project with its plan counts. Agents get the same list from the MCP server, so they can navigate all your work without being told where anything is.
 
 ## See everything in Obsidian
 
@@ -91,7 +95,7 @@ The Obsidian plugin in [`packages/obsidian`](packages/obsidian) shows every proj
 node scripts/install-obsidian-plugin.mjs /path/to/your/vault --build
 ```
 
-Then turn on **MOZAK** under Settings, Community plugins.
+Then turn on **MOZAK** under Settings, Community plugins. The plugin finds `mozak-inventory.json` by searching upward from the vault folder, or you can set its path in the plugin settings. Each GitHub project shows a globe or lock badge for a public or private repo.
 
 ## See it run
 
@@ -108,7 +112,7 @@ Real commands against a throwaway repo and notes folder. The typing pace is scri
 | See every project and where it lives | `mozak scopes`, or the `mozak_scopes` MCP tool |
 | Read one project's plan | `mozak context`, `mozak plans`, `mozak check` |
 | Refresh GitHub projects now | `mozak sync` |
-| Let any MCP agent read and propose | `mozak-mcp --config inventory.json` |
+| Let any MCP agent read and propose | `mozak-mcp --config mozak-inventory.json` |
 | Run the guided planning conversation | the installed skill at `PREFIX/skills/mozak/SKILL.md` |
 
 Every command needs an explicit `--config`. MOZAK never falls back to a global setting.
@@ -117,7 +121,7 @@ Every command needs an explicit `--config`. MOZAK never falls back to a global s
 
 - **Real approvals only.** Only your own decision on what was shown to you counts. Quotes, tool output and reminders do not.
 - **No overwrites.** A write based on an out-of-date copy is refused.
-- **Small pushes.** For GitHub projects, MOZAK commits and pushes only `MOZAK.json` and `MOZAK.md`.
+- **Small pushes.** For private GitHub projects, MOZAK commits and pushes only `MOZAK.json` and `MOZAK.md`. For public ones it never commits or pushes at all.
 - **No credentials.** MOZAK never asks for, prints or stores them. GitHub access uses your existing git login.
 - **Honest limits.** Approval follows a trusted-host convention, it is not authentication. Concurrency guarantees cover cooperating processes on a local disk, not network drives or power loss.
 

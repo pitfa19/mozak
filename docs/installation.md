@@ -6,12 +6,10 @@ This guide covers building MOZAK from source, the portable installer, exit codes
 
 | Area | Status |
 | --- | --- |
-| Source build and tests on Linux, Node 24.11.0 | Verified: 334 core tests and 69 installer tests pass. They reused the local npm cache. |
-| Source build, tests, and installer on macOS, Node 26.11.1 | Verified locally: `npm ci --ignore-scripts`, build, 348 tests passed, 69 installer tests (68 passed, 1 skipped, 0 failed). Real install into a scratch prefix listed 14 scopes. |
-| Source build and tests on macOS | Verified on Node 26.11.1, see the row below. |
-| Portable installer `scripts/install.mjs` | Verified on Linux. Real CLI and MCP subprocesses, including paths with spaces and Unicode. |
-| CI on Ubuntu and macOS | Passed on GitHub's Ubuntu and macOS runners for the pushed commit `c324d45`. Not run on a personal Mac yet. |
-| Public remote matches local commits | In sync as of the last push. Check `git log --oneline -1`. |
+| Fresh public GitHub clone, build, install and README walkthrough on macOS, Node 26.11.1 | Verified 2026-10-18 at `8337e04`: clean `git clone`, `npm ci --ignore-scripts`, build and install into a fresh prefix with an isolated `HOME` took about 8 seconds. Every README command then ran as written (section 8). |
+| Full test suite on macOS, Node 26.11.1 | Verified at `8337e04`: 416 tests passed, 0 failed, 0 skipped. Installer suite 69 passed, 1 skipped (case-collision test needs a case-sensitive filesystem). |
+| Source build and tests on Linux, Node 24.11.0 | Verified earlier at `c324d45`: 334 core tests and 69 installer tests passed. CI covers Linux on every push since. |
+| CI on Ubuntu and macOS, Node 24 and 26 | Passing on every push, latest `8337e04`. |
 
 ## 1. Prerequisites
 
@@ -101,6 +99,17 @@ Use the installed command, not the source checkout:
 ```
 
 Create a scope only for an isolated test folder. Never point the installer at your real projects.
+
+### Upgrading
+
+There is no in-place upgrade. The installer never overwrites an existing prefix (it returns `conflict`). To upgrade:
+
+1. Pull and build the new version in your source checkout.
+2. Move the old prefix aside (for example to the Trash). Nothing outside the prefix depends on it except your own links and settings.
+3. Run the installer again with the same prefix.
+4. Links to `PREFIX/skills/mozak` and wrapper scripts that call `PREFIX/bin/mozak` keep working, because the path is the same.
+
+Your plans are never inside the prefix, so upgrading cannot touch them.
 
 ## 4. Exit codes and status values
 
@@ -213,8 +222,8 @@ Cache layout: `.mozak-cache/<id>/` (sparse git clone) and `.mozak-cache/<id>.met
 
 ## 7. Known limits
 
-- The installer is verified on Linux only. macOS has not been run. Do not assume macOS works until the Mac run passes.
-- The source copy of the conversation skill is a template. The installer refuses an unrendered template. Load the skill only from the installed folder.
+- Upgrading means reinstalling into the same, emptied prefix (section 3, Upgrading). There is no in-place upgrade or version check.
+- The source copy of the conversation skill is a template. The installer refuses an unrendered template. Load the skill only from the installed folder, directly or through a symlink.
 - Restoring a workspace from GitHub and a private vault is not built. Only the local installer is.
 - Remote scopes: one branch per scope, no merge handling (a diverged remote makes a write or sync fail and the scope shows stale), and the installer does not edit your `.gitignore`.
 - Crash durability is not promised. Rename and exclusive folder creation do not imply fsync.
@@ -225,13 +234,13 @@ Cache layout: `.mozak-cache/<id>/` (sparse git clone) and `.mozak-cache/<id>.met
 
 | Check | Status |
 | --- | --- |
-| Linux relocation from a git archive, Node 24.11.0, `npm ci --offline --ignore-scripts`, build, tests | Passed: 334 tests, 0 failed. Reused the local npm cache. Not a clean machine. |
-| Public GitHub clone and install | Not done. |
-| Mac install and restore | Pending. |
-| Installer suite (69 tests): install, check, unchanged, conflict, partial, concurrency, symlinks, bounds, timeouts, unreadable target | Passed on Linux. |
-| `mozak scopes` and `mozak_scopes` (11 CLI tests, 3 MCP tests) | Passed on Linux. A fresh MCP session listed all ten scopes of a real workspace and refused an extra argument. |
-| Installed CLI, MCP and rendered skill from a new prefix | Passed. The installed skill's own commands read a saved trial scope without changing it. |
-| CI on Ubuntu and macOS | Passed for `c324d45` on GitHub-hosted runners. A personal Mac run is still pending. |
-| Installed skill activated in a separate fresh host session | Not done. |
+| Public GitHub clone and install on macOS (Node 26.11.1, `8337e04`, isolated `HOME`) | Passed: clean clone, `npm ci --ignore-scripts`, build, install (67 files), `mozak --help`. The public clone contains no `MOZAK.json` or `MOZAK.md`. |
+| README walkthrough with the fresh install | Passed: `scope init` for a local scope and a vault-plans scope for a real public GitHub repo, `scopes`, `context`, `plans`, `check`, `sync`, `pull --into ~/Downloads/x` (code only, 0 plan files), `context` with no `--scope` inside that clone, `mozak-mcp` (13 tools), `install-obsidian-plugin.mjs <vault> --build`, and the Contributing commands (416 tests, installer 69 passed and 1 skipped). |
+| Linux relocation from a git archive, Node 24.11.0 | Passed earlier at `c324d45`: 334 tests, 0 failed. Reused the local npm cache. Not a clean machine. |
+| Installer suite (70 tests): install, check, unchanged, conflict, partial, concurrency, symlinks, bounds, timeouts, unreadable target | Passed on macOS (69, 1 skipped) and Linux. |
+| `mozak scopes` and `mozak_scopes` | Passed on both platforms. A fresh MCP session listed all scopes of a real workspace. |
+| Installed skill loaded by a fresh agent host | Passed: jcode registered and loaded `/mozak` through a symlink to the installed skill. |
+| CI on Ubuntu and macOS | Passing on every push, latest `8337e04`. |
+| Restoring a workspace from GitHub and a private vault | Not built. |
 
 Record the actual results of any new check here before claiming it passed.
