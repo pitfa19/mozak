@@ -14,10 +14,11 @@
 // only taken the first time to avoid an unbounded loop in the test.
 import { readFileSync } from "node:fs";
 import { initScopeState, mutateScope, readScope, repairProjection, type StoreOptions } from "../src/scope-store.ts";
+import { executeOperation } from "../src/api.ts";
 
 interface AppendJob { planId: string; tag: string; count: number; attempts: number }
 interface Job {
-  mode: "init" | "mutate" | "repair" | "read" | "append";
+  mode: "init" | "mutate" | "repair" | "read" | "append" | "check";
   root: string;
   scopeId: string;
   request?: unknown;
@@ -122,6 +123,10 @@ try {
   } else if (job.mode === "append") {
     if (!job.append) throw new Error("append mode requires an append job");
     outcome = runAppend(job.append);
+  } else if (job.mode === "check") {
+    // The real public check route, as `mozak check` runs it.
+    const out = executeOperation({ format: "mozak.local/v3", scopes: [entry], digest: "" } as Parameters<typeof executeOperation>[0], "check", { scope: entry.id }, "agent");
+    outcome = { status: out.data.status, exitCode: out.exitCode, issues: out.data.issues };
   } else {
     throw new Error(`unknown mode ${String(job.mode)}`);
   }

@@ -1,7 +1,7 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, readlinkSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -130,7 +130,14 @@ test("upgrade: up-to-date, --check, dirty refusal, upgrade with plugin, previous
   assert.equal(r.code, 2);
   assert.equal(r.data.status, "invalid-input");
 
-  // The upgrade itself.
+  // The upgrade itself. A skill link and a ~/.local/bin wrapper point at the prefix, as on a real machine.
+  const skillLink = join(f.root, ".claude", "skills", "mozak");
+  mkdirSync(join(f.root, ".claude", "skills"), { recursive: true });
+  symlinkSync(join(f.prefix, "skills", "mozak"), skillLink);
+  const wrapper = join(f.root, ".local", "bin", "mozak");
+  mkdirSync(join(f.root, ".local", "bin"), { recursive: true });
+  writeFileSync(wrapper, `#!/usr/bin/env bash\nexec node ${JSON.stringify(join(f.prefix, "bin", "mozak"))} "$@"\n`, { mode: 0o755 });
+  const skillBefore = readFileSync(join(skillLink, "SKILL.md"), "utf8");
   const headBefore = sh(f.source, "git", ["rev-parse", "--abbrev-ref", "HEAD"]);
   r = upgrade(f, ["--vault", f.vault]);
   assert.equal(r.code, 0, `${r.err}\n${JSON.stringify(r.data, null, 2)}`);
@@ -143,6 +150,13 @@ test("upgrade: up-to-date, --check, dirty refusal, upgrade with plugin, previous
   assert.deepEqual(r.data.vaults, [{ vault: f.vault, status: "installed" }]);
   assert.equal(JSON.parse(readFileSync(join(f.vault, ".obsidian", "plugins", "mozak", "manifest.json"), "utf8")).version, "0.3.0");
   assert.equal(sh(f.source, "git", ["rev-parse", "--abbrev-ref", "HEAD"]), headBefore, "the checkout is returned to its branch");
+  // Paths are unchanged: the same link and wrapper now reach the new release.
+  assert.equal(readlinkSync(skillLink), join(f.prefix, "skills", "mozak"), "skill link untouched");
+  assert.equal(readFileSync(join(skillLink, "SKILL.md"), "utf8"), skillBefore, "the skill at the same path names the same prefix");
+  assert.ok(skillBefore.includes(f.prefix), "the rendered skill names the prefix, which did not move");
+  assert.equal(sh(f.root, wrapper, ["--version"]), "0.3.0", "the existing wrapper runs the new release");
+  const help = sh(f.root, wrapper, ["--help"]);
+  assert.equal(help.split("\n")[0], "mozak 0.3.0", "--help shows the new version");
 
   // Running again is a no-op.
   r = upgrade(f);
@@ -157,6 +171,20 @@ test("upgrade: up-to-date, --check, dirty refusal, upgrade with plugin, previous
   assert.equal(existsSync(`${f.prefix}.previous-0.3.0`), false, "nothing was moved aside");
   assert.equal(sh(f.source, "git", ["rev-parse", "--abbrev-ref", "HEAD"]), headBefore);
   assert.deepEqual(readdirSync(join(f.root, "share")).sort(), ["mozak", "mozak.previous-0.2.0"]);
+
+  // A release that builds but installs a broken CLI: the new installation fails verification, so the previous one
+  // is moved back into place and keeps working. The failed attempt is kept for inspection.
+  writeFileSync(join(f.source, "packages", "cli", "dist", "index.js"), "process.exit(9);\n");
+  release(f.source, "0.5.0");
+  r = upgrade(f);
+  assert.equal(r.code, 2, JSON.stringify(r.data));
+  assert.equal(r.data.status, "install-failed");
+  assert.equal(installedVersion(f.prefix), "0.3.0", "the old installation is back at the same path");
+  assert.equal(sh(f.root, wrapper, ["--version"]), "0.3.0", "the wrapper still works");
+  const names = readdirSync(join(f.root, "share")).sort();
+  assert.ok(names.includes("mozak") && names.includes("mozak.previous-0.2.0"));
+  assert.ok(names.some((n) => n.startsWith("mozak.failed-")), `failed attempt kept: ${names}`);
+  assert.ok(!names.includes("mozak.previous-0.3.0"), "the restored installation is not left aside");
 });
 
 test("upgrade refuses an installation without a recorded or valid source checkout", () => {

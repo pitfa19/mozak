@@ -611,7 +611,7 @@ const CRASH_POINTS = [
 ] as const;
 
 for (const { phase, state, temps: expectedTemps } of CRASH_POINTS) {
-  test(`crash mid-write (${phase}): the scope reads as ${state === "old" ? "old" : "new"} (a stale bridge repairs), and the next write removes temp files`, async () => {
+  test(`crash mid-write (${phase}): the scope reads as ${state === "old" ? "old" : "new"} (a stale bridge repairs), check passes, and the next write removes temp files`, async () => {
     const job = `crash-${phase.replace(":", "-")}`;
     const { entry } = await withPlan(job);
     const before = await readViaChild(entry);
@@ -629,6 +629,16 @@ for (const { phase, state, temps: expectedTemps } of CRASH_POINTS) {
     // A temp file is complete: it was flushed before the crash point.
     if (phase === "temp-written:graph") assert.doesNotThrow(() => JSON.parse(readFileSync(join(entry.root, temps[0]!), "utf8")));
 
+    // check right after the crash, before any repair: the only finding allowed is the repairable stale bridge,
+    // and each leftover temp file is an info issue.
+    const checked = await runChild({ mode: "check", root: entry.root, scopeId: entry.id }, { jobName: `${job}-check` });
+    assert.equal(checked.ok, true, `check after crash: ${checked.code} ${checked.message}`);
+    const codes = (checked.outcome.issues as Array<{ code: string }>).map((i) => i.code);
+    const allowed = state === "new-stale-bridge" ? ["bridge-stale", "leftover-temp-file"] : ["leftover-temp-file"];
+    assert.deepEqual(codes.filter((c) => !allowed.includes(c)), [], `check issues: ${JSON.stringify(checked.outcome.issues)}`);
+    assert.equal(checked.outcome.status, state === "new-stale-bridge" ? "findings" : "ok");
+    assert.equal(codes.filter((c) => c === "leftover-temp-file").length, expectedTemps, "check reports each leftover temp file");
+
     const after = await readViaChild(entry);
     assert.equal(after.ok, true, `scope must read after the crash: ${after.code} ${after.message}`);
     if (state === "old") {
@@ -641,6 +651,9 @@ for (const { phase, state, temps: expectedTemps } of CRASH_POINTS) {
         assert.equal(after.outcome.projectionStatus, "bridge-stale", "bridge rename never happened: repairable stale bridge");
         const repaired = await runChild({ mode: "repair", root: entry.root, scopeId: entry.id, request: { requestId: `${job}-repair`, scopeId: entry.id, expected: after.outcome.snapshot } }, { jobName: `${job}-repair` });
         assert.equal(repaired.ok, true, `repair after crash: ${repaired.code} ${repaired.message}`);
+        const rechecked = await runChild({ mode: "check", root: entry.root, scopeId: entry.id }, { jobName: `${job}-recheck` });
+        assert.equal(rechecked.outcome.status, "ok", `check after repair: ${JSON.stringify(rechecked.outcome.issues)}`);
+        assert.equal(rechecked.outcome.exitCode, 0);
       }
     }
 
