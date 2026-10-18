@@ -362,49 +362,45 @@
             {
               "id": "c3",
               "text": "No credentials are added: GitHub access keeps using the existing git login."
+            },
+            {
+              "id": "c4",
+              "text": "Local scopes and existing remote scopes without a plans folder behave exactly as before."
+            },
+            {
+              "id": "c5",
+              "text": "The plans folder is a normal scope folder with README.md and AGENTS.md, so it reads as a note about the project."
             }
           ],
           "nonGoals": [
             "Encrypting plan files",
             "Hosting plan storage on a MOZAK server",
-            "Changing how local root scopes work"
+            "Changing how local root scopes work",
+            "Splitting a scope into one file per plan"
           ],
           "outcomes": [
             {
               "acceptance": "objective",
-              "criterion": "With the option set, plan operations on a remote scope leave the linked repo's git history and working tree unchanged, verified by a test against a throwaway repo.",
+              "criterion": "Tests against a throwaway git repo show that every plan operation on such a scope leaves the repo history, branches and remote unchanged, and works with no network.",
               "id": "private-storage",
-              "statement": "A remote scope can be configured so its plan files are stored outside the linked repo, and MOZAK never commits or pushes them there."
+              "statement": "An inventory entry can name a GitHub repo plus a local plans folder. MOZAK reads and writes that scope only in the plans folder and never clones, commits or pushes for it."
             },
             {
               "acceptance": "owner",
-              "criterion": "mozak scopes and the Obsidian sidebar show the scope as remote, with its plans, while the plan files live in the private location.",
+              "criterion": "Owner sees the scope with its GitHub link in the Obsidian sidebar, and clicking one of its plans opens the plan note inside the vault.",
               "id": "shows-as-repo",
-              "statement": "A scope using private plan storage is still listed as a GitHub repo in mozak scopes, the MCP server and the Obsidian plugin, with its remote and ref."
+              "statement": "Such a scope is listed as a GitHub repo in mozak scopes, the MCP server and the Obsidian sidebar, with its repo link."
             },
             {
               "acceptance": "objective",
-              "criterion": "Plans, observations and receipts are identical before and after the switch; mozak check reports no issues.",
+              "criterion": "For both scopes, plans, observations, decisions and receipts are identical before and after the move, and mozak check passes.",
               "id": "migration",
-              "statement": "An existing local scope on a clone (like obsidian-plugins-mcp today) can be switched to a remote scope with private plan storage without losing plan history."
+              "statement": "obsidian-plugins-mcp and mozak are moved to this setup with their plan history intact."
             }
           ],
-          "purpose": "Let a GitHub-linked (remote) scope keep its MOZAK.json and MOZAK.md private, so a public repo can show in MOZAK as a repo without publishing its plans.",
-          "questions": [
-            {
-              "id": "q-storage-location",
-              "text": "Where should private plan files live: a separate private git repo, a folder in the vault, or a path chosen per scope in the inventory?"
-            },
-            {
-              "id": "q-inventory-shape",
-              "text": "What does the inventory entry look like, for example remote plus a planStore field, and how does it interact with mozak pull?"
-            },
-            {
-              "id": "q-bridge",
-              "text": "Should README.md and AGENTS.md still be read from the public repo while MOZAK.json and MOZAK.md come from the private store?"
-            }
-          ],
-          "rationale": "Remote scopes commit and push MOZAK.json and MOZAK.md into the linked repo. For a public repo that publishes plans, goals and evidence. The workaround today is a local 'root' scope on the clone, with the plan files kept out of git by hand (.git/info/exclude plus a pre-commit hook), which then shows as a plain folder, not a repo. First hit on 2026-10-14 with the public repo pitfa19/obsidian-community-plugins-mcp. Every public project will hit the same problem.",
+          "purpose": "Let a project whose code lives on GitHub keep its MOZAK plans in a private folder inside the Obsidian vault. It shows in MOZAK and Obsidian as a GitHub repo, its plans are never published, and no local clone is needed.",
+          "questions": [],
+          "rationale": "Remote scopes commit and push MOZAK.json and MOZAK.md into the linked repo. For a public repo that publishes plans, goals and evidence. The workaround today is a local 'root' scope on the clone, with the plan files kept out of git by hand (.git/info/exclude plus a pre-commit hook), which then shows as a plain folder, not a repo. First hit on 2026-10-14 with the public repo pitfa19/obsidian-community-plugins-mcp. Every public project will hit the same problem. Decided 2026-10-18 with the owner: plan files live in a folder inside an Obsidian vault (for example creations/obsidian-plugins-mcp), named per scope in the inventory as a plans field next to remote. README.md and AGENTS.md for the scope live in that folder too, and the repo is only linked for display. mozak pull still clones the code but never moves the plans. For mozak itself, MOZAK.json and MOZAK.md are removed from the public repo going forward; earlier commits stay public.",
           "sources": [
             {
               "anchor": "repo",
@@ -427,17 +423,17 @@
               "version": "installed mozak-v2 build"
             }
           ],
-          "title": "Private plan files for public GitHub scopes"
+          "title": "Private plan files for GitHub projects"
         },
-        "contentDigest": "952b03ab77535a1c622c3154a594c9328678a18b245b6d57bada14be76e474ab",
-        "createdAt": "2026-10-14T16:03:37.567Z",
-        "id": "073ddcaf-cbfe-4fdf-89ec-fadb8c503255",
+        "contentDigest": "adcc4f9a243a280cddcefdd33d83034260eb6dc4b91d787e7b224c5fb537e34b",
+        "createdAt": "2026-10-18T21:17:27.795Z",
+        "id": "b875b020-7f5e-4d17-a2a0-d49154171752",
         "rejectionDecisionId": null,
         "reviewState": "awaiting"
       },
       "reasoningLinks": [],
       "specifications": [],
-      "updatedAt": "2026-10-14T16:03:37.567Z"
+      "updatedAt": "2026-10-18T21:17:27.795Z"
     },
     {
       "accepted": {
@@ -994,6 +990,18 @@
       },
       "storageRevision": "83231ce5-58d6-4b8a-8b82-117e115b5b23"
     },
+    "pps-revise-20261018": {
+      "recordedAt": "2026-10-18T21:17:27.795Z",
+      "requestDigest": "9c0b02d609c73295cde65b58ed5946206a21e7b4b83ab32778f7b8efc2bc60cd",
+      "result": {
+        "action": "revise",
+        "ids": [
+          "private-plan-storage",
+          "b875b020-7f5e-4d17-a2a0-d49154171752"
+        ]
+      },
+      "storageRevision": "8d832e15-5914-477d-87b8-22cb96ccc4b7"
+    },
     "propose-demo-video-008": {
       "recordedAt": "2026-10-14T11:51:16.130Z",
       "requestDigest": "8a3a086f4da50e106440680b46135cc8048d60c3576d4b5e3c773dadd95223f8",
@@ -1070,9 +1078,9 @@
   "storage": {
     "previousBridge": {
       "exists": true,
-      "sha256": "99ce6b5ed736a69f8291c509c22e3a9fedd192883a3dc81b56db117e3714ba4c"
+      "sha256": "a3bb392fb34c066736046577031d6286d669995886200c133a09c3e06a4d2e06"
     },
-    "revision": "efca691b-3fc1-437a-ad41-3c8493b72cfb",
-    "updatedAt": "2026-10-17T23:49:29.639Z"
+    "revision": "8d832e15-5914-477d-87b8-22cb96ccc4b7",
+    "updatedAt": "2026-10-18T21:17:27.795Z"
   }
 }

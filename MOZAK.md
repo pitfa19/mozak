@@ -2,7 +2,7 @@
 format: 3
 id: "mozak"
 kind: project
-graph_sha256: 4cb18911bdc64c74d2b365cec63fe85d04f7aad8a15072f03e17f9703ca7632a
+graph_sha256: 1603a126b8a65e5c4d226751cbba87039c75f26050f8448d9917bb0c597a8ed0
 ---
 
 # MOZAK
@@ -17,7 +17,7 @@ Status is computed from MOZAK.json. Nothing here is clickable or editable.
 - Readable MOZAK.md with a roadmap; plugin becomes pure navigation · Open · ▱▰▰▱▰ 3/5
 - Make the README publish-ready · Open · ▰▰▰▱▱ 3/5
 - Record the Obsidian demo and animate the background · Awaiting first approval
-- Private plan files for public GitHub scopes · Awaiting first approval
+- Private plan files for GitHub projects · Awaiting first approval
 
 ## Readable MOZAK.md with a roadmap; plugin becomes pure navigation · `obsidian-roadmap`
 
@@ -177,11 +177,11 @@ On 2026-10-14 the owner accepted the README and logo and said the only thing lef
 
 - jcode session, owner message 2026-10-14T11:50:11.248Z
 
-## Private plan files for public GitHub scopes · `private-plan-storage`
+## Private plan files for GitHub projects · `private-plan-storage`
 
-**Awaiting first approval** · 0/3 done · updated 2026-10-14
+**Awaiting first approval** · 0/3 done · updated 2026-10-18
 
-Let a GitHub-linked (remote) scope keep its MOZAK.json and MOZAK.md private, so a public repo can show in MOZAK as a repo without publishing its plans.
+Let a project whose code lives on GitHub keep its MOZAK plans in a private folder inside the Obsidian vault. It shows in MOZAK and Obsidian as a GitHub repo, its plans are never published, and no local clone is needed.
 
 ### Roadmap
 
@@ -199,31 +199,28 @@ flowchart LR
 
 | # | Outcome | Status | Accepted by | Done when |
 |---|---|---|---|---|
-| 1 | A remote scope can be configured so its plan files are stored outside the linked repo, and MOZAK never commits or pushes them there. | ⚪ todo | objective | With the option set, plan operations on a remote scope leave the linked repo's git history and working tree unchanged, verified by a test against a throwaway repo. |
-| 2 | A scope using private plan storage is still listed as a GitHub repo in mozak scopes, the MCP server and the Obsidian plugin, with its remote and ref. | ⚪ todo | owner | mozak scopes and the Obsidian sidebar show the scope as remote, with its plans, while the plan files live in the private location. |
-| 3 | An existing local scope on a clone (like obsidian-plugins-mcp today) can be switched to a remote scope with private plan storage without losing plan history. | ⚪ todo | objective | Plans, observations and receipts are identical before and after the switch; mozak check reports no issues. |
+| 1 | An inventory entry can name a GitHub repo plus a local plans folder. MOZAK reads and writes that scope only in the plans folder and never clones, commits or pushes for it. | ⚪ todo | objective | Tests against a throwaway git repo show that every plan operation on such a scope leaves the repo history, branches and remote unchanged, and works with no network. |
+| 2 | Such a scope is listed as a GitHub repo in mozak scopes, the MCP server and the Obsidian sidebar, with its repo link. | ⚪ todo | owner | Owner sees the scope with its GitHub link in the Obsidian sidebar, and clicking one of its plans opens the plan note inside the vault. |
+| 3 | obsidian-plugins-mcp and mozak are moved to this setup with their plan history intact. | ⚪ todo | objective | For both scopes, plans, observations, decisions and receipts are identical before and after the move, and mozak check passes. |
 
 ### Constraints
 
 - Default behaviour for existing remote scopes does not change: without the new option, MOZAK still commits and pushes MOZAK.json and MOZAK.md as today.
 - Private plan storage never writes plan content into the linked repo's tracked files, commits, branches or remote, including on error and recovery paths.
 - No credentials are added: GitHub access keeps using the existing git login.
+- Local scopes and existing remote scopes without a plans folder behave exactly as before.
+- The plans folder is a normal scope folder with README.md and AGENTS.md, so it reads as a note about the project.
 
 ### Non-goals
 
 - Encrypting plan files
 - Hosting plan storage on a MOZAK server
 - Changing how local root scopes work
+- Splitting a scope into one file per plan
 
 ### Rationale
 
-Remote scopes commit and push MOZAK.json and MOZAK.md into the linked repo. For a public repo that publishes plans, goals and evidence. The workaround today is a local 'root' scope on the clone, with the plan files kept out of git by hand (.git/info/exclude plus a pre-commit hook), which then shows as a plain folder, not a repo. First hit on 2026-10-14 with the public repo pitfa19/obsidian-community-plugins-mcp. Every public project will hit the same problem.
-
-### Open questions
-
-- Where should private plan files live: a separate private git repo, a folder in the vault, or a path chosen per scope in the inventory?
-- What does the inventory entry look like, for example remote plus a planStore field, and how does it interact with mozak pull?
-- Should README.md and AGENTS.md still be read from the public repo while MOZAK.json and MOZAK.md come from the private store?
+Remote scopes commit and push MOZAK.json and MOZAK.md into the linked repo. For a public repo that publishes plans, goals and evidence. The workaround today is a local 'root' scope on the clone, with the plan files kept out of git by hand (.git/info/exclude plus a pre-commit hook), which then shows as a plain folder, not a repo. First hit on 2026-10-14 with the public repo pitfa19/obsidian-community-plugins-mcp. Every public project will hit the same problem. Decided 2026-10-18 with the owner: plan files live in a folder inside an Obsidian vault (for example creations/obsidian-plugins-mcp), named per scope in the inventory as a plans field next to remote. README.md and AGENTS.md for the scope live in that folder too, and the repo is only linked for display. mozak pull still clones the code but never moves the plans. For mozak itself, MOZAK.json and MOZAK.md are removed from the public repo going forward; earlier commits stay public.
 
 ### Sources
 
