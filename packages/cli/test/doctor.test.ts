@@ -124,6 +124,24 @@ test("doctor flags a changed installation, an outdated plugin copy (fixed by --f
   assert.match(gone.by("installation")!.fix!, /git clone https:\/\/github.com\/pitfa19\/mozak/);
 });
 
+test("doctor on a restore: a correct MCP setting naming a missing wrapper points at --fix, and its inventory is still checked", () => {
+  const f = fixture();
+  mkdirSync(join(f.notes, "proj"));
+  writeFileSync(join(f.notes, "proj", "README.md"), "# p\n");
+  writeFileSync(f.inventory, JSON.stringify({ format: "mozak.local/v3", scopes: [{ id: "proj", root: "./proj" }] }));
+  const wrapper = join(f.home, ".local/bin/mozak-mcp");
+  writeFileSync(join(f.home, ".claude.json"), JSON.stringify({ mcpServers: { mozak: { command: wrapper, args: ["--config", f.inventory] } } }));
+  let r = doctor(f);
+  assert.equal(r.by("mcp-claude")?.state, "fail");
+  assert.match(r.by("mcp-claude")!.fix!, /mozak doctor --fix/);
+  assert.equal(r.by("inventory")?.state, "fail", "the MCP setting's inventory is checked even before the wrapper exists");
+  assert.match(r.by("inventory")!.message, /proj \(scope-uninitialized\)/);
+  assert.match(r.by("inventory")!.fix!, /scope init/);
+  r = doctor(f, ["--fix"]);
+  r = doctor(f);
+  assert.equal(r.by("mcp-claude")?.state, "ok", JSON.stringify(r.by("mcp-claude")));
+});
+
 test("versions agree across the root, every package, the plugin manifest and the installer", () => {
   const read = (rel: string) => JSON.parse(readFileSync(join(repo, rel), "utf8"));
   const version = read("package.json").version as string;

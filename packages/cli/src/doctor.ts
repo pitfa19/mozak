@@ -233,7 +233,14 @@ export function doctor(args: DoctorArgs): { exitCode: number; data: Record<strin
     const inv = configArg(e.args);
     if (!e.command) { add({ id, state: "warn", message: `${e.file} has no mozak MCP server`, fix: `Add a "mozak" server: command ${mcpWrapper}, args ["--config", "<inventory.json>"]` }); continue; }
     const commandOk = pointsAt(e.command, prefix, "mozak-mcp", home) || (existsSync(e.command) && pointsAt(realpathSync(e.command), prefix, "mozak-mcp", home));
-    if (!commandOk) { add({ id, state: "fail", message: `${e.file}: the mozak server runs ${e.command}, not this installation`, fix: `In ${e.file}, set the mozak server's command to ${mcpWrapper}` }); continue; }
+    // The inventory it names is checked below whatever is wrong with the command.
+    if (inv && existsSync(inv)) mcpInventory ??= inv;
+    // A setting that names the standard wrapper is right even when the wrapper is still missing: the PATH check
+    // above reports (and with --fix creates) the wrapper, so this does not blame the MCP file for it.
+    const namesWrapper = e.command === mcpWrapper;
+    if (!commandOk && !namesWrapper) { add({ id, state: "fail", message: `${e.file}: the mozak server runs ${e.command}, not this installation`, fix: `In ${e.file}, set the mozak server's command to ${mcpWrapper}` }); continue; }
+    if (!commandOk && namesWrapper && !existsSync(mcpWrapper)) { add({ id, state: "fail", message: `${e.file}: the mozak server runs ${mcpWrapper}, which does not exist`, fix: "mozak doctor --fix (creates the wrapper)" }); continue; }
+    if (!commandOk) { add({ id, state: "fail", message: `${e.file}: ${mcpWrapper} does not run this installation`, fix: `Move ${mcpWrapper} to the Trash, then mozak doctor --fix` }); continue; }
     if (!inv || !existsSync(inv)) { add({ id, state: "fail", message: `${e.file}: the mozak server's --config ${inv ?? "(missing)"} does not exist`, fix: `In ${e.file}, set the mozak server's args to ["--config", "<your inventory.json>"]` }); continue; }
     mcpInventory ??= inv;
     add({ id, state: "ok", message: `${e.file} runs this installation with ${inv}` });
@@ -250,10 +257,21 @@ export function doctor(args: DoctorArgs): { exitCode: number; data: Record<strin
       inventoryDir = dirname(inventoryPath);
       const out = executeOperation(inv, "scopes", {}, "agent");
       const cov = out.data.coverage as { selected: number; complete: boolean; scopes?: Array<{ id: string; status?: string; code?: string }> } | undefined;
-      const rows = (out.data.scopes ?? []) as Array<{ id: string; status?: string; error?: { code?: string } }>;
+      const rows = (out.data.scopes ?? []) as Array<{ id: string; status?: string; code?: string; error?: { code?: string } }>;
       const failed = rows.filter((r) => r.status === "failed" || r.error);
+      const codeOf = (r: (typeof rows)[number]) => r.code ?? r.error?.code;
       if (cov?.complete && failed.length === 0) add({ id: "inventory", state: "ok", message: `${inventoryPath}: ${rows.length} scope(s), all readable` });
-      else add({ id: "inventory", state: "fail", message: `${inventoryPath}: ${failed.length || "some"} scope(s) do not read: ${failed.map((r) => `${r.id}${r.error?.code ? ` (${r.error.code})` : ""}`).join(", ")}`, fix: `mozak check --config ${inventoryPath} --scope <id>` });
+      else {
+        const uninit = failed.filter((r) => codeOf(r) === "scope-uninitialized");
+        add({
+          id: "inventory",
+          state: "fail",
+          message: `${inventoryPath}: ${failed.length || "some"} scope(s) do not read: ${failed.map((r) => `${r.id}${codeOf(r) ? ` (${codeOf(r)})` : ""}`).join(", ")}`,
+          fix: uninit.length === failed.length && uninit.length > 0
+            ? `These folders have no MOZAK.json. If your notes repo should have them, pull it; otherwise start each with mozak scope init (see the skill's references/bootstrap.md).`
+            : `mozak check --config ${inventoryPath} --scope ${failed[0]?.id ?? "<id>"}`,
+        });
+      }
     } catch (err) {
       add({ id: "inventory", state: "fail", message: `${inventoryPath} does not load: ${err instanceof Error ? err.message : String(err)}`, fix: "Fix the JSON, or see docs/installation.md (Inventory)" });
     }

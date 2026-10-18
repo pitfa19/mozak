@@ -8,6 +8,7 @@ User-visible changes, newest first. Releases are git tags `vX.Y.Z` on `main`; `m
 
 - `mozak doctor` checks `mozak-mcp` with a real handshake (0.2.0 reported a false "did not answer" note) and fails the installation check when it does not answer.
 - The MCP server reports its real version in the handshake instead of `0.0.0`.
+- `mozak doctor` on a fresh setup: an MCP setting that names the standard `~/.local/bin/mozak-mcp` wrapper before it exists now points at `mozak doctor --fix` instead of asking you to edit the setting, its inventory is checked in the same run, and scopes without `MOZAK.json` get a "pull your notes or run scope init" hint.
 
 ## 0.2.0 (2026-10-19)
 

@@ -271,6 +271,6 @@ Cache layout: `.mozak-cache/<id>/` (sparse git clone) and `.mozak-cache/<id>.met
 | `mozak scopes` and `mozak_scopes` | Passed on both platforms. A fresh MCP session listed all scopes of a real workspace. |
 | Installed skill loaded by a fresh agent host | Passed: jcode registered and loaded `/mozak` through a symlink to the installed skill. |
 | CI on Ubuntu and macOS | Passing on every push, latest `2bd8cfc`. |
-| Restoring a workspace from GitHub and a private vault | Built (`mozak doctor --fix`). Owner run on a fresh account or machine pending. |
+| Restoring a workspace from GitHub and a private vault | Built (`mozak doctor --fix`). Simulated 2026-10-18 on macOS with an isolated `HOME`: public clone at `v0.2.0`, build, install, plugin, a standard MCP setting, then `mozak doctor --fix` created both wrappers and both skill links and the only remaining failure was the synthetic scope with no `MOZAK.json` (fixed on `main`: clearer messages for that case). Owner run on a real fresh account or machine pending. |
 
 Record the actual results of any new check here before claiming it passed.
