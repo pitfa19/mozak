@@ -1,6 +1,6 @@
 ---
 name: mozak-conversation
-description: MOZAK conversation for one explicitly named scope. Overview, focused clarification, separate direction and implementation approval, pause, and fresh-session recovery. Load only by the exact installed skill path rendered at install time.
+description: MOZAK conversation for one explicitly named scope. Overview, focused clarification, separate direction and implementation approval, pause, and fresh-session recovery.
 ---
 
 # MOZAK conversation (installed copy)
@@ -11,9 +11,8 @@ Normative contract for this installed skill. Tests are not owner approval or con
 
 The source copy is a template. Only the rendered installed copy is usable: the installer renders `{{MOZAK_CLI}}` (the shell-quoted absolute CLI path) and `{{MOZAK_SKILL}}` (the absolute installed skill directory) before activation. If any placeholder is still present, stop: the rendered copy is missing.
 
-Load only this exact file: `{{MOZAK_SKILL}}/SKILL.md`, the installed skill directory rendered by the installer.
-If the returned base directory is not `{{MOZAK_SKILL}}`, stop and say so. Never load an older installed copy or a global skill of the same name.
-Do not use the installed `mozak` skill. Do not install, copy, symlink, or shadow any global skill.
+This copy belongs to the install at `{{MOZAK_SKILL}}`. An agent host may load it directly or through a symlink in its skills folder pointing at that directory. A plain copy elsewhere goes stale on the next upgrade, so prefer the symlink.
+At session start, `node {{MOZAK_CLI}} --help` must succeed. If it does not, the install this skill belongs to is gone: stop and say so.
 
 ## CLI
 
