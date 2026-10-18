@@ -2,7 +2,7 @@
 format: 3
 id: "mozak"
 kind: project
-graph_sha256: 1603a126b8a65e5c4d226751cbba87039c75f26050f8448d9917bb0c597a8ed0
+graph_sha256: 71c82d19a570963b8f741a16fac11507db8dcbd99e52b2ae504dfc96613550a2
 ---
 
 # MOZAK
@@ -15,9 +15,9 @@ Status is computed from MOZAK.json. Nothing here is clickable or editable.
 ## Overview
 
 - Readable MOZAK.md with a roadmap; plugin becomes pure navigation · Open · ▱▰▰▱▰ 3/5
+- Plans for public repos live in the vault · Open · ▱▱▱▱▱ 0/5
 - Make the README publish-ready · Open · ▰▰▰▱▱ 3/5
 - Record the Obsidian demo and animate the background · Awaiting first approval
-- Private plan files for GitHub projects · Awaiting first approval
 
 ## Readable MOZAK.md with a roadmap; plugin becomes pure navigation · `obsidian-roadmap`
 
@@ -77,6 +77,60 @@ Decided with the owner on 2026-10-17. The owner reads plans as notes in the Obsi
 - packages/core/src/scope-store.ts (renderBridge) · renderBridge · 97fd00c
 - packages/obsidian/src/views.ts · 97fd00c
 - jcode session session\_daisy\_1792266821990\_1ab3b8a7037dd2c9, owner messages 2026-10-17T20:56:01Z through 2026-10-17T21:29:19Z
+
+## Plans for public repos live in the vault · `private-plan-storage`
+
+**Open** · 0/5 done · updated 2026-10-18
+
+One routing rule: a private GitHub repo keeps its MOZAK plans inside the repo (as today, shared with everyone who has access), and a public GitHub repo keeps them in a folder in the Obsidian vault (private to the owner). Public projects still show as GitHub repos, need no local clone, and a clone anywhere (even Downloads) never receives plan files.
+
+### Roadmap
+
+```mermaid
+flowchart LR
+  s1["📍 Vault plans"]:::current
+  s2["⚪ Shows as repo"]:::todo
+  s3["⚪ Clone anywhere"]:::todo
+  s4["⚪ Visibility guard"]:::todo
+  s5["⚪ Migration"]:::todo
+  s1 --> s2 --> s3 --> s4 --> s5
+  classDef done fill:#22a55b,stroke:#22a55b,color:#fff
+  classDef evidence fill:#e8b931,stroke:#e8b931,color:#000
+  classDef current fill:#8b5cf6,stroke:#8b5cf6,color:#fff
+  classDef todo fill:transparent,stroke-dasharray:4 4
+```
+
+| # | Outcome | Status | Accepted by | Done when |
+|---|---|---|---|---|
+| 1 | An inventory entry can name a GitHub repo plus a vault plans folder. MOZAK reads and writes that scope only in the plans folder and never clones, commits or pushes the repo for it. | ⚪ todo · 📍 next | objective | Tests against a throwaway git repo show every plan operation on such a scope leaves the repo history, branches and remote unchanged, and works with no network. |
+| 2 | A vault-plans scope is listed as a GitHub repo in mozak scopes, the MCP server and the Obsidian sidebar, with its repo link. | ⚪ todo | owner | Owner sees the scope with its GitHub link in the Obsidian sidebar, and clicking one of its plans opens the plan note inside the vault. |
+| 3 | The code of a vault-plans scope can be cloned to any folder, including Downloads. The clone never receives plan files, and MOZAK commands run inside the clone find the scope through its git remote. | ⚪ todo | objective | Tests: mozak pull --into a temp folder clones code only and leaves the plans folder unchanged; a context call run from inside a plain git clone resolves the matching scope. |
+| 4 | When a GitHub repo that holds plans inside it is public, MOZAK refuses plan writes to it and warns, and it never moves plans on its own. | ⚪ todo | objective | Tests with a stubbed visibility check show writes refused with a clear code and the warning shown by sync and scopes; an unreachable check never blocks reads. |
+| 5 | obsidian-plugins-mcp and mozak (both public) move to vault plans folders with their plan history intact, and mozak's plan files leave the public repo going forward. | ⚪ todo | objective | For both scopes, plans, observations, decisions and receipts are identical before and after the move, mozak check passes, and the mozak repo no longer tracks MOZAK.json or MOZAK.md. |
+
+### Constraints
+
+- Private repos and local scopes keep working exactly as today.
+- Plan content for a vault-plans scope never enters the repo: no tracked files, commits, branches or pushes, including on error and recovery paths.
+- No credentials are added. Visibility uses the public GitHub API without a login, and existing git login stays as is.
+- The vault plans folder is a normal scope folder with README.md and AGENTS.md, so it reads as a note about the project.
+- Placement is recorded in the inventory and never changes silently.
+
+### Non-goals
+
+- Encrypting plan files
+- Hosting plans on a MOZAK server
+- A shared private plans repo for teammates on public projects (possible later)
+- Splitting a scope into one file per plan
+
+### Rationale
+
+Remote scopes commit MOZAK.json and MOZAK.md into the linked repo. For a public repo that publishes plans, goals and evidence. The workaround was a local scope on a clone with the files kept out of git by hand, which broke when the clone was deleted (obsidian-community-plugins-mcp, 2026-10-18). Decided with the owner 2026-10-18: route by visibility. Private repos ship plans alongside so teammates share them. Public repos keep plans in the vault at creations/\<project\>. Clones, including in Downloads, hold code only, because Downloads is temporary and plan files next to public code risk being published.
+
+### Sources
+
+- https://github.com/pitfa19/obsidian-community-plugins-mcp · repo · v1.2.0
+- packages/core/src/remote (commitAndPush, syncRemote) · commitAndPush · installed mozak-v2 build
 
 ## Make the README publish-ready · `readme-publish-ready`
 
@@ -176,56 +230,6 @@ On 2026-10-14 the owner accepted the README and logo and said the only thing lef
 ### Sources
 
 - jcode session, owner message 2026-10-14T11:50:11.248Z
-
-## Private plan files for GitHub projects · `private-plan-storage`
-
-**Awaiting first approval** · 0/3 done · updated 2026-10-18
-
-Let a project whose code lives on GitHub keep its MOZAK plans in a private folder inside the Obsidian vault. It shows in MOZAK and Obsidian as a GitHub repo, its plans are never published, and no local clone is needed.
-
-### Roadmap
-
-```mermaid
-flowchart LR
-  s1["⚪ Private storage"]:::todo
-  s2["⚪ Shows as repo"]:::todo
-  s3["⚪ Migration"]:::todo
-  s1 --> s2 --> s3
-  classDef done fill:#22a55b,stroke:#22a55b,color:#fff
-  classDef evidence fill:#e8b931,stroke:#e8b931,color:#000
-  classDef current fill:#8b5cf6,stroke:#8b5cf6,color:#fff
-  classDef todo fill:transparent,stroke-dasharray:4 4
-```
-
-| # | Outcome | Status | Accepted by | Done when |
-|---|---|---|---|---|
-| 1 | An inventory entry can name a GitHub repo plus a local plans folder. MOZAK reads and writes that scope only in the plans folder and never clones, commits or pushes for it. | ⚪ todo | objective | Tests against a throwaway git repo show that every plan operation on such a scope leaves the repo history, branches and remote unchanged, and works with no network. |
-| 2 | Such a scope is listed as a GitHub repo in mozak scopes, the MCP server and the Obsidian sidebar, with its repo link. | ⚪ todo | owner | Owner sees the scope with its GitHub link in the Obsidian sidebar, and clicking one of its plans opens the plan note inside the vault. |
-| 3 | obsidian-plugins-mcp and mozak are moved to this setup with their plan history intact. | ⚪ todo | objective | For both scopes, plans, observations, decisions and receipts are identical before and after the move, and mozak check passes. |
-
-### Constraints
-
-- Default behaviour for existing remote scopes does not change: without the new option, MOZAK still commits and pushes MOZAK.json and MOZAK.md as today.
-- Private plan storage never writes plan content into the linked repo's tracked files, commits, branches or remote, including on error and recovery paths.
-- No credentials are added: GitHub access keeps using the existing git login.
-- Local scopes and existing remote scopes without a plans folder behave exactly as before.
-- The plans folder is a normal scope folder with README.md and AGENTS.md, so it reads as a note about the project.
-
-### Non-goals
-
-- Encrypting plan files
-- Hosting plan storage on a MOZAK server
-- Changing how local root scopes work
-- Splitting a scope into one file per plan
-
-### Rationale
-
-Remote scopes commit and push MOZAK.json and MOZAK.md into the linked repo. For a public repo that publishes plans, goals and evidence. The workaround today is a local 'root' scope on the clone, with the plan files kept out of git by hand (.git/info/exclude plus a pre-commit hook), which then shows as a plain folder, not a repo. First hit on 2026-10-14 with the public repo pitfa19/obsidian-community-plugins-mcp. Every public project will hit the same problem. Decided 2026-10-18 with the owner: plan files live in a folder inside an Obsidian vault (for example creations/obsidian-plugins-mcp), named per scope in the inventory as a plans field next to remote. README.md and AGENTS.md for the scope live in that folder too, and the repo is only linked for display. mozak pull still clones the code but never moves the plans. For mozak itself, MOZAK.json and MOZAK.md are removed from the public repo going forward; earlier commits stay public.
-
-### Sources
-
-- https://github.com/pitfa19/obsidian-community-plugins-mcp · repo · v1.2.0
-- packages/core/src/remote (commitAndPush, syncRemote) · commitAndPush · installed mozak-v2 build
 
 ## Connections
 

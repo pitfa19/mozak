@@ -333,74 +333,72 @@
       "updatedAt": "2026-10-14T11:51:16.130Z"
     },
     {
-      "accepted": null,
-      "completionRecords": [],
-      "createdAt": "2026-10-14T16:03:37.567Z",
-      "decisions": [],
-      "discussion": null,
-      "downstreamSpec": null,
-      "id": "private-plan-storage",
-      "implementationAuthorization": null,
-      "implementationAuthorizations": [],
-      "lifecycle": {
-        "state": "unaccepted"
-      },
-      "observations": [],
-      "pending": {
-        "baseAcceptedDigest": null,
-        "baseAcceptedRevision": null,
+      "accepted": {
+        "acceptedFromRevision": "9b06602d-cea6-402d-9fcd-79f3ff9fefc1",
         "content": {
           "constraints": [
             {
               "id": "c1",
-              "text": "Default behaviour for existing remote scopes does not change: without the new option, MOZAK still commits and pushes MOZAK.json and MOZAK.md as today."
+              "text": "Private repos and local scopes keep working exactly as today."
             },
             {
               "id": "c2",
-              "text": "Private plan storage never writes plan content into the linked repo's tracked files, commits, branches or remote, including on error and recovery paths."
+              "text": "Plan content for a vault-plans scope never enters the repo: no tracked files, commits, branches or pushes, including on error and recovery paths."
             },
             {
               "id": "c3",
-              "text": "No credentials are added: GitHub access keeps using the existing git login."
+              "text": "No credentials are added. Visibility uses the public GitHub API without a login, and existing git login stays as is."
             },
             {
               "id": "c4",
-              "text": "Local scopes and existing remote scopes without a plans folder behave exactly as before."
+              "text": "The vault plans folder is a normal scope folder with README.md and AGENTS.md, so it reads as a note about the project."
             },
             {
               "id": "c5",
-              "text": "The plans folder is a normal scope folder with README.md and AGENTS.md, so it reads as a note about the project."
+              "text": "Placement is recorded in the inventory and never changes silently."
             }
           ],
           "nonGoals": [
             "Encrypting plan files",
-            "Hosting plan storage on a MOZAK server",
-            "Changing how local root scopes work",
+            "Hosting plans on a MOZAK server",
+            "A shared private plans repo for teammates on public projects (possible later)",
             "Splitting a scope into one file per plan"
           ],
           "outcomes": [
             {
               "acceptance": "objective",
-              "criterion": "Tests against a throwaway git repo show that every plan operation on such a scope leaves the repo history, branches and remote unchanged, and works with no network.",
-              "id": "private-storage",
-              "statement": "An inventory entry can name a GitHub repo plus a local plans folder. MOZAK reads and writes that scope only in the plans folder and never clones, commits or pushes for it."
+              "criterion": "Tests against a throwaway git repo show every plan operation on such a scope leaves the repo history, branches and remote unchanged, and works with no network.",
+              "id": "vault-plans",
+              "statement": "An inventory entry can name a GitHub repo plus a vault plans folder. MOZAK reads and writes that scope only in the plans folder and never clones, commits or pushes the repo for it."
             },
             {
               "acceptance": "owner",
               "criterion": "Owner sees the scope with its GitHub link in the Obsidian sidebar, and clicking one of its plans opens the plan note inside the vault.",
               "id": "shows-as-repo",
-              "statement": "Such a scope is listed as a GitHub repo in mozak scopes, the MCP server and the Obsidian sidebar, with its repo link."
+              "statement": "A vault-plans scope is listed as a GitHub repo in mozak scopes, the MCP server and the Obsidian sidebar, with its repo link."
             },
             {
               "acceptance": "objective",
-              "criterion": "For both scopes, plans, observations, decisions and receipts are identical before and after the move, and mozak check passes.",
+              "criterion": "Tests: mozak pull --into a temp folder clones code only and leaves the plans folder unchanged; a context call run from inside a plain git clone resolves the matching scope.",
+              "id": "clone-anywhere",
+              "statement": "The code of a vault-plans scope can be cloned to any folder, including Downloads. The clone never receives plan files, and MOZAK commands run inside the clone find the scope through its git remote."
+            },
+            {
+              "acceptance": "objective",
+              "criterion": "Tests with a stubbed visibility check show writes refused with a clear code and the warning shown by sync and scopes; an unreachable check never blocks reads.",
+              "id": "visibility-guard",
+              "statement": "When a GitHub repo that holds plans inside it is public, MOZAK refuses plan writes to it and warns, and it never moves plans on its own."
+            },
+            {
+              "acceptance": "objective",
+              "criterion": "For both scopes, plans, observations, decisions and receipts are identical before and after the move, mozak check passes, and the mozak repo no longer tracks MOZAK.json or MOZAK.md.",
               "id": "migration",
-              "statement": "obsidian-plugins-mcp and mozak are moved to this setup with their plan history intact."
+              "statement": "obsidian-plugins-mcp and mozak (both public) move to vault plans folders with their plan history intact, and mozak's plan files leave the public repo going forward."
             }
           ],
-          "purpose": "Let a project whose code lives on GitHub keep its MOZAK plans in a private folder inside the Obsidian vault. It shows in MOZAK and Obsidian as a GitHub repo, its plans are never published, and no local clone is needed.",
+          "purpose": "One routing rule: a private GitHub repo keeps its MOZAK plans inside the repo (as today, shared with everyone who has access), and a public GitHub repo keeps them in a folder in the Obsidian vault (private to the owner). Public projects still show as GitHub repos, need no local clone, and a clone anywhere (even Downloads) never receives plan files.",
           "questions": [],
-          "rationale": "Remote scopes commit and push MOZAK.json and MOZAK.md into the linked repo. For a public repo that publishes plans, goals and evidence. The workaround today is a local 'root' scope on the clone, with the plan files kept out of git by hand (.git/info/exclude plus a pre-commit hook), which then shows as a plain folder, not a repo. First hit on 2026-10-14 with the public repo pitfa19/obsidian-community-plugins-mcp. Every public project will hit the same problem. Decided 2026-10-18 with the owner: plan files live in a folder inside an Obsidian vault (for example creations/obsidian-plugins-mcp), named per scope in the inventory as a plans field next to remote. README.md and AGENTS.md for the scope live in that folder too, and the repo is only linked for display. mozak pull still clones the code but never moves the plans. For mozak itself, MOZAK.json and MOZAK.md are removed from the public repo going forward; earlier commits stay public.",
+          "rationale": "Remote scopes commit MOZAK.json and MOZAK.md into the linked repo. For a public repo that publishes plans, goals and evidence. The workaround was a local scope on a clone with the files kept out of git by hand, which broke when the clone was deleted (obsidian-community-plugins-mcp, 2026-10-18). Decided with the owner 2026-10-18: route by visibility. Private repos ship plans alongside so teammates share them. Public repos keep plans in the vault at creations/<project>. Clones, including in Downloads, hold code only, because Downloads is temporary and plan files next to public code risk being published.",
           "sources": [
             {
               "anchor": "repo",
@@ -423,17 +421,112 @@
               "version": "installed mozak-v2 build"
             }
           ],
-          "title": "Private plan files for GitHub projects"
+          "title": "Plans for public repos live in the vault"
         },
-        "contentDigest": "adcc4f9a243a280cddcefdd33d83034260eb6dc4b91d787e7b224c5fb537e34b",
-        "createdAt": "2026-10-18T21:17:27.795Z",
-        "id": "b875b020-7f5e-4d17-a2a0-d49154171752",
-        "rejectionDecisionId": null,
-        "reviewState": "awaiting"
+        "contentDigest": "f65f010d81b63a5c20977e983350f3726eda94a0b2baef7268ccff72c969b587",
+        "createdAt": "2026-10-18T21:27:57.668Z",
+        "directionDecisionId": "8097f115-0e2d-4d65-a129-6934fb47dedb",
+        "id": "d04b6438-e553-49e8-ad2c-7e6ca1cad410"
       },
+      "completionRecords": [],
+      "createdAt": "2026-10-14T16:03:37.567Z",
+      "decisions": [
+        {
+          "contentDigest": "f65f010d81b63a5c20977e983350f3726eda94a0b2baef7268ccff72c969b587",
+          "id": "8097f115-0e2d-4d65-a129-6934fb47dedb",
+          "ownerMessageAt": "2026-10-18T21:27:15.592Z",
+          "ownerRef": "host-assertion: jcode session session_seedling_1792269695819_a70d3683894c5bc4, owner message 2026-10-18T21:27:15.592Z \"update and approve direction\", given directly after the visibility routing rule and its 5 roadmap steps (vault-plans, shows-as-repo, clone-anywhere, visibility-guard, migration) were displayed, not a native message ID",
+          "planId": "private-plan-storage",
+          "purpose": "approve-direction",
+          "reason": "Owner approved routing plans by repo visibility: private repos ship plans alongside, public repos keep them in the vault.",
+          "recordedAt": "2026-10-18T21:27:57.668Z",
+          "reviewDigest": "81fe082234843dccdddeeaab94118b37e31a70b1c3b1438c7d9169c5dbad80eb",
+          "revisionId": "9b06602d-cea6-402d-9fcd-79f3ff9fefc1"
+        }
+      ],
+      "discussion": null,
+      "downstreamSpec": "01779f27-48bd-4df9-a065-1b129c45f5ee",
+      "id": "private-plan-storage",
+      "implementationAuthorization": null,
+      "implementationAuthorizations": [],
+      "lifecycle": {
+        "state": "open"
+      },
+      "observations": [],
+      "pending": null,
       "reasoningLinks": [],
-      "specifications": [],
-      "updatedAt": "2026-10-18T21:17:27.795Z"
+      "specifications": [
+        {
+          "acceptedContentDigest": "f65f010d81b63a5c20977e983350f3726eda94a0b2baef7268ccff72c969b587",
+          "acceptedRevisionId": "d04b6438-e553-49e8-ad2c-7e6ca1cad410",
+          "bounds": {
+            "allowedPaths": [
+              "packages/core/src",
+              "packages/core/test",
+              "packages/cli/src",
+              "packages/cli/test",
+              "packages/mcp/src",
+              "packages/mcp/test",
+              "packages/obsidian/src",
+              "packages/obsidian/test",
+              "packages/obsidian/styles.css",
+              "packages/obsidian/README.md",
+              "README.md",
+              "AGENTS.md",
+              "SPEC.md",
+              "docs/installation.md",
+              "docs/private-plan-storage-spec.md",
+              "skills/mozak",
+              ".gitignore"
+            ],
+            "excludedActions": [
+              "Changing the mozak.scope/v3 content schema or the behaviour of existing local and repo-mode scopes, other than the visibility guard.",
+              "Running any git command against a vault-plans scope's repo outside mozak pull.",
+              "Using GitHub credentials or tokens for the visibility check.",
+              "Writing plan content into any public repository.",
+              "Migration steps before the full test suite passes; migration outside the two scopes obsidian-plugins-mcp and mozak.",
+              "Deleting any MOZAK.json without a verified copy; rewriting git history of the mozak repo.",
+              "Publishing packages to npm."
+            ],
+            "limitations": [
+              "Visibility checks are GitHub-only and unauthenticated; a private repo appears as private-or-missing.",
+              "Plans of public repos are private to the owner's vault; teammates cannot see them.",
+              "Earlier commits of the public mozak repo keep their MOZAK.json history."
+            ],
+            "outcomeChecks": [
+              {
+                "criterion": "vault-plans.test.ts shows reads and writes on a vault scope leave a throwaway file:// repo's history, refs and tree byte-identical and make no git calls; npm test passes.",
+                "outcomeId": "vault-plans"
+              },
+              {
+                "criterion": "Owner sees both migrated scopes with their GitHub link in the Obsidian sidebar, and clicking a plan opens its note inside the vault.",
+                "outcomeId": "shows-as-repo"
+              },
+              {
+                "criterion": "cwd-scope.test.ts shows context without --scope inside a plain clone resolves the scope and pull for a vault scope clones code only, leaving the plans folder unchanged; npm test passes.",
+                "outcomeId": "clone-anywhere"
+              },
+              {
+                "criterion": "visibility.test.ts with a stubbed check shows public repo-mode writes refused with public-repo-plans and warnings on sync and scopes, while unknown never blocks reads or writes; npm test passes.",
+                "outcomeId": "visibility-guard"
+              },
+              {
+                "criterion": "For both scopes, canonical JSON of plans, observations, decisions and receipts is identical before and after, mozak check passes, and the mozak repo no longer tracks MOZAK.json or MOZAK.md.",
+                "outcomeId": "migration"
+              }
+            ],
+            "summary": "Add vault-plans scopes (GitHub repo plus vault plans folder), scope-from-working-directory for reads, code-only pull for vault scopes, and a public-repo visibility guard for repo-mode scopes, in the mozak repo with tests against temp fixtures and throwaway file:// repos. Then migrate obsidian-plugins-mcp and mozak to vault plans folders, reinstall the CLI and plugin."
+          },
+          "boundsDigest": "55203ab1977eb65af98905218b5c5b78095674264f696c4e862c3876bc716d9e",
+          "byteLength": 6692,
+          "discussionDigest": null,
+          "id": "01779f27-48bd-4df9-a065-1b129c45f5ee",
+          "path": "docs/private-plan-storage-spec.md",
+          "recordedAt": "2026-10-18T21:30:46.522Z",
+          "sha256": "caa92c581b22ccc3172ff4cb5987944314753bb509d3385ef77057e1a9bcccc3"
+        }
+      ],
+      "updatedAt": "2026-10-18T21:30:46.522Z"
     },
     {
       "accepted": {
@@ -990,6 +1083,29 @@
       },
       "storageRevision": "83231ce5-58d6-4b8a-8b82-117e115b5b23"
     },
+    "pps-approve-direction-20261018": {
+      "recordedAt": "2026-10-18T21:27:57.668Z",
+      "requestDigest": "81961582f9e5dd52baf87fa61d17ad6a22ab41853c685d88856576bd787e9224",
+      "result": {
+        "action": "approve-direction",
+        "ids": [
+          "8097f115-0e2d-4d65-a129-6934fb47dedb",
+          "d04b6438-e553-49e8-ad2c-7e6ca1cad410"
+        ]
+      },
+      "storageRevision": "ab078343-6bfb-47bc-a05d-2651e5f97d4c"
+    },
+    "pps-attach-spec-20261018": {
+      "recordedAt": "2026-10-18T21:30:46.522Z",
+      "requestDigest": "fb3a4a4426c4c39b2bcd7617aa290fc2fd6e9f0f823071dac76e12408a6eba53",
+      "result": {
+        "action": "attach-spec",
+        "ids": [
+          "01779f27-48bd-4df9-a065-1b129c45f5ee"
+        ]
+      },
+      "storageRevision": "ab40bc48-7ad6-42cd-b1e6-0893a371766c"
+    },
     "pps-revise-20261018": {
       "recordedAt": "2026-10-18T21:17:27.795Z",
       "requestDigest": "9c0b02d609c73295cde65b58ed5946206a21e7b4b83ab32778f7b8efc2bc60cd",
@@ -1001,6 +1117,18 @@
         ]
       },
       "storageRevision": "8d832e15-5914-477d-87b8-22cb96ccc4b7"
+    },
+    "pps-revise-20261018-2": {
+      "recordedAt": "2026-10-18T21:27:57.396Z",
+      "requestDigest": "84c462e04b40a1269c6f46ee16c19b73e460ba89dbcc985d3b57415e1e4828f6",
+      "result": {
+        "action": "revise",
+        "ids": [
+          "private-plan-storage",
+          "9b06602d-cea6-402d-9fcd-79f3ff9fefc1"
+        ]
+      },
+      "storageRevision": "99f6853f-d4bb-42f5-9551-06b5f5098ffb"
     },
     "propose-demo-video-008": {
       "recordedAt": "2026-10-14T11:51:16.130Z",
@@ -1078,9 +1206,9 @@
   "storage": {
     "previousBridge": {
       "exists": true,
-      "sha256": "a3bb392fb34c066736046577031d6286d669995886200c133a09c3e06a4d2e06"
+      "sha256": "733ead7f59b0362ab90689f1e1abc6db565b0d9d70746cb639a9ec1afbfa51e9"
     },
-    "revision": "8d832e15-5914-477d-87b8-22cb96ccc4b7",
-    "updatedAt": "2026-10-18T21:17:27.795Z"
+    "revision": "ab40bc48-7ad6-42cd-b1e6-0893a371766c",
+    "updatedAt": "2026-10-18T21:30:46.522Z"
   }
 }
