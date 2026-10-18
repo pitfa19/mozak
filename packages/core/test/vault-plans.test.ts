@@ -128,7 +128,7 @@ test("pull of a vault scope clones code only and leaves the plans untouched", ()
   assert.equal(exec(inv, "context", { scope: "tool" }).exitCode, 0);
 });
 
-test("vault scopes are never visibility checked", () => {
+test("vault scopes are never blocked or warned for being public; visibility is only a label", () => {
   const { inv } = fixture();
   let calls = 0;
   const restore = setVisibilityChecker(() => { calls++; return "public"; });
@@ -136,8 +136,13 @@ test("vault scopes are never visibility checked", () => {
     const ctx = exec(inv, "context", { scope: "tool" });
     const req = { operationId: "op-v", scopeId: "tool", expected: ctx.data.snapshot, action: "propose", payload: { planId: "p1", content: content("Public code, private plans") } };
     assert.equal(exec(inv, "propose", { scope: "tool", request: req }).exitCode, 0);
-    assert.equal(exec(inv, "sync", {}).exitCode, 0);
-    assert.equal(calls, 0);
+    assert.equal(calls, 0, "writes and reads never ask about visibility");
+    const sync = exec(inv, "sync", {});
+    assert.equal(sync.exitCode, 0);
+    assert.ok(!(sync.data.issues as any[]).some((i) => i.code === "public-repo-plans"));
+    assert.equal(calls, 1, "sync caches the answer once for the sidebar label");
+    exec(inv, "sync", {});
+    assert.equal(calls, 1);
   } finally { restore(); }
 });
 

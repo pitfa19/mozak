@@ -182,6 +182,13 @@ export class ScopesView extends ItemView {
       const r = el(row, "span", "mozak-tag mozak-remote" + (scope.remote.stale ? " is-stale" : ""));
       setIcon(r, "github");
       r.setAttr("aria-label", `${repoLabel(scope.remote.spec)}${scope.remote.stale ? " (cached copy is stale)" : ""}`);
+      const vis = scope.remote.visibility;
+      if (vis) {
+        const v = el(row, "span", `mozak-tag mozak-vis is-${vis}`);
+        setIcon(v, vis === "public" ? "globe" : "lock");
+        const where = scope.remote.vault ? "plans private in your vault" : "plans shared inside the repo";
+        v.setAttr("aria-label", `${vis === "public" ? "Public repo" : "Private repo"}, ${where}`);
+      }
     }
     el(row, "span", "mozak-scope-title", scope.title);
     const counts = el(row, "span", "mozak-counts");

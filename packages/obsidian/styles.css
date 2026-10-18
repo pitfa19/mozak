@@ -70,6 +70,9 @@
 .mozak-tag { display: flex; color: var(--text-muted); flex: none; }
 .mozak-tag svg { width: 13px; height: 13px; }
 .mozak-remote.is-stale { color: var(--text-warning); }
+.mozak-vis svg { width: 11px; height: 11px; }
+.mozak-vis.is-private { color: var(--text-faint); }
+.mozak-vis.is-public { color: var(--text-muted); }
 
 .mozak-group { display: flex; align-items: center; gap: 5px; margin: 10px 4px 3px; font-size: 10px; font-weight: var(--font-semibold); letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint); }
 .mozak-group:first-child { margin-top: 2px; }

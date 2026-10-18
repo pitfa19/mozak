@@ -101,6 +101,10 @@ test("vault-plans scopes keep the repo badge, are never stale, open plans inside
   assert.deepEqual(countRemote(model.scopes), { remote: 0, stale: 0 });
   assert.equal(resolveOpenTarget(vault, join(scope.root, "MOZAK.md")).kind, "vault");
   assert.equal(remoteVM("github:o/r", "main", { lastFetchAt: null, lastError: "offline" }, new Date(), undefined, true).stale, false);
+  assert.equal(scope.remote?.visibility, null, "never checked shows no badge");
+  assert.equal(remoteVM("github:o/r", "main", { lastFetchAt: null, lastError: null, visibility: "public" }, new Date(), undefined, true).visibility, "public");
+  assert.equal(remoteVM("github:o/r", "main", { lastFetchAt: null, lastError: null, visibility: "private-or-missing" }).visibility, "private");
+  assert.equal(remoteVM("github:o/r", "main", { lastFetchAt: null, lastError: null, visibility: "unknown" }).visibility, null);
 });
 
 // ---------- roadmap navigation (plan obsidian-roadmap) ----------

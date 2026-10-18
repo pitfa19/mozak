@@ -102,12 +102,17 @@ test("visibility answer is cached; reads never call the checker", () => {
   });
 });
 
-test("a repo that becomes public after the cache is refreshed is refused on the next sync and write", () => {
-  const { inv } = fixture();
+test("a repo that becomes public is refused once the cached answer expires; sync never refetches early", () => {
+  const { inv, base } = fixture();
   withChecker("private-or-missing", () => assert.equal(propose(inv, "p1").exitCode, 0));
-  withChecker("public", () => {
-    // sync forces a fresh check, so the change is seen without waiting a day.
+  withChecker("public", (calls) => {
+    // Within 24 hours the cached private answer stands, so a minute-by-minute sync makes no API calls.
     exec(inv, "sync", {});
+    assert.equal(calls(), 0);
+    const meta = readRemoteMeta(base, "team");
+    writeRemoteMeta(base, "team", { ...meta, visibilityCheckedAt: new Date(Date.now() - 25 * 3600_000).toISOString() });
+    assert.ok((exec(inv, "sync", {}).data.issues as any[]).some((i) => i.code === "public-repo-plans"));
+    assert.equal(calls(), 1);
     assert.equal(propose(inv, "p2").exitCode, 3);
   });
   const graph = JSON.parse(readFileSync(loadInventory(inv).scopes[0]!.root + "/MOZAK.json", "utf8"));

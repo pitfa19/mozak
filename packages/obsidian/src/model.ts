@@ -34,6 +34,8 @@ export interface RemoteVM {
   staleReason: string | null;
   /** True when plans live in a vault folder: nothing is fetched, so the copy is never stale. */
   vault: boolean;
+  /** Last cached GitHub answer: "public", "private" (private or not visible without login), or null when unknown. */
+  visibility: "public" | "private" | null;
 }
 export interface ScopeCounts { completed: number; open: number; awaiting: number }
 export interface ScopeVM {
@@ -221,18 +223,19 @@ export function planMatches(plan: Pick<PlanVM, "state">, filter: PlanFilter): bo
 export function remoteVM(
   spec: string,
   ref: string,
-  meta: { lastFetchAt: string | null; lastError: string | null },
+  meta: { lastFetchAt: string | null; lastError: string | null; visibility?: string | null },
   now = new Date(),
   freshMs = 10 * 60 * 1000,
   vault = false,
 ): RemoteVM {
-  if (vault) return { spec, ref, stale: false, lastFetchAt: null, staleReason: null, vault: true };
+  const visibility = meta.visibility === "public" ? "public" : meta.visibility === "private-or-missing" ? "private" : null;
+  if (vault) return { spec, ref, stale: false, lastFetchAt: null, staleReason: null, vault: true, visibility };
   const age = meta.lastFetchAt ? now.getTime() - Date.parse(meta.lastFetchAt) : Infinity;
   let staleReason: string | null = null;
   if (meta.lastError) staleReason = meta.lastError;
   else if (!meta.lastFetchAt) staleReason = "never fetched";
   else if (age >= freshMs) staleReason = "last fetch older than 10 minutes";
-  return { spec, ref, stale: staleReason !== null, lastFetchAt: meta.lastFetchAt, staleReason, vault: false };
+  return { spec, ref, stale: staleReason !== null, lastFetchAt: meta.lastFetchAt, staleReason, vault: false, visibility };
 }
 
 export function countRemote(scopes: ScopeVM[]): { remote: number; stale: number } {

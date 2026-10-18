@@ -49,12 +49,13 @@ export function setVisibilityChecker(next: VisibilityChecker): () => void {
 }
 
 /**
- * Visibility of a repo-mode scope's repo, cached in its remote meta for 24 hours. Vault-mode and local scopes are
- * not checked and report "unknown". A fresh "unknown" result is cached for a shorter hour, so a transient failure retries.
+ * Visibility of a remote scope's repo, cached in its remote meta for 24 hours. Local scopes report "unknown".
+ * Only repo-mode scopes are ever blocked on it; vault-mode scopes use it as a sidebar label. A fresh "unknown"
+ * result is cached for a shorter hour, so a transient failure retries.
  */
 export function scopeVisibility(entry: ScopeEntry, opts: { force?: boolean; now?: Date } = {}): Visibility {
   const r = entry.remote;
-  if (!r || r.plansMode !== "repo") return "unknown";
+  if (!r) return "unknown";
   const now = opts.now ?? new Date();
   const meta = readRemoteMeta(r.baseDir, entry.id);
   const age = meta.visibilityCheckedAt ? now.getTime() - Date.parse(meta.visibilityCheckedAt) : Infinity;
@@ -69,10 +70,10 @@ export function scopeVisibility(entry: ScopeEntry, opts: { force?: boolean; now?
   return v;
 }
 
-/** Last cached answer without any network call. Null when never checked. */
+/** Last cached answer without any network call. Null when never checked or not a remote scope. */
 export function cachedVisibility(entry: ScopeEntry): Visibility | null {
   const r = entry.remote;
-  if (!r || r.plansMode !== "repo") return null;
+  if (!r) return null;
   return readRemoteMeta(r.baseDir, entry.id).visibility ?? null;
 }
 

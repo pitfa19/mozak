@@ -692,7 +692,9 @@ function remoteOp(inv: ScopeInventory, operation: string, a: Record<string, unkn
     const stale = remote.filter((r) => r.stale).length;
     const bases = [...new Set(targets.map((e) => e.remote?.baseDir).filter((b): b is string => b !== undefined))];
     const warnings = bases.flatMap((b) => { const w = cacheIgnoreWarning(b); return w ? [{ code: "cache-not-ignored", message: w }] : []; });
-    const exposed = targets.filter((e) => scopeVisibility(e, { force: true }) === "public").map((e) => ({ code: "public-repo-plans", message: publicRepoPlansMessage(e), scope: e.id }));
+    // Uses the 24-hour cached answer: the plugin syncs every minute and the unauthenticated API allows 60 calls an hour.
+    // Every remote scope gets an answer for the sidebar label; only repo-mode scopes publish plans, so only they warn.
+    const exposed = targets.filter((e) => scopeVisibility(e) === "public" && e.remote?.plansMode === "repo").map((e) => ({ code: "public-repo-plans", message: publicRepoPlansMessage(e), scope: e.id }));
     return {
       exitCode: stale > 0 ? 6 : 0,
       data: { status: stale > 0 ? "partial" : "ok", ...base, issues: [...remote.filter((r) => r.stale).map((r) => ({ code: "remote-stale", message: `${r.scope}: ${r.error ?? "stale"}`, scope: r.scope })), ...warnings, ...exposed], remote },
