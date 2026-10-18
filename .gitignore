@@ -4,3 +4,7 @@ dist
 .mozak.lock
 scratch
 .mozak-cache/
+# MOZAK's own plans are private and live in the owner's vault (vault-plans scope), never in this public repo.
+/MOZAK.json
+/MOZAK.md
+/.mozak-write-lock

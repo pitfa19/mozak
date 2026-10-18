@@ -4,7 +4,7 @@ Instructions for AI agents working in this repository.
 
 ## Read first
 1. `README.md`: what MOZAK is and how to install it.
-2. `MOZAK.md`: the generated plan summary for this repo. `MOZAK.json` is canonical. Never edit either by hand. Change plans only through `mozak` commands or the `mozak-mcp` tools.
+2. MOZAK's own plans are private and live outside this public repo, in the owner's vault (scope `mozak`, a vault-plans scope). Read them with `mozak context --config <inventory>` from inside this repo; the scope is found from the git origin. Never add `MOZAK.json` or `MOZAK.md` to this repo.
 3. `SPEC.md` and `docs/installation.md`: the format, safety rules and verification status.
 
 ## Layout
