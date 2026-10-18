@@ -1,9 +1,9 @@
 ---
-name: mozak-conversation
+name: mozak
 description: MOZAK conversation for one explicitly named scope. Overview, focused clarification, separate direction and implementation approval, pause, and fresh-session recovery.
 ---
 
-# MOZAK conversation (installed copy)
+# MOZAK (installed copy)
 
 Normative contract for this installed skill. Tests are not owner approval or conversational acceptance.
 

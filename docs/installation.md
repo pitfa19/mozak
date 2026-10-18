@@ -82,14 +82,14 @@ PREFIX/
   node_modules/@mozak/core/ package.json and dist/
   node_modules/@mozak/cli/  package.json and dist/
   node_modules/@mozak/mcp/  package.json and dist/
-  skills/mozak-conversation/  SKILL.md, references/, examples/, rendered for this PREFIX
+  skills/mozak/  SKILL.md, references/, examples/, rendered for this PREFIX
   installation.json         manifest: format, version, nodeRange, contentDigest, files
 ```
 
 - The three packages are copied as ordinary files. There are no symlinks back to the source checkout.
 - The wrappers find the installed modules relative to themselves. They pass arguments and exit status through unchanged.
 - The installed skill has this PREFIX's exact paths written into its command examples. Moving the folder by hand is not a supported migration. Install again at the new prefix instead.
-- To make the skill available to an agent host, symlink the installed skill folder into the host's skills folder, for example `ln -s PREFIX/skills/mozak-conversation ~/.claude/skills/mozak-conversation`. Do not copy it: a copy keeps the old paths after an upgrade. The installer never does this step for you.
+- To make the skill available to an agent host, symlink the installed skill folder into the host's skills folder, for example `ln -s PREFIX/skills/mozak ~/.claude/skills/mozak`. Do not copy it: a copy keeps the old paths after an upgrade. The installer never does this step for you.
 - `installation.json` uses format `mozak.installation/v1` and version `0.1.0`. Its `contentDigest` covers the rendered bytes for this prefix. It is not a signed release identity.
 
 ### Smoke test after install

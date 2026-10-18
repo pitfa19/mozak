@@ -33,7 +33,7 @@ function fixture() {
   mkdirSync(join(source, 'scripts'));
   // Fail red with a useful message if the concurrently implemented installer is absent.
   assert.ok(existsSync(join(repository, 'scripts/install.mjs')), 'scripts/install.mjs must exist');
-  for (const path of ['scripts/install.mjs', 'LICENSE', 'package.json', 'skills/mozak-conversation', ...['core', 'cli', 'mcp'].flatMap(name => [`packages/${name}/package.json`, `packages/${name}/dist`])]) {
+  for (const path of ['scripts/install.mjs', 'LICENSE', 'package.json', 'skills/mozak', ...['core', 'cli', 'mcp'].flatMap(name => [`packages/${name}/package.json`, `packages/${name}/dist`])]) {
     assert.ok(existsSync(join(repository, path)), `required actual source input missing: ${path}; run npm run build`);
     mkdirSync(dirname(join(source, path)), { recursive: true });
     cpSync(join(repository, path), join(source, path), { recursive: true, dereference: false });
@@ -200,10 +200,10 @@ test('relocated real product installs at two canonical Unicode/quoted prefixes a
   assert.equal(secondCheck.contentDigest, secondInstalled.contentDigest);
   verifyManifest(second.prefix, secondInstalled);
   assert.notEqual(secondInstalled.contentDigest, installed.contentDigest, 'skill bytes bind distinct prefixes');
-  const skill = readFileSync(join(f.prefix, 'skills/mozak-conversation/SKILL.md'), 'utf8');
+  const skill = readFileSync(join(f.prefix, 'skills/mozak/SKILL.md'), 'utf8');
   assert.ok(!skill.includes(repository) && !skill.includes(f.source), 'no developer/source path in skill');
   assert.ok(!/\{\{[^}]+\}\}/.test(skill), 'no unrendered placeholders');
-  assert.ok(manifest.files.some(file => file.path.startsWith('skills/mozak-conversation/references/')));
+  assert.ok(manifest.files.some(file => file.path.startsWith('skills/mozak/references/')));
   // Hiding the relocated source demonstrates wrappers cannot resolve its modules.
   renameSync(f.source, `${f.source} hidden`);
   assert.match(cli(f, ['--help']).stdout, /mozak/i);
@@ -254,7 +254,7 @@ for (const [label, flags] of [
   assert.deepEqual(snapshot(f.root), before);
 });
 
-for (const path of ['LICENSE', 'packages/core/package.json', 'packages/cli/package.json', 'packages/mcp/package.json', 'packages/core/dist/index.js', 'packages/cli/dist/index.js', 'packages/mcp/dist/index.js', ...['SKILL.md', 'references/routes.md', 'references/bootstrap.md', 'references/recovery.md', 'examples/overview.md'].map(path => `skills/mozak-conversation/${path}`)]) {
+for (const path of ['LICENSE', 'packages/core/package.json', 'packages/cli/package.json', 'packages/mcp/package.json', 'packages/core/dist/index.js', 'packages/cli/dist/index.js', 'packages/mcp/dist/index.js', ...['SKILL.md', 'references/routes.md', 'references/bootstrap.md', 'references/recovery.md', 'examples/overview.md'].map(path => `skills/mozak/${path}`)]) {
   test(`missing actual source input: ${path}`, () => {
     const f = fixture(); rmSync(join(f.source, path));
     const before = snapshot(f.root);

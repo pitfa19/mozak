@@ -159,15 +159,15 @@ function expectedProduct(prefix) {
     if (!output.has(`node_modules/@mozak/${name}/dist/index.js`)) refuse('source-unavailable', 'missing-entrypoint', dist, 'Build the package before installation.');
   }
   const cli = join(prefix, 'node_modules/@mozak/cli/dist/index.js');
-  const skill = join(prefix, 'skills/mozak-conversation');
+  const skill = join(prefix, 'skills/mozak');
   for (const path of SKILLS) {
-    const bytes = input(`skills/mozak-conversation/${path}`);
+    const bytes = input(`skills/mozak/${path}`);
     let text;
     try { text = new TextDecoder('utf-8', { fatal: true }).decode(bytes); } catch { refuse('source-unavailable', 'invalid-template', path, 'Skill template is not UTF-8.'); }
     if (/node\s+\/(?:home|Users)\//u.test(text)) refuse('source-unavailable', 'unrendered-template', path, 'Skill template contains a developer-bound command.');
     text = text.replaceAll('{{MOZAK_CLI}}', quoted(cli)).replaceAll('{{MOZAK_SKILL}}', skill);
     if (/\{\{[A-Z_]+\}\}/u.test(text)) refuse('source-unavailable', 'unrendered-template', path, 'Skill template contains unresolved placeholders.');
-    add(`skills/mozak-conversation/${path}`, text);
+    add(`skills/mozak/${path}`, text);
   }
   for (const [bin, name] of [['mozak', 'cli'], ['mozak-mcp', 'mcp']]) {
     // The existing MCP entrypoint checks a file-URL-shaped argv[1] before starting.

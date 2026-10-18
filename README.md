@@ -103,7 +103,7 @@ Real commands against a throwaway repo and notes folder. The typing pace is scri
 | Read one project's plan | `mozak context`, `mozak plans`, `mozak check` |
 | Refresh GitHub projects now | `mozak sync` |
 | Let any MCP agent read and propose | `mozak-mcp --config inventory.json` |
-| Run the guided planning conversation | the installed skill at `PREFIX/skills/mozak-conversation/SKILL.md` |
+| Run the guided planning conversation | the installed skill at `PREFIX/skills/mozak/SKILL.md` |
 
 Every command needs an explicit `--config`. MOZAK never falls back to a global setting.
 
