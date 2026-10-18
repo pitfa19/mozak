@@ -61,12 +61,18 @@ Details, exit codes and recovery: [docs/installation.md](docs/installation.md).
   "scopes": [
     { "id": "my-app",     "root": "./my-app" },
     { "id": "lab-notes",  "root": "./vault/lab-notes" },
-    { "id": "genome-mcp", "remote": "github:you/genome-mcp", "ref": "main" }
+    { "id": "genome-mcp", "remote": "github:you/genome-mcp", "ref": "main" },
+    { "id": "my-oss-tool", "remote": "github:you/my-oss-tool", "plans": "./vault/my-oss-tool" }
   ]
 }
 ```
 
-A project with `root` is a local folder. A project with `remote` is a GitHub repo: MOZAK downloads only its `README.md`, `AGENTS.md` and the two MOZAK files, a few kilobytes, and pushes plan changes back. When you are ready to build, `mozak pull` makes a full clone in `~/Documents`.
+A project with `root` is a local folder. A project with `remote` is a GitHub repo. Where its plans live depends on who should see them:
+
+- **Private repo**: plans live inside the repo, so everyone with access shares them. MOZAK downloads only `README.md`, `AGENTS.md` and the two MOZAK files, a few kilobytes, and pushes plan changes back.
+- **Public repo**: add `"plans"` with a folder, usually in your notes. Plans stay there, private to you, and are never committed to the repo. MOZAK warns and refuses writes if a repo holding plans becomes public.
+
+`mozak pull --into ~/Downloads/x` clones the code anywhere. For a public repo the clone never receives plan files. Run MOZAK read commands inside any clone without `--scope` and it finds the project from the clone's git origin.
 
 **2. Agree on a plan.**
 

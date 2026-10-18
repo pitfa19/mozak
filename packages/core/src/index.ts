@@ -19,3 +19,5 @@ export { mdText, stopLabel, completedPlanLine, planHeading, planDisplayState, pr
 export * from "./api.ts";
 export * from "./remote-meta.ts";
 export * from "./remote.ts";
+export * from "./visibility.ts";
+export * from "./working-copy.ts";

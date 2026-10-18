@@ -28,7 +28,7 @@ export function loadScopesModel(inventoryPath: string): ScopesModel {
   const loads: ScopeLoad[] = inv.scopes.map((entry) => {
     // Remote scopes are read from the local cache only. Refreshing the view never touches the network.
     const remote = entry.remote
-      ? remoteVM(entry.remote.spec, entry.remote.ref, readRemoteMeta(entry.remote.baseDir, entry.id))
+      ? remoteVM(entry.remote.spec, entry.remote.ref, readRemoteMeta(entry.remote.baseDir, entry.id), new Date(), undefined, entry.remote.plansMode === "vault")
       : undefined;
     try {
       const resolved = resolveScope(inv, entry.id);

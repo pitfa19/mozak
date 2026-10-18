@@ -138,6 +138,7 @@ function refresh(entry: ScopeEntry): void {
 
 export function statusOf(entry: ScopeEntry, stale: boolean, error?: string): RemoteStatus {
   const r = remoteOf(entry);
+  if (r.plansMode === "vault") return vaultStatus(entry);
   const meta = readRemoteMeta(r.baseDir, entry.id);
   return {
     scope: entry.id,
@@ -150,12 +151,20 @@ export function statusOf(entry: ScopeEntry, stale: boolean, error?: string): Rem
   };
 }
 
+/** Status row for a vault-plans scope. Plans are local, so nothing is fetched and nothing is ever stale. */
+export function vaultStatus(entry: ScopeEntry): RemoteStatus {
+  const r = remoteOf(entry);
+  return { scope: entry.id, remote: r.spec, ref: r.ref, stale: false, lastFetchAt: null, source: "vault" };
+}
+
 /**
  * Refresh one remote scope when forced or when the last successful fetch is older than ten minutes.
  * A fetch failure never throws: the cached copy is used and reported stale.
+ * Vault-plans scopes never run git: their plans are local and the repo is linked for display only.
  */
 export function syncRemote(entry: ScopeEntry, opts: { force?: boolean; now?: Date } = {}): RemoteStatus {
   const r = remoteOf(entry);
+  if (r.plansMode === "vault") return vaultStatus(entry);
   const now = opts.now ?? new Date();
   const meta = readRemoteMeta(r.baseDir, entry.id);
   const have = isRepo(entry.root);
@@ -172,8 +181,14 @@ export function syncRemote(entry: ScopeEntry, opts: { force?: boolean; now?: Dat
   }
 }
 
+/** Every remote scope, repo-mode and vault-mode. Use repoEntries for anything that runs git on plan files. */
 export function remoteEntries(inv: ScopeInventory): ScopeEntry[] {
   return inv.scopes.filter((s) => s.remote !== undefined);
+}
+
+/** Remote scopes whose plan files live in the repo, so reads fetch and writes commit and push. */
+export function repoEntries(inv: ScopeInventory): ScopeEntry[] {
+  return inv.scopes.filter((s) => s.remote !== undefined && s.remote.plansMode === "repo");
 }
 
 function normalizeUrl(url: string): string {
@@ -182,10 +197,12 @@ function normalizeUrl(url: string): string {
 
 export interface PullResult { scope: string; destination: string; created: boolean; remote: string; ref: string }
 
-/** Convert a remote scope into a full working clone. Never overwrites a different repo. */
+/** Convert a remote scope into a full working clone. Never overwrites a different repo.
+ * For a vault-plans scope this only clones the code: plans stay in the vault and nothing is recorded as the scope root. */
 export function pullRemote(entry: ScopeEntry, into?: string): PullResult {
   const r = remoteOf(entry);
   const dest = resolve(into ? (into === "~" || into.startsWith("~/") ? join(homedir(), into.slice(1)) : into) : join(homedir(), "Documents", r.repoName));
+  const vault = r.plansMode === "vault";
   const meta = readRemoteMeta(r.baseDir, entry.id);
   let created = false;
   if (existsSync(dest)) {
@@ -201,7 +218,7 @@ export function pullRemote(entry: ScopeEntry, into?: string): PullResult {
     }
   } else {
     // Push anything the sparse cache still holds, so the full clone starts from the same history.
-    if (isRepo(r.cacheRoot) && r.fullClone === null) {
+    if (!vault && isRepo(r.cacheRoot) && r.fullClone === null) {
       try { if (pendingFiles(r.cacheRoot) || aheadCount(r.cacheRoot, r.ref) > 0) commitAndPush({ ...entry, root: r.cacheRoot }, "mozak: push pending scope state"); } catch (err) {
         if (!(err instanceof GitFailure)) throw err;
         throw new DomainError("pull-unpushed-state", `sparse cache has unpushed MOZAK state: ${err.message}`, 3);
@@ -217,6 +234,7 @@ export function pullRemote(entry: ScopeEntry, into?: string): PullResult {
     }
     created = true;
   }
+  if (vault) return { scope: entry.id, destination: dest, created, remote: r.spec, ref: r.ref };
   if (!existsSync(join(dest, "MOZAK.json"))) {
     throw new DomainError("scope-uninitialized", `not a scope: no MOZAK.json at the root of ${dest}`, 2);
   }

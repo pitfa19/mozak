@@ -339,7 +339,7 @@ export type RenderResult = "rendered" | "current" | "conflict" | "failed";
  * overwrites a conflicting bridge (that stays an owner repair), and runs inside the scope lock.
  */
 export function renderProjection(entry: ScopeEntry, options: StoreOptions = {}): { result: RenderResult; outcome: OperationResult } {
-  if (entry.remote) throw new DomainError("remote-render-refused", "render only regenerates local projections", 2);
+  if (entry.remote && entry.remote.plansMode === "repo") throw new DomainError("remote-render-refused", "render only regenerates local projections", 2);
   let result: RenderResult = "current";
   const tx: Transaction = { committed: false, projectionUpdated: false, temporary: [] };
   const out = transaction(entry, options, tx, () => {

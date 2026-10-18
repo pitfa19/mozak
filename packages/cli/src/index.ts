@@ -5,9 +5,11 @@
 
 import { closeSync, fstatSync, openSync, readSync } from "node:fs";
 import { parseArgs } from "node:util";
-import { executeOperation, loadInventory, MAX_REQUEST_BYTES, type OperationOutput } from "@mozak/core";
+import { executeOperation, loadInventory, MAX_REQUEST_BYTES, scopeForWorkingCopy, DomainError, type OperationOutput } from "@mozak/core";
 
 const OWNER_ROUTES = new Set(["decide", "init", "repair", "pull"]);
+/** Read routes that may omit --scope: the scope is then found from the current folder's git origin. */
+const CWD_SCOPE_ROUTES = new Set(["context", "check", "review show", "plans"]);
 
 type Route = {
   operation: string;
@@ -19,7 +21,7 @@ type Route = {
 
 const ROUTES: Record<string, Route> = {
   "scope init": { operation: "init", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
-  context: { operation: "context", flags: ["config", "scope", "json"], requires: ["config", "scope"], requestFile: false },
+  context: { operation: "context", flags: ["config", "scope", "json"], requires: ["config"], requestFile: false },
   plans: {
     operation: "plans",
     flags: ["config", "scope", "all", "include-rejected", "limit", "continuation", "json"],
@@ -27,11 +29,11 @@ const ROUTES: Record<string, Route> = {
     requestFile: false,
     mode: "scope",
   },
-  "review show": { operation: "review", flags: ["config", "scope", "plan", "purpose", "outcome", "json"], requires: ["config", "scope", "plan"], requestFile: false },
+  "review show": { operation: "review", flags: ["config", "scope", "plan", "purpose", "outcome", "json"], requires: ["config", "plan"], requestFile: false },
   scopes: { operation: "scopes", flags: ["config", "json"], requires: ["config"], requestFile: false },
   sync: { operation: "sync", flags: ["config", "scope", "json"], requires: ["config"], requestFile: false },
   pull: { operation: "pull", flags: ["config", "scope", "into", "json"], requires: ["config", "scope"], requestFile: false },
-  check: { operation: "check", flags: ["config", "scope", "json"], requires: ["config", "scope"], requestFile: false },
+  check: { operation: "check", flags: ["config", "scope", "json"], requires: ["config"], requestFile: false },
   operation: { operation: "operation", flags: ["config", "scope", "id", "json"], requires: ["config", "scope", "id"], requestFile: false },
   "plan propose": { operation: "propose", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
   "plan revise": { operation: "revise", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
@@ -56,13 +58,13 @@ function usage(): string {
   return [
     "usage: mozak <route> --config FILE [flags]",
     "  mozak scope init --scope ID --request FILE          (owner)",
-    "  mozak context --scope ID [--json]",
-    "  mozak plans (--scope ID | --all) [--include-rejected] [--limit 1..100] [--continuation TOKEN] [--json]",
+    "  mozak context [--scope ID] [--json]",
+    "  mozak plans [--scope ID | --all] [--include-rejected] [--limit 1..100] [--continuation TOKEN] [--json]",
     "  mozak scopes [--json]                                (read-only index of every scope: id, folder, title, plan counts)",
     "  mozak sync [--scope ID] [--json]                     (force-refresh remote scopes; reads refresh them after 10 minutes)",
-    "  mozak pull --scope ID [--into PATH]                  (owner; turn a remote scope into a full working clone)",
-    "  mozak review show --scope ID --plan ID [--purpose P] [--outcome ID] [--json]",
-    "  mozak check --scope ID [--json]",
+    "  mozak pull --scope ID [--into PATH]                  (owner; clone the code; vault-plans scopes keep plans in the vault)",
+    "  mozak review show [--scope ID] --plan ID [--purpose P] [--outcome ID] [--json]",
+    "  mozak check [--scope ID] [--json]",
     "  mozak operation --scope ID --id OP [--json]",
     "  mozak plan propose|revise|complete --scope ID --request FILE",
     "  mozak observe --scope ID --request FILE",
@@ -75,6 +77,9 @@ function usage(): string {
     "      5 committed with unfinished projection or cleanup, 6 partial all-scope coverage.",
     "Config: FILE is the explicit inventory JSON. There is no default path and no directory scan.",
     '  Shape: { "format": "mozak.local/v3", "scopes": [ { "id": "name", "root": "path" } ] }',
+    '  Repo scopes: { "id": "x", "remote": "github:owner/repo" } keeps plans in the repo (private repos);',
+    '  add "plans": "vault/folder" to keep them in that folder instead (public repos).',
+    "  Read routes run inside a clone of an inventoried repo may omit --scope; it is found from the git origin.",
     "  Relative roots resolve against the inventory file's directory. Ask the owner for the path;",
     "  first use (creating an inventory or a scope) is documented in the skill's references/bootstrap.md.",
   ].join("\n");
@@ -168,10 +173,11 @@ function parseCommand(argv: string[]): Parsed {
     }
   }
   // A continuation pins its own selector, so it may stand alone. Mixed selectors are refused by the facade.
+  // Without --scope or --all, plans is scoped to the current clone (resolved later from its git origin).
   if (route.mode === "scope" && values.continuation === undefined) {
     const hasScope = values.scope !== undefined;
     const hasAll = values.all !== undefined;
-    if (hasScope === hasAll) throw new UsageError(`plans needs exactly one of --scope or --all, or --continuation alone`);
+    if (hasScope && hasAll) throw new UsageError(`plans needs at most one of --scope or --all, or --continuation alone`);
   }
   return { route, routeName: routeName as string, values };
 }
@@ -318,6 +324,17 @@ function run(argv: string[]): number {
     const message = err instanceof Error ? err.message : String(err);
     process.stdout.write(`${JSON.stringify({ status: code, committed: false, snapshot: null, projectionStatus: null, projectionUpdated: false, issues: [{ code, message }] }, null, 2)}\n`);
     return 2;
+  }
+
+  const cwdScope = CWD_SCOPE_ROUTES.has(routeName) && values.scope === undefined && values.all === undefined && values.continuation === undefined;
+  if (cwdScope) {
+    try {
+      values.scope = scopeForWorkingCopy(inventory, process.cwd()).id;
+    } catch (err) {
+      if (!(err instanceof DomainError)) throw err;
+      process.stdout.write(`${JSON.stringify({ status: err.code, committed: false, snapshot: null, projectionStatus: null, projectionUpdated: false, issues: [{ code: err.code, message: err.message }] }, null, 2)}\n`);
+      return err.exitCode;
+    }
   }
 
   let args: Record<string, unknown>;

@@ -32,6 +32,8 @@ export interface RemoteVM {
   stale: boolean;
   lastFetchAt: string | null;
   staleReason: string | null;
+  /** True when plans live in a vault folder: nothing is fetched, so the copy is never stale. */
+  vault: boolean;
 }
 export interface ScopeCounts { completed: number; open: number; awaiting: number }
 export interface ScopeVM {
@@ -222,17 +224,19 @@ export function remoteVM(
   meta: { lastFetchAt: string | null; lastError: string | null },
   now = new Date(),
   freshMs = 10 * 60 * 1000,
+  vault = false,
 ): RemoteVM {
+  if (vault) return { spec, ref, stale: false, lastFetchAt: null, staleReason: null, vault: true };
   const age = meta.lastFetchAt ? now.getTime() - Date.parse(meta.lastFetchAt) : Infinity;
   let staleReason: string | null = null;
   if (meta.lastError) staleReason = meta.lastError;
   else if (!meta.lastFetchAt) staleReason = "never fetched";
   else if (age >= freshMs) staleReason = "last fetch older than 10 minutes";
-  return { spec, ref, stale: staleReason !== null, lastFetchAt: meta.lastFetchAt, staleReason };
+  return { spec, ref, stale: staleReason !== null, lastFetchAt: meta.lastFetchAt, staleReason, vault: false };
 }
 
 export function countRemote(scopes: ScopeVM[]): { remote: number; stale: number } {
-  const remote = scopes.filter((s) => s.remote);
+  const remote = scopes.filter((s) => s.remote && !s.remote.vault);
   return { remote: remote.length, stale: remote.filter((s) => s.remote?.stale).length };
 }
 

@@ -25,6 +25,11 @@ export interface RemoteInfo {
   cacheRoot: string;
   /** Canonical full working clone created by `mozak pull`, when it still exists. Reads and writes prefer it. */
   fullClone: string | null;
+  /**
+   * Where the plan files live. "repo": inside the linked repo (sparse cache or full clone), committed and pushed.
+   * "vault": in a local plans folder named by the inventory; the repo is linked for display and cloning only.
+   */
+  plansMode: "repo" | "vault";
 }
 
 export interface ParsedRemote { url: string; repoName: string }
@@ -61,7 +66,12 @@ export interface RemoteMeta {
   lastFetchAt: string | null;
   lastError: string | null;
   fullClone: string | null;
+  /** Last unauthenticated GitHub visibility answer for a repo-mode scope, and when it was taken. */
+  visibility?: Visibility | null;
+  visibilityCheckedAt?: string | null;
 }
+
+export type Visibility = "public" | "private-or-missing" | "unknown";
 
 function metaPath(baseDir: string, id: string): string {
   return join(baseDir, CACHE_DIR, `${id}.meta.json`);
@@ -72,7 +82,8 @@ export function readRemoteMeta(baseDir: string, id: string): RemoteMeta {
   try {
     const raw = JSON.parse(readFileSync(metaPath(baseDir, id), "utf8")) as Record<string, unknown>;
     const str = (v: unknown) => (typeof v === "string" && v !== "" ? v : null);
-    return { lastFetchAt: str(raw.lastFetchAt), lastError: str(raw.lastError), fullClone: str(raw.fullClone) };
+    const vis = raw.visibility === "public" || raw.visibility === "private-or-missing" || raw.visibility === "unknown" ? raw.visibility : null;
+    return { lastFetchAt: str(raw.lastFetchAt), lastError: str(raw.lastError), fullClone: str(raw.fullClone), visibility: vis, visibilityCheckedAt: str(raw.visibilityCheckedAt) };
   } catch {
     return empty;
   }
@@ -96,6 +107,6 @@ export interface RemoteStatus {
   lastFetchAt: string | null;
   /** Why the copy is stale, when it is. */
   error?: string;
-  /** "full-clone" when reads use a clone made by `mozak pull`, otherwise "sparse-cache". */
-  source: "sparse-cache" | "full-clone";
+  /** "full-clone" when reads use a clone made by `mozak pull`, "vault" when plans live in a vault folder, otherwise "sparse-cache". */
+  source: "sparse-cache" | "full-clone" | "vault";
 }

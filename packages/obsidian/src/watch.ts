@@ -22,7 +22,7 @@ export function watchTargets(inventoryPath: string): WatchTarget[] {
       let root = entry.root;
       try { root = resolveScope(inv, entry.id).root; } catch { /* fall back to the declared root */ }
       if (root) add(root, "MOZAK.json");
-      if (entry.remote) add(`${entry.remote.baseDir}/.mozak-cache`, `${entry.id}.meta.json`);
+      if (entry.remote && entry.remote.plansMode === "repo") add(`${entry.remote.baseDir}/.mozak-cache`, `${entry.id}.meta.json`);
     }
   } catch { /* an unreadable inventory is reported by the view, the inventory file watch still fires */ }
   return [...targets].map(([dir, names]) => ({ dir, match: (f: string) => names.has(f) }));

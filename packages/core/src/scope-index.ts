@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { existsSync, lstatSync, readFileSync, realpathSync, statSync, type Stats } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { DomainError } from "./errors.ts";
-import { cacheRootFor, parseRemoteSpec, readRemoteMeta, DEFAULT_REF, REF_PATTERN, type RemoteInfo } from "./remote-meta.ts";
+import { cacheRootFor, parseRemoteSpec, readRemoteMeta, CACHE_DIR, DEFAULT_REF, REF_PATTERN, type RemoteInfo } from "./remote-meta.ts";
 
 /** Pilot-local explicit inventory. Never a global registration or a directory scan. */
 export const INVENTORY_FORMAT_V2 = "mozak.local/v2" as const;
@@ -30,7 +30,7 @@ export interface ScopeInventory {
 
 const INVENTORY_KEYS = ["format", "scopes"] as const;
 const ENTRY_KEYS = ["id", "root"] as const;
-const REMOTE_ENTRY_KEYS = ["id", "remote", "ref"] as const;
+const REMOTE_ENTRY_KEYS = ["id", "remote", "ref", "plans"] as const;
 const REMOTE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -86,9 +86,13 @@ function canonicalPath(path: string): string {
 function digestOf(format: string, scopes: ScopeEntry[]): string {
   const canonical = JSON.stringify({
     format,
-    // Local entries keep the exact v2 shape, so existing digests do not change.
+    // Local entries keep the exact v2 shape, so existing digests do not change. Vault entries add their plans folder.
     scopes: scopes.map((scope) =>
-      scope.remote ? { id: scope.id, root: scope.root, remote: scope.remote.spec, ref: scope.remote.ref } : { id: scope.id, root: scope.root },
+      scope.remote
+        ? scope.remote.plansMode === "vault"
+          ? { id: scope.id, root: scope.root, remote: scope.remote.spec, ref: scope.remote.ref, plans: "vault" }
+          : { id: scope.id, root: scope.root, remote: scope.remote.spec, ref: scope.remote.ref }
+        : { id: scope.id, root: scope.root },
     ),
   });
   return createHash("sha256").update(canonical, "utf8").digest("hex");
@@ -163,10 +167,22 @@ export function loadInventory(configPath: string): ScopeInventory {
         throw invalidInventory(file, `scope "${id}" remote must look like "github:owner/repo", an https:// URL or an absolute file:// URL`);
       }
       const cacheRoot = canonicalPath(cacheRootFor(base, id));
-      const meta = readRemoteMeta(base, id);
-      const fullClone = meta.fullClone !== null && existsSync(join(meta.fullClone, ".git")) && existsSync(join(meta.fullClone, "MOZAK.json")) ? canonicalPath(meta.fullClone) : null;
-      root = fullClone ?? cacheRoot;
-      remote = { spec: entry.remote, url: parsed.url, ref, repoName: parsed.repoName, baseDir: base, cacheRoot, fullClone };
+      if (entry.plans !== undefined) {
+        // Vault plans: the scope root is a local folder. The repo is never cloned, committed to or pushed for plans.
+        if (typeof entry.plans !== "string" || entry.plans.trim() === "") throw invalidInventory(file, `scope "${id}" plans must be a nonempty path`);
+        const plansRoot = canonicalPath(resolve(base, entry.plans));
+        const cacheDir = canonicalPath(join(base, CACHE_DIR));
+        if (plansRoot === cacheDir || plansRoot.startsWith(cacheDir + "/")) {
+          throw invalidInventory(file, `scope "${id}" plans folder must not be inside ${CACHE_DIR}/`);
+        }
+        root = plansRoot;
+        remote = { spec: entry.remote, url: parsed.url, ref, repoName: parsed.repoName, baseDir: base, cacheRoot, fullClone: null, plansMode: "vault" };
+      } else {
+        const meta = readRemoteMeta(base, id);
+        const fullClone = meta.fullClone !== null && existsSync(join(meta.fullClone, ".git")) && existsSync(join(meta.fullClone, "MOZAK.json")) ? canonicalPath(meta.fullClone) : null;
+        root = fullClone ?? cacheRoot;
+        remote = { spec: entry.remote, url: parsed.url, ref, repoName: parsed.repoName, baseDir: base, cacheRoot, fullClone, plansMode: "repo" };
+      }
     } else {
       const rawRoot = entry.root;
       if (typeof rawRoot !== "string" || rawRoot.trim() === "") {
@@ -217,7 +233,7 @@ export function resolveScope(inv: ScopeInventory, id: string): ScopeEntry {
     stats = statSync(real);
   } catch (err) {
     if (isMissing(err)) {
-      const hint = entry.remote ? " (remote scope not fetched yet: run `mozak sync`)" : "";
+      const hint = entry.remote ? (entry.remote.plansMode === "vault" ? " (vault plans folder missing)" : " (remote scope not fetched yet: run `mozak sync`)") : "";
       throw new DomainError("scope-root-missing", `scope "${id}" root is missing: ${entry.root}${hint}`);
     }
     throw new DomainError("scope-root-unreadable", `scope "${id}" root is unreadable: ${entry.root}`);

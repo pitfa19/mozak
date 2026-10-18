@@ -22,7 +22,8 @@ A single JSON file. Relative `root` paths resolve against the inventory file's o
   "scopes": [
     { "id": "my-project", "root": "my-project" },
     { "id": "other", "root": "/absolute/path/to/other" },
-    { "id": "shared", "remote": "github:owner/repo", "ref": "main" }
+    { "id": "shared", "remote": "github:owner/repo", "ref": "main" },
+    { "id": "oss", "remote": "github:owner/public-repo", "plans": "notes/oss" }
   ]
 }
 ```
@@ -30,7 +31,10 @@ A single JSON file. Relative `root` paths resolve against the inventory file's o
 Rules enforced by core:
 
 - `format` is `"mozak.local/v3"` (v2 is accepted read-compatibly).
-- Each scope entry has exactly `id` + `root` (local) or `id` + `remote` [+ `ref`] (remote).
+- Each scope entry has exactly `id` + `root` (local) or `id` + `remote` [+ `ref`] [+ `plans`] (remote).
+- Routing rule: a **private** repo keeps plans inside the repo (shared with collaborators). A **public** repo gets `plans`, a folder for its MOZAK.json and MOZAK.md, usually in the owner's notes. Ask the owner which applies; never put plans in a public repo. MOZAK refuses writes to a repo-mode scope whose repo is public (`public-repo-plans`).
+- A `plans` folder is initialized like a local scope: it needs its own `README.md` and `AGENTS.md` describing the project.
+- Read routes (`context`, `plans`, `check`, `review show`) run inside a clone may omit `--scope`; the scope is found from the clone's git origin. Writes always name `--scope`.
 - Scope ids are unique; two scopes may not resolve to the same root.
 - Editing this file is an owner-approved act: confirm before adding or removing entries.
 

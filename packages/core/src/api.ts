@@ -17,8 +17,9 @@ import {
 } from "./scope-store.ts";
 import { contextView, reviewRows, reviewShow } from "./review.ts";
 import { scopeIndex } from "./scope-list.ts";
-import { cacheIgnoreWarning, commitAndPush, pullRemote, remoteEntries, statusOf, syncRemote } from "./remote.ts";
+import { cacheIgnoreWarning, commitAndPush, pullRemote, remoteEntries, repoEntries, statusOf, syncRemote } from "./remote.ts";
 import type { RemoteStatus } from "./remote-meta.ts";
+import { cachedVisibility, publicRepoPlansMessage, scopeVisibility } from "./visibility.ts";
 import { canonical, digest } from "./understanding.ts";
 
 export type Actor = "agent" | "owner";
@@ -691,15 +692,18 @@ function remoteOp(inv: ScopeInventory, operation: string, a: Record<string, unkn
     const stale = remote.filter((r) => r.stale).length;
     const bases = [...new Set(targets.map((e) => e.remote?.baseDir).filter((b): b is string => b !== undefined))];
     const warnings = bases.flatMap((b) => { const w = cacheIgnoreWarning(b); return w ? [{ code: "cache-not-ignored", message: w }] : []; });
+    const exposed = targets.filter((e) => scopeVisibility(e, { force: true }) === "public").map((e) => ({ code: "public-repo-plans", message: publicRepoPlansMessage(e), scope: e.id }));
     return {
       exitCode: stale > 0 ? 6 : 0,
-      data: { status: stale > 0 ? "partial" : "ok", ...base, issues: [...remote.filter((r) => r.stale).map((r) => ({ code: "remote-stale", message: `${r.scope}: ${r.error ?? "stale"}`, scope: r.scope })), ...warnings], remote },
+      data: { status: stale > 0 ? "partial" : "ok", ...base, issues: [...remote.filter((r) => r.stale).map((r) => ({ code: "remote-stale", message: `${r.scope}: ${r.error ?? "stale"}`, scope: r.scope })), ...warnings, ...exposed], remote },
     };
   }
   const o = closed(a, "pull arguments", ["scope"], ["into"]);
   const entry = resolveRemoteTarget(inv, nonEmpty(o.scope, "scope"));
-  const synced = syncRemote(entry, { force: true });
-  if (synced.stale && !existsSync(entry.root)) throw new DomainError("remote-unavailable", `cannot fetch ${synced.remote}: ${synced.error ?? "unknown error"}`, 2);
+  if (entry.remote?.plansMode !== "vault") {
+    const synced = syncRemote(entry, { force: true });
+    if (synced.stale && !existsSync(entry.root)) throw new DomainError("remote-unavailable", `cannot fetch ${synced.remote}: ${synced.error ?? "unknown error"}`, 2);
+  }
   const pulled = pullRemote(entry, o.into === undefined ? undefined : nonEmpty(o.into, "into"));
   return { exitCode: 0, data: { status: "ok", ...base, issues: [], pull: pulled } };
 }
@@ -738,7 +742,7 @@ function renderOp(inv: ScopeInventory, a: Record<string, unknown>): OperationOut
   if ((o.scope === undefined) === !all) throw invalid("render needs exactly one of scope or all");
   const targets = all ? inv.scopes : [resolveScope(inv, nonEmpty(o.scope, "scope"))];
   const rows = targets.map((entry) => {
-    if (entry.remote) return { scope: entry.id, result: "remote-skipped", exitCode: 0 };
+    if (entry.remote && entry.remote.plansMode === "repo") return { scope: entry.id, result: "remote-skipped", exitCode: 0 };
     try {
       const { result, outcome } = renderProjection(entry);
       return { scope: entry.id, result, exitCode: resultExit(outcome), code: outcome.status, projectionUpdated: outcome.projectionUpdated, projectionStatus: outcome.projectionStatus, ...(outcome.issues.length ? { issues: outcome.issues } : {}) };
@@ -789,12 +793,19 @@ export function executeOperation(inv: ScopeInventory, operation: string, args: u
     }
     if (REMOTE_READ_OPS.has(operation)) {
       if (!isPlain(args)) throw invalid("arguments must be an object");
-      const statuses = touchedRemotes(inv, operation, args).map((e) => syncRemote(e));
-      return attachRemote(readOp(inv, operation, args), statuses);
+      const touched = touchedRemotes(inv, operation, args);
+      const statuses = touched.map((e) => syncRemote(e));
+      const out = attachRemote(readOp(inv, operation, args), statuses);
+      if (operation !== "scopes") return out;
+      // Reads never wait on the network for this: only an already cached "public" answer warns.
+      const exposed = repoEntries(inv).filter((e) => cachedVisibility(e) === "public");
+      if (exposed.length === 0 || !Array.isArray(out.data.issues)) return out;
+      return { ...out, data: { ...out.data, issues: [...out.data.issues, ...exposed.map((e) => ({ code: "public-repo-plans", message: publicRepoPlansMessage(e), scope: e.id }))] } };
     }
     const input = isPlain(args) ? args : {};
-    const target = touchedRemotes(inv, operation, input)[0];
-    if (target === undefined) return writeOp(inv, operation, input, actor);
+    // Only repo-mode remote scopes commit and push. Vault-plans scopes write like local scopes.
+    const target = touchedRemotes(inv, operation, input).find((e) => e.remote?.plansMode === "repo");
+    if (target === undefined) return attachRemote(writeOp(inv, operation, input, actor), touchedRemotes(inv, operation, input).map((e) => statusOf(e, false)));
     return remoteWrite(inv, operation, input, actor, target);
   } catch (err) {
     if (err instanceof DomainError) return errorOutput(err, operation, args);
@@ -805,6 +816,7 @@ export function executeOperation(inv: ScopeInventory, operation: string, args: u
 /** Write against a remote scope: refresh first, refuse on a stale base, then commit MOZAK.json and MOZAK.md and push. */
 function remoteWrite(inv: ScopeInventory, operation: string, input: Record<string, unknown>, actor: Actor, entry: ScopeEntry): OperationOutput {
   if (OWNER_ONLY.has(operation)) requireOwner(operation, actor);
+  if (scopeVisibility(entry) === "public") throw new DomainError("public-repo-plans", `refusing to write: ${publicRepoPlansMessage(entry)}`, 3);
   const status = syncRemote(entry, { force: true });
   if (status.stale) {
     throw new DomainError("remote-stale", `refusing to write: cannot refresh ${status.remote} (${status.error ?? "unknown"}). Run \`mozak sync\` when online.`, 3);
