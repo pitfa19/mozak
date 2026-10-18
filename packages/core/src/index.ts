@@ -22,3 +22,4 @@ export * from "./remote.ts";
 export * from "./visibility.ts";
 export * from "./working-copy.ts";
 export * from "./durable.ts";
+export * from "./update.ts";

@@ -21,6 +21,7 @@
 
 .mozak-muted { color: var(--text-muted); font-size: var(--font-ui-smaller); }
 .mozak-warn { font-size: var(--font-ui-smaller); color: var(--text-warning); margin: 0 2px 6px; }
+.mozak-update { font-size: var(--font-ui-smaller); color: var(--text-accent); margin: 0 2px 6px; }
 .mozak-none { padding: var(--size-4-3) 4px; text-align: center; }
 .mozak-empty { padding: var(--size-4-3); border: 1px dashed var(--background-modifier-border); border-radius: var(--radius-m); }
 .mozak-empty-title { font-weight: var(--font-semibold); margin-bottom: var(--size-4-1); }

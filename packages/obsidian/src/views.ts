@@ -2,6 +2,7 @@ import { ItemView, Notice, setIcon, type WorkspaceLeaf } from "obsidian";
 import { countRemote, planMatches, scopesModel, type PlanFilter, type PlanVM, type ScopeVM, type ScopesModel, type StripVM } from "./model.ts";
 import { loadScopesModel, describeError, syncRemoteScopes } from "./load.ts";
 import type MozakPlugin from "./main.ts";
+import { cachedUpdateNotice } from "@mozak/core";
 
 export const SCOPES_VIEW_TYPE = "mozak-scopes";
 /** Retired detail tab. Kept only so leftover leaves from older versions can be closed on load. */
@@ -123,6 +124,9 @@ export class ScopesView extends ItemView {
     }
     const m = this.model;
     if (!m) return;
+    // Reads the shared update cache only; the plugin never checks the network itself.
+    const update = cachedUpdateNotice(this.plugin.manifest.version);
+    if (update) el(root, "div", "mozak-update", `MOZAK ${update.latest} available. Run: ${update.command}`);
     this.renderFilter(root, m);
     const stale = countRemote(m.scopes).stale;
     if (m.totals.failed || stale) {

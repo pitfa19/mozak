@@ -1,13 +1,17 @@
 {
   "name": "mozak-monorepo",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
-  "workspaces": ["packages/*"],
+  "workspaces": [
+    "packages/*"
+  ],
   "engines": {
     "node": ">=24.11.0"
   },
   "scripts": {
-    "build": "tsc -b",
+    "build": "tsc -b && npm run build:plugin",
+    "build:plugin": "node packages/obsidian/scripts/build.mjs",
     "test": "node --test --experimental-strip-types packages/core/test/*.test.ts packages/cli/test/*.test.ts packages/mcp/test/*.test.ts packages/obsidian/test/*.test.ts",
     "test:install": "node --test scripts/test-install.mjs"
   },

@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 // Fixtures COPY the actual built product, never a replacement implementation.
 // All mutations and cleanup are restricted to this suite's own scratch roots.
 const repository = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const ROOT_VERSION = JSON.parse(readFileSync(join(repository, 'package.json'), 'utf8')).version;
 const scratch = realpathSync(process.env.JCODE_SCRATCH_DIR || tmpdir());
 const roots = [];
 const codePointSort = values => values.sort((a, b) => a < b ? -1 : a > b ? 1 : 0);
@@ -39,7 +40,7 @@ function fixture() {
     cpSync(join(repository, path), join(source, path), { recursive: true, dereference: false });
   }
   const prefix = join(root, "installed space Ž ' quoted");
-  const env = { PATH: process.env.PATH || '', HOME: home, TMPDIR: root, LANG: 'C.UTF-8' };
+  const env = { PATH: process.env.PATH || '', HOME: home, TMPDIR: root, LANG: 'C.UTF-8', MOZAK_NO_UPDATE_CHECK: '1' };
   return { root, source, cwd, home, prefix, env };
 }
 
@@ -99,9 +100,10 @@ function snapshot(root) {
 }
 function verifyManifest(prefix, expected) {
   const manifest = json(join(prefix, 'installation.json'));
-  assert.deepEqual(Object.keys(manifest).sort(), ['contentDigest', 'files', 'format', 'nodeRange', 'version']);
+  assert.deepEqual(Object.keys(manifest).sort(), ['contentDigest', 'files', 'format', 'nodeRange', 'source', 'version']);
+  assert.ok(typeof manifest.source === 'string' && manifest.source.startsWith('/'), 'installation.json records the absolute source checkout');
   assert.equal(manifest.format, 'mozak.installation/v1');
-  assert.equal(manifest.version, '0.1.0');
+  assert.equal(manifest.version, ROOT_VERSION);
   assert.equal(manifest.nodeRange, '>=24.11.0');
   assert.ok(Array.isArray(manifest.files));
   assert.deepEqual(manifest.files.map(f => f.path), codePointSort([...new Set(manifest.files.map(f => f.path))]));
@@ -118,7 +120,7 @@ function verifyManifest(prefix, expected) {
     assert.equal(file.executable, (lstatSync(path).mode & 0o111) !== 0, file.path);
   }
   const files = manifest.files.map(({ path, byteLength, sha256, executable }) => ({ path, byteLength, sha256, executable }));
-  assert.equal(manifest.contentDigest, sha256(JSON.stringify({ format: manifest.format, version: manifest.version, nodeRange: manifest.nodeRange, files })));
+  assert.equal(manifest.contentDigest, sha256(JSON.stringify({ format: manifest.format, version: manifest.version, nodeRange: manifest.nodeRange, source: manifest.source, files })));
   assert.equal(manifest.contentDigest, expected.contentDigest);
   assert.deepEqual(expected.files, codePointSort([...files.map(f => f.path), 'installation.json']));
   const actual = snapshot(prefix).filter(f => f.hash).map(f => f.path);
@@ -127,8 +129,8 @@ function verifyManifest(prefix, expected) {
   for (const name of ['core', 'cli', 'mcp']) {
     const pkg = json(join(prefix, `node_modules/@mozak/${name}/package.json`));
     assert.equal(pkg.name, `@mozak/${name}`);
-    assert.equal(pkg.version, '0.1.0');
-    if (name !== 'core') assert.equal(pkg.dependencies['@mozak/core'], '0.1.0');
+    assert.equal(pkg.version, ROOT_VERSION);
+    if (name !== 'core') assert.equal(pkg.dependencies['@mozak/core'], ROOT_VERSION);
   }
   assert.equal(json(join(prefix, 'package.json')).type, 'module');
   return manifest;

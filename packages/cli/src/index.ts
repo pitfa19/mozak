@@ -6,6 +6,8 @@
 import { closeSync, fstatSync, openSync, readSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { executeOperation, loadInventory, MAX_REQUEST_BYTES, scopeForWorkingCopy, DomainError, type OperationOutput } from "@mozak/core";
+import { runningVersion, upgrade } from "./upgrade.js";
+import { doctor, renderDoctor } from "./doctor.js";
 
 const OWNER_ROUTES = new Set(["decide", "init", "repair", "pull"]);
 /** Read routes that may omit --scope: the scope is then found from the current folder's git origin. */
@@ -73,6 +75,10 @@ function usage(): string {
     "  mozak review decide --scope ID --request FILE        (owner)",
     "  mozak projection repair --scope ID --request FILE    (owner)",
     "  mozak render (--scope ID | --all) [--json]           (regenerate stale MOZAK.md only; never MOZAK.json)",
+    "Maintenance (no --config needed):",
+    "  mozak --version",
+    "  mozak upgrade [--check] [--vault PATH ...] [--source PATH] [--prefix PATH]   (owner; newest tagged release)",
+    "  mozak doctor [--fix] [--config FILE] [--json]        (check the setup; --fix only links, wrappers, plugin copies)",
     "Exit: 0 success, 2 invalid or unavailable, 3 stale/conflict/owner-review, 4 busy/recovery,",
     "      5 committed with unfinished projection or cleanup, 6 partial all-scope coverage.",
     "Config: FILE is the explicit inventory JSON. There is no default path and no directory scan.",
@@ -298,11 +304,53 @@ function printEnvelope(output: OperationOutput, json: boolean, routeName: string
   process.stdout.write(renderPlansHuman(output.data as Parameters<typeof renderPlansHuman>[0]));
 }
 
+/** upgrade and doctor work on the installation, not on scopes, so they have their own flags and no --config rule. */
+function maintenance(name: "upgrade" | "doctor", argv: string[]): number {
+  let values: Record<string, string | boolean | string[] | undefined>;
+  try {
+    assertNoDuplicates(name === "upgrade" ? argv.filter((a) => a !== "--vault" && !a.startsWith("--vault=")) : argv);
+    values = parseArgs({
+      args: argv,
+      strict: true,
+      allowPositionals: false,
+      options: name === "upgrade"
+        ? { prefix: { type: "string" }, source: { type: "string" }, vault: { type: "string", multiple: true }, check: { type: "boolean" }, json: { type: "boolean" } }
+        : { config: { type: "string" }, prefix: { type: "string" }, fix: { type: "boolean" }, json: { type: "boolean" } },
+    }).values as typeof values;
+  } catch (err) {
+    process.stderr.write(`${err instanceof Error ? err.message : String(err)}\n${usage()}\n`);
+    return 2;
+  }
+  if (name === "upgrade") {
+    const out = upgrade({
+      ...(values.prefix !== undefined ? { prefix: values.prefix as string } : {}),
+      ...(values.source !== undefined ? { source: values.source as string } : {}),
+      vaults: (values.vault as string[] | undefined) ?? [],
+      check: values.check === true,
+    });
+    process.stdout.write(`${JSON.stringify(out.data, null, 2)}\n`);
+    return out.exitCode;
+  }
+  const out = doctor({
+    fix: values.fix === true,
+    ...(values.config !== undefined ? { config: values.config as string } : {}),
+    ...(values.prefix !== undefined ? { prefix: values.prefix as string } : {}),
+  });
+  process.stdout.write(values.json === true ? `${JSON.stringify(out.data, null, 2)}\n` : renderDoctor(out.data));
+  return out.exitCode;
+}
+
 function run(argv: string[]): number {
-  if (argv.length === 0 || argv[0] === "--help" || argv[0] === "-h") {
-    process.stdout.write(`${usage()}\n`);
+  if (argv[0] === "--version" || argv[0] === "-v") {
+    if (argv.length > 1) { process.stderr.write("--version takes no arguments\n"); return 2; }
+    process.stdout.write(`${runningVersion()}\n`);
     return 0;
   }
+  if (argv.length === 0 || argv[0] === "--help" || argv[0] === "-h") {
+    process.stdout.write(`mozak ${runningVersion()}\n${usage()}\n`);
+    return 0;
+  }
+  if (argv[0] === "upgrade" || argv[0] === "doctor") return maintenance(argv[0], argv.slice(1));
 
   let parsed: Parsed;
   try {

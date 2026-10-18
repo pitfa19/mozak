@@ -1,6 +1,6 @@
 {
   "name": "@mozak/mcp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
@@ -10,6 +10,6 @@
     "node": ">=24.11.0"
   },
   "dependencies": {
-    "@mozak/core": "0.1.0"
+    "@mozak/core": "0.2.0"
   }
 }

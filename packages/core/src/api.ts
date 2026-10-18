@@ -21,7 +21,20 @@ import { cacheIgnoreWarning, commitAndPush, pullRemote, remoteEntries, repoEntri
 import type { RemoteStatus } from "./remote-meta.ts";
 import { cachedVisibility, publicRepoPlansMessage, scopeVisibility } from "./visibility.ts";
 import { leftoverTempFiles } from "./durable.ts";
+import { cachedUpdateNotice, installedVersion, refreshUpdateCacheIfStale } from "./update.ts";
 import { canonical, digest } from "./understanding.ts";
+
+/**
+ * The scopes index's update notice: reads the cache only, and starts a background refresh when it is old.
+ * Only an installed MOZAK (one with installation.json) checks; a source checkout or test run never does.
+ */
+function scopesUpdateIssue(): Record<string, unknown> | null {
+  const installed = installedVersion();
+  if (!installed) return null;
+  refreshUpdateCacheIfStale();
+  const n = cachedUpdateNotice(installed.version);
+  return n ? { code: "update-available", message: `MOZAK ${n.latest} is available (installed ${n.installed}). Run: ${n.command}`, installed: n.installed, latest: n.latest, command: n.command } : null;
+}
 
 export type Actor = "agent" | "owner";
 export interface OperationOutput {
@@ -804,8 +817,9 @@ export function executeOperation(inv: ScopeInventory, operation: string, args: u
       if (operation !== "scopes") return out;
       // Reads never wait on the network for this: only an already cached "public" answer warns.
       const exposed = repoEntries(inv).filter((e) => cachedVisibility(e) === "public");
-      if (exposed.length === 0 || !Array.isArray(out.data.issues)) return out;
-      return { ...out, data: { ...out.data, issues: [...out.data.issues, ...exposed.map((e) => ({ code: "public-repo-plans", message: publicRepoPlansMessage(e), scope: e.id }))] } };
+      const update = scopesUpdateIssue();
+      if ((exposed.length === 0 && !update) || !Array.isArray(out.data.issues)) return out;
+      return { ...out, data: { ...out.data, issues: [...out.data.issues, ...exposed.map((e) => ({ code: "public-repo-plans", message: publicRepoPlansMessage(e), scope: e.id })), ...(update ? [update] : [])] } };
     }
     const input = isPlain(args) ? args : {};
     // Only repo-mode remote scopes commit and push. Vault-plans scopes write like local scopes.

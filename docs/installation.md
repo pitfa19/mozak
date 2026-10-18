@@ -102,14 +102,41 @@ Create a scope only for an isolated test folder. Never point the installer at yo
 
 ### Upgrading
 
-There is no in-place upgrade. The installer never overwrites an existing prefix (it returns `conflict`). To upgrade:
+Run `mozak upgrade`. It finds the newest release tag (`vX.Y.Z`) in the checkout you installed from (recorded as `source` in `PREFIX/installation.json`), and:
 
-1. Pull and build the new version in your source checkout.
-2. Move the old prefix aside (for example to the Trash). Nothing outside the prefix depends on it except your own links and settings.
-3. Run the installer again with the same prefix.
-4. Links to `PREFIX/skills/mozak` and wrapper scripts that call `PREFIX/bin/mozak` keep working, because the path is the same.
+1. Fetches tags from that checkout's `origin`. If nothing is newer, it reports `up-to-date` and stops.
+2. Refuses (`source-dirty`, exit 3) if the checkout has uncommitted changes to tracked files.
+3. With `--check`, reports `installed`, `latest` and `source` and stops.
+4. Checks out the tag, runs `npm ci --ignore-scripts` and `npm run build`, then returns the checkout to the branch it was on. A failed build reports `build-failed` (exit 2) and leaves the installation as it was.
+5. Moves the old installation to `PREFIX.previous-<old version>`, installs the new one at `PREFIX`, and checks that `PREFIX/bin/mozak --version` is the new version. If that fails, the old installation is moved back. The previous installation is kept, never deleted. Move it to the Trash once you are happy.
+6. With `--vault PATH` (repeat for each vault), installs the new Obsidian plugin into that vault. Vaults are never guessed. Reload Obsidian afterwards.
 
-Your plans are never inside the prefix, so upgrading cannot touch them.
+```sh
+mozak upgrade --check
+mozak upgrade --vault ~/Documents/notes
+```
+
+Because the new release lands at the same path, skill links to `PREFIX/skills/mozak`, `~/.local/bin` wrappers and MCP settings keep working. Your plans are never inside the prefix, so upgrading cannot touch them. If the checkout is gone, clone it again and pass `--source PATH`.
+
+Installations from before 0.2.0 do not record their checkout: run `mozak upgrade --source /path/to/mozak` once, or reinstall by hand (move the old prefix to the Trash, build, run the installer with the same prefix).
+
+### Update notice
+
+`mozak scopes` adds an `update-available` issue, and the Obsidian sidebar a line under its header, when a newer release exists. The check reads GitHub's public tag list for `pitfa19/mozak` with no login, at most once every 24 hours (once an hour after a failure), in a background process, so commands never wait on the network. The answer is cached in `~/.local/state/mozak/update.json` (or `$XDG_STATE_HOME/mozak/update.json`). Set `MOZAK_NO_UPDATE_CHECK=1` to turn it off. Only an installed `mozak` checks; a source checkout never does.
+
+### Checking a setup: `mozak doctor`
+
+`mozak doctor [--config FILE] [--fix] [--json]` checks, in order: Node version; the installation (every file matches `installation.json`, `bin/mozak` runs) and its source checkout; that `mozak` and `mozak-mcp` on `PATH` are this installation; skill links in `~/.claude/skills`, `~/.jcode/skills` and `~/.codex/skills` (only folders that exist); the `mozak` server in `~/.claude.json` and `~/.jcode/mcp.json`; the inventory (from `--config`, else from the MCP settings) and that every scope reads; the Obsidian plugin in each vault under the inventory's folder; and the update notice. Each problem comes with the exact command or edit that fixes it. Exit 0 means no failures (warnings allowed), exit 3 means at least one failure.
+
+`--fix` applies only safe fixes and reports each one:
+
+- creates or replaces the `mozak` link in an existing skills folder (an old copied folder is moved to `mozak.backup-<date>`, an old link to `mozak.previous-link-<date>`, never deleted);
+- creates missing `~/.local/bin/mozak` and `~/.local/bin/mozak-mcp` wrappers;
+- reinstalls an outdated plugin copy into a vault, when the source checkout has this release's build.
+
+It never edits MCP settings, the inventory or any plan file. For those it prints the change to make.
+
+**Restoring on a new machine or account:** install Node, clone and build MOZAK, run the installer, clone your notes repo (with the inventory and vault-plans folders), connect the MCP server to the inventory, then run `mozak doctor --fix` and follow what it prints until it reports no failures.
 
 ## 4. Exit codes and status values
 
@@ -222,12 +249,13 @@ Cache layout: `.mozak-cache/<id>/` (sparse git clone) and `.mozak-cache/<id>.met
 
 ## 7. Known limits
 
-- Upgrading means reinstalling into the same, emptied prefix (section 3, Upgrading). There is no in-place upgrade or version check.
+- **One branch per remote scope.** There is no merge handling: a diverged remote makes a write or sync fail and the scope shows stale. The installer does not edit your `.gitignore`.
+- **No network filesystems.** Locking and crash safety assume a local disk. Network filesystems and concurrent editors (sync tools writing the same files) are not covered.
+- **Approval is a trusted-host convention.** MOZAK records the owner's approval message as given by the agent host. It does not authenticate the owner; an agent host that lies can forge an approval.
+- **Restore needs the notes repo plus `mozak doctor --fix`.** Plans live in your notes (and private repos). A new machine needs that repo cloned, MOZAK installed, the MCP server connected, then `mozak doctor --fix` (section 3, Checking a setup).
+- Crash safety: plan files are flushed to disk before they replace the old ones, and the folder after. On filesystems that ignore folder flushes this is best effort, and it always depends on the disk honouring flushes.
+- Upgrading needs the source checkout the installation came from (or `--source PATH`), and only knows release tags of that checkout's `origin`.
 - The source copy of the conversation skill is a template. The installer refuses an unrendered template. Load the skill only from the installed folder, directly or through a symlink.
-- Restoring a workspace from GitHub and a private vault is not built. Only the local installer is.
-- Remote scopes: one branch per scope, no merge handling (a diverged remote makes a write or sync fail and the scope shows stale), and the installer does not edit your `.gitignore`.
-- Crash durability is not promised. Rename and exclusive folder creation do not imply fsync.
-- Network filesystems and concurrent editors are not covered by the locking guarantees.
 - Older scope formats are refused. MOZAK does not migrate them.
 
 ## 8. Verification status
@@ -241,6 +269,6 @@ Cache layout: `.mozak-cache/<id>/` (sparse git clone) and `.mozak-cache/<id>.met
 | `mozak scopes` and `mozak_scopes` | Passed on both platforms. A fresh MCP session listed all scopes of a real workspace. |
 | Installed skill loaded by a fresh agent host | Passed: jcode registered and loaded `/mozak` through a symlink to the installed skill. |
 | CI on Ubuntu and macOS | Passing on every push, latest `8337e04`. |
-| Restoring a workspace from GitHub and a private vault | Not built. |
+| Restoring a workspace from GitHub and a private vault | Built (`mozak doctor --fix`). Owner run on a fresh account or machine pending. |
 
 Record the actual results of any new check here before claiming it passed.

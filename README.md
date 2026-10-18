@@ -43,7 +43,7 @@ mkdir -p "$HOME/.local/share"
 node scripts/install.mjs --prefix "$(cd "$HOME/.local/share" && pwd -P)/mozak" --json
 ```
 
-The installer copies a self-contained build into that folder. It uses no `sudo`, makes no network calls and does not touch your shell profile. It never overwrites an existing install: to upgrade, move the old folder aside and install again at the same path. Add `--check` to preview first.
+The installer copies a self-contained build into that folder. It uses no `sudo`, makes no network calls and does not touch your shell profile. Add `--check` to preview first.
 
 ```bash
 "$HOME/.local/share/mozak/bin/mozak" --help
@@ -51,7 +51,16 @@ The installer copies a self-contained build into that folder. It uses no `sudo`,
 
 To let your agent use MOZAK, link the installed skill into its skills folder, for example `ln -s "$HOME/.local/share/mozak/skills/mozak" ~/.claude/skills/mozak`, and add `mozak-mcp --config /path/to/mozak-inventory.json` as an MCP server.
 
-Details, upgrading, exit codes and recovery: [docs/installation.md](docs/installation.md).
+Two commands keep it working:
+
+```bash
+mozak upgrade --vault ~/Documents/notes   # newest tagged release; the old install is kept, plugin updated in that vault
+mozak doctor --fix                        # checks the whole setup; fixes links, wrappers and plugin copies, prints the rest
+```
+
+`mozak scopes` and the Obsidian sidebar tell you when a new release is out (`MOZAK_NO_UPDATE_CHECK=1` turns that off). Changes are listed in [CHANGELOG.md](CHANGELOG.md).
+
+Details, exit codes, recovery and known limits: [docs/installation.md](docs/installation.md).
 
 ## How it works
 

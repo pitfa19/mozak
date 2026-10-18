@@ -2,7 +2,7 @@
 // Local-only installer. No network, package manager, build, global config or inferred inventory.
 import {
   constants, closeSync, fchmodSync, fstatSync, lstatSync, mkdirSync, openSync,
-  readSync, readdirSync, realpathSync, unlinkSync, writeFileSync,
+  readFileSync, readSync, readdirSync, realpathSync, unlinkSync, writeFileSync,
 } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
@@ -10,7 +10,7 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const FORMAT = 'mozak.installation/v1';
-const VERSION = '0.1.0';
+const VERSION = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
 const NODE_RANGE = '>=24.11.0';
 const MAX_FILE = 16 * 1024 * 1024;
 const MAX_TOTAL = 64 * 1024 * 1024;
@@ -181,9 +181,10 @@ function expectedProduct(prefix) {
   if (files.length > MAX_FILES || files.some(f => f.byteLength > MAX_FILE) || files.reduce((sum, f) => sum + f.byteLength, 0) > MAX_TOTAL) {
     refuse('source-unavailable', 'capacity', null, 'Rendered installation exceeds bounds.');
   }
-  const identity = { format: FORMAT, version: VERSION, nodeRange: NODE_RANGE, files };
+  // `source` names the checkout this was built from, so `mozak upgrade` can find it. It is part of the identity.
+  const identity = { format: FORMAT, version: VERSION, nodeRange: NODE_RANGE, source: SOURCE, files };
   const contentDigest = sha(Buffer.from(JSON.stringify(identity)));
-  const manifest = { format: FORMAT, version: VERSION, nodeRange: NODE_RANGE, contentDigest, files };
+  const manifest = { format: FORMAT, version: VERSION, nodeRange: NODE_RANGE, source: SOURCE, contentDigest, files };
   const sourceDigest = sha(JSON.stringify(inputs.sort((a, b) => compare(a.path, b.path))));
   return { output, manifest, manifestBytes: json(manifest), sourceDigest };
 }
