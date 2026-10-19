@@ -1,42 +1,51 @@
 # MOZAK Obsidian plugin
 
-Desktop-only Obsidian plugin that lists every MOZAK scope from `mozak-inventory.json` and its plans with progress. Plans are read in each scope's `MOZAK.md`, not in a plugin pane. **It never writes canonical state (`MOZAK.json`). It may regenerate `MOZAK.md` projections**, through core's render (the same code as `mozak render`). It has no approve, reject or propose actions. Parsing, validation, roadmap status and rendering reuse `@mozak/core`, bundled with esbuild.
+Read-only Obsidian sidebar for [MOZAK](../../README.md). Shows every scope from your `mozak-inventory.json`, its plans, and each plan's progress strip. Clicking a plan opens its section in the scope's `MOZAK.md` note (`purpose`, outcome roadmap, status table, and full plan).
 
 ## Use
 
-- Ribbon icon or command **MOZAK: open scopes** opens the sidebar. It refreshes on open, when plan files change, and with the refresh button.
-- Each scope shows title, kind and completed/open/awaiting counts. Unreadable scopes show their error code. Expand a scope for its plans. Open plans show a **progress strip**: one segment per outcome in roadmap order (green done, gold evidence waiting for owner acceptance, purple outline the current stop, grey todo), then `done/total`. Awaiting, paused and rejected plans show their state instead.
-- **Click a plan** to open the scope's `MOZAK.md` at that plan's heading. There you read the purpose, a mermaid roadmap of the outcomes, a status table and the full plan text. Status is computed from `MOZAK.json`, with no clickable status controls. Completed plans jump to their collapsed summary line. Rejected plans are omitted from the note and show a notice instead. Files outside the vault open with the OS default app, without a section jump.
-- The **refresh button** first regenerates any stale `MOZAK.md` (for example after a MOZAK upgrade changes the format), then reloads. A `MOZAK.md` that was edited by hand is never overwritten. The plugin shows a notice instead. Unknown content must be preserved and reviewed by the owner: `mozak projection repair` also refuses manual conflicts. Automatic refreshes from file changes only read.
-- **Remote scopes** (inventory entries with `remote` instead of `root`) show a GitHub badge, plus a `stale` badge when the cached copy is older than 10 minutes, the last fetch failed, or it was never fetched. The header shows **Sync remote scopes** when the inventory has any. It runs core's sync (the same code as `mozak sync`), then refreshes. Refreshing the view alone never touches the network. The plugin never pushes plans, and it never regenerates repo-held projections.
-- Next to the GitHub badge, a **globe** marks a public repo and a **lock** a private one. Hover for where its plans live: private in your vault, or shared inside the repo. The answer comes from the last sync (cached for 24 hours), so a never-synced repo shows no mark.
-- Remote scopes with `plans` keep their plans in a vault folder. They are never stale, their plans open inside the vault, and the plugin regenerates their `MOZAK.md` like a local scope.
-- Setting **Inventory path**: empty means walk up from the vault folder looking for `mozak-inventory.json`.
+- Ribbon icon (**Open MOZAK scopes**) or command (**MOZAK: Open scopes**) opens the sidebar. It refreshes on open, when plan files change on disk, and when you click the refresh button.
+- Filter by **All**, **Open** (open, awaiting approval, paused), or **Done** (completed).
+- Search filters by scope title, scope id, or plan title. Matching scopes open automatically while searching.
+- Each open plan row shows a small outcome strip (green = done, gold = evidence recorded, purple = current stop, faint = not started) and `done/total`.
+- Click a plan row to open its `## Title · \`plan-id\`` section in the scope's `MOZAK.md` note (or its line under `## Completed` for completed plans). If the scope is outside the current vault, the plugin opens `MOZAK.md` in your system default viewer.
+- Each GitHub remote scope shows a `globe` (public) or `lock` (private) badge, plus quick links to its GitHub repository and `README.md`.
+- Settings (**Settings → MOZAK**):
+  - **Inventory path**: path to `mozak-inventory.json` (leave empty to auto-discover by walking upward from the vault root).
+  - **Auto-refresh**: watch `mozak-inventory.json` and each scope's `MOZAK.json` / `MOZAK.md` with `fs.watch` and redraw on change.
+  - **Repo sync interval (seconds)**: how often remote (`github:owner/repo`) scopes are pulled in the background (`0` disables background git polling; minimum `15`).
+
+## Disclosures (Obsidian community plugin policy)
+
+- **Desktop only (`isDesktopOnly: true`).** The plugin uses Node.js APIs (`node:fs`, `node:path`, `node:child_process`) to read your local scope files and optional git remotes.
+- **Files accessed outside the vault.** When your `mozak-inventory.json` lists scopes outside the current vault (for example local code repositories or other folders you own), the plugin reads their `MOZAK.json`, `MOZAK.md`, `README.md`, and `AGENTS.md` files from those configured paths, and watches them when **Auto-refresh** is enabled. It never scans or crawls directories not listed in `mozak-inventory.json`.
+- **What the plugin writes.** The plugin never modifies canonical plan state (`MOZAK.json`) and never approves or mutates plans. When a scope's derived `MOZAK.md` note is out of date with its `MOZAK.json` and has no unmerged hand edits, the plugin regenerates `MOZAK.md` on disk (the same projection as `mozak render`).
+- **Network and child-process activity.**
+  1. If your inventory contains remote GitHub scopes (`"remote": "github:owner/repo"` without vault-hosted `"plans"`), clicking refresh or enabling **Repo sync interval (seconds)** runs your local `git` binary (`git fetch` / `git pull --ff-only`) using your existing git credentials to refresh cached scope files under `~/.cache/mozak/remotes` (or `$XDG_CACHE_HOME/mozak/remotes`). Set **Repo sync interval (seconds)** to `0` to disable background git fetches.
+  2. At most once per 24 hours, MOZAK checks `https://api.github.com/repos/pitfa19/mozak/tags` in the background to display a one-line notice when a newer release tag is available, storing the timestamp in `~/.cache/mozak/update-check.json`. Set `MOZAK_NO_UPDATE_CHECK=1` in your environment to disable this check completely.
+- **No telemetry, accounts, or cloud service.** All plans and evidence stay in your local folders and git repositories.
 
 ## Build and install
 
-```sh
-npm install
-npm run build -w @mozak/obsidian        # dist/plugin/{main.js,manifest.json,styles.css}
-node scripts/install-obsidian-plugin.mjs <vault-folder> [--build]
-npm test -w @mozak/obsidian
-node --experimental-strip-types packages/obsidian/scripts/dump-model.mjs <inventory.json>
+From the repository root:
+
+```bash
+npm run build
+node scripts/install-obsidian-plugin.mjs /path/to/your/vault
 ```
 
-Then enable "MOZAK" under Settings > Community plugins. The sidebar is a snapshot taken at the last refresh.
+Or in one step:
 
-## Verification of the roadmap change
+```bash
+node scripts/install-obsidian-plugin.mjs /path/to/your/vault --build
+```
 
-Checked on macOS, 2026-10-17 at 23:55 UTC (2026-10-18 locally):
-
-- `npm run build` and `npm run build -w @mozak/obsidian` passed. The full regression suite passed **399/399**, with global Git configuration isolated for the repository fixtures. No tests were skipped.
-- The built CLI rendered copies of three real scopes through `render --all`, then reported all three current on the second call without changing any projection bytes. Public `check` passed on each copy. The three canonical JSON copies and all 12 real source files remained byte-identical.
-- Before rendering, none of the eight displayed plans had a matching note target. Afterwards, all eight resolved through the plugin's actual loader and navigation model. The generated notes contained no task checkboxes. This verifies the data and file boundary, not an Obsidian click or scroll.
-- Public CLI conflict checks returned exit 3 for one scope and exit 6 for partial coverage, preserving the deliberately edited scratch note. Regression tests additionally cover completed-plan summary targets, refusing unknown content even with a self-asserted digest, remote-render refusal, and reporting a failed cleanup after a projection write.
-- **Owner acceptance passed on 2026-10-18.** The built plugin was installed in the isolated preview vault, pinned to its own inventory. The owner opened it in Obsidian and confirmed that the roadmap and the sidebar both work well. The full suite was rerun at 399/399 before shipping.
-
-Reproducible local evidence is in the gitignored `scratch/preview/acceptance-run.mjs` and `scratch/preview/acceptance-20261018/results.json`.
+This copies `main.js`, `manifest.json`, and `styles.css` into `<vault>/.obsidian/plugins/mozak/`. In Obsidian: **Settings → Community plugins → Installed plugins → enable MOZAK**.
 
 ## Layout
 
-`src/model.ts` pure view models, `src/discover.ts` inventory discovery, `src/load.ts` core adapter, `src/views.ts` and `src/main.ts` Obsidian UI.
+- `src/discover.ts` — inventory path discovery (`chooseInventory`, `discoverInventory`).
+- `src/model.ts` — pure view-model construction (`scopesModel`, `stripVM`, `headingLine`), tested without Obsidian.
+- `src/load.ts` — loads the inventory via `@mozak/core` and refreshes stale `MOZAK.md` projections.
+- `src/views.ts` — Obsidian `ItemView` for the scopes sidebar (`ScopesView`).
+- `src/main.ts` — plugin lifecycle, file watchers, settings tab, and note navigation.

@@ -151,6 +151,7 @@ test("versions agree across the root, every package, the plugin manifest and the
     assert.equal(pkg.version, version, `packages/${p}`);
     if (pkg.dependencies?.["@mozak/core"]) assert.equal(pkg.dependencies["@mozak/core"], version, `packages/${p} depends on the same core`);
   }
+  assert.equal(read("manifest.json").version, version, "root plugin manifest");
   assert.equal(read("packages/obsidian/manifest.json").version, version, "plugin manifest");
   assert.match(readFileSync(join(repo, "scripts/install.mjs"), "utf8"), /const VERSION = JSON\.parse\(readFileSync\(new URL\('\.\.\/package\.json'/, "installer reads the root version");
   assert.match(readFileSync(join(repo, "CHANGELOG.md"), "utf8"), new RegExp(`^## ${version.replaceAll(".", "\\.")} `, "m"), "CHANGELOG has this version");

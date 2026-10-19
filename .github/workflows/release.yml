@@ -1,0 +1,59 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to publish release assets for (e.g. v0.3.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run build
+      - name: Verify tag matches package and Obsidian manifest versions
+        env:
+          TAG_NAME: ${{ inputs.tag || github.ref_name }}
+        run: |
+          EXPECTED="${TAG_NAME#v}"
+          PKG_VER="$(node -p "require('./package.json').version")"
+          ROOT_MAN_VER="$(node -p "require('./manifest.json').version")"
+          OBS_MAN_VER="$(node -p "require('./packages/obsidian/dist/plugin/manifest.json').version")"
+          if [ "$EXPECTED" != "$PKG_VER" ] || [ "$EXPECTED" != "$ROOT_MAN_VER" ] || [ "$EXPECTED" != "$OBS_MAN_VER" ]; then
+            echo "Version mismatch: tag=$EXPECTED package=$PKG_VER root-manifest=$ROOT_MAN_VER plugin-manifest=$OBS_MAN_VER" >&2
+            exit 1
+          fi
+          for f in main.js manifest.json styles.css; do
+            test -s "packages/obsidian/dist/plugin/$f" || { echo "Missing plugin asset: $f" >&2; exit 1; }
+          done
+      - run: GIT_CONFIG_GLOBAL=/dev/null npm test
+      - name: Publish GitHub Release with Obsidian plugin assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ inputs.tag || github.ref_name }}
+        run: |
+          ASSETS=(
+            "packages/obsidian/dist/plugin/main.js"
+            "packages/obsidian/dist/plugin/manifest.json"
+            "packages/obsidian/dist/plugin/styles.css"
+          )
+          if gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            gh release upload "$TAG_NAME" "${ASSETS[@]}" --clobber
+          else
+            gh release create "$TAG_NAME" "${ASSETS[@]}" --title "$TAG_NAME" --generate-notes
+          fi

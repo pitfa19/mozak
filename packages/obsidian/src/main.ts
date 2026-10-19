@@ -23,8 +23,8 @@ export default class MozakPlugin extends Plugin {
   async onload(): Promise<void> {
     this.settings = { ...DEFAULTS, ...(await this.loadData()) };
     this.registerView(SCOPES_VIEW_TYPE, (leaf) => new ScopesView(leaf, this));
-    this.addRibbonIcon("brain-circuit", "MOZAK: open scopes", () => void this.activateScopes());
-    this.addCommand({ id: "open-scopes", name: "MOZAK: open scopes", callback: () => void this.activateScopes() });
+    this.addRibbonIcon("brain-circuit", "Open MOZAK scopes", () => void this.activateScopes());
+    this.addCommand({ id: "open-scopes", name: "Open scopes", callback: () => void this.activateScopes() });
     this.addSettingTab(new MozakSettingTab(this.app, this));
     this.app.workspace.onLayoutReady(() => {
       // The plan detail tab is retired: plans are read in MOZAK.md. Close tabs restored from older versions.

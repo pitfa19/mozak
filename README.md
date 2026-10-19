@@ -106,7 +106,15 @@ node scripts/install-obsidian-plugin.mjs /path/to/your/vault --build
 
 Then turn on **MOZAK** under Settings, Community plugins. The plugin finds `mozak-inventory.json` by searching upward from the vault folder, or you can set its path in the plugin settings. Each GitHub project shows a globe or lock badge for a public or private repo.
 
+**Plugin disclosures (desktop-only, `isDesktopOnly: true`):** When your `mozak-inventory.json` lists scopes outside the current vault, the plugin reads their `MOZAK.json`, `MOZAK.md`, `README.md` and `AGENTS.md` files from those configured paths and watches them when **Auto-refresh** is enabled. It never scans folders not listed in your inventory and never modifies `MOZAK.json` (it may regenerate a stale `MOZAK.md` projection when there are no unmerged hand edits). For remote GitHub scopes (`"remote": "github:owner/repo"` without vault-hosted `"plans"`), clicking **Sync remote scopes** or enabling **Repo sync interval (seconds)** runs your local `git` (`git fetch` / `git pull --ff-only`) using your existing git login; set the sync interval to `0` to turn background git fetches off. See [`packages/obsidian/README.md`](packages/obsidian/README.md#disclosures-obsidian-community-plugin-policy) for the full disclosure list.
+
 ## See it run
+
+<div align="center">
+<img src="docs/assets/under-the-hood.svg" alt="Vector diagram animation: mozak-inventory.json points to scopes, the agent proposes, the owner approves, MOZAK.json and MOZAK.md are written in the scope folder, and Obsidian redraws from those files" width="840">
+</div>
+
+**Generative UI from plain files:** The agent writes plain `MOZAK.json` and `MOZAK.md` files in your scope folder; the Obsidian sidebar and the Mermaid roadmap inside each note are rendered from them, with no UI code written by the agent.
 
 <div align="center">
 <img src="docs/assets/demo-terminal.gif" alt="Terminal recording: register two scopes, propose, approve, a stale write is refused, a new process recovers the saved plan, git shows the diff" width="760">

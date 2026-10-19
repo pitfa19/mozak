@@ -223,3 +223,56 @@ test("the plan detail tab is gone: no PlanView class or registration remains", (
   }
   assert.ok(src("main.ts").includes("getLeavesOfType(LEGACY_PLAN_VIEW_TYPE).forEach((l) => l.detach())"));
 });
+
+test("Obsidian community plugin submission checklist: root manifest, source hygiene, disclosures, and release workflow", () => {
+  const repoRoot = new URL("../../../", import.meta.url);
+  const readRepo = (rel: string) => readFileSync(new URL(rel, repoRoot), "utf8");
+  const rootManifest = JSON.parse(readRepo("manifest.json"));
+  const pkgManifest = JSON.parse(readRepo("packages/obsidian/manifest.json"));
+  const rootPkg = JSON.parse(readRepo("package.json"));
+
+  // 1. Root manifest.json and packages/obsidian/manifest.json are identical and valid.
+  assert.deepEqual(rootManifest, pkgManifest, "root manifest.json matches packages/obsidian/manifest.json");
+  assert.equal(rootManifest.id, "mozak");
+  assert.equal(rootManifest.name, "MOZAK");
+  assert.equal(rootManifest.version, rootPkg.version);
+  assert.match(rootManifest.minAppVersion, /^\d+\.\d+\.\d+$/);
+  assert.equal(rootManifest.isDesktopOnly, true, "uses Node APIs so isDesktopOnly must be true");
+  assert.equal(typeof rootManifest.author, "string");
+  assert.ok(rootManifest.author.length > 0);
+  assert.equal(typeof rootManifest.description, "string");
+  assert.ok(rootManifest.description.length > 0 && rootManifest.description.length < 250, "description under 250 chars");
+  assert.ok(rootManifest.description.endsWith("."), "description ends with a period");
+  assert.ok(!/[\p{Extended_Pictographic}]/u.test(rootManifest.description), "no emoji in description");
+  assert.ok(!/^obsidian\b/i.test(rootManifest.description), "description does not start with Obsidian");
+
+  // 2. Source hygiene: no innerHTML/outerHTML/insertAdjacentHTML, no console noise, no default hotkeys,
+  //    no plugin name prefix in addCommand, and onunload cleans up timers/watchers without detaching leaves.
+  const srcFiles = ["discover.ts", "load.ts", "main.ts", "model.ts", "views.ts"];
+  for (const f of srcFiles) {
+    const code = readRepo(`packages/obsidian/src/${f}`);
+    assert.ok(!/\b(innerHTML|outerHTML|insertAdjacentHTML)\b/.test(code), `no HTML injection sink in ${f}`);
+    assert.ok(!/\bconsole\.(log|debug|info)\b/.test(code), `no console noise in ${f}`);
+    assert.ok(!/\bhotkeys\s*:/.test(code), `no default hotkeys in ${f}`);
+  }
+  const mainTs = readRepo("packages/obsidian/src/main.ts");
+  assert.match(mainTs, /addCommand\(\{\s*id:\s*"open-scopes",\s*name:\s*"Open scopes"/, "command name uses sentence case without plugin prefix");
+  const onunloadBlock = mainTs.slice(mainTs.indexOf("onunload(): void"), mainTs.indexOf("restartAutoRefresh(): void"));
+  assert.ok(onunloadBlock.includes("this.stopAutoRefresh()") && onunloadBlock.includes("this.stopWatch?.()") && onunloadBlock.includes("window.clearInterval(this.pollTimer)"), "onunload cleans up watchers and timers");
+  assert.ok(!onunloadBlock.includes(".detach()"), "onunload does not detach user workspace leaves");
+
+  // 3. Disclosures in README.md and packages/obsidian/README.md + LICENSE at repo root.
+  assert.ok(readRepo("LICENSE").includes("MIT License"), "LICENSE present at root");
+  for (const doc of ["README.md", "packages/obsidian/README.md"]) {
+    const text = readRepo(doc);
+    assert.match(text, /isDesktopOnly/i, `${doc} discloses desktop-only`);
+    assert.match(text, /outside the (current )?vault/i, `${doc} discloses outside-vault file access`);
+    assert.match(text, /git fetch/i, `${doc} discloses git network fetches`);
+  }
+
+  // 4. Release workflow attaches main.js, manifest.json, and styles.css on v*.*.* tags.
+  const workflow = readRepo(".github/workflows/release.yml");
+  for (const asset of ["packages/obsidian/dist/plugin/main.js", "packages/obsidian/dist/plugin/manifest.json", "packages/obsidian/dist/plugin/styles.css"]) {
+    assert.ok(workflow.includes(asset), `release workflow uploads ${asset}`);
+  }
+});

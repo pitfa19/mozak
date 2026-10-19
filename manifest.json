@@ -1,0 +1,10 @@
+{
+  "id": "mozak",
+  "name": "MOZAK",
+  "version": "0.3.0",
+  "minAppVersion": "1.5.0",
+  "description": "Project scopes and plans shared with AI agents, stored as plain files.",
+  "author": "pitfa19",
+  "authorUrl": "https://github.com/pitfa19",
+  "isDesktopOnly": true
+}

@@ -1,0 +1,223 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 340" width="920" height="340" role="img" aria-label="Under the hood: mozak-inventory.json points to scopes, the agent proposes, the owner approves, MOZAK.json and MOZAK.md are written in the scope folder, and Obsidian redraws from those files">
+  <defs>
+    <style>
+      .bg { fill: #14161b; }
+      .card { fill: #1c1f26; stroke: #2c313c; stroke-width: 1.5; rx: 10px; }
+      .subcard { fill: #15181e; stroke: #282d37; stroke-width: 1.2; rx: 6px; }
+      .title { font: 600 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; fill: #eef1f7; }
+      .label { font: 500 11.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; fill: #b8c0d0; }
+      .mono { font: 500 11px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; fill: #d7dde8; }
+      .muted { font: 400 10.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; fill: #7f889a; }
+      .badge-text { font: 600 10px ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+      /* Palette accents */
+      .gold-stroke { stroke: #d8b35a; }
+      .purple-stroke { stroke: #9a8ce8; }
+      .green-stroke { stroke: #5cbf8a; }
+      .gold-fill { fill: #d8b35a; }
+      .purple-fill { fill: #9a8ce8; }
+      .green-fill { fill: #5cbf8a; }
+
+      /* Connector lines */
+      .wire { fill: none; stroke: #2c313c; stroke-width: 2; stroke-linecap: round; }
+      .wire-gold { fill: none; stroke: #d8b35a; stroke-width: 2.2; stroke-linecap: round; stroke-dasharray: 6 6; animation: dash 1.6s linear infinite; }
+      .wire-purple { fill: none; stroke: #9a8ce8; stroke-width: 2.2; stroke-linecap: round; stroke-dasharray: 6 6; animation: dash 1.6s linear infinite; }
+      .wire-green { fill: none; stroke: #5cbf8a; stroke-width: 2.2; stroke-linecap: round; stroke-dasharray: 6 6; animation: dash 1.6s linear infinite; }
+
+      @keyframes dash {
+        to { stroke-dashoffset: -24; }
+      }
+
+      /* 8-second 4-beat cycle */
+      .beat-1 { animation: glowGold 8s infinite; }
+      .beat-2 { animation: glowPurple 8s infinite; }
+      .beat-3 { animation: glowGreen 8s infinite; }
+      .beat-4 { animation: glowObsidian 8s infinite; }
+      .pulse-1 { animation: travel1 8s infinite; }
+      .pulse-2 { animation: travel2 8s infinite; }
+      .pulse-3 { animation: travel3 8s infinite; }
+      .strip-done { animation: stripFill 8s infinite; }
+      .state-pill { animation: pillSwitch 8s infinite; }
+
+      @keyframes glowGold {
+        0%, 24% { stroke: #d8b35a; stroke-width: 2.2; }
+        28%, 100% { stroke: #2c313c; stroke-width: 1.5; }
+      }
+      @keyframes glowPurple {
+        0%, 22% { stroke: #2c313c; stroke-width: 1.5; }
+        25%, 49% { stroke: #9a8ce8; stroke-width: 2.2; }
+        54%, 100% { stroke: #2c313c; stroke-width: 1.5; }
+      }
+      @keyframes glowGreen {
+        0%, 47% { stroke: #2c313c; stroke-width: 1.5; }
+        50%, 74% { stroke: #5cbf8a; stroke-width: 2.2; }
+        79%, 100% { stroke: #2c313c; stroke-width: 1.5; }
+      }
+      @keyframes glowObsidian {
+        0%, 72% { stroke: #2c313c; stroke-width: 1.5; }
+        75%, 97% { stroke: #5cbf8a; stroke-width: 2.2; }
+        100% { stroke: #2c313c; stroke-width: 1.5; }
+      }
+      @keyframes travel1 {
+        0%, 15% { opacity: 0; transform: translateX(0px); }
+        18% { opacity: 1; }
+        26% { opacity: 1; transform: translateX(34px); }
+        28%, 100% { opacity: 0; transform: translateX(34px); }
+      }
+      @keyframes travel2 {
+        0%, 40% { opacity: 0; transform: translateX(0px); }
+        43% { opacity: 1; }
+        51% { opacity: 1; transform: translateX(34px); }
+        53%, 100% { opacity: 0; transform: translateX(34px); }
+      }
+      @keyframes travel3 {
+        0%, 65% { opacity: 0; transform: translateX(0px); }
+        68% { opacity: 1; }
+        76% { opacity: 1; transform: translateX(34px); }
+        78%, 100% { opacity: 0; transform: translateX(34px); }
+      }
+      @keyframes stripFill {
+        0%, 72% { fill: #2c313c; }
+        76%, 96% { fill: #5cbf8a; }
+        100% { fill: #2c313c; }
+      }
+      @keyframes pillSwitch {
+        0%, 48% { fill: #d8b35a; }
+        50%, 96% { fill: #5cbf8a; }
+        100% { fill: #d8b35a; }
+      }
+    </style>
+  </defs>
+
+  <!-- Canvas -->
+  <rect class="bg" x="0" y="0" width="920" height="340" rx="14" />
+
+  <!-- Top header bar -->
+  <text class="title" x="28" y="34">How MOZAK works under the hood</text>
+  <g transform="translate(600, 21)">
+    <circle cx="8" cy="8" r="5" class="gold-fill" />
+    <text class="muted" x="18" y="12">1. Propose</text>
+    <circle cx="94" cy="8" r="5" class="purple-fill" />
+    <text class="muted" x="104" y="12">2. Approve</text>
+    <circle cx="182" cy="8" r="5" class="green-fill" />
+    <text class="muted" x="192" y="12">3. Plain files → Obsidian UI</text>
+  </g>
+
+  <!-- ==================== COLUMN 1: INVENTORY & AGENT PROPOSE (GOLD) ==================== -->
+  <g transform="translate(24, 54)">
+    <rect class="card beat-1" x="0" y="0" width="196" height="236" rx="10" />
+    <rect x="14" y="14" width="24" height="20" rx="4" fill="#2a2417" stroke="#d8b35a" stroke-width="1.2" />
+    <text class="badge-text gold-fill" x="22" y="28">1</text>
+    <text class="title" x="46" y="28">Inventory &amp; Agent</text>
+
+    <!-- mozak-inventory.json box -->
+    <rect class="subcard" x="14" y="46" width="168" height="80" rx="6" />
+    <text class="mono gold-fill" x="24" y="65">mozak-inventory.json</text>
+    <text class="mono" x="24" y="84" fill="#9aa3b5">├─ atlas-engine/</text>
+    <text class="mono" x="24" y="100" fill="#9aa3b5">├─ routing-notes/</text>
+    <text class="mono" x="24" y="116" fill="#d8b35a">└─ field-kit/</text>
+
+    <!-- Agent propose box -->
+    <rect class="subcard" x="14" y="138" width="168" height="84" rx="6" />
+    <text class="label" x="24" y="158">AI Agent (CLI / MCP)</text>
+    <text class="mono gold-fill" x="24" y="177">mozak plan propose</text>
+    <text class="muted" x="24" y="195">Drafts outcomes &amp; sources</text>
+    <rect x="24" y="202" width="114" height="14" rx="3" fill="#2a2417" />
+    <text class="badge-text gold-fill" x="30" y="212">awaiting approval</text>
+  </g>
+
+  <!-- Connector 1 -> 2 -->
+  <path class="wire" d="M 220 172 L 256 172" />
+  <path class="wire-gold" d="M 220 172 L 256 172" />
+  <circle class="gold-fill pulse-1" cx="222" cy="172" r="5" />
+
+  <!-- ==================== COLUMN 2: OWNER GATE (PURPLE) ==================== -->
+  <g transform="translate(256, 54)">
+    <rect class="card beat-2" x="0" y="0" width="184" height="236" rx="10" />
+    <rect x="14" y="14" width="24" height="20" rx="4" fill="#211d33" stroke="#9a8ce8" stroke-width="1.2" />
+    <text class="badge-text purple-fill" x="22" y="28">2</text>
+    <text class="title" x="46" y="28">Owner Gate</text>
+
+    <rect class="subcard" x="14" y="46" width="156" height="92" rx="6" />
+    <text class="label" x="24" y="66">Explicit human yes</text>
+    <text class="mono purple-fill" x="24" y="86">approve-direction</text>
+    <text class="muted" x="24" y="105">Bound to exact</text>
+    <text class="mono" x="24" y="121" fill="#b8c0d0">reviewDigest</text>
+
+    <rect class="subcard" x="14" y="150" width="156" height="72" rx="6" />
+    <text class="label" x="24" y="170">Two separate gates</text>
+    <text class="muted" x="24" y="188">1. Agree on direction</text>
+    <text class="muted" x="24" y="205">2. Authorize build spec</text>
+  </g>
+
+  <!-- Connector 2 -> 3 -->
+  <path class="wire" d="M 440 172 L 476 172" />
+  <path class="wire-purple" d="M 440 172 L 476 172" />
+  <circle class="purple-fill pulse-2" cx="442" cy="172" r="5" />
+
+  <!-- ==================== COLUMN 3: SCOPE FILES ON DISK (GREEN) ==================== -->
+  <g transform="translate(476, 54)">
+    <rect class="card beat-3" x="0" y="0" width="188" height="236" rx="10" />
+    <rect x="14" y="14" width="24" height="20" rx="4" fill="#162921" stroke="#5cbf8a" stroke-width="1.2" />
+    <text class="badge-text green-fill" x="22" y="28">3</text>
+    <text class="title" x="46" y="28">Scope Folder</text>
+
+    <!-- MOZAK.json -->
+    <rect class="subcard" x="14" y="46" width="160" height="82" rx="6" />
+    <text class="mono green-fill" x="24" y="65">field-kit/MOZAK.json</text>
+    <text class="muted" x="24" y="83">Canonical state + CAS</text>
+    <text class="muted" x="24" y="99">Stale writes refused</text>
+    <text class="mono" x="24" y="116" fill="#5cbf8a">fsync + atomic rename</text>
+
+    <!-- MOZAK.md -->
+    <rect class="subcard" x="14" y="140" width="160" height="82" rx="6" />
+    <text class="mono green-fill" x="24" y="159">field-kit/MOZAK.md</text>
+    <text class="muted" x="24" y="177">Readable note projection</text>
+    <text class="muted" x="24" y="193">Mermaid roadmap +</text>
+    <text class="muted" x="24" y="209">outcome status table</text>
+  </g>
+
+  <!-- Connector 3 -> 4 -->
+  <path class="wire" d="M 664 172 L 700 172" />
+  <path class="wire-green" d="M 664 172 L 700 172" />
+  <circle class="green-fill pulse-3" cx="666" cy="172" r="5" />
+
+  <!-- ==================== COLUMN 4: OBSIDIAN GENERATIVE UI ==================== -->
+  <g transform="translate(700, 54)">
+    <rect class="card beat-4" x="0" y="0" width="196" height="236" rx="10" />
+    <rect x="14" y="14" width="24" height="20" rx="4" fill="#162921" stroke="#5cbf8a" stroke-width="1.2" />
+    <text class="badge-text green-fill" x="22" y="28">4</text>
+    <text class="title" x="46" y="28">Obsidian Redraws</text>
+
+    <!-- Sidebar preview -->
+    <rect class="subcard" x="14" y="46" width="168" height="86" rx="6" />
+    <text class="label" x="24" y="64">MOZAK Scopes Sidebar</text>
+    <circle class="state-pill" cx="29" cy="82" r="4" />
+    <text class="mono" x="39" y="86">battery-budget</text>
+    <!-- 3-segment strip: green done, gold evidence, purple current -->
+    <rect class="strip-done" x="24" y="98" width="36" height="7" rx="2" />
+    <rect x="64" y="98" width="36" height="7" rx="2" fill="#d8b35a" />
+    <rect x="104" y="98" width="36" height="7" rx="2" fill="#211d33" stroke="#9a8ce8" stroke-width="1.2" />
+    <text class="mono" x="148" y="105" fill="#9aa3b5">1/3</text>
+    <text class="muted" x="24" y="122">Click row → jumps to note</text>
+
+    <!-- Mermaid roadmap preview in MOZAK.md -->
+    <rect class="subcard" x="14" y="142" width="168" height="80" rx="6" />
+    <text class="label" x="24" y="160">Rendered in MOZAK.md</text>
+    <!-- Mini Mermaid nodes -->
+    <rect x="24" y="172" width="42" height="22" rx="4" fill="#14291f" stroke="#5cbf8a" stroke-width="1.4" />
+    <text class="badge-text green-fill" x="32" y="187">Done</text>
+    <line x1="66" y1="183" x2="78" y2="183" stroke="#5a6270" stroke-width="1.5" />
+    <rect x="78" y="172" width="42" height="22" rx="4" fill="#2a2315" stroke="#d8b35a" stroke-width="1.4" />
+    <text class="badge-text gold-fill" x="86" y="187">Evid</text>
+    <line x1="120" y1="183" x2="132" y2="183" stroke="#5a6270" stroke-width="1.5" />
+    <rect x="132" y="172" width="40" height="22" rx="4" fill="#211d33" stroke="#9a8ce8" stroke-width="1.8" />
+    <text class="badge-text purple-fill" x="140" y="187">Next</text>
+    <text class="muted" x="24" y="211">Zero UI code by the agent</text>
+  </g>
+
+  <!-- Bottom caption bar -->
+  <text class="muted" x="460" y="318" text-anchor="middle">
+    Plain files in your own folders and git repos · Guarded against stale overwrites · Rendered live in Obsidian
+  </text>
+</svg>
