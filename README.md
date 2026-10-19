@@ -110,11 +110,25 @@ Then turn on **MOZAK** under Settings, Community plugins. The plugin finds `moza
 
 ## See it run
 
+### 1. Talk to your agent (`/mozak` chat + Obsidian IDE)
+
+<div align="center">
+<a href="docs/assets/mozak-agent-chat.mp4">
+  <img src="docs/assets/mozak-agent-chat.gif" alt="Agent terminal chat and Obsidian side by side: you ask /mozak field-kit to plan a 30-day battery budget, the agent reads MOZAK state and asks 1 focused question, proposes the plan and pauses at the owner gate, you approve direction in chat, and the agent records passing test evidence turning outcome 1/2 green" width="840">
+</a>
+</div>
+
+You talk in natural language inside your terminal agent (`claude`, `jcode`, `codex`); the `/mozak` skill and `mozak-mcp` server read `MOZAK.json`, ask one focused question, pause at the owner approval gate, and redraw your Obsidian roadmap live ([full-resolution MP4](docs/assets/mozak-agent-chat.mp4)).
+
+### 2. Under the hood (plain files → generative UI)
+
 <div align="center">
 <img src="docs/assets/under-the-hood.svg" alt="Vector diagram animation: mozak-inventory.json points to scopes, the agent proposes, the owner approves, MOZAK.json and MOZAK.md are written in the scope folder, and Obsidian redraws from those files" width="840">
 </div>
 
 **Generative UI from plain files:** The agent writes plain `MOZAK.json` and `MOZAK.md` files in your scope folder; the Obsidian sidebar and the Mermaid roadmap inside each note are rendered from them, with no UI code written by the agent.
+
+### 3. CLI commands under the hood
 
 <div align="center">
 <a href="docs/assets/mozak-demo.mp4">
