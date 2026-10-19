@@ -117,10 +117,12 @@ Then turn on **MOZAK** under Settings, Community plugins. The plugin finds `moza
 **Generative UI from plain files:** The agent writes plain `MOZAK.json` and `MOZAK.md` files in your scope folder; the Obsidian sidebar and the Mermaid roadmap inside each note are rendered from them, with no UI code written by the agent.
 
 <div align="center">
-<img src="docs/assets/demo-terminal.gif" alt="Terminal recording: register two scopes, propose, approve, a stale write is refused, a new process recovers the saved plan, git shows the diff" width="760">
+<a href="docs/assets/mozak-demo.mp4">
+  <img src="docs/assets/mozak-demo.gif" alt="Live Terminal and Obsidian walkthrough: mozak scopes discovers 3 scopes, mozak plan propose creates an awaiting-approval plan in Field Sensor Kit, mozak review decide approves direction and lights up the Mermaid roadmap, and mozak observe turns outcome 1/2 green" width="840">
+</a>
 </div>
 
-Real commands against a throwaway repo and notes folder. The typing pace is scripted, the output is the real CLI's, the data is synthetic.
+Real CLI commands (`mozak scopes` → `mozak plan propose` → `mozak review decide --approve-direction` → `mozak observe`) running side by side with Obsidian against a clean 3-scope demo vault ([full-resolution MP4](docs/assets/mozak-demo.mp4)).
 
 ## Use it with your agent
 

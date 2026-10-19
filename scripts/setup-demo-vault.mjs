@@ -339,7 +339,99 @@ mkdirSync(pluginDest, { recursive: true });
 for (const f of ["main.js", "manifest.json", "styles.css"]) {
   cpSync(join(pluginSrc, f), join(pluginDest, f));
 }
+const demoMainJs = join(pluginDest, "main.js");
+writeFileSync(
+  demoMainJs,
+  readFileSync(demoMainJs, "utf8").replace(
+    "expanded = /* @__PURE__ */ new Set();",
+    'expanded = /* @__PURE__ */ new Set(["atlas-engine", "routing-notes", "field-kit"]);',
+  ),
+);
 writeFileSync(join(obsidianDir, "community-plugins.json"), JSON.stringify(["mozak"], null, 2) + "\n");
+writeFileSync(
+  join(obsidianDir, "app.json"),
+  JSON.stringify({ propertiesInDocument: "hidden", showInlineTitle: false }, null, 2) + "\n",
+);
+writeFileSync(
+  join(obsidianDir, "workspace.json"),
+  JSON.stringify(
+    {
+      main: {
+        id: "demo-main-split",
+        type: "split",
+        children: [
+          {
+            id: "demo-main-tabs",
+            type: "tabs",
+            children: [
+              {
+                id: "demo-main-leaf",
+                type: "leaf",
+                state: {
+                  type: "markdown",
+                  state: { file: "field-kit/MOZAK.md", mode: "preview", source: false },
+                  icon: "lucide-file",
+                  title: "MOZAK",
+                },
+              },
+            ],
+          },
+        ],
+        direction: "vertical",
+      },
+      left: {
+        id: "demo-left-split",
+        type: "split",
+        children: [
+          {
+            id: "demo-left-tabs",
+            type: "tabs",
+            children: [
+              {
+                id: "demo-left-files",
+                type: "leaf",
+                state: { type: "file-explorer", state: {} },
+              },
+            ],
+          },
+        ],
+        direction: "horizontal",
+        width: 260,
+        collapsed: true,
+      },
+      right: {
+        id: "demo-right-split",
+        type: "split",
+        children: [
+          {
+            id: "demo-right-tabs",
+            type: "tabs",
+            children: [
+              {
+                id: "demo-right-scopes",
+                type: "leaf",
+                state: {
+                  type: "mozak-scopes",
+                  state: {},
+                  icon: "brain-circuit",
+                  title: "MOZAK scopes",
+                },
+              },
+            ],
+            currentTab: 0,
+          },
+        ],
+        direction: "horizontal",
+        width: 380,
+        collapsed: false,
+      },
+      active: "demo-main-leaf",
+      lastOpenFiles: ["atlas-engine/MOZAK.md", "field-kit/MOZAK.md"],
+    },
+    null,
+    2,
+  ) + "\n",
+);
 writeFileSync(
   join(pluginDest, "data.json"),
   JSON.stringify({ inventoryPath: "", autoRefresh: true, remotePollSeconds: 0 }, null, 2) + "\n",
@@ -369,8 +461,8 @@ const tmp = mkdtempSync(join(tmpdir(), "mozak-live-"));
 function run(args, show = true) {
   if (show) console.log("\\x1b[32m$\\x1b[0m mozak " + args.join(" "));
   const r = spawnSync(mozak, [...args, "--config", inv], { encoding: "utf8" });
-  if (show && r.stdout) process.stdout.write(r.stdout);
-  if (r.status !== 0 && r.stderr) process.stderr.write(r.stderr);
+  if (show && r.stdout) process.stdout.write(r.stdout.replaceAll(dir, "~/mozak-demo-vault"));
+  if (r.status !== 0 && r.stderr) process.stderr.write(r.stderr.replaceAll(dir, "~/mozak-demo-vault"));
   return r;
 }
 
