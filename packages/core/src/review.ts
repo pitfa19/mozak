@@ -138,8 +138,8 @@ const SHAPES: Record<MutationAction, { required: string[]; optional: string[] }>
   "attach-spec": { required: ["planId", "acceptedRevisionId", "path", "bounds", "discussionDigest"], optional: [] },
   "approve-implementation": { required: [...DECISION_FIELDS, "specificationId"], optional: [] },
   "revoke-implementation": { required: [...DECISION_FIELDS, "authorizationId"], optional: [] },
-  propose: { required: ["planId", "content"], optional: [] },
-  revise: { required: ["planId", "pendingRevisionId", "acceptedRevisionId", "content"], optional: [] },
+  propose: { required: ["planId", "content"], optional: ["distinctFromPlanIds"] },
+  revise: { required: ["planId", "pendingRevisionId", "acceptedRevisionId", "content"], optional: ["mergeFromPlanId"] },
   observe: { required: ["planId", "observation"], optional: ["reasoningLinks"] },
   "approve-direction": { required: DECISION_FIELDS, optional: [] },
   "reject-pending": { required: DECISION_FIELDS, optional: [] },
@@ -273,11 +273,21 @@ export function validateMutation(action: unknown, payload: unknown, actor: unkno
     case "propose":
       nonEmpty(p.planId, "planId");
       checkContent(p.content);
+      if (p.distinctFromPlanIds !== undefined) {
+        if (!Array.isArray(p.distinctFromPlanIds) || p.distinctFromPlanIds.some((x) => typeof x !== "string" || x.trim() === "")) {
+          throw invalid("distinctFromPlanIds must be an array of nonempty strings");
+        }
+        if (new Set(p.distinctFromPlanIds as string[]).size !== (p.distinctFromPlanIds as string[]).length) {
+          throw invalid("distinctFromPlanIds must not contain duplicates");
+        }
+      }
       return;
     case "revise":
       nonEmpty(p.planId, "planId");
       if (p.pendingRevisionId !== null) nonEmpty(p.pendingRevisionId, "pendingRevisionId");
       if (p.acceptedRevisionId !== null) nonEmpty(p.acceptedRevisionId, "acceptedRevisionId");
+      if (p.mergeFromPlanId !== undefined && p.mergeFromPlanId !== null) nonEmpty(p.mergeFromPlanId, "mergeFromPlanId");
+      if (p.mergeFromPlanId === p.planId) throw invalid("cannot merge a plan into itself");
       checkContent(p.content);
       return;
     case "observe":
@@ -433,8 +443,267 @@ export function outcomeStatus(state: ScopeState, plan: Plan, outcomeId: string):
 
 /** Fields that differ between accepted and awaiting pending content, in schema key order. */
 export function pendingChangedFields(plan: Plan): string[] {
-  if (!plan.accepted || plan.pending?.reviewState !== "awaiting") return [];
-  return changedKeys(plan.accepted.content, plan.pending.content);
+  if (plan.pending?.reviewState !== "awaiting") return [];
+  const fields = plan.accepted ? changedKeys(plan.accepted.content, plan.pending.content) : [];
+  if (plan.pending.mergeFromPlanId !== undefined) fields.push("mergeFromPlanId");
+  return fields;
+}
+
+const SIMILARITY_STOPWORDS = new Set([
+  "the", "and", "for", "with", "from", "into", "that", "this", "have", "has", "are", "was", "were",
+  "will", "can", "should", "must", "not", "all", "any", "one", "two", "new", "plan", "plans",
+  "project", "scope", "work", "task", "tasks", "outcome", "outcomes", "sample", "first", "second",
+  "third", "key", "queued", "remote", "full", "vault", "alpha", "beta", "make", "add", "use", "users",
+]);
+
+function significantTokens(text: string): string[] {
+  const raw = text.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
+  const out = new Set<string>();
+  for (const word of raw) {
+    if (word.length < 3 || SIMILARITY_STOPWORDS.has(word) || /^\d+$/.test(word)) continue;
+    const stem = word.length >= 5 && word.endsWith("s") && !word.endsWith("ss") ? word.slice(0, -1) : word;
+    if (!SIMILARITY_STOPWORDS.has(stem)) out.add(stem);
+  }
+  return [...out];
+}
+
+function numericTokens(text: string): string[] {
+  return [...new Set(text.match(/\d+/g) ?? [])];
+}
+
+function overlapCoefficient(a: string[], b: string[]): { shared: string[]; score: number } {
+  if (!a.length || !b.length) return { shared: [], score: 0 };
+  const setB = new Set(b);
+  const shared = a.filter((t) => setB.has(t));
+  return { shared, score: shared.length / Math.min(a.length, b.length) };
+}
+
+export interface SimilarPlanMatch {
+  planId: string;
+  title: string;
+  lifecycleState: Plan["lifecycle"]["state"];
+}
+
+/**
+ * Finds existing non-completed plans in the scope whose title, ID, purpose, or outcomes
+ * substantially overlap a candidate proposal. Completed plans remain historical and are excluded.
+ */
+export function findSimilarPlans(
+  state: ScopeState,
+  candidate: { planId: string; content: PlanContent },
+  distinctFromPlanIds: string[] = [],
+): SimilarPlanMatch[] {
+  const distinct = new Set(distinctFromPlanIds);
+  const candTitle = significantTokens(candidate.content.title);
+  const candId = significantTokens(candidate.planId);
+  const candBody = significantTokens(
+    `${candidate.content.title} ${candidate.content.purpose} ${candidate.content.outcomes.map((o) => o.statement).join(" ")}`,
+  );
+  const candIdNums = numericTokens(candidate.planId);
+  const matches: SimilarPlanMatch[] = [];
+
+  for (const plan of state.plans) {
+    if (plan.id === candidate.planId || plan.lifecycle.state === "completed" || distinct.has(plan.id)) continue;
+    const existing = (plan.accepted ?? plan.pending)?.content;
+    if (!existing) continue;
+    const existTitle = significantTokens(existing.title);
+    const existId = significantTokens(plan.id);
+    const existBody = significantTokens(
+      `${existing.title} ${existing.purpose} ${existing.outcomes.map((o) => o.statement).join(" ")}`,
+    );
+    const existIdNums = numericTokens(plan.id);
+    const differentIdNumbers = candIdNums.join(",") !== existIdNums.join(",");
+    if (differentIdNumbers && digest(existing) === digest(candidate.content)) continue;
+    const disjointIdNumbers =
+      candIdNums.length > 0 && existIdNums.length > 0 && !candIdNums.some((n) => existIdNums.includes(n));
+
+    const titleMatch = overlapCoefficient(candTitle, existTitle);
+    const idMatch = overlapCoefficient(candId, existId);
+    const bodyMatch = overlapCoefficient(candBody, existBody);
+
+    const strongTitleOverlap = titleMatch.shared.length >= 2 && titleMatch.score >= 0.5;
+    const idAndTitleOverlap =
+      !disjointIdNumbers &&
+      titleMatch.shared.length >= 1 &&
+      idMatch.shared.length >= 1 &&
+      bodyMatch.shared.length >= 2 &&
+      bodyMatch.score >= 0.5;
+    const idAndBodyOverlap =
+      !disjointIdNumbers &&
+      idMatch.shared.length >= 2 &&
+      idMatch.score >= 0.5 &&
+      bodyMatch.shared.length >= 2 &&
+      bodyMatch.score >= 0.4;
+
+    if (strongTitleOverlap || idAndTitleOverlap || idAndBodyOverlap) {
+      matches.push({ planId: plan.id, title: existing.title, lifecycleState: plan.lifecycle.state });
+    }
+  }
+  return matches;
+}
+
+function foldMergedPlan(next: ScopeState, target: Plan, source: Plan, promotedId: string, now: UtcTimestamp): void {
+  const usedIds = new Set<string>();
+  const collectPlanIds = (p: Plan) => {
+    for (const item of [
+      ...p.observations,
+      ...p.decisions,
+      ...p.reasoningLinks,
+      ...p.completionRecords,
+      ...p.specifications,
+      ...p.implementationAuthorizations,
+      ...(p.discussion ? [p.discussion, ...p.discussion.questions] : []),
+      ...p.observations.flatMap((x) => x.evidence),
+      ...(p.accepted ? [p.accepted] : []),
+      ...(p.pending ? [p.pending] : []),
+    ]) {
+      usedIds.add(item.id);
+    }
+  };
+  collectPlanIds(target);
+  usedIds.add(promotedId);
+
+  const freshId = (preferred: string): string => {
+    if (!usedIds.has(preferred)) {
+      usedIds.add(preferred);
+      return preferred;
+    }
+    const prefixed = `${source.id}-${preferred}`;
+    if (!usedIds.has(prefixed)) {
+      usedIds.add(prefixed);
+      return prefixed;
+    }
+    const uniqueId = `${prefixed}-${randomUUID().slice(0, 8)}`;
+    usedIds.add(uniqueId);
+    return uniqueId;
+  };
+
+  const obsIdMap = new Map<string, string>();
+  for (const obs of source.observations) {
+    const existing = target.observations.find(
+      (o) => o.classification === obs.classification && o.summary === obs.summary && digest(o.evidence) === digest(obs.evidence),
+    );
+    if (existing) {
+      obsIdMap.set(obs.id, existing.id);
+      continue;
+    }
+    const newObsId = freshId(obs.id);
+    obsIdMap.set(obs.id, newObsId);
+    const clonedObs: Observation = {
+      ...structuredClone(obs),
+      id: newObsId,
+      evidence: obs.evidence.map((ev) => ({ ...structuredClone(ev), id: freshId(ev.id) })),
+    };
+    if (clonedObs.supersedesObservationId !== undefined) {
+      const mapped = obsIdMap.get(clonedObs.supersedesObservationId);
+      if (mapped && target.observations.some((o) => o.id === mapped)) {
+        clonedObs.supersedesObservationId = mapped;
+      } else {
+        delete clonedObs.supersedesObservationId;
+      }
+    }
+    target.observations.push(clonedObs);
+  }
+
+  const promotedOutcomes = new Set(target.accepted!.content.outcomes.map((o) => o.id));
+  for (const link of source.reasoningLinks) {
+    const from: ReasoningLink["from"] =
+      link.from.planId === source.id
+        ? { planId: target.id, revisionId: null, kind: "observation", id: obsIdMap.get(link.from.id) ?? link.from.id }
+        : structuredClone(link.from);
+    let to: ReasoningLink["to"];
+    if (link.to.planId === source.id) {
+      if (!promotedOutcomes.has(link.to.id)) continue;
+      to = { planId: target.id, revisionId: promotedId, kind: "outcome", id: link.to.id };
+    } else if (link.to.planId === target.id && link.to.revisionId === target.accepted!.acceptedFromRevision) {
+      if (!promotedOutcomes.has(link.to.id)) continue;
+      to = { planId: target.id, revisionId: promotedId, kind: "outcome", id: link.to.id };
+    } else {
+      to = structuredClone(link.to);
+    }
+    const dup = target.reasoningLinks.some(
+      (l) =>
+        l.relation === link.relation &&
+        l.from.planId === from.planId &&
+        l.from.id === from.id &&
+        l.to.planId === to.planId &&
+        l.to.revisionId === to.revisionId &&
+        l.to.id === to.id,
+    );
+    if (!dup) {
+      target.reasoningLinks.push({
+        id: freshId(link.id),
+        relation: link.relation,
+        from,
+        to,
+        rationale: link.rationale,
+      });
+    }
+  }
+
+  // Re-point or prune links in remaining plans that referenced the merged source plan.
+  for (const container of next.plans) {
+    if (container.id === source.id) continue;
+    const pinnedChallenges = new Set(
+      container.decisions.flatMap((d) => d.challengeIds ?? []),
+    );
+    const updatedLinks: ReasoningLink[] = [];
+    for (const link of container.reasoningLinks) {
+      const from =
+        link.from.planId === source.id
+          ? { planId: target.id, revisionId: null, kind: "observation" as const, id: obsIdMap.get(link.from.id) ?? link.from.id }
+          : link.from;
+      if (link.to.planId === source.id) {
+        if (!promotedOutcomes.has(link.to.id) || pinnedChallenges.has(JSON.stringify([container.id, link.id]))) continue;
+        updatedLinks.push({
+          ...link,
+          from,
+          to: { planId: target.id, revisionId: promotedId, kind: "outcome", id: link.to.id },
+        });
+      } else {
+        updatedLinks.push({ ...link, from });
+      }
+    }
+    container.reasoningLinks = updatedLinks;
+  }
+
+  if (source.discussion && source.discussion.questions.length > 0) {
+    const existingTexts = new Set((target.discussion?.questions ?? []).map((q) => q.text.trim().toLowerCase()));
+    const migrated = source.discussion.questions
+      .filter((q) => !existingTexts.has(q.text.trim().toLowerCase()))
+      .map((q) => ({
+        ...structuredClone(q),
+        id: freshId(q.id),
+        answers: q.answers.map((a) => ({
+          ...structuredClone(a),
+          evidence: a.evidence.map((ev) => ({ ...structuredClone(ev), id: freshId(ev.id) })),
+        })),
+      }));
+    if (migrated.length > 0) {
+      if (!target.discussion) {
+        const combined = migrated.slice(0, 32);
+        target.discussion = {
+          id: freshId(source.discussion.id),
+          updatedAt: now,
+          acceptedRevisionId: promotedId,
+          pendingRevisionId: null,
+          summary: source.discussion.summary,
+          stage: combined.some((q) => q.status === "open") ? "clarifying" : source.discussion.stage,
+          questions: combined,
+        };
+      } else {
+        const combined = [...target.discussion.questions, ...migrated].slice(0, 32);
+        target.discussion = {
+          ...target.discussion,
+          updatedAt: now,
+          stage: combined.some((q) => q.status === "open") ? "clarifying" : target.discussion.stage,
+          questions: combined,
+        };
+      }
+    }
+  }
+
+  next.plans = next.plans.filter((p) => p.id !== source.id);
 }
 
 /** Direction digest excludes unrelated observations. Outcome digest adds evidence and challenge sets. */
@@ -598,7 +867,23 @@ export function applyMutation(
     case "propose": {
       const planId = p.planId as string;
       if (next.plans.some((x) => x.id === planId)) throw invalid(`plan "${planId}" already exists`);
-      const rev = newRevision(checkContent(p.content), now);
+      const content = checkContent(p.content);
+      const distinctFromPlanIds = (p.distinctFromPlanIds as string[] | undefined) ?? [];
+      for (const distinctId of distinctFromPlanIds) {
+        if (!next.plans.some((x) => x.id === distinctId)) {
+          throw stale(`distinctFromPlanIds references unknown plan "${distinctId}"`);
+        }
+      }
+      const similar = findSimilarPlans(next, { planId, content }, distinctFromPlanIds);
+      if (similar.length > 0) {
+        const list = similar.map((m) => `${m.planId} ("${m.title}", ${m.lifecycleState})`).join(", ");
+        throw new DomainError(
+          "duplicate-plan-candidate",
+          `similar non-completed plan(s) already exist in scope "${next.scope.id}": ${list}. Revise the existing plan (optionally with mergeFromPlanId) or pass distinctFromPlanIds after owner confirmation.`,
+          3,
+        );
+      }
+      const rev = newRevision(content, now);
       next.plans.push({
         id: planId,
         createdAt: now,
@@ -627,6 +912,22 @@ export function applyMutation(
       if (plan.pending?.reviewState === "rejected") {
         throw new DomainError("owner-review-required", "a rejected candidate requires explicit reconsideration first", 3);
       }
+      const mergeFromPlanId = (p.mergeFromPlanId as string | null | undefined) ?? undefined;
+      if (mergeFromPlanId !== undefined) {
+        if (plan.lifecycle.state === "completed") {
+          throw new DomainError("invalid-lifecycle", "cannot merge into a completed plan", 3);
+        }
+        const source = findPlan(next, mergeFromPlanId);
+        if (source.lifecycle.state === "completed") {
+          throw new DomainError("invalid-lifecycle", `cannot merge completed plan "${source.id}"; cite it as a source instead`, 3);
+        }
+        if (source.pending?.mergeFromPlanId !== undefined) {
+          throw new DomainError("invalid-lifecycle", `plan "${source.id}" has its own pending merge and cannot be merged as a source`, 3);
+        }
+        if (next.plans.some((other) => other.id !== plan.id && (other.pending?.mergeFromPlanId === source.id || other.pending?.mergeFromPlanId === plan.id))) {
+          throw new DomainError("invalid-lifecycle", `plan "${source.id}" is already involved in another pending merge`, 3);
+        }
+      }
       const rev = newRevision(checkContent(p.content), now);
       plan.pending = {
         ...rev,
@@ -634,6 +935,7 @@ export function applyMutation(
         baseAcceptedDigest: plan.accepted?.contentDigest ?? null,
         reviewState: "awaiting",
         rejectionDecisionId: null,
+        ...(mergeFromPlanId !== undefined ? { mergeFromPlanId } : {}),
       };
       plan.updatedAt = now;
       ids.push(plan.id, rev.id);
@@ -672,7 +974,12 @@ export function applyMutation(
       const pending = awaitingOf(plan);
       if (pending.id !== p.revisionId) throw stale("approve-direction needs the exact displayed pending revision");
       requireReviewDigest(next, plan, "approve-direction", pending, p);
+      const mergeSource = pending.mergeFromPlanId !== undefined ? findPlan(next, pending.mergeFromPlanId) : undefined;
+      if (mergeSource && mergeSource.lifecycle.state === "completed") {
+        throw new DomainError("invalid-lifecycle", `cannot merge completed plan "${mergeSource.id}"`, 3);
+      }
       const decision = recordDecision(plan, "approve-direction", p, pending, now);
+      if (mergeSource) decision.mergedPlanId = mergeSource.id;
       const promoted = newRevision(pending.content, now);
       plan.accepted = {
         id: promoted.id,
@@ -686,6 +993,9 @@ export function applyMutation(
       if (plan.lifecycle.state !== "paused") plan.lifecycle = { state: "open" };
       plan.downstreamSpec = null;
       plan.implementationAuthorization = null;
+      if (mergeSource) {
+        foldMergedPlan(next, plan, mergeSource, promoted.id, now);
+      }
       plan.updatedAt = now;
       ids.push(decision.id, promoted.id);
       break;
@@ -717,6 +1027,7 @@ export function applyMutation(
         baseAcceptedDigest: rejected.baseAcceptedDigest,
         reviewState: "awaiting",
         rejectionDecisionId: null,
+        ...(rejected.mergeFromPlanId !== undefined ? { mergeFromPlanId: rejected.mergeFromPlanId } : {}),
       };
       plan.updatedAt = now;
       ids.push(decision.id, rev.id);
@@ -869,6 +1180,7 @@ export function reviewShow(state: ScopeState, planId: string, purpose?: string, 
     const pending = awaitingOf(plan);
     subject = pending;
     changedFields = changedKeys(plan.accepted?.content, pending.content);
+    if (pending.mergeFromPlanId !== undefined) changedFields.push("mergeFromPlanId");
   } else if (p === "reconsider") {
     subject = rejectedOf(plan);
   } else {
@@ -879,7 +1191,9 @@ export function reviewShow(state: ScopeState, planId: string, purpose?: string, 
   const ownQuestion: Record<DecisionPurpose, string> = {
     "approve-implementation": `Approve implementation of the exact specification and bounds for plan ${plan.id}?`,
     "revoke-implementation": `Revoke the current implementation authorization for plan ${plan.id}?`,
-    "approve-direction": `Approve the proposed direction for plan ${plan.id}?`,
+    "approve-direction": plan.pending?.mergeFromPlanId
+      ? `Approve the proposed direction for plan ${plan.id} (merging plan ${plan.pending.mergeFromPlanId})?`
+      : `Approve the proposed direction for plan ${plan.id}?`,
     "reject-pending": `Reject the proposed direction for plan ${plan.id}?`,
     reconsider: `Reconsider the rejected proposal for plan ${plan.id}?`,
     pause: `Pause plan ${plan.id}?`,

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { validateMutation, applyMutation, reviewShow, reviewRows, contextView } from "../src/review.ts";
+import { validateMutation, applyMutation, reviewShow, reviewRows, contextView, pendingChangedFields } from "../src/review.ts";
 import { DomainError } from "../src/errors.ts";
 
 // Fixture helpers. Shapes follow docs/implementation-package-1-plan-state-review.md section 4.
@@ -570,4 +570,181 @@ test("context and review expose meaning, provenance, active decisions and permis
   assert.ok(c.effectiveDecisions["approve-direction"]);
   const r = reviewShow(s, "p1", "accept-outcome", "o1");
   assert.equal(r.challenges[0].observation.id, "claim");
+});
+
+test("propose refuses a duplicate-plan-candidate when an overlapping non-completed plan exists unless distinctFromPlanIds is provided", () => {
+  const existingContent = {
+    ...content("EESTEC PR automation workflow", "Automate EESTEC PR announcements"),
+    purpose: "Automate EESTEC PR announcements and social drafts",
+  };
+  const candidateContent = {
+    ...content("EESTEC PR campaign workflow", "Draft and schedule EESTEC PR posts"),
+    purpose: "Coordinate EESTEC PR announcements across channels",
+  };
+  let s = apply(emptyState(), "propose", { planId: "eestec-pr", content: existingContent });
+
+  assert.throws(
+    () => applyMutation(s, "propose", { planId: "eestec-pr-campaign", content: candidateContent }, "agent", LATER),
+    (err) =>
+      err instanceof DomainError &&
+      err.code === "duplicate-plan-candidate" &&
+      err.exitCode === 3 &&
+      /eestec-pr \("EESTEC PR automation workflow", unaccepted\)/.test(err.message),
+  );
+
+  // Unknown plan in distinctFromPlanIds is refused as stale-reference.
+  assert.throws(
+    () => applyMutation(s, "propose", { planId: "eestec-pr-campaign", content: candidateContent, distinctFromPlanIds: ["no-such-plan"] }, "agent", LATER),
+    (err) => err instanceof DomainError && err.code === "stale-reference" && err.exitCode === 3,
+  );
+
+  // Explicit distinctFromPlanIds allows creating the separate plan.
+  const separate = apply(s, "propose", {
+    planId: "eestec-pr-campaign",
+    content: candidateContent,
+    distinctFromPlanIds: ["eestec-pr"],
+  });
+  assert.equal(separate.plans.length, 2);
+
+  // Completed plans are historical and never block a new follow-up proposal.
+  s = decide(s, "eestec-pr", "approve-direction");
+  const rev = s.plans[0].accepted.id;
+  s = apply(s, "observe", { planId: "eestec-pr", observation: observation("obs-done", "observed"), reasoningLinks: [{
+    id: "l-done",
+    relation: "supports",
+    from: { planId: "eestec-pr", revisionId: null, kind: "observation", id: "obs-done" },
+    to: { planId: "eestec-pr", revisionId: rev, kind: "outcome", id: "o1" },
+    rationale: "done",
+  }] });
+  s = apply(s, "complete", { planId: "eestec-pr", revisionId: rev });
+  assert.equal(s.plans[0].lifecycle.state, "completed");
+  assert.doesNotThrow(() =>
+    applyMutation(s, "propose", { planId: "eestec-pr-followup", content: candidateContent }, "agent", LATER),
+  );
+});
+
+test("revise with mergeFromPlanId and approve-direction folds observations, reasoning links, and discussion into the target plan and removes the source plan", () => {
+  let s = apply(emptyState(), "propose", {
+    planId: "internships-a",
+    content: {
+      ...content("Summer 2027 Internship Tracker", "Track deadlines"),
+      outcomes: [{ id: "o1", statement: "Track deadlines", acceptance: "objective", criterion: "deadlines verified" }],
+    },
+  });
+  s = decide(s, "internships-a", "approve-direction");
+  s = apply(s, "propose", {
+    planId: "internships-b",
+    distinctFromPlanIds: ["internships-a"],
+    content: {
+      ...content("Summer 2027 Internship Applications", "Submit applications"),
+      outcomes: [{ id: "o2", statement: "Submit applications", acceptance: "objective", criterion: "submission verified" }],
+    },
+  });
+  s = decide(s, "internships-b", "approve-direction");
+
+  const revA = s.plans.find((p) => p.id === "internships-a").accepted.id;
+  const revB = s.plans.find((p) => p.id === "internships-b").accepted.id;
+
+  // Record observations (using colliding observation/evidence IDs to verify safe disambiguation) and discussion on both plans.
+  s = apply(s, "observe", {
+    planId: "internships-a",
+    observation: observation("obs-1", "observed"),
+    reasoningLinks: [{
+      id: "link-1",
+      relation: "supports",
+      from: { planId: "internships-a", revisionId: null, kind: "observation", id: "obs-1" },
+      to: { planId: "internships-a", revisionId: revA, kind: "outcome", id: "o1" },
+      rationale: "deadlines verified",
+    }],
+  });
+  const obsB = observation("obs-1", "observed");
+  obsB.summary = "applications verified";
+  obsB.evidence[0].locator = "test/submissions.test.ts";
+  s = apply(s, "observe", {
+    planId: "internships-b",
+    observation: obsB,
+    reasoningLinks: [{
+      id: "link-1",
+      relation: "supports",
+      from: { planId: "internships-b", revisionId: null, kind: "observation", id: "obs-1" },
+      to: { planId: "internships-b", revisionId: revB, kind: "outcome", id: "o2" },
+      rationale: "submissions verified",
+    }],
+  });
+  s = apply(s, "save-discussion", {
+    planId: "internships-b",
+    acceptedRevisionId: revB,
+    pendingRevisionId: null,
+    summary: "Clarified target companies",
+    stage: "clarifying",
+    questions: [{ id: null, text: "Which regions are in scope?", status: "open", answers: [], reopenReason: null }],
+  });
+
+  // Self-merge is refused.
+  assert.throws(
+    () =>
+      applyMutation(
+        s,
+        "revise",
+        { planId: "internships-a", pendingRevisionId: null, acceptedRevisionId: revA, mergeFromPlanId: "internships-a", content: content() },
+        "agent",
+        LATER,
+      ),
+    (err) => err instanceof DomainError && err.code === "invalid-payload",
+  );
+
+  // Propose a merge revision on internships-a folding internships-b.
+  const mergedContent = {
+    ...content("Unified 2027 Internships Plan", "Track deadlines"),
+    outcomes: [
+      { id: "o1", statement: "Track deadlines", acceptance: "objective", criterion: "deadlines verified" },
+      { id: "o2", statement: "Submit applications", acceptance: "objective", criterion: "submission verified" },
+    ],
+  };
+  s = apply(s, "revise", {
+    planId: "internships-a",
+    pendingRevisionId: null,
+    acceptedRevisionId: revA,
+    mergeFromPlanId: "internships-b",
+    content: mergedContent,
+  });
+
+  const planA = s.plans.find((p) => p.id === "internships-a");
+  assert.equal(planA.pending.mergeFromPlanId, "internships-b");
+  assert.ok(pendingChangedFields(planA).includes("mergeFromPlanId"));
+
+  const shown = reviewShow(s, "internships-a", "approve-direction");
+  assert.ok(shown.changedFields.includes("mergeFromPlanId"));
+  assert.match(shown.question, /merging plan internships-b/);
+
+  // Rejecting and reconsidering preserves mergeFromPlanId.
+  const rejected = decide(s, "internships-a", "reject-pending");
+  const reconsidered = decide(rejected, "internships-a", "reconsider");
+  assert.equal(reconsidered.plans.find((p) => p.id === "internships-a").pending.mergeFromPlanId, "internships-b");
+
+  // Approving direction folds internships-b into internships-a and removes internships-b.
+  s = decide(s, "internships-a", "approve-direction");
+  assert.equal(s.plans.length, 1);
+  const unified = s.plans[0];
+  assert.equal(unified.id, "internships-a");
+  assert.equal(unified.observations.length, 2);
+  assert.equal(unified.discussion.questions.length, 1);
+  assert.equal(unified.discussion.questions[0].text, "Which regions are in scope?");
+  assert.equal(unified.decisions.at(-1).mergedPlanId, "internships-b");
+
+  // Re-bind o1 link to the newly promoted accepted revision, while o2's link from internships-b was automatically re-pointed to the promoted revision!
+  const promotedRev = unified.accepted.id;
+  s = apply(s, "observe", {
+    planId: "internships-a",
+    observation: observation("obs-rebind-o1", "observed"),
+    reasoningLinks: [{
+      id: "link-rebind-o1",
+      relation: "supports",
+      from: { planId: "internships-a", revisionId: null, kind: "observation", id: "obs-rebind-o1" },
+      to: { planId: "internships-a", revisionId: promotedRev, kind: "outcome", id: "o1" },
+      rationale: "deadlines still pass",
+    }],
+  });
+  // Outcome o2 is already satisfied by the folded observation and link from internships-b!
+  assert.doesNotThrow(() => applyMutation(s, "complete", { planId: "internships-a", revisionId: promotedRev }, "agent", LATER));
 });

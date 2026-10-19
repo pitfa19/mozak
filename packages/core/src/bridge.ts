@@ -119,10 +119,21 @@ function contentSections(c: PlanContent): string[] {
 }
 
 function pendingDelta(plan: Plan): string | null {
-  if (!plan.accepted || plan.pending?.reviewState !== "awaiting") return null;
+  if (plan.pending?.reviewState !== "awaiting") return null;
+  if (!plan.accepted) {
+    return plan.pending.mergeFromPlanId !== undefined
+      ? `> Proposal awaiting approval: merges ${mdText(plan.pending.mergeFromPlanId)}.`
+      : null;
+  }
   const before = plan.accepted.content.outcomes.length, after = plan.pending.content.outcomes.length;
   const parts = pendingChangedFields(plan).map(f =>
-    f === "outcomes" && before !== after ? `outcomes ${before} → ${after}` : f === "nonGoals" ? "non-goals" : f);
+    f === "outcomes" && before !== after
+      ? `outcomes ${before} → ${after}`
+      : f === "nonGoals"
+        ? "non-goals"
+        : f === "mergeFromPlanId"
+          ? `merges ${mdText(plan.pending!.mergeFromPlanId!)}`
+          : f);
   return `> Revision awaiting approval: ${parts.length ? `changes ${parts.join(", ")}` : "no content changes"}. The roadmap below is the accepted version.`;
 }
 

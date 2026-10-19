@@ -34,6 +34,8 @@ Request file, written as data. Envelope:
 
 | Command | Action |
 |---|---|
+| `node {{MOZAK_CLI}} plan propose --config INVENTORY --scope ID --request FILE` | `propose` (optional `distinctFromPlanIds` when owner confirmed a separate plan despite overlap) |
+| `node {{MOZAK_CLI}} plan revise --config INVENTORY --scope ID --request FILE` | `revise` (optional `mergeFromPlanId` to fold a duplicate non-completed plan into `planId` on `approve-direction`) |
 | `node {{MOZAK_CLI}} discussion save --config INVENTORY --scope ID --request FILE` | `save-discussion` |
 | `node {{MOZAK_CLI}} spec attach --config INVENTORY --scope ID --request FILE` | `attach-spec` |
 | `node {{MOZAK_CLI}} plan complete --config INVENTORY --scope ID --request FILE` | `complete` |

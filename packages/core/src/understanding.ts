@@ -153,6 +153,7 @@ export interface PendingRevision extends Revision {
   baseAcceptedDigest: Digest | null;
   reviewState: "awaiting" | "rejected";
   rejectionDecisionId: string | null;
+  mergeFromPlanId?: string;
 }
 
 export type Lifecycle =
@@ -254,6 +255,7 @@ export interface Decision {
   challengeIds?: string[];
   specificationId?: string;
   authorizationId?: string;
+  mergedPlanId?: string;
 }
 
 export interface OutcomeEvidence {
@@ -401,7 +403,7 @@ export function validateObservation(value: unknown): Observation {
   return value as Observation;
 }
 export function validateDecision(value: unknown): Decision {
-  const o = record(value, "decision", ["id", "purpose", "ownerRef", "ownerMessageAt", "recordedAt", "planId", "revisionId", "contentDigest", "reviewDigest", "reason"], ["outcomeId", "evidenceDigest", "challengeIds", "specificationId", "authorizationId"]);
+  const o = record(value, "decision", ["id", "purpose", "ownerRef", "ownerMessageAt", "recordedAt", "planId", "revisionId", "contentDigest", "reviewDigest", "reason"], ["outcomeId", "evidenceDigest", "challengeIds", "specificationId", "authorizationId", "mergedPlanId"]);
   for (const k of ["id", "ownerRef", "planId", "revisionId", "reason"]) str(o[k], `decision.${k}`);
   choice(o.purpose, ["approve-direction", "reject-pending", "reconsider", "pause", "resume", "accept-outcome", "approve-implementation", "revoke-implementation"], "decision.purpose");
   date(o.ownerMessageAt, "decision.ownerMessageAt"); date(o.recordedAt, "decision.recordedAt");
@@ -415,11 +417,15 @@ export function validateDecision(value: unknown): Decision {
     str(o.authorizationId, "decision.authorizationId");
     if (Object.hasOwn(o, "specificationId")) fail("specificationId belongs only to implementation approval");
   } else if (["specificationId", "authorizationId"].some(k => Object.hasOwn(o, k))) fail("implementation fields belong only to implementation decisions");
+  if (Object.hasOwn(o, "mergedPlanId")) {
+    if (o.purpose !== "approve-direction") fail("mergedPlanId belongs only to approve-direction decisions");
+    str(o.mergedPlanId, "decision.mergedPlanId");
+  }
   return value as Decision;
 }
 function revision(value: unknown, accepted: boolean): void {
   const extras = accepted ? ["acceptedFromRevision", "directionDecisionId"] : ["baseAcceptedRevision", "baseAcceptedDigest", "reviewState", "rejectionDecisionId"];
-  const o = record(value, "revision", ["id", "createdAt", "content", "contentDigest", ...extras]);
+  const o = record(value, "revision", ["id", "createdAt", "content", "contentDigest", ...extras], accepted ? [] : ["mergeFromPlanId"]);
   str(o.id, "revision.id"); date(o.createdAt, "revision.createdAt"); validateContent(o.content); sha(o.contentDigest, "contentDigest");
   if (digest(o.content) !== o.contentDigest) fail("revision content digest mismatch", "digest-mismatch");
   if (accepted) { str(o.acceptedFromRevision, "acceptedFromRevision"); str(o.directionDecisionId, "directionDecisionId"); if (o.id === o.acceptedFromRevision) fail("accepted revision must have a fresh identity"); }
@@ -429,6 +435,7 @@ function revision(value: unknown, accepted: boolean): void {
     choice(o.reviewState, ["awaiting", "rejected"], "reviewState");
     if (o.reviewState === "awaiting" ? o.rejectionDecisionId !== null : typeof o.rejectionDecisionId !== "string") fail("pending rejection reference inconsistent");
     if (o.reviewState === "rejected") str(o.rejectionDecisionId, "rejectionDecisionId");
+    if (Object.hasOwn(o, "mergeFromPlanId")) str(o.mergeFromPlanId, "mergeFromPlanId");
   }
 }
 function endpoint(value: unknown, kind: string): void {
@@ -625,6 +632,7 @@ function planReferences(p: Plan, plans: Map<string, Plan>): void {
   const challengeLinks = new Map([...plans.values()].flatMap(container => container.reasoningLinks.map(link => [JSON.stringify([container.id, link.id]), link] as const)));
   for (const d of p.decisions) {
     requireRef(d.planId === p.id, "decision belongs to another plan");
+    if (d.mergedPlanId !== undefined) requireRef(d.mergedPlanId !== p.id, "decision cannot record merging a plan into itself");
     const subject = [p.accepted, p.pending].find(r => r?.id === d.revisionId)
       ?? (p.accepted?.acceptedFromRevision === d.revisionId ? p.accepted : undefined);
     if (subject) {
@@ -653,6 +661,11 @@ function planReferences(p: Plan, plans: Map<string, Plan>): void {
     requireRef(p.pending.baseAcceptedRevision === (p.accepted?.id ?? null), "pending base revision is stale");
     requireDigest(p.pending.baseAcceptedDigest === (p.accepted?.contentDigest ?? null), "pending base digest is stale");
     if (p.pending.reviewState === "rejected") bound(p.pending.rejectionDecisionId!, "reject-pending", p.pending.id, p.pending.contentDigest);
+    if (p.pending.mergeFromPlanId !== undefined) {
+      requireRef(p.pending.mergeFromPlanId !== p.id, "pending revision cannot merge a plan into itself");
+      const source = plans.get(p.pending.mergeFromPlanId);
+      requireRef(source && source.lifecycle.state !== "completed", "pending mergeFromPlanId must reference an existing non-completed plan");
+    }
   }
   const prior = new Set<string>();
   for (const o of p.observations) {

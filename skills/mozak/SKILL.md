@@ -41,6 +41,13 @@ Offer "show plans" for the full list. That request reads plans again and follows
    - Pending direction: `--purpose` may be omitted (defaults to `approve-direction`).
    - Accepted-only plan: `--purpose` is required, or the call returns `invalid-payload`.
 
+## Avoiding duplicate plans and merging duplicates
+
+- **Before calling `propose`:** Always inspect existing non-completed plans (`unaccepted`, `open`, `paused`) in `context` / `plans` for the scope. If a plan covering the same topic, workflow, or outcome already exists, **revise that existing plan (`revise`)** instead of creating a second plan.
+- **Core duplicate guard (`duplicate-plan-candidate`, exit 3):** `propose` refuses when a non-completed plan in the same scope has overlapping title, ID, or outcomes. If that happens, show the matching plan(s) to the owner and ask whether to revise/merge into the existing plan or create a separate plan. Only pass `"distinctFromPlanIds": ["existing-plan-id"]` in the `propose` payload after the owner explicitly asks for a separate plan.
+- **Merging two existing non-completed plans (`mergeFromPlanId`):** When two non-completed plans in a scope overlap, propose a unified revision on the target plan (`plan revise` / `mozak_revise`) with `"mergeFromPlanId": "source-plan-id"` in the payload, combining their outcomes, constraints, non-goals, questions, and sources. Then show the direction review (`review show --purpose approve-direction`) and ask the owner to approve. On `approve-direction`, Core atomically folds the source plan's observations, reasoning links, and discussion questions into the target plan and removes the duplicate source plan so only one clean plan remains.
+- **Completed plans stay immutable:** Never merge a `completed` plan. For follow-up work after a completed plan, propose a new plan and cite the completed work in `content.sources`.
+
 ## The loop
 
 1. Ask only the next unresolved question, using the existing `grilling` skill. Save each settled answer with `node {{MOZAK_CLI}} discussion save --config INVENTORY --scope ID --request FILE`.
