@@ -26,6 +26,12 @@ import { cachedVisibility, publicRepoPlansMessage, scopeVisibility } from "./vis
 import { leftoverTempFiles } from "./durable.ts";
 import { cachedUpdateNotice, installedVersion, refreshUpdateCacheIfStale } from "./update.ts";
 import { canonical, digest } from "./understanding.ts";
+import { annotateScope } from "./scope-store.ts";
+import { readAnnotations, type AnnotationsDoc } from "./annotations.ts";
+import { annotationFindings, graphView, readyView, type Universe } from "./crossplan.ts";
+import { effectiveDeadline, planDeadline, today } from "./deadlines.ts";
+import { annotationsMode, loadSettings } from "./settings.ts";
+import type { ScopeState } from "./understanding.ts";
 
 /**
  * The scopes index's update notice: reads the cache only, and starts a background refresh when it is old.
@@ -66,10 +72,13 @@ export const OPERATIONS = [
   "render",
   "rename-files",
   "retitle",
+  "annotate",
+  "graph",
+  "ready",
 ] as const;
 
 /** Owner-only: refused for every other actor before any file is touched. */
-const OWNER_ONLY = new Set(["decide", "init", "repair", "pull", "rename-files", "retitle"]);
+const OWNER_ONLY = new Set(["decide", "init", "repair", "pull", "rename-files", "retitle", "annotate"]);
 /** Route name must equal request.action for these routes. */
 const ROUTE_ACTIONS = new Set(["propose", "revise", "observe", "complete", "save-discussion", "attach-spec"]);
 export const DECISION_ACTIONS = [
@@ -210,6 +219,8 @@ interface Continuation {
   after: string;
   /** Sort timestamp of that same row, so a changed underlying row invalidates the token. */
   lastSortAt: string;
+  /** Present only for `plans --sort deadline`. */
+  sort?: "deadline";
 }
 
 const CONTINUATION_KEYS = ["v", "inventory", "selector", "includeRejected", "limit", "binding", "group", "after", "lastSortAt"] as const;
@@ -228,7 +239,8 @@ function decodeContinuation(text: unknown): Continuation {
     throw bad("not decodable");
   }
   if (!isPlain(raw) || raw.v !== 2) throw bad("unknown version");
-  const c = closed(raw, "continuation", CONTINUATION_KEYS);
+  const c = closed(raw, "continuation", CONTINUATION_KEYS, ["sort"]);
+  if (c.sort !== undefined && c.sort !== "deadline") throw bad("unknown sort");
   const selector = closed(c.selector, "continuation selector", ["scope", "all"]);
   if (typeof selector.all !== "boolean") throw bad("selector.all must be a boolean");
   if (selector.all) {
@@ -250,6 +262,7 @@ function decodeContinuation(text: unknown): Continuation {
     group: c.group as Group,
     after: nonEmpty(c.after, "continuation after"),
     lastSortAt: nonEmpty(c.lastSortAt, "continuation lastSortAt"),
+    ...(c.sort === "deadline" ? { sort: "deadline" as const } : {}),
   };
 }
 
@@ -384,21 +397,167 @@ function sortRows(rows: NormalizedRow[]): NormalizedRow[] {
   });
 }
 
+// ---------- annotations ----------
+
+function entryOf(inv: ScopeInventory, id: string): ScopeEntry | undefined {
+  return inv.scopes.find((s) => s.id === id);
+}
+
+/** Sidecar token of one scope, for continuation bindings. */
+function annotationsToken(inv: ScopeInventory, id: string): unknown {
+  const entry = entryOf(inv, id);
+  if (!entry) return null;
+  try { return readAnnotations(entry.root).token; } catch { return "unreadable"; }
+}
+
+/**
+ * Read-only, cached view of every inventoried scope for cross-plan resolution. Never fetches: a remote scope is read
+ * from its local copy as it is. A scope that cannot be read is "unavailable", an id not in the inventory "unknown".
+ */
+function universeOf(inv: ScopeInventory, seed: Record<string, ScopeState> = {}): Universe {
+  const states = new Map<string, ScopeState | "unknown" | "unavailable">(Object.entries(seed));
+  const docs = new Map<string, AnnotationsDoc | null>();
+  return {
+    state(id) {
+      if (!states.has(id)) {
+        if (!entryOf(inv, id)) states.set(id, "unknown");
+        else {
+          try { states.set(id, readScope(resolveScope(inv, id)).state); }
+          catch (err) { if (!(err instanceof DomainError)) throw err; states.set(id, "unavailable"); }
+        }
+      }
+      return states.get(id)!;
+    },
+    annotations(id) {
+      if (!docs.has(id)) {
+        const entry = entryOf(inv, id);
+        let doc: AnnotationsDoc | null = null;
+        if (entry) { try { doc = readAnnotations(entry.root, id).doc; } catch { doc = null; } }
+        docs.set(id, doc);
+      }
+      return docs.get(id)!;
+    },
+  };
+}
+
+/** Stable deadline order: earliest owner or inferred deadline first, plans without one keep their order after. */
+function sortByDeadline(rows: NormalizedRow[], loads: ScopeLoad[], inv: ScopeInventory): NormalizedRow[] {
+  const u = universeOf(inv);
+  const day = today();
+  const cache = new Map<string, { deadline: string | null; status: string }>();
+  const info = (r: NormalizedRow) => {
+    const k = JSON.stringify([r.scope, r.planId]);
+    if (!cache.has(k)) {
+      const state = loads.find((l) => l.binding.scope === r.scope)?.read?.state;
+      const plan = state?.plans.find((p) => p.id === r.planId);
+      const d = state && plan ? planDeadline(state, plan, u.annotations(r.scope), day) : { status: "none" as const };
+      cache.set(k, { deadline: effectiveDeadline(d), status: d.status });
+    }
+    return cache.get(k)!;
+  };
+  const indexed = rows.map((r, i) => ({ r, i, d: info(r) }));
+  indexed.sort((x, y) => {
+    if (x.d.deadline !== y.d.deadline) return x.d.deadline === null ? 1 : y.d.deadline === null ? -1 : x.d.deadline < y.d.deadline ? -1 : 1;
+    return x.i - y.i;
+  });
+  return indexed.map(({ r, d }) => ({ ...r, row: { ...r.row, deadline: d.deadline, deadlineStatus: d.status } }));
+}
+
+/** graph and ready: exactly one of scope or all. Every selected scope is attempted; failures are coverage. */
+function crossPlanOp(inv: ScopeInventory, operation: "graph" | "ready", a: Record<string, unknown>): OperationOutput {
+  const o = closed(a, `${operation} arguments`, [], ["scope", "all"]);
+  const all = strictBoolean(o.all, "all");
+  if ((o.scope === undefined) === !all) throw invalid(`${operation} needs exactly one of scope or all`);
+  const ids = all ? inv.scopes.map((s) => s.id) : [nonEmpty(o.scope, "scope")];
+  const seed: Record<string, ScopeState> = {};
+  const coverage: ScopeBinding[] = [];
+  const issues: { code: string; message: string; scope?: string }[] = [];
+  let single: ScopeRead | null = null;
+  for (const id of ids) {
+    try {
+      const read = readScope(resolveScope(inv, id));
+      seed[id] = read.state;
+      if (!all) single = read;
+      coverage.push({ scope: id, status: "ok", revision: read.snapshot.revision, graphHash: read.snapshot.graphHash });
+      const entry = entryOf(inv, id)!;
+      for (const issue of readAnnotations(entry.root, id).issues) issues.push({ ...issue, scope: id });
+    } catch (err) {
+      if (!(err instanceof DomainError)) throw err;
+      if (!all) throw err;
+      coverage.push({ scope: id, status: "failed", code: err.code, message: err.message });
+      issues.push({ code: err.code, message: err.message, scope: id });
+    }
+  }
+  const u = universeOf(inv, seed);
+  const okIds = ids.filter((id) => seed[id]);
+  const complete = coverage.every((c) => c.status === "ok");
+  const view = operation === "graph" ? { graph: graphView(u, okIds) } : { ready: readyView(u, okIds) };
+  return {
+    exitCode: complete ? 0 : 6,
+    data: {
+      status: complete ? "ok" : "partial-coverage",
+      committed: false,
+      operation,
+      snapshot: single?.snapshot ?? null,
+      projectionStatus: single?.projectionStatus ?? null,
+      projectionUpdated: false,
+      issues,
+      coverage: { selected: ids.length, complete, scopes: coverage },
+      ...view,
+    },
+  };
+}
+
+/** Annotation and settings findings for check. Empty when the scope has no sidecar and settings are clean. */
+function annotationCheck(inv: ScopeInventory, entry: ScopeEntry, read: ScopeRead): { code: string; message: string }[] {
+  const out: { code: string; message: string }[] = [];
+  const side = readAnnotations(entry.root, entry.id);
+  out.push(...side.issues);
+  try {
+    const settings = loadSettings(inv);
+    out.push(...settings.issues);
+    if (side.token.exists && annotationsMode(settings, entry).source === "repo-mode") {
+      out.push({ code: "annotations-on-remote", message: "mozak.annotations.json exists in a repo-mode remote scope; annotate refuses these scopes, and the file is ignored by owner routes" });
+    }
+  } catch (err) {
+    if (!(err instanceof DomainError)) throw err;
+    out.push({ code: err.code, message: err.message });
+  }
+  if (side.doc) out.push(...annotationFindings(universeOf(inv, { [entry.id]: read.state }), entry.id).map(({ code, message }) => ({ code, message })));
+  return out;
+}
+
+function annotateOp(inv: ScopeInventory, a: Record<string, unknown>, actor: Actor): OperationOutput {
+  requireOwner("annotate", actor);
+  const o = closed(a, "annotate arguments", ["scope", "request"]);
+  if (!isPlain(o.request)) throw invalid("request must be an object");
+  const entry = resolveScope(inv, nonEmpty(o.scope, "scope"));
+  const mode = annotationsMode(loadSettings(inv), entry);
+  if (mode.source === "repo-mode") throw new DomainError("annotations-refused-remote", "annotations are refused on repo-mode remote scopes: their plans are committed and pushed to a repository", 2);
+  if (!mode.enabled) throw new DomainError("annotations-disabled", `annotations are off for scope "${entry.id}" in mozak-settings.json`, 2);
+  const result = annotateScope(entry, o.request, universeOf(inv).state);
+  const lockOrCleanup = result.status.startsWith("committed-") || result.status === "projection-updated-lock-held";
+  const exitCode = lockOrCleanup ? 5 : result.status === "ok" || result.status === "replayed" ? 0 : 3;
+  return { exitCode, data: { ...result, operation: "annotate" } };
+}
+
 function plansOp(inv: ScopeInventory, a: Record<string, unknown>): OperationOutput {
-  closed(a, "plans arguments", [], ["scope", "all", "includeRejected", "limit", "continuation"]);
+  closed(a, "plans arguments", [], ["scope", "all", "includeRejected", "limit", "continuation", "sort"]);
   let selector: { scope: string | null; all: boolean };
   let includeRejected: boolean;
   let limit: number;
+  let sort: "deadline" | undefined;
   let continuation: Continuation | null = null;
 
   if (a.continuation !== undefined) {
-    for (const key of ["scope", "all", "includeRejected", "limit"]) {
+    for (const key of ["scope", "all", "includeRejected", "limit", "sort"]) {
       if (a[key] !== undefined) throw invalid(`a continuation pins its selector and filters; remove "${key}"`);
     }
     continuation = decodeContinuation(a.continuation);
     selector = continuation.selector;
     includeRejected = continuation.includeRejected;
     limit = continuation.limit;
+    sort = continuation.sort;
   } else {
     const hasScope = a.scope !== undefined;
     const hasAll = a.all !== undefined;
@@ -407,6 +566,8 @@ function plansOp(inv: ScopeInventory, a: Record<string, unknown>): OperationOutp
     selector = hasScope ? { scope: nonEmpty(a.scope, "scope"), all: false } : { scope: null, all: true };
     includeRejected = strictBoolean(a.includeRejected, "includeRejected");
     limit = limitOf(a.limit);
+    if (a.sort !== undefined && a.sort !== "deadline") throw invalid(`sort must be "deadline"`);
+    sort = a.sort as "deadline" | undefined;
   }
 
   const ids = selector.all ? inv.scopes.map((s) => s.id) : [selector.scope as string];
@@ -429,7 +590,9 @@ function plansOp(inv: ScopeInventory, a: Record<string, unknown>): OperationOutp
   }
 
   const binding = loads.map((l) => l.binding);
-  const bindingDigest = digest(binding);
+  // A deadline order also depends on owner annotations, so their tokens join the binding.
+  const sidecars = sort ? loads.map((l) => ({ scope: l.binding.scope, annotations: l.read ? annotationsToken(inv, l.binding.scope) : null })) : null;
+  const bindingDigest = sidecars ? digest({ binding, sidecars }) : digest(binding);
   if (continuation) {
     if (continuation.inventory !== inv.digest) {
       throw new DomainError("continuation-stale", "inventory changed since this continuation was issued", 3);
@@ -458,7 +621,7 @@ function plansOp(inv: ScopeInventory, a: Record<string, unknown>): OperationOutp
   const pages: Record<string, unknown> = {};
   const groupsToRead: Group[] = continuation ? [continuation.group] : [...byGroup.keys()];
   for (const group of groupsToRead) {
-    const all = sortRows(byGroup.get(group) ?? []);
+    const all = sort ? sortByDeadline(sortRows(byGroup.get(group) ?? []), loads, inv) : sortRows(byGroup.get(group) ?? []);
     let start = 0;
     if (continuation) {
       const index = all.findIndex((r) => r.compositeKey === continuation.after);
@@ -483,6 +646,7 @@ function plansOp(inv: ScopeInventory, a: Record<string, unknown>): OperationOutp
             group,
             after: last.compositeKey,
             lastSortAt: last.sortAt,
+            ...(sort ? { sort } : {}),
           })
         : null;
     pages[group] = {
@@ -525,6 +689,7 @@ function plansOp(inv: ScopeInventory, a: Record<string, unknown>): OperationOutp
 
 function readOp(inv: ScopeInventory, operation: string, a: Record<string, unknown>): OperationOutput {
   if (operation === "plans") return plansOp(inv, a);
+  if (operation === "graph" || operation === "ready") return crossPlanOp(inv, operation, a);
 
   if (operation === "scopes") {
     closed(a, "scopes arguments", [], []);
@@ -648,7 +813,7 @@ function readOp(inv: ScopeInventory, operation: string, a: Record<string, unknow
       },
     };
   }
-  const findings = read.issues;
+  const findings = [...read.issues, ...annotationCheck(inv, entry, read)];
   // Leftover temp files from an interrupted write are informational: the next write removes them.
   const leftovers = leftoverTempFiles(entry.root).map((name) => ({ code: "leftover-temp-file", message: `${name} is left over from an interrupted write; the next write removes it` }));
   return {
@@ -688,7 +853,7 @@ function writeOp(inv: ScopeInventory, operation: string, a: Record<string, unkno
   return { exitCode: resultExit(result), data: { ...result, operation } };
 }
 
-const REMOTE_READ_OPS = new Set(["context", "plans", "scopes", "review", "check", "operation"]);
+const REMOTE_READ_OPS = new Set(["context", "plans", "scopes", "review", "check", "operation", "graph", "ready"]);
 
 function plainScope(args: unknown): string | undefined {
   return isPlain(args) && typeof args.scope === "string" && args.scope.trim() !== "" ? args.scope : undefined;
@@ -704,6 +869,7 @@ function touchedRemotes(inv: ScopeInventory, operation: string, args: unknown): 
     if (scope !== undefined) return all.filter((e) => e.id === scope);
     return all;
   }
+  if (operation === "graph" || operation === "ready") return scope === undefined ? all : all.filter((e) => e.id === scope);
   return scope === undefined ? [] : all.filter((e) => e.id === scope);
 }
 
@@ -857,6 +1023,12 @@ export function executeOperation(inv: ScopeInventory, operation: string, args: u
       requireOwner(operation, actor);
       if (!isPlain(args)) throw invalid("arguments must be an object");
       return renameFilesOp(inv, args);
+    }
+    if (operation === "annotate") {
+      // Never routed through remoteWrite: annotations never commit or push. Repo-mode scopes are refused inside.
+      requireOwner(operation, actor);
+      if (!isPlain(args)) throw invalid("arguments must be an object");
+      return annotateOp(inv, args, actor);
     }
     if (REMOTE_READ_OPS.has(operation)) {
       if (!isPlain(args)) throw invalid("arguments must be an object");
