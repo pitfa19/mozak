@@ -19,6 +19,7 @@ import {
   type ScopeRead,
 } from "./scope-store.ts";
 import { contextView, reviewRows, reviewShow } from "./review.ts";
+import { selectContext } from "./context-selection.ts";
 import { scopeIndex } from "./scope-list.ts";
 import { cacheIgnoreWarning, commitAndPush, pullRemote, remoteEntries, repoEntries, statusOf, syncRemote } from "./remote.ts";
 import type { RemoteStatus } from "./remote-meta.ts";
@@ -572,11 +573,13 @@ function readOp(inv: ScopeInventory, operation: string, a: Record<string, unknow
     };
   }
 
-  const o = closed(a, `${operation} arguments`, operation === "operation" ? ["scope", "id"] : ["scope"]);
+  const o = closed(a, `${operation} arguments`, operation === "operation" ? ["scope", "id"] : ["scope"], operation === "context" ? ["brief", "plan"] : []);
   const scope = nonEmpty(o.scope, "scope");
   const entry = resolveScope(inv, scope);
 
   if (operation === "context") {
+    const brief = strictBoolean(o.brief, "brief");
+    const plan = o.plan === undefined ? undefined : nonEmpty(o.plan, "plan");
     const read = readScopeView(entry);
     return {
       exitCode: 0,
@@ -588,7 +591,7 @@ function readOp(inv: ScopeInventory, operation: string, a: Record<string, unknow
         projectionStatus: read.projectionStatus,
         projectionUpdated: false,
         issues: read.issues,
-        context: contextView(read.state, read.environment),
+        context: selectContext(contextView(read.state, read.environment), brief, plan),
       },
     };
   }

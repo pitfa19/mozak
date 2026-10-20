@@ -35,7 +35,7 @@ Offer "show plans" for the full list. That request reads plans again and follows
 
 ## Read first
 
-1. `node {{MOZAK_CLI}} context --config INVENTORY --scope ID --json`: direction, lifecycle, handoff, and `permittedNextAction`.
+1. `node {{MOZAK_CLI}} context --config INVENTORY --scope ID --brief --json`: body-free overview with lifecycle, pending review state, handoff eligibility/blockers, `permittedNextAction`, and the full CAS `snapshot`. Brief omits direction bodies, evidence, history and execution bounds. Before work or a decision, read `node {{MOZAK_CLI}} context --config INVENTORY --scope ID --plan PLAN --json` for the exact plan's full recovery context and bounds. An unknown plan is refused; never fall back to all plans.
 2. `node {{MOZAK_CLI}} plans --config INVENTORY --scope ID --json`: authoritative overview groups, counts and continuation. Continue with `node {{MOZAK_CLI}} plans --config INVENTORY --continuation TOKEN --json`, without repeating scope, limit or filter flags.
 3. `node {{MOZAK_CLI}} review show --config INVENTORY --scope ID --plan PLAN --purpose P --json`, only to build a decision subject.
    - Pending direction: `--purpose` may be omitted (defaults to `approve-direction`).
@@ -70,7 +70,7 @@ Offer "show plans" for the full list. That request reads plans again and follows
 
 Replay first. The store checks receipts before the CAS match, so a retried identical operation returns its committed result.
 
-After a `stale-input` (exit 3) conflict, reread `context`, then decide:
+After a `stale-input` (exit 3) conflict, reread the target with `node {{MOZAK_CLI}} context --config INVENTORY --scope ID --plan PLAN --json`, then decide:
 - The review subject is unchanged when its scope ID, plan ID, purpose, relevant revision and content digest, specification and bounds digest, and authorization identity match, and its `reviewDigest` and `revisionId` match the displayed subject. Storage revision and projection bytes do not count. In that case the still-unconsumed owner confirmation for that exact subject may be used with a fresh `expected` block and a new `operationId`.
 - The subject changed (different revision, purpose, spec, or authorization) requires redisplay and a fresh owner confirmation. Never retarget a changed subject or purpose with an old "yes".
 - An identical retry uses the original request and operation ID for receipt replay. A changed request, including a refreshed `expected` block, needs a new operation ID. Never retarget a consumed confirmation or bypass receipt replay.

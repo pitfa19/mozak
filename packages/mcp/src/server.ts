@@ -55,7 +55,11 @@ function tool(name: string, op: string, description: string, properties: Record<
 }
 
 export const TOOLS: ToolDef[] = [
-  tool("mozak_context", "context", "Canonical understanding for one scope: accepted and pending direction, provenance, decisions, and the permitted next action.", { scope: SCOPE }, ["scope"]),
+  tool("mozak_context", "context", "Canonical understanding for one scope. Use brief for a body-free overview; plan selects one exact plan for full recovery. Combined, they return one brief plan. Reading grants no approval.", {
+    scope: SCOPE,
+    brief: { type: "boolean", description: "Summarize plans without content, evidence, history or execution bounds. Read full plan before work." },
+    plan: { type: "string", description: "Exact plan ID; unknown IDs are refused, never widened to all plans." },
+  }, ["scope"]),
   tool(
     "mozak_plans",
     "plans",

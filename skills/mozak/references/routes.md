@@ -12,7 +12,9 @@ Run `node {{MOZAK_CLI}} --help` at session start. If a route is missing, stop.
 
 | Command | Use |
 |---|---|
-| `node {{MOZAK_CLI}} context --config INVENTORY --scope ID --json` | Direction, lifecycle, handoff, `permittedNextAction`, and the `snapshot` for `expected` |
+| `node {{MOZAK_CLI}} context --config INVENTORY --scope ID --brief --json` | Session-start overview: plan IDs, titles, lifecycle, revision IDs, pending review state, handoff blockers, next action, full CAS `snapshot`; no content/evidence/history/bounds |
+| `node {{MOZAK_CLI}} context --config INVENTORY --scope ID --plan PLAN --json` | Exact plan's full recovery context and bounds; use before work and after stale conflicts |
+| `node {{MOZAK_CLI}} context --config INVENTORY --scope ID --json` | Backward-compatible full context for all plans, including history |
 | `node {{MOZAK_CLI}} plans --config INVENTORY --scope ID --json` | Plan list |
 | `node {{MOZAK_CLI}} review show --config INVENTORY --scope ID --plan PLAN [--purpose P] [--outcome ID] --json` | Review subject for one decision |
 | `node {{MOZAK_CLI}} check --config INVENTORY --scope ID --json` | Findings. Never repairs. |
@@ -30,7 +32,7 @@ Request file, written as data. Envelope:
 { "operationId": "unique-id", "scopeId": "ID", "expected": { "revision": "...", "graphHash": "...", "bridge": { "exists": true, "sha256": "..." } }, "action": "ACTION", "payload": { } }
 ```
 
-`expected` is copied from the `snapshot` of a fresh `node {{MOZAK_CLI}} context --config INVENTORY --scope ID --json`. Easier: `python3 {{MOZAK_SKILL}}/scripts/make_request.py ACTION PAYLOAD.json --config INVENTORY --scope ID` does that and prints the request path (see `references/payloads.md`). To read one plan, prefer `plans` or `review show`: full `context` can exceed 40 KB.
+`expected` is the `snapshot` of a fresh context read (every form returns the same whole-scope snapshot). `--brief --plan PLAN` returns one plan's summary (not enough to start execution: read `--plan PLAN` for bounds). Unknown plan IDs return `plan-not-found`.
 
 | Command | Action |
 |---|---|
@@ -87,7 +89,7 @@ An unambiguous pause instruction stops host work first. The host may then persis
 
 Receipt replay runs before the CAS check. An identical retry returns the committed result. A same-operation ID with different input is refused with `operation-conflict` (exit 3).
 
-After `stale-input` (exit 3), reread with `node {{MOZAK_CLI}} context --config INVENTORY --scope ID --json` and decide:
+After `stale-input` (exit 3), reread with `node {{MOZAK_CLI}} context --config INVENTORY --scope ID --plan PLAN --json` and decide:
 - Same subject: scope, plan, purpose, relevant revision and content digest, specification and bounds digest, and authorization identity all match, and `reviewDigest` and `revisionId` match the displayed subject. The owner's still-unconsumed confirmation for that exact subject may be reused with a fresh `expected` block and a new `operationId`. Storage revision and projection bytes are not part of the subject.
 - Changed subject or purpose: redisplay and get fresh owner confirmation. Never retarget with an old "yes".
 
