@@ -13,6 +13,7 @@ import { ensureStorageIgnored, storageIgnoreIssues } from "./storage-hygiene.ts"
 import { ANNOTATIONS_FILE, annotationsBytes, applyAnnotate, emptyAnnotations, readAnnotations, validateAnnotateRequest, type ScopeLookup } from "./annotations.ts";
 import { readScopeSettings } from "./scope-settings.ts";
 import { checkRebase, type Rebased } from "./rebase.ts";
+import { lockHost } from "./lock-recover.ts";
 
 export { renderBridge, renderBridgeLegacy } from "./bridge.ts";
 
@@ -211,7 +212,8 @@ function acquire(root: string, options: StoreOptions): () => void {
   }
   // A failure here intentionally leaves the lock behind for offline recovery.
   options.onPhase?.("after-lock-mkdir");
-  writeFileDurable(ownerPath, canonical({ token: ownerToken, pid: process.pid, processStartHint: new Date(Date.now() - process.uptime() * 1000).toISOString(), acquiredAt: new Date().toISOString() }));
+  // host lets `recover` tell a lock that arrived by sync (another host) from one a local process may still hold.
+  writeFileDurable(ownerPath, canonical({ token: ownerToken, pid: process.pid, host: lockHost(), processStartHint: new Date(Date.now() - process.uptime() * 1000).toISOString(), acquiredAt: new Date().toISOString() }));
   fsyncDir(lock);
   return () => {
     const owner = JSON.parse(readFileSync(ownerPath, "utf8"));

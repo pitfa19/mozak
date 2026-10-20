@@ -9,7 +9,7 @@ import { executeOperation, loadInventory, MAX_REQUEST_BYTES, scopeForWorkingCopy
 import { runningVersion, upgrade } from "./upgrade.js";
 import { doctor, renderDoctor } from "./doctor.js";
 
-const OWNER_ROUTES = new Set(["decide", "init", "repair", "pull", "rename-files", "retitle", "annotate"]);
+const OWNER_ROUTES = new Set(["decide", "init", "repair", "pull", "rename-files", "retitle", "annotate", "recover"]);
 /** Read routes that may omit --scope: the scope is then found from the current folder's git origin. */
 const CWD_SCOPE_ROUTES = new Set(["context", "check", "review show", "plans"]);
 
@@ -34,6 +34,7 @@ const ROUTES: Record<string, Route> = {
   graph: { operation: "graph", flags: ["config", "scope", "all", "json"], requires: ["config"], requestFile: false },
   ready: { operation: "ready", flags: ["config", "scope", "all", "json"], requires: ["config"], requestFile: false },
   annotate: { operation: "annotate", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
+  recover: { operation: "recover", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
   "review show": { operation: "review", flags: ["config", "scope", "plan", "purpose", "outcome", "json"], requires: ["config", "plan"], requestFile: false },
   scopes: { operation: "scopes", flags: ["config", "json"], requires: ["config"], requestFile: false },
   sync: { operation: "sync", flags: ["config", "scope", "json"], requires: ["config"], requestFile: false },
@@ -83,6 +84,7 @@ function usage(): string {
     "  mozak spec attach --scope ID --request FILE          (agent; descriptor only, no approval)",
     "  mozak review decide --scope ID --request FILE        (owner)",
     "  mozak projection repair --scope ID --request FILE    (owner)",
+    "  mozak recover --scope ID --request FILE              (owner; remove a write lock from another host or a dead local pid)",
     "  mozak render (--scope ID | --all) [--json]           (regenerate stale mozak.md only; never mozak.json)",
     "  mozak rename-files (--scope ID | --all) [--json]     (owner; rename pre-0.4 MOZAK.json/MOZAK.md to lowercase)",
     "Maintenance (no --config needed):",
