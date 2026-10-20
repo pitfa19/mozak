@@ -365,8 +365,10 @@ function identified(values: unknown, path: string, check: (v: unknown) => unknow
   const a = array(values, path); a.forEach(check); unique(a.map(v => (v as { id: string }).id), path);
 }
 function textItem(value: unknown): void { const o = record(value, "text item", ["id", "text"]); str(o.id, "id"); str(o.text, "text"); }
+/** Plan content keys in schema order. */
+export const PLAN_CONTENT_KEYS = ["title", "purpose", "outcomes", "constraints", "nonGoals", "rationale", "questions", "sources"] as const;
 export function validateContent(value: unknown): PlanContent {
-  const o = record(value, "content", ["title", "purpose", "outcomes", "constraints", "nonGoals", "rationale", "questions", "sources"]);
+  const o = record(value, "content", PLAN_CONTENT_KEYS);
   for (const k of ["title", "purpose", "rationale"]) str(o[k], `content.${k}`);
   if (!array(o.outcomes, "outcomes").length) fail("content.outcomes: at least one required");
   identified(o.outcomes, "outcomes", v => {

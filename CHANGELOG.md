@@ -8,8 +8,8 @@ User-visible changes, newest first. Releases are git tags `vX.Y.Z` on `main`; `m
 
 - The name is written `mozak` everywhere: the Obsidian sidebar title, plugin name, messages, CLI help and docs.
 - Plan files are now `mozak.json` and `mozak.md`. Older scopes with `MOZAK.json` and `MOZAK.md` keep working unchanged: reads accept both names and writes keep the scope's existing names. New scopes get the lowercase names.
-
 - A late supporting observation no longer drops an owner-accepted outcome from `done` to `evidence` in the roadmap, `mozak.md` and `needs` checks. Only a new challenge reopens it. `plan complete` still needs an owner acceptance bound to the exact current evidence.
+- Fixed: revising an accepted plan with content keys in a different order than the schema no longer leaves `mozak.md` in `bridge-conflict` after a reread. Changed fields are listed in schema order.
 
 ### Added
 

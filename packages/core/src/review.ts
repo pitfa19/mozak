@@ -19,6 +19,7 @@ import {
   validateContent,
   validateObservation,
   validateScope,
+  PLAN_CONTENT_KEYS,
 } from "./understanding.ts";
 import type {
   Bounds,
@@ -766,8 +767,9 @@ function reviewFor(state: ScopeState, plan: Plan, purpose: DecisionPurpose, acce
   return outcomeReview(state, plan, accepted, outcomeId);
 }
 
+/** Changed content keys in schema order, never in the order a request or a reread happened to use. */
 function changedKeys(before: PlanContent | undefined, after: PlanContent): string[] {
-  return (Object.keys(after) as (keyof PlanContent)[])
+  return PLAN_CONTENT_KEYS
     .filter((k) => !before || canonical(before[k]) !== canonical(after[k]))
     .map(String);
 }
