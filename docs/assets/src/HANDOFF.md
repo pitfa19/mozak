@@ -6,10 +6,13 @@ This bundle contains all raw Retina captures, transcripts, brand/icon assets, co
 
 ## 1. Core Hook & Everyday Storyline (Zero Jargon)
 
-> **"You own the plan. The agent does the work."**
+> **"Obsidian is the IDE now."**
 >
-> Most AI agents forget what you agreed on between sessions — or worse, start changing files before you even agree on the plan.
-> **MOZAK** gives each project one durable plan (`MOZAK.json` + `MOZAK.md`) right inside the folder or git repo, and renders a live **Generative UI** inside **Obsidian** (a sidebar progress strip + a Mermaid outcome roadmap inside the note) with **zero UI code written by the agent**.
+> You work in ideas and plans, not code. Agents build in parallel, and you orchestrate them from your notes.
+>
+> **MOZAK** gives every project one shared plan (`MOZAK.json` + `MOZAK.md`) inside the folder or git repo. It does two jobs: every agent understands your work by reading the same plan, and you track all the parallel work in **Obsidian** (sidebar progress across projects + a live Mermaid roadmap in each note). Nothing becomes the plan until you say yes.
+>
+> Use this exact headline on the opening title card. The paradigm line can be the subtitle.
 
 To make the video immediately intuitive to any viewer in < 3 seconds, the demo uses **three everyday projects** instead of domain jargon:
 
@@ -23,7 +26,7 @@ To make the video immediately intuitive to any viewer in < 3 seconds, the demo u
 
 > **Light mode.** All Obsidian captures, keyframes and both videos are light mode (Obsidian's light theme, light video backgrounds). On light backgrounds the brand accents are darkened for contrast: gold `#b0841c`, purple `#6e5bd6`, green `#1e8a52`, text `#1a1e28`. The dark brand assets in `brand/` (icon, lockup, generated wordmark) are unchanged. Use them on a dark title card, or ask for light variants.
 >
-> **Pitch line: undecided.** The owner is choosing the headline (working direction: Obsidian as the place you run your coding agent from). Do not burn a tagline into the edit yet. Keep the title/intro text easy to swap.
+> **Pitch line: decided.** Headline "Obsidian is the IDE now." (see section 1). The current `brand/mozak-lockup-dark` still carries the old tagline. Use the generated wordmark or the plain icon on the title card instead.
 
 Every beat shows **Left = Terminal Agent Chat (`/mozak`)** and **Right = Live Obsidian IDE (`study-timer/MOZAK.md` + `MOZAK` sidebar)**:
 

@@ -4,9 +4,9 @@
 
 # MOZAK
 
-**You own the plan. The agent does the work.**
+**Obsidian is the IDE now.**
 
-Plans for your projects that you and every AI agent share. Plain files in git and Obsidian.
+You work in ideas and plans, not code. Agents build in parallel, and you orchestrate them from your notes.
 
 [![CI](https://github.com/pitfa19/mozak/actions/workflows/ci.yml/badge.svg)](https://github.com/pitfa19/mozak/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
@@ -21,9 +21,12 @@ Plans for your projects that you and every AI agent share. Plain files in git an
 
 ## What it is
 
-You work with AI agents across many repos and note folders. Every new session, the agent has forgotten what you agreed, and you explain it all again.
+**MOZAK gives every project one shared plan, stored as plain files inside the project.** It does two jobs:
 
-**MOZAK gives each project one written plan that lives inside the project.** Agents read it at the start of a session and propose changes to it. Nothing becomes the plan until you say yes.
+- **Agents understand your work.** Every agent reads the same plan at the start of a session, so you never explain the project twice. Agents propose changes, but nothing becomes the plan until you say yes.
+- **You orchestrate from Obsidian.** Every project's plan shows up in your vault with a live roadmap and progress, so all the parallel work is visible in one place. You approve the next step, and outcomes turn green as agents prove them with tests.
+
+Why you can trust it:
 
 - **It is just files.** `MOZAK.json` holds the plan, `MOZAK.md` is a readable copy. They sit next to your `README.md`, and git keeps the history. No cloud, no account, no background service.
 - **You stay in charge.** Agreeing on *what* to do and agreeing to *start building* are two separate yeses.
@@ -114,7 +117,7 @@ Then turn on **MOZAK** under Settings, Community plugins. The plugin finds `moza
 
 <div align="center">
 <a href="docs/assets/mozak-agent-chat.mp4">
-  <img src="docs/assets/mozak-agent-chat.gif" alt="Agent terminal chat and Obsidian side by side: you ask /mozak field-kit to plan a 30-day battery budget, the agent reads MOZAK state and asks 1 focused question, proposes the plan and pauses at the owner gate, you approve direction in chat, and the agent records passing test evidence turning outcome 1/2 green" width="840">
+  <img src="docs/assets/mozak-agent-chat.gif" alt="Agent terminal chat and Obsidian side by side: you ask /mozak study-timer to add a bell sound when the timer ends, the agent reads MOZAK state and asks 1 focused question, proposes the plan and pauses at the owner gate, you approve direction in chat, and the agent records passing audio test evidence turning outcome 1/2 green" width="840">
 </a>
 </div>
 
@@ -132,7 +135,7 @@ You talk in natural language inside your terminal agent (`claude`, `jcode`, `cod
 
 <div align="center">
 <a href="docs/assets/mozak-demo.mp4">
-  <img src="docs/assets/mozak-demo.gif" alt="Live Terminal and Obsidian walkthrough: mozak scopes discovers 3 scopes, mozak plan propose creates an awaiting-approval plan in Field Sensor Kit, mozak review decide approves direction and lights up the Mermaid roadmap, and mozak observe turns outcome 1/2 green" width="840">
+  <img src="docs/assets/mozak-demo.gif" alt="Live Terminal and Obsidian walkthrough: mozak scopes discovers 3 scopes, mozak plan propose creates an awaiting-approval plan in Pomodoro Study Timer, mozak review decide approves direction and lights up the Mermaid roadmap, and mozak observe turns outcome 1/2 green" width="840">
 </a>
 </div>
 

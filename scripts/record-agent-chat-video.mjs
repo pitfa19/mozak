@@ -320,7 +320,7 @@ for f in 0..<totalFrames {
     fillRoundRect(ctx, x: 38, yTop: 26, w: 104, h: 26, r: 6, fill: beat.accent.withAlphaComponent(0.18), stroke: beat.accent)
     drawText(beat.badge, x: 52, yTop: 30, font: fontBadge, col: beat.accent)
     drawText(beat.headerTitle, x: 158, yTop: 28, font: fontTitle, col: textCol)
-    drawText("MOZAK v0.3.0 • Agent Chat + Obsidian IDE", x: 1545, yTop: 30, font: fontBadge, col: mutedCol)
+    drawText("MOZAK · Obsidian is the IDE now", x: 1590, yTop: 30, font: fontBadge, col: mutedCol)
 
     // 3. Left Pane: Agent Chat TUI (x: 24, yTop: 76, w: 720, h: 928)
     fillRoundRect(ctx, x: 24, yTop: 76, w: 720, h: 928, r: 12, fill: panelBg, stroke: borderCol)
