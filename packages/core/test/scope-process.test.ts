@@ -1,9 +1,9 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, type ChildProcess } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, utimesSync, writeFileSync, mkdirSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, utimesSync, writeFileSync, mkdirSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // Process-level acceptance for A11 to A15. Every writer is a real child process running the real
@@ -13,7 +13,8 @@ import { fileURLToPath } from "node:url";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
 const childPath = join(here, "scope-writer-child.ts");
-const scratch = process.env.JCODE_SCRATCH_DIR ?? process.env.TMPDIR ?? tmpdir();
+// Normalized: a TMPDIR with a trailing slash or behind a symlink (macOS /var) must not trip the removal guard.
+const scratch = realpathSync(resolve(process.env.JCODE_SCRATCH_DIR ?? process.env.TMPDIR ?? tmpdir()));
 const createdRoots: string[] = [];
 const liveChildren = new Set<ChildProcess>();
 

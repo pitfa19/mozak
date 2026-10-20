@@ -1,13 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { applyMutation, executeOperation, initScopeState, loadInventory, mutateScope, readScope, renderBridge, renderBridgeLegacy, reviewShow } from "@mozak/core";
 import { chooseInventory, discoverInventory } from "../src/discover.ts";
 import { countRemote, countsSummary, headingLine, planMatches, remoteVM, resolveOpenTarget, scopesModel, scopeViewModel, stripVM } from "../src/model.ts";
-import { loadScopesModel, renderStaleProjections } from "../src/load.ts";
+import { loadScopesModel, realOrSelf, renderStaleProjections } from "../src/load.ts";
 
 test("planMatches: all shows every state, open groups in-play states, completed is exact", () => {
   const states = ["open", "awaiting", "paused", "completed", "rejected"] as const;
@@ -26,6 +26,20 @@ test("resolveOpenTarget separates vault files from outside files", () => {
   assert.deepEqual(resolveOpenTarget("/v/rector_award", "/v/rector_award/a/mozak.md"), { kind: "vault", path: "a/mozak.md" });
   assert.deepEqual(resolveOpenTarget("/v/rector_award", "/v/anpit/mozak.md"), { kind: "external", path: "/v/anpit/mozak.md" });
   assert.deepEqual(resolveOpenTarget("/v/a", "/v/ab/mozak.md"), { kind: "external", path: "/v/ab/mozak.md" });
+});
+
+test("resolveOpenTarget treats a vault opened through a symlink as the same vault", () => {
+  const base = realpathSync(mkdtempSync(join(process.env.JCODE_SCRATCH_DIR ?? tmpdir(), "mozak-obs-link-")));
+  const real = join(base, "real-vault");
+  mkdirSync(join(real, "plans"), { recursive: true });
+  writeFileSync(join(real, "plans", "mozak.md"), "# m\n");
+  const link = join(base, "linked-vault");
+  symlinkSync(real, link);
+  // Obsidian reports the linked path; core reports the resolved scope root.
+  assert.deepEqual(resolveOpenTarget(link, join(real, "plans", "mozak.md"), realOrSelf), { kind: "vault", path: "plans/mozak.md" });
+  assert.deepEqual(resolveOpenTarget(link + "/", join(link, "plans", "mozak.md"), realOrSelf), { kind: "vault", path: "plans/mozak.md" });
+  assert.deepEqual(resolveOpenTarget(link, join(base, "other", "mozak.md"), realOrSelf).kind, "external");
+  rmSync(base, { recursive: true, force: true });
 });
 
 test("failed scope becomes an error row and counts as failed", () => {
@@ -99,7 +113,7 @@ test("vault-plans scopes keep the repo badge, are never stale, open plans inside
   assert.equal(scope.remote?.vault, true);
   assert.equal(scope.remote?.stale, false);
   assert.deepEqual(countRemote(model.scopes), { remote: 0, stale: 0 });
-  assert.equal(resolveOpenTarget(vault, join(scope.root, "mozak.md")).kind, "vault");
+  assert.equal(resolveOpenTarget(vault, join(scope.root, "mozak.md"), realOrSelf).kind, "vault");
   assert.equal(remoteVM("github:o/r", "main", { lastFetchAt: null, lastError: "offline" }, new Date(), undefined, true).stale, false);
   assert.equal(scope.remote?.visibility, null, "never checked shows no badge");
   assert.equal(remoteVM("github:o/r", "main", { lastFetchAt: null, lastError: null, visibility: "public" }, new Date(), undefined, true).visibility, "public");

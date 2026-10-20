@@ -28,7 +28,7 @@ export const content = (id: string, spec: PlanSpec = {}) => ({
 });
 
 export function world(scopeIds: string[] = ["alpha"], options: { git?: boolean; settings?: unknown } = {}) {
-  const base = mkdtempSync(join(process.env.TMPDIR ?? tmpdir(), "mozak-annot-"));
+  const base = mkdtempSync(join(process.env.JCODE_SCRATCH_DIR ?? process.env.TMPDIR ?? tmpdir(), "mozak-annot-"));
   roots.push(base);
   const entries: Record<string, { id: string; root: string }> = {};
   for (const id of scopeIds) {

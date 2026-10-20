@@ -2,7 +2,7 @@ import { FileSystemAdapter, MarkdownView, Notice, Plugin, PluginSettingTab, Sett
 import { readFileSync } from "node:fs";
 import { BRIDGE_FILE } from "@mozak/core";
 import { chooseInventory } from "./discover.ts";
-import { renderStaleProjections, syncRemoteScopes } from "./load.ts";
+import { realOrSelf, renderStaleProjections, syncRemoteScopes } from "./load.ts";
 import { startWatching, watchTargets } from "./watch.ts";
 import { headingLine, resolveOpenTarget, type PlanVM, type ScopeVM } from "./model.ts";
 import { LEGACY_PLAN_VIEW_TYPE, ScopesView, SCOPES_VIEW_TYPE } from "./views.ts";
@@ -118,7 +118,7 @@ export default class MozakPlugin extends Plugin {
       return;
     }
     const file = `${scope.root}/${scope.bridgeFile ?? BRIDGE_FILE}`;
-    const target = resolveOpenTarget(this.vaultBase() ?? "", file);
+    const target = resolveOpenTarget(this.vaultBase() ?? "", file, realOrSelf);
     if (target.kind === "vault") {
       const abstract = this.app.vault.getAbstractFileByPath(target.path);
       if (abstract instanceof TFile) {
@@ -151,7 +151,7 @@ export default class MozakPlugin extends Plugin {
   /** Open a file at the scope root: in Obsidian when inside this vault, otherwise with the OS default app. */
   async openScopeFile(scope: ScopeVM, name: string): Promise<void> {
     const file = `${scope.root}/${name}`;
-    const target = resolveOpenTarget(this.vaultBase() ?? "", file);
+    const target = resolveOpenTarget(this.vaultBase() ?? "", file, realOrSelf);
     if (target.kind === "vault") {
       const abstract = this.app.vault.getAbstractFileByPath(target.path);
       if (abstract instanceof TFile) {

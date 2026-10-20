@@ -1,7 +1,7 @@
 // Impure loader. Reuses core for parsing and validation: loadInventory, resolveScope, readScope, reviewRows
 // (the same functions behind `mozak scopes` and `mozak plans`). Reading never writes. The single write path,
 // renderStaleProjections, regenerates mozak.md through core and never touches mozak.json.
-import { lstatSync, readdirSync } from "node:fs";
+import { lstatSync, readdirSync, realpathSync } from "node:fs";
 import { join } from "node:path";
 import { DomainError, executeOperation, loadInventory, readAnnotations, readRemoteMeta, readScope, resolveScope, reviewRows, SCOPE_FILE_NAMES } from "@mozak/core";
 import { remoteVM, scopesModel, type ScopeLoad, type ScopesModel } from "./model.ts";
@@ -80,4 +80,13 @@ export function syncRemoteScopes(inventoryPath: string): { ok: boolean; message:
   const stale = remote.filter((r) => r.stale);
   if (stale.length === 0) return { ok: true, message: `Synced ${remote.length} remote scope${remote.length === 1 ? "" : "s"}.` };
   return { ok: false, message: `${stale.length} of ${remote.length} could not sync (using cached copy): ${stale.map((r) => `${r.scope}: ${r.error ?? "failed"}`).join("; ")}` };
+}
+
+/** Resolve symlinks for vault-membership checks. A path that does not exist is returned unchanged. */
+export function realOrSelf(path: string): string {
+  try {
+    return realpathSync(path);
+  } catch {
+    return path;
+  }
 }

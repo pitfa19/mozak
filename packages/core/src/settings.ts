@@ -84,7 +84,7 @@ export function annotationsMode(settings: Settings, entry: ScopeEntry): Annotati
   if (explicit !== undefined) return explicit ? { enabled: true, source: "setting" } : { enabled: false, source: "setting" };
   if (settings.personalVaults) {
     const root = realOr(entry.root);
-    const inside = settings.personalVaults.some((v) => root === v || root.startsWith(v.endsWith(sep) ? v : v + sep));
+    const inside = settings.personalVaults.map(realOr).some((v) => root === v || root.startsWith(v.endsWith(sep) ? v : v + sep));
     return inside ? { enabled: true, source: "default" } : { enabled: false, source: "default" };
   }
   return { enabled: true, source: "default" };

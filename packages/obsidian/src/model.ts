@@ -303,9 +303,18 @@ export function countRemote(scopes: ScopeVM[]): { remote: number; stale: number 
 
 export type OpenTarget = { kind: "vault"; path: string } | { kind: "external"; path: string };
 
-/** Decide whether a file lives inside the vault (open in Obsidian) or outside (OS default app). */
-export function resolveOpenTarget(vaultBase: string, file: string): OpenTarget {
+/**
+ * Decide whether a file lives inside the vault (open in Obsidian) or outside (OS default app).
+ * Core resolves scope roots through symlinks (macOS /var is /private/var), but Obsidian reports the vault path
+ * as opened. The caller passes `real` (realpath with a fallback) so a vault reached through a symlink still
+ * opens inside. This module stays free of IO.
+ */
+export function resolveOpenTarget(vaultBase: string, file: string, real: (path: string) => string = (p) => p): OpenTarget {
   const base = vaultBase.replace(/\/+$/, "");
-  if (base && file.startsWith(base + "/")) return { kind: "vault", path: file.slice(base.length + 1) };
+  if (!base) return { kind: "external", path: file };
+  if (file.startsWith(base + "/")) return { kind: "vault", path: file.slice(base.length + 1) };
+  const realBase = real(base);
+  const realFile = real(file);
+  if (realFile.startsWith(realBase + "/")) return { kind: "vault", path: realFile.slice(realBase.length + 1) };
   return { kind: "external", path: file };
 }
