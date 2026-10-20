@@ -849,9 +849,9 @@ function readOp(inv: ScopeInventory, operation: string, a: Record<string, unknow
     };
   }
   const lock = lockFinding(entry);
-  const findings: Record<string, unknown>[] = [...read.issues, ...annotationCheck(inv, entry, read), ...(lock.finding ? [lock.finding] : [])];
+  const findings: object[] = [...read.issues, ...annotationCheck(inv, entry, read), ...(lock.finding ? [lock.finding] : [])];
   // Leftover temp files from an interrupted write are informational: the next write removes them.
-  const leftovers: Record<string, unknown>[] = leftoverTempFiles(entry.root).map((name) => ({ code: "leftover-temp-file", message: `${name} is left over from an interrupted write; the next write removes it` }));
+  const leftovers: object[] = leftoverTempFiles(entry.root).map((name) => ({ code: "leftover-temp-file", message: `${name} is left over from an interrupted write; the next write removes it` }));
   if (lock.info) leftovers.push(lock.info);
   return {
     exitCode: findings.length > 0 ? 3 : 0,

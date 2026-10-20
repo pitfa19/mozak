@@ -90,15 +90,28 @@ function decode(bytes: string, entry: ScopeEntry): ScopeState {
  * A digest stored in the bridge itself is not proof of provenance. Other content is preserved as a conflict.
  */
 function projectStatus(state: ScopeState, graphHash: string, bridge: ReturnType<typeof file>, graphName: string): ProjectionStatus {
-  if (bridge.token.exists && bridge.token.sha256 === hashBytes(renderBridge(state, graphHash, graphName))) return "current";
+  const render = renderBridge(state, graphHash, graphName);
+  if (bridge.token.exists && bridge.token.sha256 === hashBytes(render)) return "current";
+  // CRLF line endings or trailing whitespace (git autocrlf, editors) carry no content: the note is still today's render.
+  if (bridge.bytes !== null && bridge.validUtf8 && whitespaceOnly(bridge.bytes, render)) return "current";
   if (same(bridge.token, state.storage.previousBridge)) return "bridge-stale";
   if (bridge.bytes !== null && bridge.validUtf8 && isOlderRender(state, graphHash, bridge.bytes)) return "bridge-stale";
   return "bridge-conflict";
 }
+/** Bytes with CRLF turned into LF, trailing spaces and tabs cut from every line, and trailing blank lines dropped. */
+export function normalizeProjection(bytes: string): string {
+  return bytes.replace(/\r\n/g, "\n").split("\n").map((line) => line.replace(/[ \t]+$/, "")).join("\n").replace(/\n+$/, "");
+}
+/** True when two renders differ only by line endings or trailing whitespace. Exact equality is not whitespace-only. */
+export function whitespaceOnly(bytes: string, render: string): boolean {
+  return bytes !== render && normalizeProjection(bytes) === normalizeProjection(render);
+}
 /** Only byte-exact UTF-8 can be recognised as a generated render. Lossy decoding must never look current or stale. */
 function isOlderRender(state: ScopeState, graphHash: string, bytes: string): boolean {
   const h = hashBytes(bytes);
-  return h === hashBytes(renderBridgeLegacy(state, graphHash)) || h === hashBytes(renderBridge(state, graphHash, LEGACY_GRAPH_FILE));
+  if (h === hashBytes(renderBridgeLegacy(state, graphHash)) || h === hashBytes(renderBridge(state, graphHash, LEGACY_GRAPH_FILE))) return true;
+  const n = normalizeProjection(bytes);
+  return n === normalizeProjection(renderBridgeLegacy(state, graphHash)) || n === normalizeProjection(renderBridge(state, graphHash, LEGACY_GRAPH_FILE));
 }
 /** True when the bridge is an unedited older render of this state. A write may replace it like a current one. */
 function isLegacyBridge(entry: ScopeEntry, read: ScopeRead): boolean {
