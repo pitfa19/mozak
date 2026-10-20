@@ -81,3 +81,21 @@ test("rename-files is owner-only and refuses a note with hand edits", () => {
   assert.throws(() => renameScopeFiles(resolveScope(loadInventory(config), "alpha")), /hand edits/);
   assert.ok(readdirSync(root).includes("MOZAK.json"), "nothing renamed on refusal");
 });
+
+test("scope retitle is owner-only, changes only the title, and the note shows it", () => {
+  const { config, root } = scope();
+  const inv = loadInventory(config);
+  const snap = (executeOperation(inv, "context", { scope: "alpha" }, "agent").data as { snapshot: unknown }).snapshot;
+  const plansBefore = JSON.parse(readFileSync(join(root, "mozak.json"), "utf8")).plans;
+  const request = { operationId: "retitle-1", scopeId: "alpha", expected: snap, title: "alpha project", ownerRef: "owner-1", ownerMessageAt: new Date().toISOString() };
+  const agent = executeOperation(inv, "retitle", { scope: "alpha", request }, "agent");
+  assert.notEqual(agent.exitCode, 0, "agents cannot retitle");
+  const out = executeOperation(inv, "retitle", { scope: "alpha", request }, "owner");
+  assert.equal(out.exitCode, 0, JSON.stringify(out.data));
+  const after = JSON.parse(readFileSync(join(root, "mozak.json"), "utf8"));
+  assert.equal(after.scope.title, "alpha project");
+  assert.deepEqual(after.plans, plansBefore, "plans untouched");
+  assert.match(readFileSync(join(root, "mozak.md"), "utf8"), /^# alpha project$/m);
+  const replay = executeOperation(loadInventory(config), "retitle", { scope: "alpha", request }, "owner");
+  assert.equal(replay.exitCode, 0, "same operation id replays");
+});

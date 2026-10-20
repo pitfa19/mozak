@@ -9,7 +9,7 @@ import { executeOperation, loadInventory, MAX_REQUEST_BYTES, scopeForWorkingCopy
 import { runningVersion, upgrade } from "./upgrade.js";
 import { doctor, renderDoctor } from "./doctor.js";
 
-const OWNER_ROUTES = new Set(["decide", "init", "repair", "pull", "rename-files"]);
+const OWNER_ROUTES = new Set(["decide", "init", "repair", "pull", "rename-files", "retitle"]);
 /** Read routes that may omit --scope: the scope is then found from the current folder's git origin. */
 const CWD_SCOPE_ROUTES = new Set(["context", "check", "review show", "plans"]);
 
@@ -46,6 +46,7 @@ const ROUTES: Record<string, Route> = {
   "spec attach": { operation: "attach-spec", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
   "projection repair": { operation: "repair", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
   render: { operation: "render", flags: ["config", "scope", "all", "json"], requires: ["config"], requestFile: false },
+  "scope retitle": { operation: "retitle", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
   "rename-files": { operation: "rename-files", flags: ["config", "scope", "all", "json"], requires: ["config"], requestFile: false },
   translate: { operation: "translate", flags: ["config", "scope", "idea", "from", "to", "assumption", "write"], requires: ["config"], requestFile: false },
   resolve: { operation: "resolve", flags: ["config", "scope", "in", "idea", "n"], requires: ["config"], requestFile: false },
@@ -61,6 +62,7 @@ function usage(): string {
   return [
     "usage: mozak <route> --config FILE [flags]",
     "  mozak scope init --scope ID --request FILE          (owner)",
+    "  mozak scope retitle --scope ID --request FILE       (owner; change the scope's display title)",
     "  mozak context [--scope ID] [--json]",
     "  mozak plans [--scope ID | --all] [--include-rejected] [--limit 1..100] [--continuation TOKEN] [--json]",
     "  mozak scopes [--json]                                (read-only index of every scope: id, folder, title, plan counts)",

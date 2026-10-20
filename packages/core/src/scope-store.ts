@@ -359,6 +359,33 @@ export function renderProjection(entry: ScopeEntry, options: StoreOptions = {}):
 }
 export type RenameResult = "renamed" | "current" | "failed";
 /**
+ * Owner-only: change the scope's display title. Same snapshot check, lock, receipt and projection as every other
+ * write. Plans, decisions and approvals are untouched. The receipt and git history record the change.
+ */
+export function retitleScope(entry: ScopeEntry, input: unknown, options: StoreOptions = {}): OperationResult {
+  bounded(input);
+  const r = object(input, ["operationId", "scopeId", "expected", "title", "ownerRef", "ownerMessageAt"], "retitle request");
+  identity(entry, r); const operationId = text(r.operationId, "operationId"); const snapshot = expected(r.expected);
+  const title = text(r.title, "title").trim(); text(r.ownerRef, "ownerRef"); text(r.ownerMessageAt, "ownerMessageAt");
+  if (title.length > 200 || /[\r\n]/.test(title)) throw new DomainError("invalid-input", "title must be one line of at most 200 characters");
+  const tx: Transaction = { operationId, committed: false, projectionUpdated: false, temporary: [] };
+  return transaction(entry, options, tx, () => {
+    const read = readScope(entry);
+    const replay = receipt(read, operationId, digest(input), tx, entry);
+    if (replay) return replay;
+    match(read, snapshot);
+    if (read.projectionStatus !== "current" && !isLegacyBridge(entry, read)) throw new DomainError(read.projectionStatus, "projection requires explicit repair or conflict resolution before new writes", 3);
+    const now = new Date().toISOString();
+    const state = structuredClone(read.state);
+    state.scope.title = title;
+    const result = { action: "retitle", ids: [entry.id] };
+    state.storage = { revision: randomUUID(), updatedAt: now, previousBridge: read.snapshot.bridge! };
+    Object.defineProperty(state.receipts, operationId, { value: { requestDigest: digest(input), storageRevision: state.storage.revision, recordedAt: now, result }, enumerable: true, writable: true, configurable: true });
+    tx.result = result as Receipt["result"];
+    return publishGraph(entry, state, read.snapshot.bridge!, tx, options);
+  });
+}
+/**
  * Rename a pre-0.4 scope's MOZAK.json and MOZAK.md to mozak.json and mozak.md, then re-render the note so its link
  * names the new file. Runs inside the scope lock. Refuses when the note is a conflict (hand edits are owner review)
  * or when both names exist. Bytes of mozak.json are unchanged, so snapshots and approvals stay valid.

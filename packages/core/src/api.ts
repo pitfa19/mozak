@@ -13,6 +13,7 @@ import {
   repairProjection,
   renderProjection,
   renameScopeFiles,
+  retitleScope,
   type OperationResult,
   type ScopeRead,
 } from "./scope-store.ts";
@@ -63,10 +64,11 @@ export const OPERATIONS = [
   "pull",
   "render",
   "rename-files",
+  "retitle",
 ] as const;
 
 /** Owner-only: refused for every other actor before any file is touched. */
-const OWNER_ONLY = new Set(["decide", "init", "repair", "pull", "rename-files"]);
+const OWNER_ONLY = new Set(["decide", "init", "repair", "pull", "rename-files", "retitle"]);
 /** Route name must equal request.action for these routes. */
 const ROUTE_ACTIONS = new Set(["propose", "revise", "observe", "complete", "save-discussion", "attach-spec"]);
 export const DECISION_ACTIONS = [
@@ -678,6 +680,7 @@ function writeOp(inv: ScopeInventory, operation: string, a: Record<string, unkno
   let result: OperationResult;
   if (operation === "init") result = initScopeState(entry, request);
   else if (operation === "repair") result = repairProjection(entry, request);
+  else if (operation === "retitle") result = retitleScope(entry, request);
   else result = mutateScope(entry, request, actor);
   return { exitCode: resultExit(result), data: { ...result, operation } };
 }
