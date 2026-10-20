@@ -18,6 +18,8 @@ export interface ScopeEntry {
   root: string;
   /** Present only for a remote scope. `root` is then the cache working copy, or the full clone after `mozak pull`. */
   remote?: RemoteInfo;
+  /** Diagnostic only: reserved x settings were ignored at inventory or selected-entry level. */
+  inventoryExtensionsIgnored?: true;
 }
 
 export interface ScopeInventory {
@@ -60,11 +62,16 @@ function assertClosedObject(
   file: string,
 ): void {
   for (const key of Object.keys(value)) {
-    if (!allowed.includes(key)) throw invalidInventory(file, `unknown key "${key}" in ${where}`);
+    if (key !== "x" && !allowed.includes(key)) throw invalidInventory(file, `unknown key "${key}" in ${where}`);
   }
+  assertExtensionObject(value, where, file);
   for (const key of allowed) {
     if (!(key in value)) throw invalidInventory(file, `missing "${key}" in ${where}`);
   }
+}
+
+function assertExtensionObject(value: Record<string, unknown>, where: string, file: string): void {
+  if ("x" in value && !isPlainObject(value.x)) throw invalidInventory(file, `"x" in ${where} must be an object`);
 }
 
 /**
@@ -137,10 +144,11 @@ export function loadInventory(configPath: string): ScopeInventory {
     if (isRemote) {
       // Exactly one of root or remote. The ref is optional and defaults to main. The object stays closed.
       for (const key of Object.keys(entry)) {
-        if (!(REMOTE_ENTRY_KEYS as readonly string[]).includes(key)) {
+        if (key !== "x" && !(REMOTE_ENTRY_KEYS as readonly string[]).includes(key)) {
           throw invalidInventory(file, key === "root" ? `scope entry must have exactly one of "root" or "remote"` : `unknown key "${key}" in scope entry`);
         }
       }
+      assertExtensionObject(entry, "scope entry", file);
       if (!("id" in entry)) throw invalidInventory(file, `missing "id" in scope entry`);
     } else {
       assertClosedObject(entry, ENTRY_KEYS, "scope entry", file);
@@ -204,7 +212,9 @@ export function loadInventory(configPath: string): ScopeInventory {
       );
     }
     seenRoots.set(canonical, id);
-    scopes.push(remote ? { id, root: canonical, remote } : { id, root: canonical });
+    const scope: ScopeEntry = remote ? { id, root: canonical, remote } : { id, root: canonical };
+    if ("x" in raw || "x" in entry) scope.inventoryExtensionsIgnored = true;
+    scopes.push(scope);
   }
 
   scopes.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
@@ -247,7 +257,7 @@ export function resolveScope(inv: ScopeInventory, id: string): ScopeEntry {
       `scope "${id}" root now resolves to ${real}, not the inventoried ${entry.root}`,
     );
   }
-  return entry.remote ? { id: entry.id, root: real, remote: entry.remote } : { id: entry.id, root: real };
+  return { ...entry, root: real };
 }
 
 function lstatOrNull(path: string): Stats | null {
