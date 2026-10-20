@@ -473,6 +473,8 @@ function crossPlanOp(inv: ScopeInventory, operation: "graph" | "ready", a: Recor
   const coverage: ScopeBinding[] = [];
   const issues: { code: string; message: string; scope?: string }[] = [];
   let single: ScopeRead | null = null;
+  // Sidecar tokens: the owner route annotate takes the reviewed token as expectedAnnotations.
+  const tokens: Record<string, unknown> = {};
   for (const id of ids) {
     try {
       const read = readScope(resolveScope(inv, id));
@@ -480,7 +482,9 @@ function crossPlanOp(inv: ScopeInventory, operation: "graph" | "ready", a: Recor
       if (!all) single = read;
       coverage.push({ scope: id, status: "ok", revision: read.snapshot.revision, graphHash: read.snapshot.graphHash });
       const entry = entryOf(inv, id)!;
-      for (const issue of readAnnotations(entry.root, id).issues) issues.push({ ...issue, scope: id });
+      const side = readAnnotations(entry.root, id);
+      tokens[id] = side.token;
+      for (const issue of side.issues) issues.push({ ...issue, scope: id });
     } catch (err) {
       if (!(err instanceof DomainError)) throw err;
       if (!all) throw err;
@@ -503,6 +507,7 @@ function crossPlanOp(inv: ScopeInventory, operation: "graph" | "ready", a: Recor
       projectionUpdated: false,
       issues,
       coverage: { selected: ids.length, complete, scopes: coverage },
+      annotations: tokens,
       ...view,
     },
   };

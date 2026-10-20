@@ -18,6 +18,9 @@ Run `node {{MOZAK_CLI}} --help` at session start. If a route is missing, stop.
 | `node {{MOZAK_CLI}} plans --config INVENTORY --scope ID --json` | Plan list |
 | `node {{MOZAK_CLI}} review show --config INVENTORY --scope ID --plan PLAN [--purpose P] [--outcome ID] --json` | Review subject for one decision |
 | `node {{MOZAK_CLI}} check --config INVENTORY --scope ID --json` | Findings. Never repairs. |
+| `node {{MOZAK_CLI}} graph --config INVENTORY (--scope ID \| --all) --json` | Cross-plan refs from owner annotations and how each target resolves |
+| `node {{MOZAK_CLI}} ready --config INVENTORY (--scope ID \| --all) --json` | Open plans whose `needs` are met, by deadline. Blocked and superseded plans listed apart. Advisory only |
+| `node {{MOZAK_CLI}} plans --config INVENTORY --scope ID --sort deadline --json` | Plan list ordered by owner or inferred deadline |
 
 `review show` purposes:
 - Pending direction: `--purpose` may be omitted (defaults to `approve-direction`).
@@ -69,6 +72,17 @@ Payload for every decision: `planId`, `revisionId`, `reviewDigest`, `ownerRef`, 
 ### Pause (restrictive exception, spec section 7)
 
 An unambiguous pause instruction stops host work first. The host may then persist it using the current pause subject, with the real provenance. The provenance record states that the instruction preceded this generated review. This covers stopping only. It never covers approval, resume, or broadening.
+
+### Owner annotations (`annotate`)
+
+`node {{MOZAK_CLI}} annotate --config INVENTORY --scope ID --request FILE` writes only `mozak.annotations.json`. It never changes `mozak.json`, `mozak.md`, approvals or grants, and agent snapshots stay valid.
+
+- Items: `{ "kind": "ref", "planId", "target": "scope/plan[#outcome]", "relation": "needs" | "informs" | "supersedes", "fromOutcome"?, "evidence" }`, `{ "kind": "deadline", "planId", "date": "YYYY-MM-DD", "evidence" }`, `{ "kind": "remove-ref", "planId", "refId" }`, `{ "kind": "clear-deadline", "planId" }`.
+- The agent proposes at most 7 items at a time. Show each item with its evidence sentence and its `itemDigest` (sha256 of the canonical item). The owner may approve all, some or none. Send only the approved items, each with its `itemDigest`.
+- Request: `{ "operationId", "scopeId", "expectedAnnotations": { "exists", "sha256" }, "ownerRef", "ownerMessageAt", "items": [...] }`. `expectedAnnotations` is the sidecar token the owner saw (`{ "exists": false, "sha256": null }` when there is no file). It is the only CAS input. Read it from `graph --scope ID --json` as `annotations.ID`.
+- `needs` is advisory. It orders `ready` and shows in the plugin. Nothing refuses a write because of it.
+- Several dates in plan prose are candidates. Propose one `deadline` item and let the owner pick.
+- Refused when `mozak-settings.json` turns annotations off for the scope (`annotations-disabled`) and on repo-mode remote scopes (`annotations-refused-remote`).
 
 ## Review digest and CAS: what can be reused
 

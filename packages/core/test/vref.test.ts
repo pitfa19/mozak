@@ -230,5 +230,6 @@ test("graph lists nodes, edges and counts across scopes", () => {
   assert.deepEqual(g.nodes.map((n) => n.id), ["alpha/a", "beta/b"]);
   assert.deepEqual(g.edges.map((e) => [e.from, e.to]), [["alpha/a", "beta/b"]]);
   assert.deepEqual(g.counts, { nodes: 2, edges: 1, dangling: 0, unavailable: 0 });
+  assert.deepEqual((one.data.annotations as Record<string, unknown>).alpha, w.token("alpha"));
   assert.equal(w.op("graph", {}).exitCode, 2);
 });
