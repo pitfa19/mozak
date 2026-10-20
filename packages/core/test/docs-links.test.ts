@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { checkLinks, slug } from "../../../scripts/check-links.mjs";
@@ -41,4 +41,10 @@ test("heading slugs follow GitHub rules", () => {
   assert.equal(slug("Disclosures (Obsidian community plugin policy)"), "disclosures-obsidian-community-plugin-policy");
   assert.equal(slug("Parallel writes: `concurrency.rebase` (experimental, off by default)"), "parallel-writes-concurrencyrebase-experimental-off-by-default");
   assert.equal(slug("6. First implementation contract: portable local installation (3A)"), "6-first-implementation-contract-portable-local-installation-3a");
+});
+
+// mozak is not on npm yet. The README may mention an npm install only inside the owner's TODO comment.
+test("README claims no npm install outside an HTML comment", () => {
+  const readme = readFileSync(join(repo, "README.md"), "utf8").replace(/<!--[\s\S]*?-->/g, "");
+  assert.doesNotMatch(readme, /npm (i|install) (-g|--global)|npx @?mozak/);
 });
