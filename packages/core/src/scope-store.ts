@@ -9,6 +9,7 @@ import { isGraphPath, scopeFile, scopeFileName, GRAPH_FILE, BRIDGE_FILE, LEGACY_
 import { inspectSpecification } from "./spec-file.ts";
 import { renderBridge, renderBridgeLegacy } from "./bridge.ts";
 import { removeLeftoverTempFiles, replaceFileDurable, writeFileDurable, fsyncDir } from "./durable.ts";
+import { ensureStorageIgnored, storageIgnoreIssues } from "./storage-hygiene.ts";
 
 export { renderBridge, renderBridgeLegacy } from "./bridge.ts";
 
@@ -117,7 +118,8 @@ export function readScope(entry: ScopeEntry, options: StoreOptions = {}): ScopeR
     if (!a.validUtf8) throw new DomainError("invalid-encoding", "mozak.json must contain valid UTF-8 bytes");
     const state = decode(a.bytes, entry);
     const projectionStatus = bridge ? projectStatus(state, a.token.sha256!, bridge, scopeFileName(entry.root, "graph")) : "bridge-conflict";
-    const issues: ScopeIssue[] = bridgeIssue ? [bridgeIssue] : [];
+    const issues: ScopeIssue[] = [...storageIgnoreIssues(entry.root), ...(bridgeIssue ? [bridgeIssue] : [])];
+    if (entry.inventoryExtensionsIgnored) issues.push({ code: "inventory-x-ignored", message: "Reserved inventory x object settings are ignored by this client; they do not enable any behavior." });
     if (projectionStatus !== "current") issues.push({ code: projectionStatus, message: "Canonical context is available. Explicit projection repair or conflict review is required before further writes." });
     for (const name of ["README.md", "AGENTS.md"]) {
       try {
@@ -240,28 +242,38 @@ function transaction(entry: ScopeEntry, options: StoreOptions, tx: Transaction, 
     const message = err instanceof Error ? err.message : String(err);
     if (tx.committed || tx.projectionUpdated) {
       const status = releaseError ? (tx.committed ? "committed-lock-held" : "projection-updated-lock-held") : tx.projectionUpdated ? "committed-cleanup-incomplete" : "committed-bridge-stale";
-      return { ...result!, status, issues: [...result!.issues, { code: status, message }] };
+      return { ...result!, status, issues: [...result!.issues, ...(err instanceof DomainError ? [{ code: err.code, message }] : []), { code: status, message }] };
     }
     if (releaseError) throw new DomainError("recovery-required", `${message}; original failure: ${failure instanceof Error ? failure.message : "none"}`, 4);
     throw failure ?? cleanupError;
   }
   return result!;
 }
-function publish(path: string, bytes: string, tx: Transaction, options: StoreOptions = {}): void {
-  replaceFileDurable(path, bytes, (temporary) => tx.temporary.push(temporary), () => options.onPhase?.(`temp-written:${isGraphPath(path) ? "graph" : "bridge"}`));
+function publish(path: string, bytes: string, tx: Transaction, options: StoreOptions = {}, beforeRename?: () => void): void {
+  replaceFileDurable(path, bytes, (temporary) => tx.temporary.push(temporary), () => {
+    options.onPhase?.(`temp-written:${isGraphPath(path) ? "graph" : "bridge"}`);
+    beforeRename?.();
+  });
 }
-function publishGraph(entry: ScopeEntry, state: ScopeState, previousBridge: FileToken, tx: Transaction, options: StoreOptions): OperationResult {
+function publishGraph(entry: ScopeEntry, state: ScopeState, previousGraph: FileToken, previousBridge: FileToken, tx: Transaction, options: StoreOptions): OperationResult {
   state.storage.previousBridge = previousBridge;
   validateScope(state);
   const bytes = canonical(state);
   if (Buffer.byteLength(bytes) > MAX_SCOPE_BYTES) throw new DomainError("capacity-exceeded", "canonical state would exceed 4 MiB");
+  const graphPath = scopeFile(entry.root, "graph");
+  const bridgePath = scopeFile(entry.root, "bridge");
+  const recheck = (graph: FileToken) => {
+    if (!same(file(graphPath).token, graph) || !same(file(bridgePath, MAX_SCOPE_BYTES * 2).token, previousBridge)) {
+      throw new DomainError("graph-changed-during-write", "canonical graph or bridge changed during publication; external bytes preserved", 3);
+    }
+  };
   options.onPhase?.("before-graph");
-  publish(scopeFile(entry.root, "graph"), bytes, tx, options);
+  // Rehash after the temp file is flushed, immediately before rename. Direct editors do not
+  // honor our lock: a microsecond-scale check/rename TOCTOU window still remains.
+  publish(graphPath, bytes, tx, options, () => recheck(previousGraph));
   tx.committed = true; tx.state = state;
   options.onPhase?.("after-graph");
-  const bridge = file(scopeFile(entry.root, "bridge"), MAX_SCOPE_BYTES * 2);
-  if (!same(bridge.token, previousBridge)) throw new DomainError("bridge-conflict", "bridge changed after canonical commit", 3);
-  publish(scopeFile(entry.root, "bridge"), renderBridge(state, hashBytes(bytes), scopeFileName(entry.root, "graph")), tx, options);
+  publish(bridgePath, renderBridge(state, hashBytes(bytes), scopeFileName(entry.root, "graph")), tx, options, () => recheck({ exists: true, sha256: hashBytes(bytes) }));
   tx.projectionUpdated = true;
   options.onPhase?.("after-bridge");
   return outcome(entry, tx, "ok");
@@ -297,11 +309,12 @@ export function initScopeState(entry: ScopeEntry, input: unknown, options: Store
     }
     if (file(scopeFile(entry.root, "bridge")).token.exists || pathExists(join(entry.root, ".mozak"))) throw new DomainError("conversion-required", "existing bridge or legacy state requires separately approved conversion", 3);
     for (const name of ["README.md", "AGENTS.md"]) if (!file(join(entry.root, name)).token.exists) throw new DomainError("missing-entry-document", `create/review ${name} explicitly before init`);
+    ensureStorageIgnored(entry.root);
     const now = new Date().toISOString(); const revision = randomUUID();
     const result = { action: "init", ids: [entry.id] };
     const state: ScopeState = { format: SCOPE_FORMAT, scope: { id: entry.id, kind: r.kind as "project" | "topic", title: r.title as string, createdAt: now, initialization: { operationId, ownerRef: r.ownerRef as string, ownerMessageAt: r.ownerMessageAt as string, recordedAt: now } }, storage: { revision, updatedAt: now, previousBridge: absent() }, plans: [], connections: [], receipts: { [operationId]: { requestDigest: digest(input), storageRevision: revision, recordedAt: now, result } } };
     tx.result = result;
-    return publishGraph(entry, state, absent(), tx, options);
+    return publishGraph(entry, state, absent(), absent(), tx, options);
   });
 }
 export function mutateScope(entry: ScopeEntry, input: unknown, actor: "agent" | "owner", options: StoreOptions = {}): OperationResult {
@@ -331,7 +344,7 @@ export function mutateScope(entry: ScopeEntry, input: unknown, actor: "agent" | 
     next.state.storage = { revision: randomUUID(), updatedAt: now, previousBridge: read.snapshot.bridge! };
     Object.defineProperty(next.state.receipts, operationId, { value: { requestDigest: digest(input), storageRevision: next.state.storage.revision, recordedAt: now, result: next.result }, enumerable: true, writable: true, configurable: true });
     tx.result = next.result;
-    return publishGraph(entry, next.state, read.snapshot.bridge!, tx, options);
+    return publishGraph(entry, next.state, { exists: true, sha256: read.snapshot.graphHash }, read.snapshot.bridge!, tx, options);
   });
 }
 export type RenderResult = "rendered" | "current" | "conflict" | "failed";
@@ -382,7 +395,7 @@ export function retitleScope(entry: ScopeEntry, input: unknown, options: StoreOp
     state.storage = { revision: randomUUID(), updatedAt: now, previousBridge: read.snapshot.bridge! };
     Object.defineProperty(state.receipts, operationId, { value: { requestDigest: digest(input), storageRevision: state.storage.revision, recordedAt: now, result }, enumerable: true, writable: true, configurable: true });
     tx.result = result as Receipt["result"];
-    return publishGraph(entry, state, read.snapshot.bridge!, tx, options);
+    return publishGraph(entry, state, { exists: true, sha256: read.snapshot.graphHash }, read.snapshot.bridge!, tx, options);
   });
 }
 /**
@@ -429,11 +442,15 @@ export function repairProjection(entry: ScopeEntry, input: unknown, options: Sto
   const tx: Transaction = { requestId, committed: false, projectionUpdated: false, temporary: [] };
   return transaction(entry, options, tx, () => {
     const read = readScope(entry); match(read, snapshot, false);
-    if (read.projectionStatus === "current") return outcome(entry, tx, "already-current");
+    if (read.projectionStatus === "current") {
+      ensureStorageIgnored(entry.root);
+      return outcome(entry, tx, "already-current");
+    }
     match(read, snapshot);
     if (read.projectionStatus === "bridge-conflict") throw new DomainError("bridge-conflict", "manual bridge conflict preserved; automatic repair refused", 3);
     options.onPhase?.("before-repair");
     const current = readScope(entry); match(current, snapshot);
+    ensureStorageIgnored(entry.root);
     publish(scopeFile(entry.root, "bridge"), renderBridge(current.state, current.snapshot.graphHash, scopeFileName(entry.root, "graph")), tx);
     tx.projectionUpdated = true;
     return outcome(entry, tx, "ok");
