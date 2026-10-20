@@ -4,7 +4,7 @@
 
 # MOZAK
 
-**Obsidian is the IDE now.**
+**Use Obsidian as your IDE.**
 
 You work in ideas and plans, not code. Agents build in parallel, and you orchestrate them from your notes.
 

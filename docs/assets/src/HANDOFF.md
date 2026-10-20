@@ -6,7 +6,7 @@ This bundle contains all raw Retina captures, transcripts, brand/icon assets, co
 
 ## 1. Core Hook & Everyday Storyline (Zero Jargon)
 
-> **"Obsidian is the IDE now."**
+> **"Use Obsidian as your IDE."**
 >
 > You work in ideas and plans, not code. Agents build in parallel, and you orchestrate them from your notes.
 >
@@ -26,7 +26,7 @@ To make the video immediately intuitive to any viewer in < 3 seconds, the demo u
 
 > **Light mode.** All Obsidian captures, keyframes and both videos are light mode (Obsidian's light theme, light video backgrounds). On light backgrounds the brand accents are darkened for contrast: gold `#b0841c`, purple `#6e5bd6`, green `#1e8a52`, text `#1a1e28`. The dark brand assets in `brand/` (icon, lockup, generated wordmark) are unchanged. Use them on a dark title card, or ask for light variants.
 >
-> **Pitch line: decided.** Headline "Obsidian is the IDE now." (see section 1). The current `brand/mozak-lockup-dark` still carries the old tagline. Use the generated wordmark or the plain icon on the title card instead.
+> **Pitch line: decided.** Headline "Use Obsidian as your IDE." (see section 1). The current `brand/mozak-lockup-dark` still carries the old tagline. Use the generated wordmark or the plain icon on the title card instead.
 
 Every beat shows **Left = Terminal Agent Chat (`/mozak`)** and **Right = Live Obsidian IDE (`study-timer/MOZAK.md` + `MOZAK` sidebar)**:
 

@@ -413,7 +413,7 @@ for f in 0..<totalFrames {
     fillRoundRect(ctx, x: 36, yTop: 24, w: 112, h: 30, r: 6, fill: stepAccent.withAlphaComponent(0.18), stroke: stepAccent, lineWidth: 1.5)
     drawText(stepBadge, x: 50, yTop: 30, font: fontSmall, col: stepAccent)
     drawText(stepTitle, x: 164, yTop: 29, font: fontStep, col: textMain)
-    drawText("MOZAK · Obsidian is the IDE now", x: 1620, yTop: 30, font: fontSmall, col: textMuted)
+    drawText("MOZAK · Use Obsidian as your IDE", x: 1620, yTop: 30, font: fontSmall, col: textMuted)
 
     // 3. Left Window: Terminal (x=24, yTop=74, w=724, h=932)
     let tx: CGFloat = 24
