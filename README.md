@@ -1,8 +1,6 @@
 <div align="center">
 
-<img src="docs/assets/hero-pixel.gif" width="160" alt="Pixel-art mozak brain: a spark runs along the gold, purple and green circuits in turn">
-
-# mozak
+<img src="docs/assets/mozak-logo-light.png" width="520" alt="mozak logo: a brain with a gold, purple and green circuit, next to the word mozak and the line Use Obsidian as your IDE">
 
 **Use Obsidian as your IDE.**
 
@@ -13,11 +11,19 @@ You work in ideas and plans, not code. Agents build in parallel, and you orchest
 [![Node 24.11+](https://img.shields.io/badge/node-24.11%2B-339933?style=flat-square)](docs/installation.md)
 [![Platforms](https://img.shields.io/badge/platforms-Linux%20%7C%20macOS-blue?style=flat-square)](docs/installation.md)
 
-[What it is](#what-it-is) · [Install](#install) · [How it works](#how-it-works) · [Obsidian](#see-everything-in-obsidian) · [Safety](#safety) · [Docs](docs/installation.md)
+[What it is](#what-it-is) · [See it run](#see-it-run) · [Install](#install) · [How it works](#how-it-works) · [Obsidian](#see-everything-in-obsidian) · [Safety](#safety) · [Docs](docs/installation.md)
 
 </div>
 
 ---
+
+## See it run
+
+<div align="center">
+<a href="docs/assets/mozak-video.mp4"><img src="docs/assets/mozak-video-poster.png" width="720" alt="Click to play the 76 second demo: you ask your agent in plain words, it drafts a plan and waits for your yes, runs the test, and Obsidian shows the roadmap move forward"></a>
+</div>
+
+In 76 seconds: you ask your agent in plain words, it reads the project and asks one question, drafts a plan and waits for your yes in Obsidian, runs the test, and the roadmap moves forward on its own.
 
 ## What it is
 
@@ -111,35 +117,15 @@ Then turn on **mozak** under Settings, Community plugins. The plugin finds `moza
 
 **Plugin disclosures (desktop-only, `isDesktopOnly: true`):** When your `mozak-inventory.json` lists scopes outside the current vault, the plugin reads their `mozak.json`, `mozak.md`, `README.md` and `AGENTS.md` files from those configured paths and watches them when **Auto-refresh** is enabled. It never scans folders not listed in your inventory and never modifies `mozak.json` (it may regenerate a stale `mozak.md` projection when there are no unmerged hand edits). For remote GitHub scopes (`"remote": "github:owner/repo"` without vault-hosted `"plans"`), clicking **Sync remote scopes** or enabling **Repo sync interval (seconds)** runs your local `git` (`git fetch` / `git pull --ff-only`) using your existing git login; set the sync interval to `0` to turn background git fetches off. See [`packages/obsidian/README.md`](packages/obsidian/README.md#disclosures-obsidian-community-plugin-policy) for the full disclosure list.
 
-## See it run
-
-### 1. Talk to your agent (`/mozak` chat + Obsidian IDE)
-
-<div align="center">
-<a href="docs/assets/mozak-agent-chat.mp4">
-  <img src="docs/assets/mozak-agent-chat.gif" alt="Agent terminal chat and Obsidian side by side: you ask /mozak study-timer to add a bell sound when the timer ends, the agent reads mozak state and asks 1 focused question, proposes the plan and pauses at the owner gate, you approve direction in chat, and the agent records passing audio test evidence turning outcome 1/2 green" width="840">
-</a>
-</div>
-
-You talk in natural language inside your terminal agent (`claude`, `jcode`, `codex`); the `/mozak` skill and `mozak-mcp` server read `mozak.json`, ask one focused question, pause at the owner approval gate, and redraw your Obsidian roadmap live ([full-resolution MP4](docs/assets/mozak-agent-chat.mp4)).
-
-### 2. Under the hood (plain files → generative UI)
+## Under the hood
 
 <div align="center">
 <img src="docs/assets/under-the-hood.svg" alt="Vector diagram animation: mozak-inventory.json points to scopes, the agent proposes, the owner approves, mozak.json and mozak.md are written in the scope folder, and Obsidian redraws from those files" width="840">
 </div>
 
-**Generative UI from plain files:** The agent writes plain `mozak.json` and `mozak.md` files in your scope folder; the Obsidian sidebar and the Mermaid roadmap inside each note are rendered from them, with no UI code written by the agent.
+The agent writes plain `mozak.json` and `mozak.md` files in your project folder. The Obsidian sidebar and the roadmap diagram inside each note are drawn from those files. The agent writes no UI code.
 
-### 3. CLI commands under the hood
-
-<div align="center">
-<a href="docs/assets/mozak-demo.mp4">
-  <img src="docs/assets/mozak-demo.gif" alt="Live Terminal and Obsidian walkthrough: mozak scopes discovers 3 scopes, mozak plan propose creates an awaiting-approval plan in Pomodoro Study Timer, mozak review decide approves direction and lights up the Mermaid roadmap, and mozak observe turns outcome 1/2 green" width="840">
-</a>
-</div>
-
-Real CLI commands (`mozak scopes` → `mozak plan propose` → `mozak review decide --approve-direction` → `mozak observe`) running side by side with Obsidian against a clean 3-scope demo vault ([full-resolution MP4](docs/assets/mozak-demo.mp4)).
+The same flow from the command line (`mozak scopes`, `mozak plan propose`, `mozak review decide`, `mozak observe`) against a clean demo vault: [mozak-demo.mp4](docs/assets/mozak-demo.mp4).
 
 ## Use it with your agent
 
@@ -150,6 +136,8 @@ Real CLI commands (`mozak scopes` → `mozak plan propose` → `mozak review dec
 | Refresh GitHub projects now | `mozak sync` |
 | Let any MCP agent read and propose | `mozak-mcp --config mozak-inventory.json` |
 | Run the guided planning conversation | the installed skill at `PREFIX/skills/mozak/SKILL.md` |
+| Rename a project (owner) | `mozak scope retitle` |
+| Move pre-0.4 `MOZAK.json` / `MOZAK.md` to lowercase (owner) | `mozak rename-files --all` |
 
 Every command needs an explicit `--config`. mozak never falls back to a global setting.
 
