@@ -23,7 +23,7 @@ type Route = {
 
 const ROUTES: Record<string, Route> = {
   "scope init": { operation: "init", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
-  context: { operation: "context", flags: ["config", "scope", "json"], requires: ["config"], requestFile: false },
+  context: { operation: "context", flags: ["config", "scope", "brief", "plan", "json"], requires: ["config"], requestFile: false },
   plans: {
     operation: "plans",
     flags: ["config", "scope", "all", "include-rejected", "limit", "continuation", "json"],
@@ -54,7 +54,7 @@ const ROUTES: Record<string, Route> = {
 };
 
 const ROUTE_NAMES = Object.keys(ROUTES);
-const BOOLEAN_FLAGS = new Set(["json", "include-rejected", "all", "write"]);
+const BOOLEAN_FLAGS = new Set(["json", "include-rejected", "all", "write", "brief"]);
 
 class UsageError extends Error {}
 
@@ -63,7 +63,7 @@ function usage(): string {
     "usage: mozak <route> --config FILE [flags]",
     "  mozak scope init --scope ID --request FILE          (owner)",
     "  mozak scope retitle --scope ID --request FILE       (owner; change the scope's display title)",
-    "  mozak context [--scope ID] [--json]",
+    "  mozak context [--scope ID] [--brief] [--plan ID] [--json]",
     "  mozak plans [--scope ID | --all] [--include-rejected] [--limit 1..100] [--continuation TOKEN] [--json]",
     "  mozak scopes [--json]                                (read-only index of every scope: id, folder, title, plan counts)",
     "  mozak sync [--scope ID] [--json]                     (force-refresh remote scopes; reads refresh them after 10 minutes)",
@@ -424,6 +424,8 @@ function run(argv: string[]): number {
     args = { scope: values.scope, ...(values.into !== undefined ? { into: values.into } : {}) };
   } else if (route.operation === "review") {
     args = { scope: values.scope, plan: values.plan, ...(values.purpose !== undefined ? { purpose: values.purpose } : {}), ...(values.outcome !== undefined ? { outcome: values.outcome } : {}) };
+  } else if (route.operation === "context") {
+    args = { scope: values.scope, ...(values.brief !== undefined ? { brief: values.brief } : {}), ...(values.plan !== undefined ? { plan: values.plan } : {}) };
   } else if (route.operation === "operation") {
     args = { scope: values.scope, id: values.id };
   } else if (route.requestFile) {

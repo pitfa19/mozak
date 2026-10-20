@@ -20,7 +20,7 @@ Verify the initial context. The new host must have no semantic recap, no prior a
 
 ## 2. Read durable state
 
-1. `node {{MOZAK_CLI}} context --config INVENTORY --scope ID --json`: recover meaning, settled and unresolved questions, lifecycle, evidence, specification and grant. A `paused` plan does not run. Report the pause and stop implementation. Explicitly requested discussion may occur without resuming or granting work.
+1. At session start, `node {{MOZAK_CLI}} context --config INVENTORY --scope ID --brief --json` gives the overview. Then `node {{MOZAK_CLI}} context --config INVENTORY --scope ID --plan PLAN --json` recovers the selected plan's meaning, settled and unresolved questions, lifecycle, evidence, specification, bounds and grant. Use the same focused read after a stale conflict. Brief alone omits bodies and bounds and is not execution context. Unknown plans are refused. A `paused` plan does not run. Report the pause and stop implementation. Explicitly requested discussion may occur without resuming or granting work.
 2. For implementation continuation, check `executionEligible` and `reasons`. If false, report the reasons and do not code. For a discussion-only request, recover the checkpoint and ask only unresolved questions. A status-only request stays read-only regardless of eligibility.
 3. Only if you need a decision subject: `node {{MOZAK_CLI}} review show --config INVENTORY --scope ID --plan PLAN --purpose P --json`. Accepted-only plans require the purpose.
 

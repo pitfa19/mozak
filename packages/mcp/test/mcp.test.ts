@@ -11,7 +11,7 @@ import { initScopeState, loadInventory } from "@mozak/core";
 // Package 1 contract (docs/implementation-package-1-plan-state-review.md, sections 5 and 8).
 // Read tools map to API operations; mutation tools map to API operations; every call is actor "agent".
 const READ_TOOLS: Record<string, { op: string; args: string[]; required: string[] }> = {
-  mozak_context: { op: "context", args: ["scope"], required: ["scope"] },
+  mozak_context: { op: "context", args: ["scope", "brief", "plan"], required: ["scope"] },
   mozak_plans: { op: "plans", args: ["scope", "all", "includeRejected", "limit", "continuation"], required: [] },
   mozak_scopes: { op: "scopes", args: [], required: [] },
   mozak_sync: { op: "sync", args: ["scope"], required: [] },
