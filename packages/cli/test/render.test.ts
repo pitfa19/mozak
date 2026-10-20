@@ -128,7 +128,8 @@ test("a write over a legacy bridge succeeds and leaves a current new-format brid
   const { entries } = world(["alpha"]);
   const entry = entries[0]!;
   makeLegacy(entry);
-  const result = mutateScope(entry, { operationId: "p2", scopeId: entry.id, expected: readScope(entry).snapshot, action: "propose", payload: { planId: "road-2", content } }, "agent");
+  // This fixture intentionally repeats direction; legacy projection writes are the seam under test.
+  const result = mutateScope(entry, { operationId: "p2", scopeId: entry.id, expected: readScope(entry).snapshot, action: "propose", payload: { planId: "road-2", content, distinctFromPlanIds: ["road"] } }, "agent");
   assert.equal(result.status, "ok");
   assert.equal(readScope(entry).projectionStatus, "current");
 });

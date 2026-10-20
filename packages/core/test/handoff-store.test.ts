@@ -191,7 +191,8 @@ test("B12: real child crash after grant commit preserves receipt, requires offli
 
 test("B13: old continuation version is refused, including structurally valid prior token", () => {
   const w = world();
-  for (let i = 0; i < 6; i++) w.change("propose", { planId: `pending-${i}`, content });
+  // Deliberately repeated fixture direction exercises pagination, not duplicate detection.
+  for (let i = 0; i < 6; i++) w.change("propose", { planId: `pending-${i}`, content, distinctFromPlanIds: readScope(w.entry).state.plans.map(p => p.id) });
   const result = executeOperation(w.inv, "plans", { scope: "scope" });
   const token = (result.data.groups as any).awaiting.continuation;
   const parsed = JSON.parse(Buffer.from(token, "base64url").toString("utf8"));
