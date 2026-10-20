@@ -20,7 +20,7 @@ You work in ideas and plans, not code. Agents build in parallel, and you orchest
 ## See it run
 
 <div align="center">
-<a href="https://github.com/pitfa19/mozak/releases/download/readme-assets/mozak-demo.mp4"><img src="https://github.com/pitfa19/mozak/releases/download/readme-assets/mozak-video.webp" width="900" alt="76 second demo: you ask your agent in plain words, it drafts a plan and waits for your yes, runs the test, and Obsidian shows the roadmap move forward. Click for the full video with sound."></a>
+<a href="https://github.com/pitfa19/mozak/releases/download/readme-assets/mozak-demo.mp4"><img src="https://github.com/pitfa19/mozak/releases/download/readme-assets/mozak-demo-preview-v2.webp" width="900" alt="76 second demo: you ask your agent in plain words, it drafts a plan and waits for your yes, runs the test, and Obsidian shows the roadmap move forward. Click for the full video with sound."></a>
 </div>
 
 In 76 seconds: you ask your agent in plain words, it reads the project and asks one question, drafts a plan and waits for your yes in Obsidian, runs the test, and the roadmap moves forward on its own. Click it for the [full video with sound](https://github.com/pitfa19/mozak/releases/download/readme-assets/mozak-demo.mp4).
@@ -120,7 +120,7 @@ Then turn on **mozak** under Settings, Community plugins. The plugin finds `moza
 ## Under the hood
 
 <div align="center">
-<a href="https://github.com/pitfa19/mozak/releases/download/readme-assets/mozak-under-the-hood.mp4"><img src="https://github.com/pitfa19/mozak/releases/download/readme-assets/mozak-under-the-hood.webp" width="900" alt="15 second animation: Claude Code, Codex and jcode all read the same mozak.json in a project folder, you approve the plan, Obsidian draws the sidebar and roadmap from the plain files, and a passing test turns the step green"></a>
+<a href="https://github.com/pitfa19/mozak/releases/download/readme-assets/mozak-under-the-hood.mp4"><img src="https://github.com/pitfa19/mozak/releases/download/readme-assets/mozak-under-the-hood-v2.webp" width="900" alt="15 second animation: Claude Code, Codex and jcode all read the same mozak.json in a project folder, you approve the plan, Obsidian draws the sidebar and roadmap from the plain files, and a passing test turns the step green"></a>
 </div>
 
 The agent writes plain `mozak.json` and `mozak.md` files in your project folder. The Obsidian sidebar and the roadmap diagram inside each note are drawn from those files. The agent writes no UI code.
