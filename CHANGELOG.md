@@ -2,7 +2,7 @@
 
 User-visible changes, newest first. Releases are git tags `vX.Y.Z` on `main`; `mozak upgrade` installs the newest one.
 
-## Unreleased
+## 0.4.0 (unreleased, tag when publishing)
 
 ### Changed
 
@@ -11,6 +11,7 @@ User-visible changes, newest first. Releases are git tags `vX.Y.Z` on `main`; `m
 
 ### Added
 
+- Final 76 second demo video and the logo at the top of the README.
 - `mozak scope retitle --scope ID --request FILE` (owner): change a scope's display title. Plans and approvals are untouched.
 - `mozak rename-files (--scope ID | --all)` (owner): renames a scope's old `MOZAK.*` files to lowercase under the scope lock and regenerates the note so its link points to `mozak.json`. Plan bytes are unchanged. Refuses notes with hand edits. Repo scopes are skipped.
 
