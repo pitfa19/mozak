@@ -137,7 +137,7 @@ function refresh(entry: ScopeEntry): void {
   git(["merge", "--ff-only", "--quiet", "FETCH_HEAD"], dir);
 }
 
-export function statusOf(entry: ScopeEntry, stale: boolean, error?: string): RemoteStatus {
+export function statusOf(entry: ScopeEntry, stale: boolean, error?: string, freshness?: RemoteStatus["remoteFreshness"]): RemoteStatus {
   const r = remoteOf(entry);
   if (r.plansMode === "vault") return vaultStatus(entry);
   const meta = readRemoteMeta(r.baseDir, entry.id);
@@ -149,18 +149,21 @@ export function statusOf(entry: ScopeEntry, stale: boolean, error?: string): Rem
     lastFetchAt: meta.lastFetchAt,
     ...(error ? { error } : {}),
     source: r.fullClone !== null && r.fullClone === entry.root ? "full-clone" : "sparse-cache",
+    remoteFreshness: freshness ?? (stale ? "offline" : "cached"),
   };
 }
 
 /** Status row for a vault-plans scope. Plans are local, so nothing is fetched and nothing is ever stale. */
 export function vaultStatus(entry: ScopeEntry): RemoteStatus {
   const r = remoteOf(entry);
-  return { scope: entry.id, remote: r.spec, ref: r.ref, stale: false, lastFetchAt: null, source: "vault" };
+  return { scope: entry.id, remote: r.spec, ref: r.ref, stale: false, lastFetchAt: null, source: "vault", remoteFreshness: "local" };
 }
 
 /**
  * Refresh one remote scope when forced or when the last successful fetch is older than ten minutes.
  * A fetch failure never throws: the cached copy is used and reported stale.
+ * After a failed fetch, unforced reads use the cached copy for ten minutes without retrying the network, so an
+ * offline machine does not pay a git timeout on every read. `mozak sync` and writes always force a fetch.
  * Vault-plans scopes never run git: their plans are local and the repo is linked for display only.
  */
 export function syncRemote(entry: ScopeEntry, opts: { force?: boolean; now?: Date } = {}): RemoteStatus {
@@ -170,15 +173,17 @@ export function syncRemote(entry: ScopeEntry, opts: { force?: boolean; now?: Dat
   const meta = readRemoteMeta(r.baseDir, entry.id);
   const have = isRepo(entry.root);
   const age = meta.lastFetchAt ? now.getTime() - Date.parse(meta.lastFetchAt) : Infinity;
-  if (!opts.force && have && meta.lastError === null && age < FRESH_MS) return statusOf(entry, false);
+  if (!opts.force && have && meta.lastError === null && age < FRESH_MS) return statusOf(entry, false, undefined, "cached");
+  const attemptAge = meta.lastAttemptAt ? now.getTime() - Date.parse(meta.lastAttemptAt) : Infinity;
+  if (!opts.force && have && meta.lastError !== null && attemptAge >= 0 && attemptAge < FRESH_MS) return statusOf(entry, true, meta.lastError, "offline");
   try {
     refresh(entry);
-    writeRemoteMeta(r.baseDir, entry.id, { ...meta, lastFetchAt: now.toISOString(), lastError: null, fullClone: meta.fullClone });
-    return statusOf(entry, false);
+    writeRemoteMeta(r.baseDir, entry.id, { ...meta, lastFetchAt: now.toISOString(), lastError: null, fullClone: meta.fullClone, lastAttemptAt: now.toISOString() });
+    return statusOf(entry, false, undefined, "fetched");
   } catch (err) {
     if (!(err instanceof GitFailure)) throw err;
-    writeRemoteMeta(r.baseDir, entry.id, { ...meta, lastError: err.message });
-    return statusOf(entry, true, err.message);
+    writeRemoteMeta(r.baseDir, entry.id, { ...meta, lastError: err.message, lastAttemptAt: now.toISOString() });
+    return statusOf(entry, true, err.message, "offline");
   }
 }
 
