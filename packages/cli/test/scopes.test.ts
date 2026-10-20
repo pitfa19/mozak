@@ -1,7 +1,7 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,7 +9,8 @@ import { fileURLToPath } from "node:url";
 // Real-process tests for the read-only `scopes` index. Each call is a subprocess running packages/cli/dist.
 const here = fileURLToPath(new URL(".", import.meta.url));
 const cliPath = resolve(here, "..", "dist", "index.js");
-const scratch = process.env.JCODE_SCRATCH_DIR ?? process.env.TMPDIR ?? tmpdir();
+// Normalized: a TMPDIR with a trailing slash or behind a symlink (macOS /var) must not trip the removal guard.
+const scratch = realpathSync(resolve(process.env.JCODE_SCRATCH_DIR ?? process.env.TMPDIR ?? tmpdir()));
 const roots: string[] = [];
 
 after(() => {

@@ -1,7 +1,7 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -14,7 +14,8 @@ import { loadInventory } from "../../core/src/scope-index.ts";
 // Projection-only render route. Synthetic scopes in scratch roots only; never a real inventory.
 const here = fileURLToPath(new URL(".", import.meta.url));
 const cliPath = resolve(here, "..", "dist", "index.js");
-const scratch = process.env.JCODE_SCRATCH_DIR ?? process.env.TMPDIR ?? tmpdir();
+// Normalized: a TMPDIR with a trailing slash or behind a symlink (macOS /var) must not trip the removal guard.
+const scratch = realpathSync(resolve(process.env.JCODE_SCRATCH_DIR ?? process.env.TMPDIR ?? tmpdir()));
 const roots: string[] = [];
 after(() => {
   for (const root of roots) {
