@@ -8,6 +8,7 @@ import { resolveScope, type ScopeEntry, type ScopeInventory } from "./scope-inde
 import {
   initScopeState,
   mutateScope,
+  pruneRejectedPlans,
   readScope,
   readScopeView,
   repairProjection,
@@ -77,10 +78,11 @@ export const OPERATIONS = [
   "graph",
   "ready",
   "recover",
+  "prune",
 ] as const;
 
 /** Owner-only: refused for every other actor before any file is touched. */
-const OWNER_ONLY = new Set(["decide", "init", "repair", "pull", "rename-files", "retitle", "annotate", "recover"]);
+const OWNER_ONLY = new Set(["decide", "init", "repair", "pull", "rename-files", "retitle", "annotate", "recover", "prune"]);
 /** Route name must equal request.action for these routes. */
 const ROUTE_ACTIONS = new Set(["propose", "revise", "observe", "complete", "save-discussion", "attach-spec"]);
 export const DECISION_ACTIONS = [
@@ -886,6 +888,7 @@ function writeOp(inv: ScopeInventory, operation: string, a: Record<string, unkno
   if (operation === "init") result = initScopeState(entry, request);
   else if (operation === "repair") result = repairProjection(entry, request);
   else if (operation === "retitle") result = retitleScope(entry, request);
+  else if (operation === "prune") result = pruneRejectedPlans(entry, request);
   else result = mutateScope(entry, request, actor);
   return { exitCode: resultExit(result), data: { ...result, operation } };
 }

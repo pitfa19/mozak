@@ -9,7 +9,7 @@ import { executeOperation, loadInventory, MAX_REQUEST_BYTES, scopeForWorkingCopy
 import { runningVersion, upgrade } from "./upgrade.js";
 import { doctor, renderDoctor } from "./doctor.js";
 
-const OWNER_ROUTES = new Set(["decide", "init", "repair", "pull", "rename-files", "retitle", "annotate", "recover"]);
+const OWNER_ROUTES = new Set(["decide", "init", "repair", "pull", "rename-files", "retitle", "annotate", "recover", "prune"]);
 /** Read routes that may omit --scope: the scope is then found from the current folder's git origin. */
 const CWD_SCOPE_ROUTES = new Set(["context", "check", "review show", "plans"]);
 
@@ -44,6 +44,7 @@ const ROUTES: Record<string, Route> = {
   "plan propose": { operation: "propose", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
   "plan revise": { operation: "revise", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
   "plan complete": { operation: "complete", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
+  "plan prune": { operation: "prune", flags: ["config", "scope", "rejected", "request"], requires: ["config", "scope", "rejected", "request"], requestFile: true },
   observe: { operation: "observe", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
   "review decide": { operation: "decide", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
   "discussion save": { operation: "save-discussion", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
@@ -58,7 +59,7 @@ const ROUTES: Record<string, Route> = {
 };
 
 const ROUTE_NAMES = Object.keys(ROUTES);
-const BOOLEAN_FLAGS = new Set(["json", "include-rejected", "all", "write", "brief"]);
+const BOOLEAN_FLAGS = new Set(["json", "include-rejected", "all", "write", "brief", "rejected"]);
 
 class UsageError extends Error {}
 
@@ -79,6 +80,7 @@ function usage(): string {
     "  mozak check [--scope ID] [--json]",
     "  mozak operation --scope ID --id OP [--json]",
     "  mozak plan propose|revise|complete --scope ID --request FILE",
+    "  mozak plan prune --rejected --scope ID --request FILE (owner; remove the listed rejected plans, refs keep resolving)",
     "  mozak observe --scope ID --request FILE",
     "  mozak discussion save --scope ID --request FILE      (agent; advisory checkpoint only)",
     "  mozak spec attach --scope ID --request FILE          (agent; descriptor only, no approval)",

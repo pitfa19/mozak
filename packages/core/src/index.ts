@@ -29,3 +29,4 @@ export * from "./deadlines.ts";
 export * from "./crossplan.ts";
 export * from "./settings.ts";
 export * from "./lock-recover.ts";
+export * from "./prune.ts";

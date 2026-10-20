@@ -7,6 +7,7 @@ import { createHash } from "node:crypto";
 import { lstatSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { DomainError } from "./errors.ts";
+import { prunedRecord } from "./prune.ts";
 import { canonical, digest, isObject, isUtcTimestamp, type Digest, type FileToken, type Plan, type ScopeState, type UtcTimestamp } from "./understanding.ts";
 
 export const ANNOTATIONS_FILE = "mozak.annotations.json";
@@ -226,6 +227,8 @@ export function proposeItems(values: unknown[]): { items: (AnnotateItem & { item
 export type ScopeLookup = (scopeId: string) => ScopeState | "unknown" | "unavailable";
 export type RefResolution =
   | { status: "resolved"; via: "plan" | "merged"; scope: string; planId: string; outcomeId?: string; mergedFrom?: string }
+  /** The owner rejected the target and pruned it with `plan prune --rejected`; its receipt is the record. */
+  | { status: "pruned"; scope: string; planId: string; outcomeId?: string; prunedBy: string; prunedAt: string }
   | { status: "dangling"; reason: "scope-unknown" | "plan-missing" | "outcome-missing"; scope: string; planId: string; outcomeId?: string }
   | { status: "unavailable"; scope: string; planId: string };
 
@@ -256,6 +259,8 @@ export function resolveRef(target: string, lookup: ScopeLookup): RefResolution {
     const outcomeOk = t.outcomeId === undefined || planContent(host)?.outcomes.some((o) => o.id === t.outcomeId);
     return { status: "resolved", via: "merged", scope: t.scope, planId: host.id, mergedFrom: t.planId, ...(t.outcomeId !== undefined && outcomeOk ? { outcomeId: t.outcomeId } : {}) };
   }
+  const pruned = prunedRecord(state, t.planId);
+  if (pruned) return { status: "pruned", ...base, prunedBy: pruned.operationId, prunedAt: pruned.recordedAt };
   return { status: "dangling", reason: "plan-missing", ...base };
 }
 
@@ -315,7 +320,7 @@ export function applyAnnotate(doc: AnnotationsDoc, state: ScopeState, items: Ann
       const t = parseTarget(item.target);
       if (t.scope === state.scope.id && t.planId === item.planId) throw new DomainError("invalid-input", `${where}: a plan cannot reference itself`, 2);
       const resolved = resolveRef(item.target, lookup);
-      if (resolved.status !== "resolved") throw new DomainError(resolved.status === "unavailable" ? "ref-target-unavailable" : "ref-dangling", `${where}: target ${item.target} ${resolved.status === "unavailable" ? "cannot be read now" : `does not resolve (${resolved.reason})`}`, 3);
+      if (resolved.status !== "resolved") throw new DomainError(resolved.status === "unavailable" ? "ref-target-unavailable" : resolved.status === "pruned" ? "ref-target-pruned" : "ref-dangling", `${where}: target ${item.target} ${resolved.status === "unavailable" ? "cannot be read now" : resolved.status === "pruned" ? "was rejected and pruned" : `does not resolve (${resolved.reason})`}`, 3);
       const id = refIdOf(item);
       if (entry.refs.some((r) => r.id === id)) throw new DomainError("duplicate-ref", `${where}: the same reference already exists as ${id}`, 3);
       const ref: PlanRef = { id, target: item.target, relation: item.relation, evidence: item.evidence, provenance: prov };

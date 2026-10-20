@@ -87,6 +87,7 @@ export function needUnmet(u: Universe, e: Edge): string | null {
   const r = e.resolution;
   if (r.status === "dangling") return `dangling (${r.reason})`;
   if (r.status === "unavailable") return "target scope unavailable";
+  if (r.status === "pruned") return "target rejected and pruned";
   const state = u.state(r.scope);
   const plan = planOf(u, r.scope, r.planId);
   if (!plan || typeof state !== "object") return "target missing";
@@ -214,6 +215,7 @@ export function annotationFindings(u: Universe, scope: string): Finding[] {
     }
     if (e.resolution.status === "dangling") out.push({ code: "ref-dangling", planId, refId: e.id, message: `${e.from} ${e.relation} ${e.target}: ${e.resolution.reason}` });
     else if (e.resolution.status === "unavailable") out.push({ code: "ref-target-unavailable", planId, refId: e.id, message: `${e.from} ${e.relation} ${e.target}: target scope cannot be read now` });
+    else if (e.resolution.status === "pruned") out.push({ code: "ref-target-pruned", planId, refId: e.id, message: `${e.from} ${e.relation} ${e.target}: target was rejected and pruned (${e.resolution.prunedBy}); the owner may remove this ref` });
     if (!e.to) continue;
     const slash = e.to.indexOf("/");
     const target = planOf(u, e.to.slice(0, slash), e.to.slice(slash + 1));

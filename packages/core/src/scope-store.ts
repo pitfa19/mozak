@@ -14,6 +14,7 @@ import { ANNOTATIONS_FILE, annotationsBytes, applyAnnotate, emptyAnnotations, re
 import { readScopeSettings } from "./scope-settings.ts";
 import { checkRebase, type Rebased } from "./rebase.ts";
 import { lockHost } from "./lock-recover.ts";
+import { PRUNE_ACTION, withoutPlans } from "./prune.ts";
 
 export { renderBridge, renderBridgeLegacy } from "./bridge.ts";
 
@@ -419,6 +420,34 @@ export function retitleScope(entry: ScopeEntry, input: unknown, options: StoreOp
     const state = structuredClone(read.state);
     state.scope.title = title;
     const result = { action: "retitle", ids: [entry.id] };
+    state.storage = { revision: randomUUID(), updatedAt: now, previousBridge: read.snapshot.bridge! };
+    Object.defineProperty(state.receipts, operationId, { value: { requestDigest: digest(input), storageRevision: state.storage.revision, recordedAt: now, result }, enumerable: true, writable: true, configurable: true });
+    tx.result = result as Receipt["result"];
+    return publishGraph(entry, state, { exists: true, sha256: read.snapshot.graphHash }, read.snapshot.bridge!, tx, options);
+  });
+}
+/**
+ * Owner-only: remove the named rejected plans from mozak.json (`plan prune --rejected`). The request lists every
+ * plan id the owner saw, so approval is item by item. Same snapshot check, lock, receipt and projection as every
+ * other write, and never rebased. The receipt `{ action: "prune-rejected", ids }` is the prune record.
+ */
+export function pruneRejectedPlans(entry: ScopeEntry, input: unknown, options: StoreOptions = {}): OperationResult {
+  bounded(input);
+  const r = object(input, ["operationId", "scopeId", "expected", "planIds", "ownerRef", "ownerMessageAt"], "prune request");
+  identity(entry, r); const operationId = text(r.operationId, "operationId"); const snapshot = expected(r.expected);
+  text(r.ownerRef, "ownerRef"); text(r.ownerMessageAt, "ownerMessageAt");
+  if (!Array.isArray(r.planIds) || r.planIds.some((id) => typeof id !== "string" || !id.trim()) || r.planIds.length > 100) throw new DomainError("invalid-input", "planIds must list 1 to 100 plan ids");
+  const planIds = [...(r.planIds as string[])].sort();
+  const tx: Transaction = { operationId, committed: false, projectionUpdated: false, temporary: [] };
+  return transaction(entry, options, tx, () => {
+    const read = readScope(entry);
+    const replay = receipt(read, operationId, digest(input), tx, entry);
+    if (replay) return replay;
+    match(read, snapshot);
+    if (read.projectionStatus !== "current" && !isLegacyBridge(entry, read)) throw new DomainError(read.projectionStatus, "projection requires explicit repair or conflict resolution before new writes", 3);
+    const state = withoutPlans(read.state, planIds);
+    const now = new Date().toISOString();
+    const result = { action: PRUNE_ACTION, ids: planIds };
     state.storage = { revision: randomUUID(), updatedAt: now, previousBridge: read.snapshot.bridge! };
     Object.defineProperty(state.receipts, operationId, { value: { requestDigest: digest(input), storageRevision: state.storage.revision, recordedAt: now, result }, enumerable: true, writable: true, configurable: true });
     tx.result = result as Receipt["result"];
