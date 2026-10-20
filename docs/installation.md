@@ -235,6 +235,26 @@ There is no online force-unlock command.
 
 If a write saved the JSON but not the generated `mozak.md` bridge, the result says so (exit 5). Later semantic writes wait until you run an explicit `projection repair`. `check` never repairs anything.
 
+### Parallel writes: `concurrency.rebase` (experimental, off by default)
+
+Every write names the snapshot it was based on. By default any other write in between makes it `stale-input` (exit 3), even when the two writes do not touch the same thing. A scope can opt in to read-set rebase with a `mozak-settings.json` file next to `mozak.json`:
+
+```json
+{ "concurrency": { "rebase": true } }
+```
+
+Unknown keys are ignored. A missing, malformed or symlinked file, or any value other than `true`, keeps the default (off).
+
+With rebase on, a stale write can still commit onto the fresh state when it only appends:
+
+- `observe`: each linked outcome keeps its revision and display status, no one else superseded the same observation, and its ids are still free.
+- `save-discussion`: that plan's discussion was not saved in between.
+- `propose` of a new id: the id is still free. The duplicate check runs on the fresh state.
+
+Owner decisions, `revise`, `complete` and `attach-spec` are never rebased. Any of them in between also refuses the rebase. Only a snapshot equal to the current revision or to a retained receipt's revision can rebase. A rebased result carries `rebased: { from, onto }` and the fresh `snapshot`, so the next write needs no reread. A refused rebase is a normal `stale-input` with the reason in the message.
+
+Limits: the writes in between are found through receipt times. A write merged by git from a machine whose clock is behind can be missed, so a non-rebasable receipt up to 1 second before the snapshot's receipt also refuses. Hand edits to `mozak.json` that keep the same revision always refuse.
+
 ## 6. Safety rules
 
 - **No secrets in this repo.** Do not paste tokens, passwords, or keys into files, commands, or chat. The installer never copies credentials.
@@ -286,6 +306,7 @@ Cache layout: `.mozak-cache/<id>/` (sparse git clone) and `.mozak-cache/<id>.met
 
 | Check | Status |
 | --- | --- |
+| S1b read-set rebase, `hermes/s1b-rebase` (2026-10-21, macOS, Node 26, synthetic scopes) | `npm run build` passed. `TMPDIR=$HOME/.cache/mozak-test-tmp ALLOW_ANY_IDENTITY=1 npm test`: 498 passed, 0 failed, 0 skipped. V-race 1 (A0 replay, 3 agents x 10 observes on 3 outcomes of one plan, think 20-50 ms): flag off 35 of 65 attempts wasted (53.8%), flag on 0 of 30 (0.0%), 0 lost writes both ways. Cases 2 to 6 and 8 pass as unit tests. V-race 7 (seeded generator, fast-check is not a dependency): 2000 random writes with stale snapshots, 645 rebased, 0 unsafe against an independent oracle, 0 with a different effect than the serial write, 1 conservative refusal. V-race 9 (8 writers, kill -9 each round, half of them while holding the lock): suite size passed with commit p95 241 ms. Scaled run of 1000 write attempts (not 10k), think 1-2 s: 0 violations, but p95 385 ms, so the 300 ms target is not met at that size; with think 250-500 ms over 302 attempts p95 was 404 ms. One commit costs about 45 ms (six fsyncs) and grows with the scope file. Locks left by killed holders block the round until offline removal (S2 `recover`). |
 | P0 integration on `hermes/vnext` (2026-10-21, macOS, Node 26) | Passed after merging P0.1/P0.2, P0.5/P0.6/P0.7 and bounded context: `npm run build`, then `TMPDIR=$HOME/.cache/mozak-test-tmp ALLOW_ANY_IDENTITY=1 npm test` gave 482 passed, 0 failed, 0 skipped, including the 2 P0.3 and P0.4 docs guards. P0.5 to P0.7: init/repair ignore lines, `lock-not-ignored` and `lock-in-git`, graph and bridge rehash before each rename (`graph-changed-during-write`), and reserved `x` inventory objects. The rename check narrows the direct-editor race; it does not close it. |
 | W1 partial: P0.1 duplicate bypass and P0.2 merge capacity (2026-10-20, isolated worktree) | Passed: `npm run build`; targeted review/conversation/store/render tests 108 passed, 0 failed, 0 skipped (4022.780209 ms); `TMPDIR=$HOME/.cache/mozak-test-tmp ALLOW_ANY_IDENTITY=1 npm test` 458 passed, 0 failed, 0 skipped (79824.040083 ms). Test-first regressions reproduced four missed exact copies and missing 20+20 capacity refusal. Synthetic fixtures verify unrelated templates, 10+10 merge, normalized deduplication at 32/33, and approval-time capacity rechecks after either discussion grows; refusals preserve canonical and bridge bytes. Build retains the existing plugin CJS `import.meta` warning. This verifies P0.1/P0.2 only, not all W1 outcomes. |
 | Bounded context reads: public core facade, built CLI and fresh built MCP; synthetic fixtures only | Verified 2026-10-20: six context-mode tests cover full/brief/focused/combined parity, unknown-plan and malformed-option refusal, actual handoff blockers, body/history omission, read-only bytes and CAS/stale recovery. Full suite: 452 passed, 0 failed/skipped (`TMPDIR` isolated, `ALLOW_ANY_IDENTITY=1`). Build/typecheck passed; existing plugin CJS `import.meta` warning remains. Installer suite: 69 passed, 0 failed, 1 skipped (case-sensitive filesystem required). No live installation was changed. |
