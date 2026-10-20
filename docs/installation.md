@@ -182,6 +182,16 @@ The result JSON has exactly these keys: `status`, `committed`, `prefix`, `conten
 
 `mozak scopes` and `plans --all` use exit 6 when at least one scope could not be read. `scopes` still lists that scope, with its error code, so partial coverage is never silent.
 
+### Bounded context reads
+
+`context` without new flags keeps the full existing response. For cheaper recovery:
+
+- `mozak context --config INVENTORY --scope ID --brief --json` returns one body-free summary per plan: title, lifecycle, accepted revision ID, pending revision ID/review state, handoff identity/health/eligibility/blockers, discussion status, review-needed flag and permitted next action. It omits plan content, observations/evidence, discussion bodies, specifications, decisions and history. Handoff bounds are explicitly omitted (`boundsOmitted: true`); read the full plan before execution.
+- `mozak context --config INVENTORY --scope ID --plan PLAN --json` returns the full recovery DTO for exactly that plan. Unknown IDs return `plan-not-found`, exit 2, never an all-plan fallback.
+- Both flags together return only the selected plan's brief summary. MCP `mozak_context` accepts the equivalent optional `brief` boolean and `plan` string. Scope selection and existing remote-refresh behavior are unchanged.
+
+Every form preserves the full whole-scope `snapshot` for CAS, projection status and issues. Reads create no approvals and do not change canonical state or projections. These are response-size optimizations, not storage-format or I/O changes; brief size still scales with plan count and title length. The source skill starts with `--brief`, drills into `--plan PLAN` before work and uses that focused read after stale conflicts.
+
 **A nonzero exit does not mean nothing changed.** Read `committed`, `projectionUpdated`, `projectionStatus`, and the operation receipt before retrying.
 
 ## 5. Recovery
@@ -276,6 +286,7 @@ Cache layout: `.mozak-cache/<id>/` (sparse git clone) and `.mozak-cache/<id>.met
 
 | Check | Status |
 | --- | --- |
+| Bounded context reads: public core facade, built CLI and fresh built MCP; synthetic fixtures only | Verified 2026-10-20: six context-mode tests cover full/brief/focused/combined parity, unknown-plan and malformed-option refusal, actual handoff blockers, body/history omission, read-only bytes and CAS/stale recovery. Full suite: 452 passed, 0 failed/skipped (`TMPDIR` isolated, `ALLOW_ANY_IDENTITY=1`). Build/typecheck passed; existing plugin CJS `import.meta` warning remains. Installer suite: 69 passed, 0 failed, 1 skipped (case-sensitive filesystem required). No live installation was changed. |
 | Public GitHub clone and install on macOS (Node 26.11.1, `8337e04`, isolated `HOME`) | Passed: clean clone, `npm ci --ignore-scripts`, build, install (67 files), `mozak --help`. The public clone contains no `mozak.json` or `mozak.md`. |
 | README walkthrough with the fresh install | Passed: `scope init` for a local scope and a vault-plans scope for a real public GitHub repo, `scopes`, `context`, `plans`, `check`, `sync`, `pull --into ~/Downloads/x` (code only, 0 plan files), `context` with no `--scope` inside that clone, `mozak-mcp` (13 tools), `install-obsidian-plugin.mjs <vault> --build`, and the Contributing commands (416 tests, installer 69 passed and 1 skipped). |
 | Linux relocation from a git archive, Node 24.11.0 | Passed earlier at `c324d45`: 334 tests, 0 failed. Reused the local npm cache. Not a clean machine. |
