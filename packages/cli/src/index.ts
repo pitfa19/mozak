@@ -39,7 +39,7 @@ const ROUTES: Record<string, Route> = {
   scopes: { operation: "scopes", flags: ["config", "json"], requires: ["config"], requestFile: false },
   sync: { operation: "sync", flags: ["config", "scope", "json"], requires: ["config"], requestFile: false },
   pull: { operation: "pull", flags: ["config", "scope", "into", "json"], requires: ["config", "scope"], requestFile: false },
-  check: { operation: "check", flags: ["config", "scope", "json"], requires: ["config"], requestFile: false },
+  check: { operation: "check", flags: ["config", "scope", "history", "json"], requires: ["config"], requestFile: false },
   operation: { operation: "operation", flags: ["config", "scope", "id", "json"], requires: ["config", "scope", "id"], requestFile: false },
   "plan propose": { operation: "propose", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
   "plan revise": { operation: "revise", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
@@ -77,7 +77,7 @@ function usage(): string {
     "  mozak sync [--scope ID] [--json]                     (force-refresh remote scopes; reads refresh them after 10 minutes)",
     "  mozak pull --scope ID [--into PATH]                  (owner; clone the code; vault-plans scopes keep plans in the vault)",
     "  mozak review show [--scope ID] --plan ID [--purpose P] [--outcome ID] [--json]",
-    "  mozak check [--scope ID] [--json]",
+    "  mozak check [--scope ID] [--history N] [--json]       (--history: hand edits in the last N commits of mozak.json)",
     "  mozak operation --scope ID --id OP [--json]",
     "  mozak plan propose|revise|complete --scope ID --request FILE",
     "  mozak plan prune --rejected --scope ID --request FILE (owner; remove the listed rejected plans, refs keep resolving)",
@@ -449,6 +449,12 @@ function run(argv: string[]): number {
     args = { scope: values.scope, ...(values.brief !== undefined ? { brief: values.brief } : {}), ...(values.plan !== undefined ? { plan: values.plan } : {}) };
   } else if (route.operation === "operation") {
     args = { scope: values.scope, id: values.id };
+  } else if (route.operation === "check") {
+    if (values.history !== undefined && !/^[0-9]+$/.test(String(values.history))) {
+      process.stderr.write("history must be an integer from 1 to 500\n");
+      return 2;
+    }
+    args = { scope: values.scope, ...(values.history !== undefined ? { history: Number(values.history) } : {}) };
   } else if (route.requestFile) {
     try {
       args = { scope: values.scope, request: readRequestFile(values.request as string) };

@@ -34,6 +34,7 @@ import { effectiveDeadline, planDeadline, today } from "./deadlines.ts";
 import { annotationsMode, loadSettings } from "./settings.ts";
 import type { ScopeState } from "./understanding.ts";
 import { inspectLock, recoverLock } from "./lock-recover.ts";
+import { handEditHistory, MAX_HISTORY } from "./history.ts";
 
 /**
  * The scopes index's update notice: reads the cache only, and starts a background refresh when it is old.
@@ -773,7 +774,7 @@ function readOp(inv: ScopeInventory, operation: string, a: Record<string, unknow
     };
   }
 
-  const o = closed(a, `${operation} arguments`, operation === "operation" ? ["scope", "id"] : ["scope"], operation === "context" ? ["brief", "plan"] : []);
+  const o = closed(a, `${operation} arguments`, operation === "operation" ? ["scope", "id"] : ["scope"], operation === "context" ? ["brief", "plan"] : operation === "check" ? ["history"] : []);
   const scope = nonEmpty(o.scope, "scope");
   const entry = resolveScope(inv, scope);
 
@@ -832,6 +833,11 @@ function readOp(inv: ScopeInventory, operation: string, a: Record<string, unknow
   }
 
   // check: findings are reported, never repaired. Unavailable selections keep their error exit.
+  let history: number | undefined;
+  if (o.history !== undefined) {
+    if (typeof o.history !== "number" || !Number.isInteger(o.history) || o.history < 1 || o.history > MAX_HISTORY) throw invalid(`history must be an integer from 1 to ${MAX_HISTORY}`);
+    history = o.history;
+  }
   let read: ScopeRead;
   try {
     read = readScope(entry);
@@ -852,9 +858,13 @@ function readOp(inv: ScopeInventory, operation: string, a: Record<string, unknow
   }
   const lock = lockFinding(entry);
   const findings: object[] = [...read.issues, ...annotationCheck(inv, entry, read), ...(lock.finding ? [lock.finding] : [])];
+  // check --history N: hand edits in the last N commits of mozak.json. Local git objects only, no fetch.
+  const historyReport = history === undefined ? undefined : handEditHistory(entry.root, history);
+  if (historyReport) findings.push(...historyReport.findings);
   // Leftover temp files from an interrupted write are informational: the next write removes them.
   const leftovers: object[] = leftoverTempFiles(entry.root).map((name) => ({ code: "leftover-temp-file", message: `${name} is left over from an interrupted write; the next write removes it` }));
   if (lock.info) leftovers.push(lock.info);
+  if (historyReport && !historyReport.available) leftovers.push({ code: "history-unavailable", message: `check --history skipped: ${historyReport.reason ?? "unavailable"}` });
   return {
     exitCode: findings.length > 0 ? 3 : 0,
     data: {
@@ -865,6 +875,7 @@ function readOp(inv: ScopeInventory, operation: string, a: Record<string, unknow
       projectionStatus: read.projectionStatus,
       projectionUpdated: false,
       issues: [...findings, ...leftovers],
+      ...(historyReport ? { history: { scanned: historyReport.scanned, available: historyReport.available, handEdits: historyReport.findings.length } } : {}),
     },
   };
 }
