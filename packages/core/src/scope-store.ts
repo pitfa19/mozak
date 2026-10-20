@@ -10,6 +10,8 @@ import { inspectSpecification } from "./spec-file.ts";
 import { renderBridge, renderBridgeLegacy } from "./bridge.ts";
 import { removeLeftoverTempFiles, replaceFileDurable, writeFileDurable, fsyncDir } from "./durable.ts";
 import { ensureStorageIgnored, storageIgnoreIssues } from "./storage-hygiene.ts";
+import { readScopeSettings } from "./scope-settings.ts";
+import { checkRebase, type Rebased } from "./rebase.ts";
 
 export { renderBridge, renderBridgeLegacy } from "./bridge.ts";
 
@@ -21,9 +23,11 @@ export interface OperationResult {
   status: string; committed: boolean; operationId?: string; requestId?: string;
   snapshot: ScopeSnapshot | null; projectionStatus: ProjectionStatus | null;
   projectionUpdated: boolean; issues: ScopeIssue[]; result?: Receipt["result"]; replayed?: boolean;
+  /** Present only when concurrency.rebase is on and a stale snapshot was rebased onto fresh state. */
+  rebased?: Rebased;
 }
 /** Internal testing seam, never accepted from CLI/MCP input. */
-export interface StoreOptions { lockTimeoutMs?: number; onPhase?: (phase: string) => void }
+export interface StoreOptions { lockTimeoutMs?: number; onPhase?: (phase: string) => void; rebaseGuardMs?: number }
 const absent = (): FileToken => ({ exists: false, sha256: null });
 const sleep = (ms: number) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 const own = (o: object, k: string) => Object.prototype.hasOwnProperty.call(o, k);
@@ -327,7 +331,13 @@ export function mutateScope(entry: ScopeEntry, input: unknown, actor: "agent" | 
     const read = readScope(entry);
     const replay = receipt(read, operationId, digest(input), tx, entry);
     if (replay) return replay;
-    match(read, snapshot);
+    let rebased: Rebased | undefined;
+    try { match(read, snapshot); }
+    catch (e) {
+      // Off by default. Only a stale snapshot is a rebase candidate; checkRebase refuses with stale-input.
+      if (!(e instanceof DomainError && e.code === "stale-input") || !readScopeSettings(entry.root).concurrency.rebase) throw e;
+      rebased = checkRebase(read.state, read.snapshot, snapshot, r.action as string, r.payload as Record<string, unknown>, options.rebaseGuardMs);
+    }
     if (read.projectionStatus !== "current" && !isLegacyBridge(entry, read)) throw new DomainError(read.projectionStatus, "projection requires explicit repair or conflict resolution before new writes", 3);
     const now = new Date().toISOString();
     const environment: ReviewEnvironment = { storageUsable: true, specifications: Object.create(null) };
@@ -344,7 +354,8 @@ export function mutateScope(entry: ScopeEntry, input: unknown, actor: "agent" | 
     next.state.storage = { revision: randomUUID(), updatedAt: now, previousBridge: read.snapshot.bridge! };
     Object.defineProperty(next.state.receipts, operationId, { value: { requestDigest: digest(input), storageRevision: next.state.storage.revision, recordedAt: now, result: next.result }, enumerable: true, writable: true, configurable: true });
     tx.result = next.result;
-    return publishGraph(entry, next.state, { exists: true, sha256: read.snapshot.graphHash }, read.snapshot.bridge!, tx, options);
+    const published = publishGraph(entry, next.state, { exists: true, sha256: read.snapshot.graphHash }, read.snapshot.bridge!, tx, options);
+    return rebased ? { ...published, rebased } : published;
   });
 }
 export type RenderResult = "rendered" | "current" | "conflict" | "failed";
