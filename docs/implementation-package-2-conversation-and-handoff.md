@@ -32,7 +32,7 @@ The consolidated confirmation at `2026-10-12T14:03:25.600Z` approves this unders
 
 ### Excluded
 
-- Monokl, adapters, accepted cross-scope connections, source discovery and the later `idea-transfer-pilot.md` experiment.
+- The research tool, adapters, accepted cross-scope connections, source discovery and a later transfer experiment.
 - Installed skill changes, global configuration/registration, automatic project discovery, onboarding actual user projects or migration of existing graphs.
 - Task DAGs, schedulers, watchers, autonomous background work, model routing, general memory, transcript ingestion or a new execution engine.
 - New dependencies/services, remote builds, network acquisition, issue publication, deployment, payments or credentials.
@@ -246,7 +246,7 @@ Routine evidence uses existing observations. Brief milestone output names the de
 2. **Discuss with the actual owner.** Open the test project, show review groups, obtain real direction approval, clarify a small ambiguity, persist answers and draft a local spec with explicit file bounds and tests. Ask separately for its implementation permission. Scripted synthetic owner references are acceptable only in automated tests, never as this step's evidence.
 3. **Exercise work and pause.** On real implementation approval, begin bounded work. At an agreed safe intermediate point the owner pauses before the whole outcome is complete. Persist partial evidence and the pause. Record whether any tool was already in flight. Do not manufacture a pause message to finish the checklist.
 4. **Recover in a genuinely fresh host.** Use a new session, not resume, fork, compaction or a worker inheriting this conversation. Bootstrap with only skill/CLI/inventory paths, scope/plan identifiers and the current user request. No answer recap, old transcript, swarm handoff, memory search or saved semantic summary outside the graph. Verify actual initial context; if host memory injection leaks answers, the run is contaminated and must be repeated with supported per-session isolation, or reported blocked without changing globals. Recover the pause, obtain actual explicit resume, and finish in unchanged bounds without another implementation approval.
-5. **Record outcome honestly.** Exercise normal outcome verification and obtain actual owner usability feedback. Capture minimal attributable excerpts/references, artifact/test digests and isolation observations in the acceptance report. Do not store full private transcripts. No trial result is evidence of Monokl transfer usefulness or completed global rollout.
+5. **Record outcome honestly.** Exercise normal outcome verification and obtain actual owner usability feedback. Capture minimal attributable excerpts/references, artifact/test digests and isolation observations in the acceptance report. Do not store full private transcripts. No trial result is evidence of the research tool transfer usefulness or completed global rollout.
 
 A later requested, eligible unpaused recovery path is also required by B10: use another clean session or a separate bounded trial phase before completion. A fresh CLI process is not a fresh conversational host. If host creation/isolation cannot be verified with available local tools, the actual owner may open a new session using a bootstrap prompt containing only the allowed pointers; do not invent unsupported flags or pretend a resumed session is fresh.
 
@@ -259,7 +259,7 @@ A later requested, eligible unpaused recovery path is also required by B10: use 
 | 3. Repository skill | Explicit activation, focused grilling, permission checks, bounded handoff, pause handling and concise views. Document trust and local-only limits. |
 | 4. Proof | Full rebuilt regression suite, independent authority/expectation review, real owner trial and genuinely fresh-host recovery. Fix material findings before claiming completion. |
 
-Separate build approval would authorise these repository/test edits and preparing the isolated trial, not manufacture the trial owner's individual direction, implementation or resume decisions. It does not authorise publishing, installation, migration, Monokl or changes to global permissions.
+Separate build approval would authorise these repository/test edits and preparing the isolated trial, not manufacture the trial owner's individual direction, implementation or resume decisions. It does not authorise publishing, installation, migration, the research tool or changes to global permissions.
 
 If deterministic implementation passes but actual owner participation or host isolation is unavailable, report **implementation ready, live acceptance incomplete** and retain the full open scope. Do not quietly redefine success, mark the trial waived or ask for coding approval repeatedly. The owner can explicitly revise scope; otherwise continue safe authorised work and return to the outstanding trial when the blocking input is available.
 

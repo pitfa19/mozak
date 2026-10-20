@@ -2,13 +2,13 @@
 
 **Status: the bounded package-1 build and A01–A15 verification are complete on October 12, 2026. Build succeeds and 239/239 tests pass at implementation checkpoint `78896e9`. See `implementation-package-1-acceptance.md` for evidence and limits. Owner approval was granted at `2026-10-12T08:16:20.810Z` for checkpoint `caffffa`. All exclusions below remain in force.**
 
-Prepared after the owner's `2026-10-11T23:32:29.420Z` approval to detail the first package. That approval authorises this planning document, not code, installation, migration or execution of the real pilot. Product direction and P1–P5 are recorded in `idea-oriented-planning-and-monokl-spec.md`. The proposed real pilot remains in `idea-transfer-pilot.md` and is not run by this package.
+Prepared after the owner's `2026-10-11T23:32:29.420Z` approval to detail the first package. That approval authorises this planning document, not code, installation, migration or execution of the real pilot. Product direction and P1–P5 were recorded in an earlier design spec (removed from the repo, kept in git history). The proposed real pilot is not run by this package.
 
 ## 1. Outcome and approval scope
 
 **Deliverable:** a local, testable mozak foundation in which an owner or host can create several high-level plans, discuss pending changes without replacing accepted direction, record observations, make narrowly bound review decisions, and recover the resulting context through a new CLI/MCP process. All supported changes use the same guarded JSON store and generated bridge.
 
-This is the first engineering slice, not the whole product. Completing it must not be reported as completion of Monokl, the polished conversational skill, accepted cross-scope transfer, the fresh-host usefulness pilot or migration.
+This is the first engineering slice, not the whole product. Completing it must not be reported as completion of the research tool, the polished conversational skill, accepted cross-scope transfer, the fresh-host usefulness pilot or migration.
 
 ### Included
 
@@ -20,7 +20,7 @@ This is the first engineering slice, not the whole product. Completing it must n
 
 ### Excluded, retained for later packages
 
-- Monokl code, validators, adapters, discovery/ranking, source analysis and the real transfer pilot.
+- Research-tool code, validators, adapters, discovery/ranking, source analysis and the real transfer pilot.
 - Connection proposal/acceptance/traversal, automatic source-impact analysis, implementation-grant issuance and downstream task execution.
 - Changes to installed skills, the polished host interview/handoff integration, global CLI/config/registration changes, and onboarding actual user projects.
 - Conversion of existing scopes, deletion, publication, remote builds, new services and new runtime dependencies.
@@ -162,7 +162,7 @@ Review show takes a purpose selector when more than one owner action is possible
 | `mozak review decide`, owner path only | `approve-direction`, `reject-pending`, `reconsider`, `pause`, `resume`, `accept-outcome` | Bind to the exact action and subject displayed by review show. No blanket approval, hidden connection grant or implementation grant. |
 | `mozak plan complete`, invoked agent or owner path as needed | `complete` | Require evidence coverage for every accepted outcome and owner acceptance for every subjective outcome. No task-count shortcut. |
 
-All mutations use `--request FILE`. Init and explicit `mozak projection repair` are separate typed operations, not generic write capabilities. MCP exposes `mozak_propose`, `mozak_revise`, `mozak_observe` and objective `mozak_complete` only, alongside the read tools. Owner decisions, init and repair stay on the direct/trusted CLI path for this package. No Monokl adapter is created here. Full host owner-action wiring belongs to the later conversation package.
+All mutations use `--request FILE`. Init and explicit `mozak projection repair` are separate typed operations, not generic write capabilities. MCP exposes `mozak_propose`, `mozak_revise`, `mozak_observe` and objective `mozak_complete` only, alongside the read tools. Owner decisions, init and repair stay on the direct/trusted CLI path for this package. No research-tool adapter is created here. Full host owner-action wiring belongs to the later conversation package.
 
 The mutation envelope for semantic plan operations is `{ operationId, scopeId, expected, action, payload }`, where `expected` contains exact storage revision, graph digest and `{ exists, sha256 }` bridge snapshot. Init instead takes the closed request `{ operationId, scopeId, kind, title, expectedAbsent, ownerRef, ownerMessageAt }`, with `expectedAbsent` explicitly true for graph and bridge. The actual matching-receipt replay check precedes this absent-state refusal. Init does not require a plan/revision review digest because no plan exists yet. Repair uses the separate control schema in section 6. Dispatch-specific closed schemas prevent `action` from being used as a generic arbitrary-state replacement.
 
@@ -292,6 +292,6 @@ Independent static review identified gaps in lifecycle records, deferred attachm
 
 **The owner is being asked to approve one bounded build:** implement sections 3–6 within the files/responsibilities in section 2, follow section 7, and meet A01–A15. That approval would include the explicit-inventory/no-automatic-conversion choice, the offline-quiescent lock-recovery trade-off and the CLI-only owner-decision boundary for this first slice.
 
-It would not approve Monokl work, actual user-scope onboarding, the real pilot, installed skills/global routing, conversion/deletion, publication or later packages. It would not turn all proposed details in the parent specification into an unlimited implementation grant. If this package changes materially after approval, show the changed scope before proceeding.
+It would not approve research-tool work, actual user-scope onboarding, the real pilot, installed skills/global routing, conversion/deletion, publication or later packages. It would not turn all proposed details in the parent specification into an unlimited implementation grant. If this package changes materially after approval, show the changed scope before proceeding.
 
-**Current authorisation: implement this package at `caffffa`, granted at `2026-10-12T08:16:20.810Z`.** P1–P5 remain accepted product/design decisions. This grant covers only the build and A01–A15 verification scope described above. It does not approve real-scope onboarding, Monokl, the actual pilot, migration, global setup changes or publication.
+**Current authorisation: implement this package at `caffffa`, granted at `2026-10-12T08:16:20.810Z`.** P1–P5 remain accepted product/design decisions. This grant covers only the build and A01–A15 verification scope described above. It does not approve real-scope onboarding, the research tool, the actual pilot, migration, global setup changes or publication.

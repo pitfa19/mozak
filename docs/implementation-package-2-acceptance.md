@@ -6,7 +6,7 @@ The implementation-gate matrices and preparation narrative below are the histori
 
 ## Authority and boundaries
 
-The actual owner message at `2026-10-12T17:48:24.249Z`, `approved`, answered the explicit Package 2 build-approval request. Commit `4735bb6` records that approval against the reviewed proposal at `e5d80b9`. It authorizes repository implementation and isolated-trial preparation, not synthetic decisions for the trial, installation, migration, Monokl, publication or global changes.
+The actual owner message at `2026-10-12T17:48:24.249Z`, `approved`, answered the explicit Package 2 build-approval request. Commit `4735bb6` records that approval against the reviewed proposal at `e5d80b9`. It authorizes repository implementation and isolated-trial preparation, not synthetic decisions for the trial, installation, migration, the research tool, publication or global changes.
 
 The registered installed project still resolves to `/home/pitfa/Documents/mozak`, with no ready goals or validated notes. Work here follows the separately approved `/home/pitfa/Documents/mozak-v1` package. Its old registration and project files were not changed. The inventory format stays `mozak.local/v2`; new canonical scopes use `mozak.scope/v3`. Old scope formats refuse rather than migrate. Package-1 historical acceptance remains unchanged.
 
@@ -119,4 +119,4 @@ Observed fingerprints at `2026-10-12T18:01:16Z`, unchanged on the `2026-10-12T18
 
 Config and brief equal their pre-work recorded hashes. No implementation tool wrote installed/global skills or configuration. The installed-skill hash is a current fingerprint, not a retroactively invented earlier baseline. No dependency or package manifest changed against the approved proposal checkpoint. Trial entry-file fingerprints after initialization/read checks: README `fe02e05f05bf0a36a4b552e387b0bb996e01316af3e953df7e80973edc09f872`, AGENTS `5501cb1f70ba1b91ad2c43ea7226f9fc6c468de2ffbab892dc57738663823e06`.
 
-Host-supplied owner provenance remains a trusted convention, not authentication. Bounds are declarations, not shell capabilities. Graph/spec/bridge operations are not atomic together. Direct editors, ABA rewrites, power-loss durability and untested filesystems remain outside the guarantees. No overall Package 2 completion, Monokl usefulness or global rollout is claimed until the still-open acceptance requirements have their own evidence.
+Host-supplied owner provenance remains a trusted convention, not authentication. Bounds are declarations, not shell capabilities. Graph/spec/bridge operations are not atomic together. Direct editors, ABA rewrites, power-loss durability and untested filesystems remain outside the guarantees. No overall Package 2 completion, the research tool usefulness or global rollout is claimed until the still-open acceptance requirements have their own evidence.

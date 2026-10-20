@@ -145,10 +145,6 @@ Every command needs an explicit `--config`. mozak never falls back to a global s
 - **No credentials.** mozak never asks for, prints or stores them. GitHub access uses your existing git login.
 - **Honest limits.** Approval follows a trusted-host convention, it is not authentication. Concurrency guarantees cover cooperating processes on a local disk, not network drives or power loss.
 
-## Works well with
-
-[**Monokl**](https://github.com/pitfa19/monokl) is a separate, optional research runner with durable evidence and explicit human approval. mozak works fully without it.
-
 ## Platforms
 
 Linux and macOS, Node 24.11 or newer. CI runs Ubuntu and macOS on Node 24 and 26 on every push.

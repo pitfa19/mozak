@@ -1,6 +1,6 @@
 # Package 1 acceptance evidence
 
-**Scope:** the owner-approved local mozak plan-state and review package, not the entire mozak/Monokl product.
+**Scope:** the owner-approved local mozak plan-state and review package, not the entire mozak product.
 
 Approval: `2026-10-12T08:16:20.810Z`, against package checkpoint `caffffa`. Tested implementation checkpoint: `78896e9` (the following documentation-only commit records these results).
 
@@ -83,4 +83,4 @@ This verifies package 1's local Linux workflows, not every platform or adversari
 
 No real user scope was onboarded or converted. No legacy registration, installed skill, global CLI/config, runtime dependency, service or remote repository was changed. The accepted product brief's SHA-256 remains `23e4718ab4e224c120adc03967467d419e9f0ebe45ea67b78d4d0417980ca696`.
 
-Monokl implementation, optional adapters, conversational skill polish, accepted cross-scope connections, implementation grants, migration, publication and the actual transfer pilot remain separately approved future work. No pilot success is claimed by this document.
+Research-tool implementation, optional adapters, conversational skill polish, accepted cross-scope connections, implementation grants, migration, publication and the actual transfer pilot remain separately approved future work. No pilot success is claimed by this document.

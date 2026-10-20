@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#171b2a"/>
+      <stop offset="55%" stop-color="#111420"/>
+      <stop offset="100%" stop-color="#0b0d14"/>
+    </linearGradient>
+    <radialGradient id="purple-glow" cx="50%" cy="42%" r="48%">
+      <stop offset="0%" stop-color="#9a8ce8" stop-opacity="0.22"/>
+      <stop offset="60%" stop-color="#d8b35a" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#0b0d14" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="trace-gold-purple" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#d8b35a"/>
+      <stop offset="100%" stop-color="#9a8ce8"/>
+    </linearGradient>
+    <linearGradient id="trace-purple-green" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#9a8ce8"/>
+      <stop offset="100%" stop-color="#5cbf8a"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Squircle Container -->
+  <!-- transparent background -->
+
+  <!-- Subtle Brain Hemisphere Silhouette & Neural Grid -->
+  <g id="brain-hemispheres" opacity="0.88">
+    <!-- Left Hemisphere Outer Fold -->
+    <path d="M 484 212
+             C 330 212, 206 310, 206 456
+             C 206 520, 236 575, 278 612
+             C 262 666, 304 724, 378 736
+             L 484 736"
+          fill="none" stroke="#2c3350" stroke-width="18" stroke-linecap="round"/>
+    <!-- Right Hemisphere Outer Fold -->
+    <path d="M 540 212
+             C 694 212, 818 310, 818 456
+             C 818 520, 788 575, 746 612
+             C 762 666, 720 724, 646 736
+             L 540 736"
+          fill="none" stroke="#2c3350" stroke-width="18" stroke-linecap="round"/>
+    <!-- Central Longitudinal Fissure -->
+    <line x1="512" y1="188" x2="512" y2="754" stroke="#252b42" stroke-width="8" stroke-dasharray="14 14" stroke-linecap="round"/>
+  </g>
+
+  <!-- Secondary Neural Circuit Branches -->
+  <g id="secondary-circuit-traces" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 304 490 L 382 332 L 512 448 L 642 332 L 720 490"
+          stroke="#323956" stroke-width="16"/>
+    <path d="M 382 332 L 382 644 L 512 560 L 642 644 L 642 332"
+          stroke="#262c44" stroke-width="12"/>
+    <circle cx="382" cy="332" r="16" fill="#171b2a" stroke="#d8b35a" stroke-width="7"/>
+    <circle cx="642" cy="332" r="16" fill="#171b2a" stroke="#5cbf8a" stroke-width="7"/>
+    <circle cx="382" cy="644" r="14" fill="#171b2a" stroke="#9a8ce8" stroke-width="6"/>
+    <circle cx="642" cy="644" r="14" fill="#171b2a" stroke="#5cbf8a" stroke-width="6"/>
+  </g>
+
+  <!-- Primary Directed Roadmap Graph ("M" Brain-Circuit Path: Gold -> Purple -> Green) -->
+  <g id="mozak-traces" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Trace 1: Gold (Propose) -> Purple (Approved Direction) -->
+    <path id="trace-propose-to-active"
+          d="M 304 490 C 304 378, 412 448, 512 448"
+          stroke="url(#trace-gold-purple)" stroke-width="26"/>
+    <!-- Trace 2: Purple (Approved Direction) -> Green (Verified Evidence) -->
+    <path id="trace-active-to-verified"
+          d="M 512 448 C 612 448, 720 378, 720 490"
+          stroke="url(#trace-purple-green)" stroke-width="26"/>
+  </g>
+
+  <!-- Node 1: Propose / Owner Gate (Gold #d8b35a) -->
+  <g id="node-gold-propose" transform="translate(304, 490)">
+    <circle r="76" fill="#d8b35a" fill-opacity="0.14"/>
+    <circle r="54" fill="#141826" stroke="#d8b35a" stroke-width="14"/>
+    <circle r="20" fill="#d8b35a"/>
+  </g>
+
+  <!-- Node 2: Active Direction / Current Stop (Purple #9a8ce8) -->
+  <g id="node-purple-active" transform="translate(512, 448)">
+    <circle r="88" fill="#9a8ce8" fill-opacity="0.18"/>
+    <circle r="62" fill="#141826" stroke="#9a8ce8" stroke-width="15"/>
+    <!-- Forward direction chevron / pulse -->
+    <path d="M -12 -18 L 16 0 L -12 18" fill="none" stroke="#9a8ce8" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <!-- Node 3: Verified Outcome / Evidence Pass (Green #5cbf8a) -->
+  <g id="node-green-done" transform="translate(720, 490)">
+    <circle r="76" fill="#5cbf8a" fill-opacity="0.16"/>
+    <circle r="54" fill="#141826" stroke="#5cbf8a" stroke-width="14"/>
+    <path d="M -20 2 L -5 18 L 22 -14" fill="none" stroke="#5cbf8a" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <!-- Signature MOZAK 3-Segment Outcome Strip at Base -->
+  <g id="outcome-strip" transform="translate(232, 824)">
+    <rect x="0" y="0" width="172" height="32" rx="16" fill="#5cbf8a"/>
+    <rect x="194" y="0" width="172" height="32" rx="16" fill="#d8b35a"/>
+    <rect x="388" y="0" width="172" height="32" rx="16" fill="#9a8ce8"/>
+  </g>
+</svg>
