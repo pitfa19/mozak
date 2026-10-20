@@ -666,3 +666,144 @@ for (const { phase, state, temps: expectedTemps } of CRASH_POINTS) {
     assert.deepEqual(readdirSync(entry.root).filter((n) => n.endsWith(".tmp")), [], "leftover temp files removed");
   });
 }
+
+// ---------- V-race (S1b read-set rebase). Synthetic scopes, real child processes. ----------
+
+const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function raceWorld(name: string, rebase: boolean, outcomes: string[], extraPlans: string[] = []): Promise<Scope> {
+  const { entry } = await initialized(name);
+  if (rebase) writeFileSync(join(entry.root, "mozak-settings.json"), JSON.stringify({ concurrency: { rebase: true } }));
+  const setup = await runChild({ mode: "setup", root: entry.root, scopeId: entry.id, setup: { planId: "demo", outcomes, extraPlans } }, { jobName: "setup" });
+  assert.equal(setup.ok, true, `setup failed: ${setup.code} ${setup.message}`);
+  return entry;
+}
+
+function percentile(values: number[], p: number): number {
+  if (!values.length) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted[Math.min(sorted.length - 1, Math.ceil((p / 100) * sorted.length) - 1)]!;
+}
+
+test("V-race 1: A0 replay, 3 agents on 3 outcomes of one plan: under 5% wasted attempts with rebase on, 0 lost writes either way", async () => {
+  const perAgent = Number(process.env.MOZAK_VRACE_A0_COUNT ?? 10);
+  const summary: Record<string, { commits: number; attempts: number; wasted: number; lost: number; rebased: number; p95: number }> = {};
+  for (const rebase of [false, true]) {
+    const entry = await raceWorld(`a0-${rebase ? "on" : "off"}`, rebase, ["o1", "o2", "o3"]);
+    const tags = ["ra", "rb", "rc"];
+    const results = await Promise.all(tags.map((tag, k) => runChild({
+      mode: "race", root: entry.root, scopeId: entry.id, lockTimeoutMs: 5000,
+      race: { planId: "demo", outcomeId: `o${k + 1}`, tag, count: perAgent, attempts: 500, thinkMinMs: 20, thinkMaxMs: 50, seed: 11 + k },
+    }, { jobName: `race-${tag}` })));
+    let commits = 0, attempts = 0, rebased = 0;
+    const latencies: number[] = [];
+    for (const r of results) {
+      assert.equal(r.ok, true, `agent failed: ${r.code} ${r.message}`);
+      console.log(`V-race 1 flag ${rebase ? "on" : "off"} agent: stale ${r.outcome.stale}, busy ${r.outcome.busy}, refusals ${JSON.stringify(r.outcome.refusals)}`);
+      assert.deepEqual(r.outcome.failed, []);
+      commits += r.outcome.commits; attempts += r.outcome.attempts; rebased += r.outcome.rebased; latencies.push(...r.outcome.latencies);
+    }
+    const read = await readViaChild(entry);
+    const present = new Set(read.outcome.observationIds);
+    const expected = tags.flatMap((tag) => Array.from({ length: perAgent }, (_, i) => `${tag}-${i}`));
+    const lost = expected.filter((id) => !present.has(id)).length;
+    summary[rebase ? "on" : "off"] = { commits, attempts, wasted: attempts - commits, lost, rebased, p95: percentile(latencies, 95) };
+    assert.equal(commits, tags.length * perAgent);
+    assert.equal(lost, 0, "no committed observation is lost");
+    assert.equal(read.outcome.projectionStatus, "current");
+  }
+  const fmt = (k: string) => { const s = summary[k]!; return `flag ${k}: ${s.wasted} of ${s.attempts} attempts wasted (${((100 * s.wasted) / s.attempts).toFixed(1)}%), commits ${s.commits}, rebased ${s.rebased}, lost ${s.lost}, commit p95 ${s.p95} ms`; };
+  console.log(`V-race 1 (3 agents x ${perAgent}, think 20-50 ms): ${fmt("off")}; ${fmt("on")}`);
+  assert.ok(summary.on!.wasted / summary.on!.attempts < 0.05, "rebase keeps wasted attempts under 5%");
+});
+
+test("V-race 9: 8 writers with kill -9 and rebase on: commit p95 under 300 ms and 0 violations", async () => {
+  const target = Number(process.env.MOZAK_VRACE_KILL_OPS ?? 60);
+  // Agents think between writes; real LLM turns are 5-60 s. One commit costs about 45 ms here (six fsyncs), so
+  // 8 writers with no think time queue on the lock for more than 300 ms by arithmetic alone.
+  const [THINK_MIN, THINK_MAX] = (process.env.MOZAK_VRACE_THINK ?? "1000-2000").split("-").map(Number) as [number, number];
+  const writers = 8;
+  const entry = await raceWorld("kill9", true, Array.from({ length: writers }, (_, k) => `o${k + 1}`), Array.from({ length: writers }, (_, k) => `d${k + 1}`));
+  const jobs = scratchJobs(entry.root);
+  let attempts = 0, commits = 0, stale = 0, busy = 0, rebasedTotal = 0, kills = 0, holderKills = 0, locksLeft = 0, renders = 0, round = 0;
+  const violations: string[] = [];
+  const latencies: number[] = [];
+  let seed = 100;
+  while (attempts < target) {
+    round++;
+    const ackFiles = Array.from({ length: writers }, (_, k) => join(jobs, `ack-r${round}-w${k + 1}.tsv`));
+    for (const f of ackFiles) writeFileSync(f, "");
+    const running = Array.from({ length: writers }, (_, k) => {
+      const job = { mode: "race", root: entry.root, scopeId: entry.id, lockTimeoutMs: 2000, race: {
+        planId: "demo", outcomeId: `o${k + 1}`, tag: `r${round}w${k + 1}`, count: 100000, attempts: 50, thinkMinMs: THINK_MIN, thinkMaxMs: THINK_MAX, seed: seed++,
+        ackFile: ackFiles[k], deadlineMs: 4000, discussionPlanId: `d${k + 1}`, discussionRate: 0.15, proposeRate: 0.1, supersedeRate: 0.2,
+      } };
+      const path = jobFile(entry.root, `kill-r${round}-w${k + 1}`, job);
+      const child = spawn(process.execPath, ["--experimental-strip-types", childPath, path], { stdio: ["ignore", "pipe", "pipe", "ipc"] });
+      liveChildren.add(child);
+      let stdout = "";
+      child.stdout!.on("data", (d) => (stdout += d));
+      const done = new Promise<ChildResult>((res) => child.once("exit", (code, signal) => {
+        liveChildren.delete(child);
+        if (signal) return res({ ok: false, code: `signal-${signal}`, exitCode: -1 });
+        try { res({ ...JSON.parse(stdout.trim().split("\n").pop()!), exitCode: code ?? -1 }); } catch { res({ ok: false, code: "no-output", exitCode: code ?? -1 }); }
+      }));
+      return { child, done };
+    });
+    await pause(400 + Math.floor(Math.random() * 1600));
+    // Odd rounds kill whichever writer holds the scope lock (mid-write crash), even rounds a random writer.
+    let victim = running[Math.floor(Math.random() * writers)]!;
+    if (round % 2 === 1) {
+      const until = Date.now() + 3000;
+      let holder: (typeof running)[number] | undefined;
+      while (!holder && Date.now() < until) {
+        try { const pid = JSON.parse(readFileSync(join(lockPath(entry.root), "owner.json"), "utf8")).pid; holder = running.find((r) => r.child.pid === pid); } catch { /* no holder yet */ }
+        if (!holder) await pause(1);
+      }
+      if (holder) { victim = holder; holderKills++; }
+    }
+    victim.child.kill("SIGKILL"); kills++;
+    const results = await Promise.all(running.map((r) => r.done));
+    // Offline recovery, only after every writer of this round has been joined.
+    if (existsSync(lockPath(entry.root))) { rmSync(lockPath(entry.root), { recursive: true, force: true }); locksLeft++; }
+    for (const r of results) {
+      if (r.code === "signal-SIGKILL") continue;
+      if (!r.ok) { violations.push(`round ${round}: writer error ${r.code} ${r.message}`); continue; }
+      if (r.outcome.failed.length) violations.push(`round ${round}: ${r.outcome.failed.join(",")}`);
+      attempts += r.outcome.attempts; commits += r.outcome.commits; stale += r.outcome.stale; busy += r.outcome.busy; rebasedTotal += r.outcome.rebased;
+      latencies.push(...r.outcome.latencies);
+    }
+    let read = await readViaChild(entry);
+    if (read.outcome.projectionStatus !== "current") {
+      const rendered = await runChild({ mode: "render", root: entry.root, scopeId: entry.id }, { jobName: "render" });
+      if (!rendered.ok || rendered.outcome.result !== "rendered") violations.push(`round ${round}: render ${rendered.code ?? rendered.outcome?.result}`);
+      renders++;
+      read = await readViaChild(entry);
+    }
+    if (read.outcome.projectionStatus !== "current") violations.push(`round ${round}: projection ${read.outcome.projectionStatus}`);
+    const observations = new Set(read.outcome.observationIds);
+    const plans = new Set((read.outcome as any).planIds as string[]);
+    const receipts = new Set((read.outcome as any).receiptOperationIds as string[]);
+    const discussions = (read.outcome as any).discussions as Record<string, string>;
+    for (const [k, file] of ackFiles.entries()) {
+      const acks = readFileSync(file, "utf8").split("\n").filter(Boolean).map((line) => line.split("\t") as [string, string, string]);
+      for (const [opId, kind, id] of acks) {
+        if (!receipts.has(opId)) violations.push(`round ${round}: acked ${opId} has no receipt`);
+        if (kind === "observe" && !observations.has(id)) violations.push(`round ${round}: acked observation ${id} lost`);
+        if (kind === "propose" && !plans.has(id)) violations.push(`round ${round}: acked plan ${id} lost`);
+      }
+      const lastDiscussion = acks.filter((a) => a[1] === "save-discussion").pop();
+      if (lastDiscussion) {
+        const current = discussions[`d${k + 1}`] ?? "";
+        const index = (s: string) => Number(s.split("-").pop());
+        if (!current.startsWith(`summary r${round}w${k + 1}-`) || index(current) < index(lastDiscussion[0])) violations.push(`round ${round}: discussion d${k + 1} lost ${lastDiscussion[0]} (now ${current})`);
+      }
+    }
+    const checked = await runChild({ mode: "check", root: entry.root, scopeId: entry.id }, { jobName: "kill-check" });
+    if (!checked.ok || checked.outcome.status !== "ok") violations.push(`round ${round}: check ${checked.code ?? checked.outcome.status} ${JSON.stringify(checked.outcome?.issues ?? [])}`);
+  }
+  const p95 = percentile(latencies, 95);
+  console.log(`V-race 9 (8 writers, think ${THINK_MIN}-${THINK_MAX} ms, rebase on): rounds ${round}, kill -9 ${kills} (${holderKills} while holding the lock), write attempts ${attempts} by joined writers, commits ${commits}, stale ${stale}, busy ${busy}, rebased ${rebasedTotal}, locks left by killed writers ${locksLeft}, renders ${renders}, commit p50 ${percentile(latencies, 50)} ms, p95 ${p95} ms, max ${percentile(latencies, 100)} ms, violations ${violations.length}`);
+  assert.deepEqual(violations, []);
+  assert.ok(p95 < 300, `commit p95 ${p95} ms`);
+});
