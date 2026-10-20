@@ -23,7 +23,7 @@ export default class MozakPlugin extends Plugin {
   async onload(): Promise<void> {
     this.settings = { ...DEFAULTS, ...(await this.loadData()) };
     this.registerView(SCOPES_VIEW_TYPE, (leaf) => new ScopesView(leaf, this));
-    this.addRibbonIcon("brain-circuit", "Open MOZAK scopes", () => void this.activateScopes());
+    this.addRibbonIcon("brain-circuit", "Open mozak scopes", () => void this.activateScopes());
     this.addCommand({ id: "open-scopes", name: "Open scopes", callback: () => void this.activateScopes() });
     this.addSettingTab(new MozakSettingTab(this.app, this));
     this.app.workspace.onLayoutReady(() => {
@@ -69,7 +69,7 @@ export default class MozakPlugin extends Plugin {
     try { syncRemoteScopes(path); } catch { /* offline or unreadable: keep the cached copy */ }
   }
 
-  /** Reload every open MOZAK view from disk. */
+  /** Reload every open mozak view from disk. */
   refreshAll(): void {
     this.app.workspace.getLeavesOfType(SCOPES_VIEW_TYPE).forEach((l) => (l.view as ScopesView).refresh());
   }
@@ -83,7 +83,7 @@ export default class MozakPlugin extends Plugin {
     if (!path) return;
     try {
       const r = renderStaleProjections(path);
-      if (!r.ok) new Notice(`MOZAK: ${r.message}`, 8000);
+      if (!r.ok) new Notice(`mozak: ${r.message}`, 8000);
     } catch { /* unreadable inventory is reported by the view itself */ }
   }
 
@@ -113,7 +113,7 @@ export default class MozakPlugin extends Plugin {
   /** Open the scope's MOZAK.md scrolled to this plan's heading. Plans are read there, not in a plugin pane. */
   async openPlan(scope: ScopeVM, plan: PlanVM): Promise<void> {
     if (plan.state === "rejected") {
-      new Notice("MOZAK: rejected plans are not shown in MOZAK.md. Their record remains in MOZAK.json.", 6000);
+      new Notice("mozak: rejected plans are not shown in MOZAK.md. Their record remains in MOZAK.json.", 6000);
       return;
     }
     const file = `${scope.root}/MOZAK.md`;
@@ -129,7 +129,7 @@ export default class MozakPlugin extends Plugin {
           view.setEphemeralState({ line });
           if (view.getMode() === "source") view.editor.setCursor({ line, ch: 0 });
         } else if (line === null) {
-          new Notice("MOZAK: this plan is missing from the projection. Run `mozak render` or refresh.", 6000);
+          new Notice("mozak: this plan is missing from the projection. Run `mozak render` or refresh.", 6000);
         }
         return;
       }
@@ -138,8 +138,8 @@ export default class MozakPlugin extends Plugin {
     let found = false;
     try { found = headingLine(readFileSync(file, "utf8"), plan.heading) !== null; } catch { /* reported below */ }
     const err = await this.openExternal(file);
-    if (err) new Notice(`MOZAK: could not open ${file}: ${err}`);
-    else if (!found) new Notice("MOZAK: this MOZAK.md is not rendered with plan sections yet. Run `mozak render` or refresh.", 6000);
+    if (err) new Notice(`mozak: could not open ${file}: ${err}`);
+    else if (!found) new Notice("mozak: this MOZAK.md is not rendered with plan sections yet. Run `mozak render` or refresh.", 6000);
   }
 
   /** Open the scope's MOZAK.md: in Obsidian when inside this vault, otherwise with the OS default app. */
@@ -159,7 +159,7 @@ export default class MozakPlugin extends Plugin {
       }
     }
     const err = await this.openExternal(file);
-    if (err) new Notice(`MOZAK: could not open ${file}: ${err}`);
+    if (err) new Notice(`mozak: could not open ${file}: ${err}`);
   }
 
   private async openExternal(path: string): Promise<string> {
@@ -188,7 +188,7 @@ class MozakSettingTab extends PluginSettingTab {
       );
     new Setting(containerEl)
       .setName("Auto-refresh")
-      .setDesc("Reload MOZAK views as soon as a plan changes on disk.")
+      .setDesc("Reload mozak views as soon as a plan changes on disk.")
       .addToggle((t) => t.setValue(this.plugin.settings.autoRefresh).onChange(async (v) => {
         this.plugin.settings.autoRefresh = v;
         await this.plugin.saveSettings();

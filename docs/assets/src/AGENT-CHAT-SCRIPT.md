@@ -1,64 +1,78 @@
-# MOZAK Agent Chat Video Script (`mozak-agent-chat.mp4` / `mozak-agent-chat.gif`)
+# mozak Agent Chat Video Script (`mozak-agent-chat.mp4` / `mozak-agent-chat.gif`)
 
-This script shows how a real user works with **MOZAK (`v0.3.0`)** inside an AI coding agent terminal chat (Claude Code, jcode, Codex) with **Obsidian open side-by-side as the live reading IDE**.
+This script shows how a real user works with **mozak (`v0.3.0`)** inside an AI coding agent terminal chat (`claude` / Claude Code) with **Obsidian open side-by-side as the live reading IDE**.
 
-Unlike `mozak-demo.mp4` (which shows the raw CLI commands under the hood), this video shows the **human-to-agent conversation** driven by the `/mozak` skill and the `mozak-mcp` server.
+It uses an immediately intuitive, everyday example (**`Pomodoro Study Timer`** alongside **`Recipe Book App`** and **`Summer Road Trip Notes`**) so any viewer understands the plan in one glance.
 
 ---
 
-## Storyboard (4 Beats, 32s @ 12fps, 1920×1080)
+## The 3 Sample Projects in `~/mozak-demo-vault`
 
-### Beat 1 (0.0s – 8.0s): Start `/mozak` → Overview & Focused Clarification
-- **User types in Agent TUI:**
-  > `/mozak field-kit — plan the 30-day deep-sleep power budget (< 45 uA sleep, -10 C cold soak)`
+1. **`recipe-app` — Recipe Book App**
+   - *Save favorite recipes offline* (`Completed · 1/1`)
+   - *Weekly grocery list* (`Open · 1/3` — 1 green done, 1 gold awaiting owner review, 1 purple next)
+2. **`trip-notes` — Summer Road Trip Notes**
+   - *Compare coastal vs mountain route* (`Open · 1/2` — 1 green done, 1 purple next)
+3. **`study-timer` — Pomodoro Study Timer** *(active project in the video)*
+   - *25-minute focus countdown* (`Completed · 1/1`)
+   - **New plan created in the demo:** ***Play a bell sound when the timer ends*** (`session-alert`)
+     - Outcome 1 (`bell-sound` → Mermaid node **`Bell sound`**): *Plays a clear bell sound when the countdown reaches 00:00*
+     - Outcome 2 (`mute-button` → Mermaid node **`Mute button`**): *Stays completely silent when Mute is turned on*
+
+---
+
+## Storyboard (Same 4 Moves in Sequence)
+
+### Move 1 (Beat 1): You Ask in Plain Words → Agent Reads Context & Asks 1 Question
+- **You type in Claude Code:**
+  > `/mozak study-timer — add a bell sound when the 25-minute timer ends, plus a mute button`
 - **Agent runs MCP read tools:**
-  - `⚙ mozak_scopes` → discovers 3 scopes (`atlas-engine`, `field-kit`, `routing-notes`)
-  - `⚙ mozak_context (scope: "field-kit")` → reads current state
-- **Agent replies (following the `/mozak` skill's Overview + 1-question rule):**
-  > **Field Sensor Kit (`field-kit`)** has 1 completed plan (`telemetry-schema`) and 0 open plans.
+  - `⚙ mozak_scopes` → finds 3 scopes (`recipe-app`, `study-timer`, `trip-notes`)
+  - `⚙ mozak_context (scope: "study-timer")` → `1 done (countdown-clock), 0 open`
+- **Agent replies (2-line overview + 1 focused question):**
+  > **Pomodoro Study Timer (`study-timer`)** has 1 completed plan (*25-minute focus countdown*) and 0 open plans.
   >
-  > Before I draft `battery-budget`, one question:
-  > **Q1:** Should both outcomes (`sleep-draw < 45 uA` and `cold-soak at -10 C`) be **objective** test checks, or owner sign-off?
-- **Obsidian (Right Pane):** Shows `field-kit/MOZAK.md` in Reading view and the `MOZAK scopes` sidebar (`All 4 · Open 2 · Done 2`).
+  > **Q1:** Can both outcomes (**`bell-sound`** at `00:00` and **`mute-button`**) be verified by automated audio tests, or do you want to sign off yourself?
+- **Obsidian (Right Pane — `beat1a.png`):** Shows `study-timer/MOZAK.md` in Reading view and the `mozak scopes` sidebar (`All 4 · Open 2 · Done 2`).
 
 ---
 
-### Beat 2 (8.0s – 16.0s): User Answers → Agent Proposes & Pauses at Owner Gate
-- **User replies:**
-  > `Both objective — bench ammeter trace for sleep-draw, chamber log for cold-soak.`
+### Move 2 (Beat 2): You Answer → Agent Drafts the Plan & Waits at the Owner Gate
+- **You reply:**
+  > `Automated audio tests for both.`
 - **Agent runs MCP mutation tool:**
-  - `⚙ mozak_propose (scope: "field-kit", plan: "battery-budget")`
+  - `⚙ mozak_propose (scope: "study-timer", plan: "session-alert")`
 - **Agent replies (hard stop at direction approval gate):**
-  > Drafted **`battery-budget`** (*30-day deep-sleep power budget*) with 2 objective outcomes:
-  > 1. `sleep-draw` — Deep-sleep current stays under 45 uA with RTC alarm active
-  > 2. `cold-soak` — 30-day projected capacity holds at -10 C
+  > Drafted **`session-alert`** (*Play a bell sound when the timer ends*) with 2 objective outcomes:
+  > 1. `bell-sound` — Plays a clear bell sound when the countdown reaches `00:00`
+  > 2. `mute-button` — Stays completely silent when Mute is turned on
   >
-  > ⏸ **Paused for direction approval.** Check `field-kit/MOZAK.md` in Obsidian and tell me if you approve this direction.
-- **Obsidian (Right Pane):** Smoothly cross-dissolves as `field-kit/MOZAK.md` and the `MOZAK scopes` sidebar auto-refresh to show **`awaiting approval`** (`All 5 · Open 3 · Done 2`) and the new Mermaid roadmap (`Sleep draw --> Cold soak`).
+  > ⏸ **Paused for your direction approval.** Check `study-timer/MOZAK.md` in Obsidian and tell me if you approve.
+- **Obsidian (Right Pane — `beat2.png`):** Immediately refreshes to show **`Play a bell sound when the timer ends · Awaiting first approval`**, sidebar badge **`awaiting approval`** (`All 5 · Open 3 · Done 2`), and the new Mermaid roadmap (**`Bell sound` ➔ `Mute button`**).
 
 ---
 
-### Beat 3 (16.0s – 24.0s): User Approves Direction → Roadmap Lights Up
-- **User replies:**
-  > `Looks right — approve direction for battery-budget.`
-- **Agent runs owner-authorized CLI decision:**
-  - `✓ mozak review decide --scope field-kit --plan battery-budget --approve-direction`
+### Move 3 (Beat 3): You Approve the Direction → Roadmap Lights Up Purple
+- **You reply:**
+  > `Looks good — approve direction for session-alert.`
+- **Owner-authorized CLI decision runs:**
+  - `✓ mozak review decide --scope study-timer --plan session-alert --approve-direction`
 - **Agent replies:**
-  > **Direction approved.** `field-kit/MOZAK.json` and `field-kit/MOZAK.md` are updated.
+  > **Direction approved.** `study-timer/MOZAK.json` and `study-timer/MOZAK.md` are updated.
   >
-  > `battery-budget` is now **Open (0/2 done)**. Current stop on the roadmap: **`#1 sleep-draw`**.
-- **Obsidian (Right Pane):** Smoothly cross-dissolves to **`Open · 0/2 done`**, the `0/2` progress strip appears in the sidebar, and the `Sleep draw` Mermaid node lights up in purple (`current`).
+  > `session-alert` is now **Open (0/2 done)**. Current stop on the roadmap: **`#1 bell-sound`**.
+- **Obsidian (Right Pane — `beat3.png`):** Switches to **`Open · 0/2 done`**, the `0/2` progress strip appears in the sidebar, and **`Bell sound`** lights up in **purple (`current`)** on the Mermaid roadmap.
 
 ---
 
-### Beat 4 (24.0s – 32.0s): Agent Runs Bench Check & Records Evidence → Outcome 1/2 Green
-- **User replies:**
-  > `Run the 1-hour bench ammeter trace and record the observation.`
-- **Agent runs test + MCP `mozak_observe`:**
-  - `⚙ bash: node firmware/bench-ammeter.mjs --duration 1h` → `PASS: avg 38.4 uA, peak 41.2 uA (< 45 uA)`
-  - `⚙ mozak_observe (scope: "field-kit", plan: "battery-budget", outcome: "sleep-draw" -> pass)`
+### Move 4 (Beat 4): Agent Runs the Audio Test & Saves Proof → Outcome 1/2 Turns Green
+- **You reply:**
+  > `Run the bell audio test and record the observation.`
+- **Agent runs the test + MCP `mozak_observe`:**
+  - `⚙ bash: node test/bell-sound.test.js` → `PASS: bell sound played at 00:00 (duration 420 ms)`
+  - `⚙ mozak_observe (scope: "study-timer", plan: "session-alert", outcome: "bell-sound" -> pass)`
 - **Agent replies:**
-  > Recorded passing evidence (`ev-sleep-draw-bench`: **38.4 uA avg < 45 uA**).
+  > Recorded passing evidence (`ev-bell-test`: **Bell sound played at 00:00**).
   >
-  > Outcome **`1/2 (sleep-draw)`** is now **✓ done** in Obsidian, and the roadmap advanced to **`#2 cold-soak`**.
-- **Obsidian (Right Pane):** Smoothly cross-dissolves to **`Open · 1/2 done`**, the `Sleep draw` Mermaid node and first sidebar segment turn **green (`#5cbf8a`)**, and `Cold soak` becomes the purple active node.
+  > Outcome **`1/2 (bell-sound)`** is now **✓ done**, and the roadmap moved on to **`#2 mute-button`**.
+- **Obsidian (Right Pane — `beat4.png`):** Updates to **`Open · 1/2 done`**, **`✓ Bell sound`** and the first sidebar segment turn **green (`#5cbf8a`)**, and **`Mute button`** becomes the purple active stop.

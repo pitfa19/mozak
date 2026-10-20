@@ -1,8 +1,8 @@
-# MOZAK wordmark and typography options
+# mozak wordmark and typography options
 
 ## Image-generated wordmark concept
 
-`mozak-wordmark-generated-dark.png` pairs a custom MOZAK wordmark with a generated rendition of the existing brain-circuit mark. The letters use chamfered geometric forms, lavender accents through the Z and K, and a gold node inside the A. This is an image-generated concept, not a font or editable vector.
+`mozak-wordmark-generated-dark.png` pairs a custom mozak wordmark with a generated rendition of the existing brain-circuit mark. The letters use chamfered geometric forms, lavender accents through the Z and K, and a gold node inside the A. This is an image-generated concept, not a font or editable vector.
 
 Use this as a title-card or intro/outro design option. It does not replace the official SVG assets. For exact icon fidelity or layer animation, use `mozak-mark-transparent.svg` as the source of truth and recreate the lettering as vector paths. The generated PNG has a dark background, not transparency. No transparent variant has been produced.
 

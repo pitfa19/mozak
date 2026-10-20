@@ -1,6 +1,6 @@
-# MOZAK v0.3.0 — Video Production Handoff & Brand Kit
+# mozak v0.3.0 — Video Production Handoff & Brand Kit
 
-This bundle contains all raw Retina captures, transcripts, brand/icon assets, composited keyframes, and reference videos needed to produce a polished showcase video for **MOZAK (`v0.3.0`)**.
+This bundle contains all raw Retina captures, transcripts, brand/icon assets, composited keyframes, and reference videos needed to produce a polished showcase video for **mozak (`v0.3.0`)**.
 
 ---
 
@@ -10,7 +10,7 @@ This bundle contains all raw Retina captures, transcripts, brand/icon assets, co
 >
 > You work in ideas and plans, not code. Agents build in parallel, and you orchestrate them from your notes.
 >
-> **MOZAK** gives every project one shared plan (`MOZAK.json` + `MOZAK.md`) inside the folder or git repo. It does two jobs: every agent understands your work by reading the same plan, and you track all the parallel work in **Obsidian** (sidebar progress across projects + a live Mermaid roadmap in each note). Nothing becomes the plan until you say yes.
+> **mozak** gives every project one shared plan (`MOZAK.json` + `MOZAK.md`) inside the folder or git repo. It does two jobs: every agent understands your work by reading the same plan, and you track all the parallel work in **Obsidian** (sidebar progress across projects + a live Mermaid roadmap in each note). Nothing becomes the plan until you say yes.
 >
 > Use this exact headline on the opening title card. The paradigm line can be the subtitle.
 
@@ -28,7 +28,7 @@ To make the video immediately intuitive to any viewer in < 3 seconds, the demo u
 >
 > **Pitch line: decided.** Headline "Use Obsidian as your IDE." (see section 1). The current `brand/mozak-lockup-dark` still carries the old tagline. Use the generated wordmark or the plain icon on the title card instead.
 
-Every beat shows **Left = Terminal Agent Chat (`/mozak`)** and **Right = Live Obsidian IDE (`study-timer/MOZAK.md` + `MOZAK` sidebar)**:
+Every beat shows **Left = Terminal Agent Chat (`/mozak`)** and **Right = Live Obsidian IDE (`study-timer/MOZAK.md` + `mozak` sidebar)**:
 
 | Beat | Time | Left Pane (Agent Chat / CLI) | Right Pane (Obsidian Live Capture) | Key Visual Accent |
 |---|---|---|---|---|
@@ -39,7 +39,7 @@ Every beat shows **Left = Terminal Agent Chat (`/mozak`)** and **Right = Live Ob
 
 ---
 
-## 3. Official MOZAK Brand & Icon Kit (`brand/`)
+## 3. Official mozak Brand & Icon Kit (`brand/`)
 
 All official logos, icons, and design tokens live in `brand/` (and in the repo at `docs/assets/brand/`):
 
@@ -49,9 +49,9 @@ All official logos, icons, and design tokens live in `brand/` (and in the repo a
 | `brand/mozak-icon-1024.png` | `1024×1024` RGBA | Rasterized master icon for video intros/outros and thumbnails. |
 | `brand/mozak-icon-512.png` | `512×512` RGBA | Standard 2x badge icon. |
 | `brand/mozak-mark-transparent.svg` / `.png` | `512×512` RGBA | Transparent-background brain + circuit mark (no squircle) for corner watermarks, lower-thirds, and callout badges. |
-| `brand/mozak-lockup-dark.svg` / `.png` | `1600×480` RGBA | Horizontal hero banner with icon + `MOZAK v0.3.0` wordmark + tagline (*"You own the plan. The agent does the work."*) + 3 workflow pills. Ready for intro/outro title cards. |
+| `brand/mozak-lockup-dark.svg` / `.png` | `1600×480` RGBA | Horizontal hero banner with icon + `mozak v0.3.0` wordmark + tagline (*"You own the plan. The agent does the work."*) + 3 workflow pills. Ready for intro/outro title cards. |
 | `brand/brand-tokens.json` | JSON | Machine-readable color palette (`#14161b` obsidian dark, `#d8b35a` gold, `#9a8ce8` purple, `#5cbf8a` green), typography stack, and semantic state meanings. |
-| `brand/fonts/` | `.ttf` + `.woff2` | Bundled 100% free & open-source (SIL OFL) fonts used across the captures and videos:<br>• **Space Grotesk** (`Medium`, `Bold`) — Display headings & `MOZAK` wordmark<br>• **Plus Jakarta Sans** (`Regular`, `Medium`, `SemiBold`, `Bold`) — UI, captions & Obsidian note body<br>• **JetBrains Mono** (`Regular`, `Medium`, `SemiBold`, `Bold`) — Terminal chat, CLI commands & MCP tool chips<br>• **Outfit** (`SemiBold`, `Bold`) — Rounded geometric display alternative |
+| `brand/fonts/` | `.ttf` + `.woff2` | Bundled 100% free & open-source (SIL OFL) fonts used across the captures and videos:<br>• **Space Grotesk** (`Medium`, `Bold`) — Display headings & `mozak` wordmark<br>• **Plus Jakarta Sans** (`Regular`, `Medium`, `SemiBold`, `Bold`) — UI, captions & Obsidian note body<br>• **JetBrains Mono** (`Regular`, `Medium`, `SemiBold`, `Bold`) — Terminal chat, CLI commands & MCP tool chips<br>• **Outfit** (`SemiBold`, `Bold`) — Rounded geometric display alternative |
 | `brand/BRAND.md` | Markdown | Full visual identity guide and animation notes for the SVG layers. |
 | `brand/hero.svg` / `brand/hero-pixel.gif` | Vector / Pixel GIF | README pixel-art brain mark for retro/terminal accent overlays. |
 
@@ -59,8 +59,8 @@ All official logos, icons, and design tokens live in `brand/` (and in the repo a
 
 ## 4. Directory Inventory in This Bundle
 
-- **`brand/`** — Official MOZAK icon, transparent mark, horizontal lockup, `brand-tokens.json`, `BRAND.md`, `hero.svg`, and `hero-pixel.gif`.
-- **`obsidian-captures/`** — Raw `2240×1672` Retina macOS window captures of Obsidian (`beat1a.png`, `beat2.png`, `beat3.png`, `beat4.png`) showing the live `study-timer / session-alert` transitions, Mermaid roadmap, and `MOZAK` sidebar.
+- **`brand/`** — Official mozak icon, transparent mark, horizontal lockup, `brand-tokens.json`, `BRAND.md`, `hero.svg`, and `hero-pixel.gif`.
+- **`obsidian-captures/`** — Raw `2240×1672` Retina macOS window captures of Obsidian (`beat1a.png`, `beat2.png`, `beat3.png`, `beat4.png`) showing the live `study-timer / session-alert` transitions, Mermaid roadmap, and `mozak` sidebar.
 - **`transcripts/`**
   - `AGENT-CHAT-SCRIPT.md` — Human-readable 4-beat storyboard and dialogue.
   - `agent-chat-flow.json` — Structured JSON data driving the 4-beat Agent Chat animation (prompts, MCP tool calls, responses, captions, and frame timings).

@@ -1,6 +1,6 @@
 {
   "id": "mozak",
-  "name": "MOZAK",
+  "name": "mozak",
   "version": "0.3.0",
   "minAppVersion": "1.5.0",
   "description": "Project scopes and plans shared with AI agents, stored as plain files.",

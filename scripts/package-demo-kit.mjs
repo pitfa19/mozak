@@ -49,22 +49,19 @@ writeFileSync(
   sanitize(readFileSync(join(homedir(), ".jcode/scratch/mozak-demo-recording/timeline.json"), "utf8")),
 );
 
-// 4. Composited keyframes (1920x1080)
-const frameMap = [
-  ["frame-0070.png", "beat1.png"],
-  ["frame-0160.png", "beat2.png"],
-  ["frame-0260.png", "beat3.png"],
-  ["frame-0360.png", "beat4.png"],
+// 4. Composited keyframes (1920x1080), pulled from the finished videos so they always match them
+const keyframes = [
+  [70, "beat1.png"],
+  [160, "beat2.png"],
+  [260, "beat3.png"],
+  [360, "beat4.png"],
 ];
-for (const [src, dst] of frameMap) {
-  copyFileSync(
-    join(homedir(), ".jcode/scratch/mozak-agent-chat-recording/frames", src),
-    join(kit, "composited-keyframes", `agent-chat-${dst}`),
-  );
-  copyFileSync(
-    join(homedir(), ".jcode/scratch/mozak-demo-recording/frames", src),
-    join(kit, "composited-keyframes", `cli-demo-${dst}`),
-  );
+for (const [frame, dst] of keyframes) {
+  for (const [video, prefix] of [["mozak-agent-chat.mp4", "agent-chat"], ["mozak-demo.mp4", "cli-demo"]]) {
+    const out = join(kit, "composited-keyframes", `${prefix}-${dst}`);
+    const r = spawnSync("ffmpeg", ["-v", "error", "-y", "-i", join(repo, "docs/assets", video), "-vf", `select=eq(n\\,${frame})`, "-frames:v", "1", out]);
+    if (r.status !== 0 || !existsSync(out)) throw new Error(`could not extract frame ${frame} from ${video}`);
+  }
 }
 
 // 5. Rendered videos (MP4 + GIF)

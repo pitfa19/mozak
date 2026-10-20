@@ -56,7 +56,7 @@ export class ScopesView extends ItemView {
   private plugin: MozakPlugin;
   constructor(leaf: WorkspaceLeaf, plugin: MozakPlugin) { super(leaf); this.plugin = plugin; }
   getViewType() { return SCOPES_VIEW_TYPE; }
-  getDisplayText() { return "MOZAK scopes"; }
+  getDisplayText() { return "mozak scopes"; }
   getIcon() { return "brain-circuit"; }
 
   async onOpen(): Promise<void> { this.refresh(); }
@@ -66,7 +66,7 @@ export class ScopesView extends ItemView {
     this.model = null;
     this.error = null;
     if (!choice.path) {
-      this.error = "No mozak-inventory.json found above this vault. Set the inventory path in the MOZAK plugin settings.";
+      this.error = "No mozak-inventory.json found above this vault. Set the inventory path in the mozak plugin settings.";
     } else {
       try {
         this.model = loadScopesModel(choice.path);
@@ -87,10 +87,10 @@ export class ScopesView extends ItemView {
     setTimeout(() => {
       try {
         const result = syncRemoteScopes(path);
-        new Notice(`MOZAK: ${result.message}`, result.ok ? 4000 : 10000);
+        new Notice(`mozak: ${result.message}`, result.ok ? 4000 : 10000);
       } catch (err) {
         const d = describeError(err);
-        new Notice(`MOZAK: sync failed: ${d.message}`, 10000);
+        new Notice(`mozak: sync failed: ${d.message}`, 10000);
       }
       this.refresh();
     }, 30);
@@ -103,7 +103,7 @@ export class ScopesView extends ItemView {
     const head = el(root, "div", "mozak-header");
     const title = el(head, "span", "mozak-title");
     setIcon(el(title, "span", `mozak-title-icon icon-${this.filter}`), this.getIcon());
-    el(title, "span", undefined, "MOZAK");
+    el(title, "span", undefined, "mozak");
     const tools = el(head, "div", "mozak-tools");
     if (this.model && countRemote(this.model.scopes).remote > 0) {
       const sync = el(tools, "button", "clickable-icon mozak-sync");
@@ -118,7 +118,7 @@ export class ScopesView extends ItemView {
 
     if (this.error) {
       const box = el(root, "div", "mozak-empty");
-      el(box, "div", "mozak-empty-title", "Cannot load MOZAK");
+      el(box, "div", "mozak-empty-title", "Cannot load mozak");
       el(box, "div", "mozak-muted", this.error);
       return;
     }
@@ -126,7 +126,7 @@ export class ScopesView extends ItemView {
     if (!m) return;
     // Reads the shared update cache only; the plugin never checks the network itself.
     const update = cachedUpdateNotice(this.plugin.manifest.version);
-    if (update) el(root, "div", "mozak-update", `MOZAK ${update.latest} available. Run: ${update.command}`);
+    if (update) el(root, "div", "mozak-update", `mozak ${update.latest} available. Run: ${update.command}`);
     this.renderFilter(root, m);
     const stale = countRemote(m.scopes).stale;
     if (m.totals.failed || stale) {

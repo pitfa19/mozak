@@ -234,7 +234,7 @@ test("Obsidian community plugin submission checklist: root manifest, source hygi
   // 1. Root manifest.json and packages/obsidian/manifest.json are identical and valid.
   assert.deepEqual(rootManifest, pkgManifest, "root manifest.json matches packages/obsidian/manifest.json");
   assert.equal(rootManifest.id, "mozak");
-  assert.equal(rootManifest.name, "MOZAK");
+  assert.equal(rootManifest.name, "mozak");
   assert.equal(rootManifest.version, rootPkg.version);
   assert.match(rootManifest.minAppVersion, /^\d+\.\d+\.\d+$/);
   assert.equal(rootManifest.isDesktopOnly, true, "uses Node APIs so isDesktopOnly must be true");

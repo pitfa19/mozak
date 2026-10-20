@@ -87,7 +87,7 @@ let fps = 12.0
 let totalSeconds = 32.0
 let totalFrames = Int(fps * totalSeconds)
 
-// MOZAK light palette (brand accents darkened for contrast on white)
+// mozak light palette (brand accents darkened for contrast on white)
 func rgb(_ r: CGFloat, _ g: CGFloat, _ b: CGFloat) -> NSColor { NSColor(srgbRed: r / 255, green: g / 255, blue: b / 255, alpha: 1) }
 let bgCol = rgb(244, 245, 248)
 let panelBg = rgb(255, 255, 255)
@@ -320,7 +320,7 @@ for f in 0..<totalFrames {
     fillRoundRect(ctx, x: 38, yTop: 26, w: 104, h: 26, r: 6, fill: beat.accent.withAlphaComponent(0.18), stroke: beat.accent)
     drawText(beat.badge, x: 52, yTop: 30, font: fontBadge, col: beat.accent)
     drawText(beat.headerTitle, x: 158, yTop: 28, font: fontTitle, col: textCol)
-    drawText("MOZAK · Use Obsidian as your IDE", x: 1590, yTop: 30, font: fontBadge, col: mutedCol)
+    drawText("mozak · Use Obsidian as your IDE", x: 1590, yTop: 30, font: fontBadge, col: mutedCol)
 
     // 3. Left Pane: Agent Chat TUI (x: 24, yTop: 76, w: 720, h: 928)
     fillRoundRect(ctx, x: 24, yTop: 76, w: 720, h: 928, r: 12, fill: panelBg, stroke: borderCol)
