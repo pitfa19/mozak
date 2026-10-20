@@ -418,12 +418,30 @@ function boundDecision(state: ScopeState, plan: Plan, accepted: AcceptedRevision
   );
 }
 
+/**
+ * An owner acceptance of this outcome on this accepted revision that saw every challenge still active.
+ * Later supporting evidence does not void it for display. Only a new challenge does.
+ * `complete` still needs the exact binding from `boundDecision`.
+ */
+function standingAcceptance(plan: Plan, accepted: AcceptedRevision, review: OutcomeReview): Decision | undefined {
+  return plan.decisions.find(
+    (d) =>
+      d.purpose === "accept-outcome" &&
+      d.outcomeId === review.outcomeId &&
+      d.revisionId === accepted.id &&
+      d.contentDigest === accepted.contentDigest &&
+      review.challengeIds.every((id) => (d.challengeIds ?? []).includes(id)),
+  );
+}
+
 export type OutcomeStatus = "todo" | "evidence" | "done";
 
 /**
- * Display status of one accepted outcome, using the same evidence and owner-binding rules as `complete`.
- * todo: no supporting observed pass. evidence: supported, but still needs a bound owner acceptance.
- * done: supported and either objective without challenges, or bound to an owner acceptance.
+ * Display status of one accepted outcome.
+ * todo: no supporting observed pass. evidence: supported, but still needs an owner acceptance.
+ * done: supported and either objective without challenges, or accepted by the owner with no challenge
+ * newer than that acceptance. A late supporting observation keeps an accepted outcome done.
+ * `complete` is stricter: it still needs an acceptance bound to the exact current evidence.
  */
 export function outcomeStatus(state: ScopeState, plan: Plan, outcomeId: string): OutcomeStatus {
   if (plan.lifecycle.state === "completed") return "done";
@@ -436,7 +454,7 @@ export function outcomeStatus(state: ScopeState, plan: Plan, outcomeId: string):
   catch { return "todo"; }
   if (review.evidenceIds.length === 0) return "todo";
   if (outcome.acceptance === "owner" || review.challengeIds.length > 0) {
-    return boundDecision(state, plan, accepted, review) ? "done" : "evidence";
+    return boundDecision(state, plan, accepted, review) || standingAcceptance(plan, accepted, review) ? "done" : "evidence";
   }
   return "done";
 }

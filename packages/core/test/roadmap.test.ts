@@ -77,6 +77,52 @@ test("roadmap: a challenge on an objective outcome needs owner acceptance again"
   assert.deepEqual(statuses(s), ["a:evidence*"]);
 });
 
+test("S1c: a late supporting observation keeps an owner-accepted outcome done", () => {
+  let s = accepted([outcome("a", "owner"), outcome("b")]);
+  s = support(s, "a", "o1");
+  s = acceptOutcome(s, "a");
+  assert.deepEqual(statuses(s), ["a:done", "b:todo*"]);
+  s = support(s, "a", "late");
+  assert.deepEqual(statuses(s), ["a:done", "b:todo*"]);
+});
+
+test("S1c: a new challenge reopens an owner-accepted outcome", () => {
+  let s = accepted([outcome("a", "owner")]);
+  s = support(s, "a", "o1");
+  s = acceptOutcome(s, "a");
+  s = support(s, "a", "late");
+  s = support(s, "a", "ch1", "p1", "challenges");
+  assert.deepEqual(statuses(s), ["a:evidence*"]);
+  s = acceptOutcome(s, "a");
+  assert.deepEqual(statuses(s), ["a:done"]);
+  s = support(s, "a", "late2");
+  assert.deepEqual(statuses(s), ["a:done"]);
+  s = support(s, "a", "ch2", "p1", "challenges");
+  assert.deepEqual(statuses(s), ["a:evidence*"]);
+});
+
+test("S1c: an accepted challenged objective outcome stays done after late support", () => {
+  let s = accepted([outcome("a")]);
+  s = support(s, "a", "o1");
+  s = support(s, "a", "ch1", "p1", "challenges");
+  assert.deepEqual(statuses(s), ["a:evidence*"]);
+  s = acceptOutcome(s, "a");
+  s = support(s, "a", "late");
+  assert.deepEqual(statuses(s), ["a:done"]);
+});
+
+test("S1c: complete still needs an owner acceptance bound to the exact current evidence", () => {
+  let s = accepted([outcome("a", "owner")]);
+  s = support(s, "a", "o1");
+  s = acceptOutcome(s, "a");
+  s = support(s, "a", "late");
+  assert.deepEqual(statuses(s), ["a:done"]);
+  assert.throws(() => apply(s, "complete", { planId: "p1", revisionId: rev(s) }), { code: "owner-review-required" });
+  s = acceptOutcome(s, "a");
+  s = apply(s, "complete", { planId: "p1", revisionId: rev(s) });
+  assert.equal(plan(s).lifecycle.state, "completed");
+});
+
 test("roadmap: current is the first not-done stop even when later stops are done", () => {
   let s = accepted([outcome("a"), outcome("b"), outcome("c")]);
   s = support(s, "c", "o1");
