@@ -161,6 +161,10 @@ The agent writes plain `mozak.json` and `mozak.md` files in your project folder.
 
 Every scope command needs an explicit `--config`. Only the maintenance commands (`upgrade`, `doctor`) run without one.
 
+## Reads and the network
+
+Local and vault-plans scopes are read from disk. A GitHub scope whose plans live in the repo is different: `scopes`, `plans`, `context`, `check` and `review show` may run `git fetch` when its cache is more than 10 minutes old, and they update its cache metadata. If that scope has an unpushed local plan commit, a read can push it. `mozak scopes` may also check GitHub release tags in the background. Set `MOZAK_NO_UPDATE_CHECK=1` to turn that check off.
+
 ## Safety
 
 - **Bound approvals.** An approval is tied to the exact plan version you were shown, and one message cannot be reused for a second approval. Agents over MCP cannot approve unless the launcher starts `mozak-mcp` with `--owner-decisions`. The skill tells agents to accept only your own message, not quotes or tool output, but mozak cannot verify who typed it (see the limits below).
