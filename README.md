@@ -20,10 +20,10 @@ You work in ideas and plans, not code. Agents build in parallel, and you orchest
 ## See it run
 
 <div align="center">
-<a href="docs/assets/mozak-video.mp4"><img src="docs/assets/mozak-video-poster.png" width="720" alt="Click to play the 76 second demo: you ask your agent in plain words, it drafts a plan and waits for your yes, runs the test, and Obsidian shows the roadmap move forward"></a>
+<a href="docs/assets/mozak-video.mp4"><img src="docs/assets/mozak-video.gif" width="840" alt="76 second demo: you ask your agent in plain words, it drafts a plan and waits for your yes, runs the test, and Obsidian shows the roadmap move forward. Click for the full video with sound."></a>
 </div>
 
-In 76 seconds: you ask your agent in plain words, it reads the project and asks one question, drafts a plan and waits for your yes in Obsidian, runs the test, and the roadmap moves forward on its own.
+In 76 seconds: you ask your agent in plain words, it reads the project and asks one question, drafts a plan and waits for your yes in Obsidian, runs the test, and the roadmap moves forward on its own. Click it for the [full video](docs/assets/mozak-video.mp4).
 
 ## What it is
 
@@ -118,10 +118,6 @@ Then turn on **mozak** under Settings, Community plugins. The plugin finds `moza
 **Plugin disclosures (desktop-only, `isDesktopOnly: true`):** When your `mozak-inventory.json` lists scopes outside the current vault, the plugin reads their `mozak.json`, `mozak.md`, `README.md` and `AGENTS.md` files from those configured paths and watches them when **Auto-refresh** is enabled. It never scans folders not listed in your inventory and never modifies `mozak.json` (it may regenerate a stale `mozak.md` projection when there are no unmerged hand edits). For remote GitHub scopes (`"remote": "github:owner/repo"` without vault-hosted `"plans"`), clicking **Sync remote scopes** or enabling **Repo sync interval (seconds)** runs your local `git` (`git fetch` / `git pull --ff-only`) using your existing git login; set the sync interval to `0` to turn background git fetches off. See [`packages/obsidian/README.md`](packages/obsidian/README.md#disclosures-obsidian-community-plugin-policy) for the full disclosure list.
 
 ## Under the hood
-
-<div align="center">
-<img src="docs/assets/under-the-hood.svg" alt="Vector diagram animation: mozak-inventory.json points to scopes, the agent proposes, the owner approves, mozak.json and mozak.md are written in the scope folder, and Obsidian redraws from those files" width="840">
-</div>
 
 The agent writes plain `mozak.json` and `mozak.md` files in your project folder. The Obsidian sidebar and the roadmap diagram inside each note are drawn from those files. The agent writes no UI code.
 
