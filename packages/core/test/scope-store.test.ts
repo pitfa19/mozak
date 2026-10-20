@@ -66,6 +66,37 @@ test("A01: create-only init publishes one canonical graph and matching bridge wi
   assert.throws(() => initScopeState(entry, { ...request, title: "Other" }), { code: "operation-conflict" });
 });
 
+for (const phase of ["before-graph", "temp-written:graph", "after-graph", "temp-written:bridge"]) {
+  for (const name of ["mozak.json", "mozak.md"]) {
+    test(`P0.6: ${name} changed at ${phase} is preserved without publishing over it`, () => {
+      const { entry, request } = world(); initScopeState(entry, request);
+      const graphPath = join(entry.root, "mozak.json");
+      const bridgePath = join(entry.root, "mozak.md");
+      const beforeGraph = readFileSync(graphPath, "utf8");
+      const beforeBridge = readFileSync(bridgePath, "utf8");
+      const changed = name === "mozak.json" ? `${beforeGraph}\n` : "External bridge edit\n";
+      const input = { operationId: "racing-write", scopeId: entry.id, expected: readScope(entry).snapshot, action: "propose", payload: { planId: "p", content } };
+      let result: ReturnType<typeof mutateScope> | undefined;
+      const run = () => { result = mutateScope(entry, input, "agent", { onPhase(p) {
+        if (p === phase) writeFileSync(join(entry.root, name), changed);
+      } }); };
+      if (phase === "after-graph" || phase === "temp-written:bridge") {
+        run();
+        assert.ok(result);
+        assert.equal(result.committed, true);
+        assert.equal(result.projectionUpdated, false);
+        assert.ok(result.issues.some(i => i.code === "graph-changed-during-write"));
+      } else {
+        assert.throws(run, { code: "graph-changed-during-write" });
+        if (name !== "mozak.json") assert.equal(readFileSync(graphPath, "utf8"), beforeGraph);
+      }
+      assert.equal(readFileSync(join(entry.root, name), "utf8"), changed);
+      if (name !== "mozak.md") assert.equal(readFileSync(bridgePath, "utf8"), beforeBridge);
+      assert.equal(readdirSync(entry.root).some(n => n.endsWith(".tmp") || n === ".mozak-write-lock"), false);
+    });
+  }
+}
+
 test("A11: a stale second writer cannot overwrite a committed proposal", () => {
   const { entry, request } = world(); initScopeState(entry, request);
   const expected = readScope(entry).snapshot;

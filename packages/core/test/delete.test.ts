@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { executeOperation, initScopeState, loadInventory, readScope, resolveScope, withoutPlans, deletedRecord } from "../src/index.ts";
+import { deletePlans, executeOperation, initScopeState, loadInventory, readScope, resolveScope, withoutPlans, deletedRecord } from "../src/index.ts";
 
 const OWNER_AT = "2026-10-22T08:00:00.000Z";
 
@@ -99,6 +99,20 @@ test("plan delete refuses unknown ids and empty lists, and a deleted id cannot b
   } }, "agent");
   assert.notEqual(again.exitCode, 0);
   assert.match(JSON.stringify(again.data), /was deleted/);
+});
+
+test("P0.6: plan delete keeps a mozak.json edited while the delete is written", () => {
+  const { config, root } = scope();
+  propose(config, "alpha-one", "Alpha one");
+  const graphPath = join(root, "mozak.json");
+  const edited = `${readFileSync(graphPath, "utf8")}\n`;
+  const entry = resolveScope(loadInventory(config), "alpha");
+  const request = { operationId: "delete-race", scopeId: "alpha", expected: snap(config), planIds: ["alpha-one"], reason: "r", ownerRef: "o", ownerMessageAt: OWNER_AT };
+  // A direct editor that ignores the lock changes mozak.json after the delete wrote its temp file.
+  const onPhase = (phase: string) => { if (phase === "temp-written:graph") writeFileSync(graphPath, edited); };
+  assert.throws(() => deletePlans(entry, request, { onPhase }), { code: "graph-changed-during-write" });
+  assert.equal(readFileSync(graphPath, "utf8"), edited, "the external edit survives");
+  assert.deepEqual(planIds(config), ["alpha-one"], "nothing deleted");
 });
 
 test("withoutPlans protects completed plans unless allowed, and refuses plans still referenced", () => {

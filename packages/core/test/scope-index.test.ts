@@ -127,6 +127,33 @@ test("loadInventory rejects unknown keys, bad field types, and legacy or unknown
   expectCode(() => loadInventory(broken), "inventory-invalid");
 });
 
+test("P0.7: reserved x objects are ignored without changing inventory identity", () => {
+  const ws = workspace();
+  for (const format of ["mozak.local/v2", "mozak.local/v3"]) {
+    const scopes = [{ id: "local", root: "./local" }];
+    if (format === "mozak.local/v3") scopes.push({ id: "remote", remote: "github:synthetic/project" } as any, { id: "vault", remote: "github:synthetic/vault", plans: "./plans" } as any);
+    const plain = loadInventory(writeConfig(ws, { format, scopes }));
+    const extended = loadInventory(writeConfig(ws, { format, x: { future: { enabled: true } }, scopes: scopes.map(entry => ({ ...entry, x: { setting: [1, "future", null] } })) }));
+    assert.equal(extended.digest, plain.digest);
+    assert.deepEqual(extended.scopes.map(({ id, root, remote }) => ({ id, root, remote })), plain.scopes.map(({ id, root, remote }) => ({ id, root, remote })));
+    assert.equal("x" in extended, false);
+    assert.ok(extended.scopes.every(entry => !("x" in entry)));
+  }
+});
+
+test("P0.7: reserved x must be an object and does not allow misspelled keys", () => {
+  const ws = workspace();
+  for (const format of ["mozak.local/v2", "mozak.local/v3"]) {
+    for (const x of [null, [], "text", 1, true]) {
+      expectCode(() => loadInventory(writeConfig(ws, { format, x, scopes: [] })), "inventory-invalid");
+      expectCode(() => loadInventory(writeConfig(ws, { format, scopes: [{ id: "a", root: "./a", x }] })), "inventory-invalid");
+      if (format === "mozak.local/v3") expectCode(() => loadInventory(writeConfig(ws, { format, scopes: [{ id: "a", remote: "github:synthetic/project", x }] })), "inventory-invalid");
+    }
+    expectCode(() => loadInventory(writeConfig(ws, { format, x: {}, typo: true, scopes: [] })), "inventory-invalid");
+    expectCode(() => loadInventory(writeConfig(ws, { format, scopes: [{ id: "a", root: "./a", x: {}, typo: true }] })), "inventory-invalid");
+  }
+});
+
 test("loadInventory rejects duplicate scope IDs", () => {
   const ws = workspace();
   dir(join(ws, "a"));
