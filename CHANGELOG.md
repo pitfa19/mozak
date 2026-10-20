@@ -7,6 +7,9 @@ User-visible changes, newest first. Releases are git tags `vX.Y.Z` on `main`; `m
 ### Fixed
 - A late supporting observation no longer drops an owner-accepted outcome from `done` to `evidence` in the roadmap, `mozak.md` and `needs` checks. Only a new challenge reopens it. `plan complete` still needs an owner acceptance bound to the exact current evidence.
 
+### Changed
+- A failed MCP tool call now starts with a one-line `reason` and the `issues`, before the rest of the result. A failed `observe` echoes its `unsavedRequest` last, in the CLI JSON too. Hosts that cut long tool output still show why the call failed.
+
 ## 0.4.7 (2026-10-29)
 
 ### Changed
