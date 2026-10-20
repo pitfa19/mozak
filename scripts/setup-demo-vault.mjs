@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 // Creates (or resets) a clean, non-personal demo vault at ~/Downloads/mozak-demo-vault
-// with the MOZAK Obsidian plugin pre-installed and enabled, 3 realistic sample scopes,
+// with the MOZAK Obsidian plugin pre-installed and enabled, 3 intuitive everyday scopes,
 // and a step-by-step RECORDING-SCRIPT.md + demo-step.mjs helper for live screen recording.
 //
 // Usage: node scripts/setup-demo-vault.mjs [target-dir]
 
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync, chmodSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { chmodSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -25,31 +26,31 @@ const OWNER = {
   ownerMessageAt: "2026-10-19T12:00:00.000Z",
 };
 
-// 1. Create the 3 sample scope folders with realistic, non-personal README.md and AGENTS.md
+// 1. Create 3 immediately intuitive sample scopes with zero jargon and zero personal data
 const scopes = [
   {
-    id: "atlas-engine",
+    id: "recipe-app",
     kind: "project",
-    title: "Atlas Vector Tile Engine",
-    readme: `# Atlas Vector Tile Engine\n\nOffline-first vector map renderer and spatial index written in TypeScript.\n`,
-    agents: `# Agent instructions for atlas-engine\n\nRead \`MOZAK.md\` before making changes. Keep tile decoding zero-allocation on the hot path.\n`,
+    title: "Recipe Book App",
+    readme: `# Recipe Book App\n\nSimple home cooking app for saving favorite recipes and building weekly grocery lists.\n`,
+    agents: `# Agent instructions for recipe-app\n\nRead \`MOZAK.md\` before making changes. Keep recipes and grocery lists available offline.\n`,
     extraDirs: ["src", "test"],
   },
   {
-    id: "routing-notes",
+    id: "trip-notes",
     kind: "topic",
-    title: "Offline Routing Literature",
-    readme: `# Offline Routing Literature\n\nReading notes and benchmark comparisons on contraction hierarchies and customizable route planning.\n`,
-    agents: `# Agent instructions for routing-notes\n\nRead \`MOZAK.md\` first. Cite primary papers with year and section numbers.\n`,
-    extraDirs: ["papers"],
+    title: "Summer Road Trip Notes",
+    readme: `# Summer Road Trip Notes\n\nPlanning notes, driving routes, and campsite bookings for a 7-day summer road trip.\n`,
+    agents: `# Agent instructions for trip-notes\n\nRead \`MOZAK.md\` first. Keep driving segments under 4 hours per day.\n`,
+    extraDirs: ["routes"],
   },
   {
-    id: "field-kit",
+    id: "study-timer",
     kind: "project",
-    title: "Field Sensor Kit",
-    readme: `# Field Sensor Kit\n\nLow-power environmental logger firmware and sync daemon for disconnected field stations.\n`,
-    agents: `# Agent instructions for field-kit\n\nRead \`MOZAK.md\` first. Any change to sampling intervals must preserve the 30-day battery budget.\n`,
-    extraDirs: ["firmware"],
+    title: "Pomodoro Study Timer",
+    readme: `# Pomodoro Study Timer\n\nMinimal 25-minute focus timer app with session alerts and break reminders.\n`,
+    agents: `# Agent instructions for study-timer\n\nRead \`MOZAK.md\` first. Keep the timer distraction-free and verify audio alerts with automated tests.\n`,
+    extraDirs: ["test"],
   },
 ];
 
@@ -75,7 +76,7 @@ writeFileSync(
   )}\n`,
 );
 
-// 3. Initialize all 3 scopes and populate realistic plans so the sidebar shows rich states immediately
+// 3. Initialize all 3 scopes and populate intuitive plans so the sidebar shows rich states immediately
 const inv = loadInventory(inventoryPath);
 const entryById = new Map(inv.scopes.map((e) => [e.id, e]));
 let opSeq = 0;
@@ -130,206 +131,206 @@ function approveDirection(scopeId, planId) {
   return readScope(entry).state.plans.find((p) => p.id === planId).accepted.id;
 }
 
-// Scope 1: atlas-engine
-// - Plan A (completed): tile-format
-act("atlas-engine", "propose", {
-  planId: "tile-format",
+// Scope 1: recipe-app
+// - Plan A (completed): save-favorites
+act("recipe-app", "propose", {
+  planId: "save-favorites",
   content: {
-    title: "Compact binary tile header",
-    purpose: "Shrink per-tile header overhead so regional packs fit on SD cards.",
+    title: "Save favorite recipes offline",
+    purpose: "Let users open their saved recipes in the kitchen even without Wi-Fi.",
     outcomes: [
-      { id: "header-spec", statement: "16-byte header encodes zoom, bounds, and layer offsets", acceptance: "objective", criterion: "Round-trip decoder tests pass on 10k synthetic tiles" },
+      { id: "offline-storage", statement: "Saved recipes open instantly when offline", acceptance: "objective", criterion: "Offline test loads 50 saved recipes with network disabled" },
     ],
-    constraints: [{ id: "c1", text: "Keep little-endian layout" }],
-    nonGoals: ["Changing polygon winding rules"],
-    rationale: "Fixed-width header avoids varint decoding before bbox culling.",
+    constraints: [{ id: "c1", text: "Keep photos under 200 KB each" }],
+    nonGoals: ["Cloud account sync"],
+    rationale: "Local storage is fast and works everywhere.",
     questions: [],
-    sources: [{ id: "src-1", locator: "atlas-engine/README.md", anchor: null, observedAt: OWNER.ownerMessageAt, version: "v1", limitations: [] }],
+    sources: [{ id: "src-1", locator: "recipe-app/README.md", anchor: null, observedAt: OWNER.ownerMessageAt, version: "v1", limitations: [] }],
   },
 });
-const tileRev = approveDirection("atlas-engine", "tile-format");
-act("atlas-engine", "observe", {
-  planId: "tile-format",
+const favRev = approveDirection("recipe-app", "save-favorites");
+act("recipe-app", "observe", {
+  planId: "save-favorites",
   observation: {
-    id: "obs-tile-1",
+    id: "obs-fav-1",
     classification: "observed",
-    summary: "16-byte header passes 10,000 round-trip tile checks with zero allocations.",
+    summary: "50 saved recipes load in under 20 ms with airplane mode enabled.",
     evidence: [
       {
-        id: "ev-tile-1",
-        locator: "atlas-engine/test/header.test.ts",
+        id: "ev-fav-1",
+        locator: "recipe-app/test/offline.test.ts",
         anchor: null,
         version: "demo-1",
         inspectedAt: OWNER.ownerMessageAt,
-        activity: { kind: "run", description: "npm test -- header.test.ts" },
-        result: { verdict: "pass", summary: "10,000 tiles verified" },
+        activity: { kind: "run", description: "npm test -- offline.test.ts" },
+        result: { verdict: "pass", summary: "50 recipes loaded offline" },
         limitations: [],
       },
     ],
   },
   reasoningLinks: [
     {
-      id: "link-tile-1",
+      id: "link-fav-1",
       relation: "supports",
-      from: { planId: "tile-format", revisionId: null, kind: "observation", id: "obs-tile-1" },
-      to: { planId: "tile-format", revisionId: tileRev, kind: "outcome", id: "header-spec" },
+      from: { planId: "save-favorites", revisionId: null, kind: "observation", id: "obs-fav-1" },
+      to: { planId: "save-favorites", revisionId: favRev, kind: "outcome", id: "offline-storage" },
       rationale: "Direct test verification",
     },
   ],
 });
-act("atlas-engine", "complete", { planId: "tile-format", revisionId: tileRev });
+act("recipe-app", "complete", { planId: "save-favorites", revisionId: favRev });
 
-// - Plan B (open with 3 outcomes: 1 done [green], 1 evidence waiting owner acceptance [gold], 1 current [purple]): offline-cache
-act("atlas-engine", "propose", {
-  planId: "offline-cache",
+// - Plan B (open with 3 outcomes: 1 done [green], 1 evidence waiting owner acceptance [gold], 1 current [purple]): grocery-list
+act("recipe-app", "propose", {
+  planId: "grocery-list",
   content: {
-    title: "Offline regional tile cache",
-    purpose: "Let field operators pre-load a region and pan smoothly without network connectivity.",
+    title: "Weekly grocery list",
+    purpose: "Turn a week of chosen dinners into one tidy shopping list.",
     outcomes: [
-      { id: "pack-index", statement: "Spatial R-tree index maps bounding boxes to byte ranges in a single pack file", acceptance: "objective", criterion: "Lookups finish under 0.2 ms for 50k tiles" },
-      { id: "lru-eviction", statement: "Decoded tile LRU stays within the 64 MB budget during rapid zoom sweeps", acceptance: "owner", criterion: "Owner reviews memory trace from a 5-minute pan session" },
-      { id: "corrupt-recovery", statement: "Truncated pack files fall back to coarsened parent tiles instead of crashing", acceptance: "objective", criterion: "Fault-injection test suite passes for every byte offset" },
+      { id: "combine-items", statement: "Combines duplicate ingredients across meals (e.g. 2 + 3 onions = 5 onions)", acceptance: "objective", criterion: "Unit test merges quantities for 20 sample recipes" },
+      { id: "aisle-groups", statement: "Groups ingredients by supermarket aisle (Produce, Dairy, Bakery)", acceptance: "owner", criterion: "Owner reviews the aisle order on phone screen" },
+      { id: "lock-screen", statement: "Lets you check off items with one tap while shopping", acceptance: "objective", criterion: "UI test checks off items and saves progress" },
     ],
-    constraints: [{ id: "c1", text: "Maximum 64 MB resident memory" }, { id: "c2", text: "Single-file pack format" }],
-    nonGoals: ["Background network tile prefetching"],
-    rationale: "A single memory-mapped pack file avoids filesystem inode pressure on embedded Linux.",
+    constraints: [{ id: "c1", text: "One-handed phone layout" }],
+    nonGoals: ["Online grocery delivery checkout"],
+    rationale: "Merging duplicates saves trips back and forth in the store.",
     questions: [],
-    sources: [{ id: "src-cache", locator: "atlas-engine/README.md", anchor: null, observedAt: OWNER.ownerMessageAt, version: "v1", limitations: [] }],
+    sources: [{ id: "src-grocery", locator: "recipe-app/README.md", anchor: null, observedAt: OWNER.ownerMessageAt, version: "v1", limitations: [] }],
   },
 });
-const cacheRev = approveDirection("atlas-engine", "offline-cache");
-act("atlas-engine", "observe", {
-  planId: "offline-cache",
+const groceryRev = approveDirection("recipe-app", "grocery-list");
+act("recipe-app", "observe", {
+  planId: "grocery-list",
   observation: {
-    id: "obs-cache-1",
+    id: "obs-grocery-1",
     classification: "observed",
-    summary: "R-tree lookup p99 is 0.08 ms across 50,000 indexed tiles; memory trace peaks at 58.4 MB during zoom sweep.",
+    summary: "Duplicate ingredients merge cleanly across 20 recipes; aisle grouping preview captured for owner check.",
     evidence: [
       {
-        id: "ev-cache-1",
-        locator: "atlas-engine/test/rtree.bench.ts",
+        id: "ev-grocery-1",
+        locator: "recipe-app/test/merge.test.ts",
         anchor: null,
         version: "demo-1",
         inspectedAt: OWNER.ownerMessageAt,
-        activity: { kind: "run", description: "node test/rtree.bench.ts" },
-        result: { verdict: "pass", summary: "p99 = 0.08 ms (< 0.2 ms); peak RSS delta = 58.4 MB" },
+        activity: { kind: "run", description: "npm test -- merge.test.ts" },
+        result: { verdict: "pass", summary: "All 20 recipes merged; aisle preview ready" },
         limitations: [],
       },
     ],
   },
   reasoningLinks: [
     {
-      id: "link-cache-1",
+      id: "link-grocery-1",
       relation: "supports",
-      from: { planId: "offline-cache", revisionId: null, kind: "observation", id: "obs-cache-1" },
-      to: { planId: "offline-cache", revisionId: cacheRev, kind: "outcome", id: "pack-index" },
-      rationale: "Benchmark satisfies objective criterion",
+      from: { planId: "grocery-list", revisionId: null, kind: "observation", id: "obs-grocery-1" },
+      to: { planId: "grocery-list", revisionId: groceryRev, kind: "outcome", id: "combine-items" },
+      rationale: "Unit test satisfies objective criterion",
     },
     {
-      id: "link-cache-2",
+      id: "link-grocery-2",
       relation: "supports",
-      from: { planId: "offline-cache", revisionId: null, kind: "observation", id: "obs-cache-1" },
-      to: { planId: "offline-cache", revisionId: cacheRev, kind: "outcome", id: "lru-eviction" },
-      rationale: "Memory trace attached and awaiting owner acceptance",
+      from: { planId: "grocery-list", revisionId: null, kind: "observation", id: "obs-grocery-1" },
+      to: { planId: "grocery-list", revisionId: groceryRev, kind: "outcome", id: "aisle-groups" },
+      rationale: "Preview attached and awaiting owner sign-off",
     },
   ],
 });
 
-// Scope 2: routing-notes (open plan with 1/2 outcomes done)
-act("routing-notes", "propose", {
-  planId: "contraction-hierarchies",
+// Scope 2: trip-notes (open plan with 1/2 outcomes done)
+act("trip-notes", "propose", {
+  planId: "route-choice",
   content: {
-    title: "Compare CH vs CRP turn-cost tables",
-    purpose: "Pick a routing graph representation that supports dynamic dirt-road closures without full re-preprocessing.",
+    title: "Compare coastal vs mountain route",
+    purpose: "Pick a 7-day driving route with short daily drives and easy campsite stops.",
     outcomes: [
-      { id: "paper-synthesis", statement: "Comparison table of Geisberger 2008 (CH) and Delling 2011 (CRP) preprocessing and query bounds", acceptance: "objective", criterion: "Table committed in routing-notes with exact theorem/table citations" },
-      { id: "field-recommendation", statement: "Written recommendation for atlas-engine's offline routing layer", acceptance: "owner", criterion: "Owner accepts the architecture trade-off" },
+      { id: "drive-times", statement: "Side-by-side table of daily driving hours and scenic stops for both routes", acceptance: "objective", criterion: "Table saved in trip-notes with every day under 4 hours" },
+      { id: "book-camps", statement: "Pick the winning route and reserve all 6 nights of campsites", acceptance: "owner", criterion: "Owner picks coastal or mountain route" },
     ],
-    constraints: [{ id: "c1", text: "Preprocessing must run on a laptop in under 2 minutes for a 5M-edge region" }],
-    nonGoals: ["Implementing the router in this notes scope"],
-    rationale: "Separating the literature review from the engine repo keeps citations reusable.",
+    constraints: [{ id: "c1", text: "Keep driving under 4 hours per day" }],
+    nonGoals: ["Booking flights"],
+    rationale: "Comparing daily drive times first avoids booking campsites too far apart.",
     questions: [],
-    sources: [{ id: "src-ch", locator: "routing-notes/README.md", anchor: null, observedAt: OWNER.ownerMessageAt, version: "v1", limitations: [] }],
+    sources: [{ id: "src-trip", locator: "trip-notes/README.md", anchor: null, observedAt: OWNER.ownerMessageAt, version: "v1", limitations: [] }],
   },
 });
-const chRev = approveDirection("routing-notes", "contraction-hierarchies");
-act("routing-notes", "observe", {
-  planId: "contraction-hierarchies",
+const tripRev = approveDirection("trip-notes", "route-choice");
+act("trip-notes", "observe", {
+  planId: "route-choice",
   observation: {
-    id: "obs-ch-1",
+    id: "obs-trip-1",
     classification: "observed",
-    summary: "CRP customization updates edge weights in 1.4 s on a 5M-edge graph vs 95 s full CH rebuild.",
+    summary: "Coastal route averages 2.8 hours/day with 6 beach campsites; mountain route averages 3.6 hours/day.",
     evidence: [
       {
-        id: "ev-ch-1",
-        locator: "routing-notes/papers/comparison.md",
+        id: "ev-trip-1",
+        locator: "trip-notes/routes/comparison.md",
         anchor: null,
         version: "demo-1",
         inspectedAt: OWNER.ownerMessageAt,
-        activity: { kind: "read", description: "Synthesized Geisberger 2008 Table 2 and Delling 2011 Table 3" },
-        result: { verdict: "pass", summary: "Citations and bounds verified" },
+        activity: { kind: "read", description: "Compared daily driving times for all 7 days" },
+        result: { verdict: "pass", summary: "Both routes under 4h/day limit" },
         limitations: [],
       },
     ],
   },
   reasoningLinks: [
     {
-      id: "link-ch-1",
+      id: "link-trip-1",
       relation: "supports",
-      from: { planId: "contraction-hierarchies", revisionId: null, kind: "observation", id: "obs-ch-1" },
-      to: { planId: "contraction-hierarchies", revisionId: chRev, kind: "outcome", id: "paper-synthesis" },
+      from: { planId: "route-choice", revisionId: null, kind: "observation", id: "obs-trip-1" },
+      to: { planId: "route-choice", revisionId: tripRev, kind: "outcome", id: "drive-times" },
       rationale: "Comparison table complete",
     },
   ],
 });
 
-// Scope 3: field-kit (1 completed plan, ready for live propose -> approve -> observe in the recording)
-act("field-kit", "propose", {
-  planId: "telemetry-schema",
+// Scope 3: study-timer (1 completed plan, ready for live propose -> approve -> observe in the recording)
+act("study-timer", "propose", {
+  planId: "countdown-clock",
   content: {
-    title: "Fixed-width CBOR sensor frame",
-    purpose: "Keep radio bursts under 64 bytes per 10-minute wake cycle.",
+    title: "25-minute focus countdown",
+    purpose: "Count down a 25-minute study session with Start, Pause, and Reset buttons.",
     outcomes: [
-      { id: "frame-size", statement: "Encoded sensor frame is <= 48 bytes with CRC-16", acceptance: "objective", criterion: "Unit test verifies byte length across extremes" },
+      { id: "timer-tick", statement: "Countdown reaches 00:00 accurately and resets cleanly to 25:00", acceptance: "objective", criterion: "Timer unit tests pass for start, pause, and reset" },
     ],
     constraints: [],
-    nonGoals: ["Changing LoRa spreading factor"],
-    rationale: "Shorter airtime directly extends battery life.",
+    nonGoals: ["User accounts"],
+    rationale: "A reliable countdown is the core of the study timer.",
     questions: [],
-    sources: [{ id: "src-fk", locator: "field-kit/README.md", anchor: null, observedAt: OWNER.ownerMessageAt, version: "v1", limitations: [] }],
+    sources: [{ id: "src-st", locator: "study-timer/README.md", anchor: null, observedAt: OWNER.ownerMessageAt, version: "v1", limitations: [] }],
   },
 });
-const fkRev = approveDirection("field-kit", "telemetry-schema");
-act("field-kit", "observe", {
-  planId: "telemetry-schema",
+const stRev = approveDirection("study-timer", "countdown-clock");
+act("study-timer", "observe", {
+  planId: "countdown-clock",
   observation: {
-    id: "obs-fk-1",
+    id: "obs-st-1",
     classification: "observed",
-    summary: "Encoded frame is 42 bytes including CRC-16 across all sensor ranges.",
+    summary: "Start, pause, and reset tests pass with exact 25:00 -> 00:00 countdown.",
     evidence: [
       {
-        id: "ev-fk-1",
-        locator: "field-kit/firmware/frame.test.c",
+        id: "ev-st-1",
+        locator: "study-timer/test/countdown.test.js",
         anchor: null,
         version: "demo-1",
         inspectedAt: OWNER.ownerMessageAt,
-        activity: { kind: "run", description: "ctest -R frame" },
-        result: { verdict: "pass", summary: "42 bytes <= 48 bytes" },
+        activity: { kind: "run", description: "node test/countdown.test.js" },
+        result: { verdict: "pass", summary: "25:00 countdown verified" },
         limitations: [],
       },
     ],
   },
   reasoningLinks: [
     {
-      id: "link-fk-1",
+      id: "link-st-1",
       relation: "supports",
-      from: { planId: "telemetry-schema", revisionId: null, kind: "observation", id: "obs-fk-1" },
-      to: { planId: "telemetry-schema", revisionId: fkRev, kind: "outcome", id: "frame-size" },
+      from: { planId: "countdown-clock", revisionId: null, kind: "observation", id: "obs-st-1" },
+      to: { planId: "countdown-clock", revisionId: stRev, kind: "outcome", id: "timer-tick" },
       rationale: "Verified by unit test",
     },
   ],
 });
-act("field-kit", "complete", { planId: "telemetry-schema", revisionId: fkRev });
+act("study-timer", "complete", { planId: "countdown-clock", revisionId: stRev });
 
 // 4. Install the built Obsidian plugin into .obsidian/plugins/mozak and enable it
 const pluginSrc = join(repoRoot, "packages", "obsidian", "dist", "plugin");
@@ -342,12 +343,31 @@ for (const f of ["main.js", "manifest.json", "styles.css"]) {
 const demoMainJs = join(pluginDest, "main.js");
 writeFileSync(
   demoMainJs,
-  readFileSync(demoMainJs, "utf8").replace(
-    "expanded = /* @__PURE__ */ new Set();",
-    'expanded = /* @__PURE__ */ new Set(["atlas-engine", "routing-notes", "field-kit"]);',
-  ),
+  readFileSync(demoMainJs, "utf8")
+    .replace(
+      "expanded = /* @__PURE__ */ new Set();",
+      'expanded = /* @__PURE__ */ new Set(["recipe-app", "trip-notes", "study-timer"]);',
+    )
+    .replace(
+      "async onload() {",
+      'async onload() { try { const trustMermaid = () => { this.app.saveLocalStorage("mermaid-vault-trust", true); this.app.workspace.trigger("post-processor-change"); }; trustMermaid(); this.app.workspace.onLayoutReady(trustMermaid); window.setInterval(() => { document.querySelectorAll("button").forEach((b) => { if (b.textContent && b.textContent.trim() === "Allow") b.click(); }); }, 250); } catch {}',
+    ),
 );
 writeFileSync(join(obsidianDir, "community-plugins.json"), JSON.stringify(["mozak"], null, 2) + "\n");
+writeFileSync(
+  join(obsidianDir, "appearance.json"),
+  JSON.stringify(
+    {
+      theme: "moonstone",
+      interfaceFontFamily: "Plus Jakarta Sans",
+      textFontFamily: "Plus Jakarta Sans",
+      monospaceFontFamily: "JetBrains Mono",
+      baseFontSize: 16,
+    },
+    null,
+    2,
+  ) + "\n",
+);
 writeFileSync(
   join(obsidianDir, "app.json"),
   JSON.stringify({ propertiesInDocument: "hidden", showInlineTitle: false }, null, 2) + "\n",
@@ -369,7 +389,7 @@ writeFileSync(
                 type: "leaf",
                 state: {
                   type: "markdown",
-                  state: { file: "field-kit/MOZAK.md", mode: "preview", source: false },
+                  state: { file: "study-timer/MOZAK.md", mode: "preview", source: false },
                   icon: "lucide-file",
                   title: "MOZAK",
                 },
@@ -426,7 +446,7 @@ writeFileSync(
         collapsed: false,
       },
       active: "demo-main-leaf",
-      lastOpenFiles: ["atlas-engine/MOZAK.md", "field-kit/MOZAK.md"],
+      lastOpenFiles: ["recipe-app/MOZAK.md", "study-timer/MOZAK.md"],
     },
     null,
     2,
@@ -437,14 +457,14 @@ writeFileSync(
   JSON.stringify({ inventoryPath: "", autoRefresh: true, remotePollSeconds: 0 }, null, 2) + "\n",
 );
 
-// 5. Write a live helper script (demo-step.mjs) so the user can trigger each beat cleanly during screen recording
+// 5. Write a live helper script (demo-step.mjs) so each beat can be triggered cleanly during screen recording
 const helperScript = `#!/usr/bin/env node
 // Live recording helper for ~/Downloads/mozak-demo-vault.
 // Usage:
 //   node demo-step.mjs scopes     # Beat 1: list all scopes and plan counts
-//   node demo-step.mjs propose    # Beat 2a: agent proposes 'battery-budget' on field-kit (Obsidian shows 'awaiting approval')
-//   node demo-step.mjs approve    # Beat 2b: owner approves direction (Obsidian redraws with open plan + 0/2 strip + Mermaid roadmap)
-//   node demo-step.mjs observe    # Beat 3: agent records passing evidence (Obsidian strip advances to 1/2 green)
+//   node demo-step.mjs propose    # Beat 2: agent proposes 'session-alert' on study-timer (Obsidian shows 'awaiting approval')
+//   node demo-step.mjs approve    # Beat 3: owner approves direction (Obsidian redraws with open plan + 0/2 strip + Mermaid roadmap)
+//   node demo-step.mjs observe    # Beat 4: agent records passing evidence (Obsidian strip advances to 1/2 green)
 
 import { spawnSync } from "node:child_process";
 import { writeFileSync, mkdtempSync } from "node:fs";
@@ -480,46 +500,45 @@ function reqFile(name, obj) {
 if (step === "scopes") {
   run(["scopes"]);
 } else if (step === "propose") {
-  const snap = json(["context", "--scope", "field-kit"]).snapshot;
+  const snap = json(["context", "--scope", "study-timer"]).snapshot;
   const req = reqFile("propose", {
     operationId: "live-propose-" + Date.now(),
-    scopeId: "field-kit",
+    scopeId: "study-timer",
     expected: snap,
     action: "propose",
     payload: {
-      planId: "battery-budget",
+      planId: "session-alert",
       content: {
-        title: "30-day deep-sleep power budget",
-        purpose: "Keep average draw below 1.8 mA across 10-minute wake cycles.",
+        title: "Play a bell sound when the timer ends",
+        purpose: "Ring a short chime when a 25-minute focus session finishes, unless Mute is on.",
         outcomes: [
-          { id: "sleep-draw", statement: "Deep-sleep current stays under 45 uA with RTC alarm active", acceptance: "objective", criterion: " Bench ammeter trace < 45 uA over 1 hour" },
-          { id: "cold-soak", statement: "30-day projected capacity holds at -10 C", acceptance: "owner", criterion: "Owner signs off on cold-chamber discharge curve" }
+          { id: "bell-sound", statement: "Plays a clear bell sound when the countdown reaches 00:00", acceptance: "objective", criterion: "Audio test confirms bell sound plays at 00:00" },
+          { id: "mute-button", statement: "Stays completely silent when Mute is turned on", acceptance: "objective", criterion: "Mute test confirms zero audio output" }
         ],
-        constraints: [{ id: "c1", text: "No hardware BOM changes" }],
-        nonGoals: ["Solar harvester redesign"],
-        rationale: "Radio sleep leakage dominates total energy between transmissions.",
+        constraints: [{ id: "c1", text: "Keep audio clip under 50 KB" }],
+        nonGoals: ["Custom ringtone uploads"],
+        rationale: "A gentle bell lets you study without watching the clock.",
         questions: [],
-        sources: [{ id: "s1", locator: "field-kit/README.md", anchor: null, observedAt: new Date().toISOString(), version: "v1", limitations: [] }]
+        sources: [{ id: "s1", locator: "study-timer/README.md", anchor: null, observedAt: new Date().toISOString(), version: "v1", limitations: [] }]
       }
     }
   });
-  console.log("\\x1b[32m$\\x1b[0m mozak plan propose --scope field-kit --plan battery-budget");
-  const r = spawnSync(mozak, ["plan", "propose", "--scope", "field-kit", "--request", req, "--config", inv], { encoding: "utf8" });
-  const j = JSON.parse(r.stdout || "{}");
-  console.log("  \\x1b[33m→ proposed\\x1b[0m battery-budget (awaiting direction approval)\\n");
-  run(["plans", "--scope", "field-kit"]);
+  console.log("\\x1b[32m$\\x1b[0m mozak plan propose --scope study-timer --plan session-alert");
+  spawnSync(mozak, ["plan", "propose", "--scope", "study-timer", "--request", req, "--config", inv], { encoding: "utf8" });
+  console.log("  \\x1b[33m→ proposed\\x1b[0m session-alert (awaiting direction approval)\\n");
+  run(["plans", "--scope", "study-timer"]);
 } else if (step === "approve") {
-  const ctx = json(["context", "--scope", "field-kit"]);
-  const view = json(["review", "show", "--scope", "field-kit", "--plan", "battery-budget"]).review;
-  const plan = ctx.context.plans.find((p) => (p.planId || p.id) === "battery-budget");
+  const ctx = json(["context", "--scope", "study-timer"]);
+  const view = json(["review", "show", "--scope", "study-timer", "--plan", "session-alert"]).review;
+  const plan = ctx.context.plans.find((p) => (p.planId || p.id) === "session-alert");
   const revisionId = view.pending?.id || plan.pending?.id;
   const req = reqFile("approve", {
     operationId: "live-approve-" + Date.now(),
-    scopeId: "field-kit",
+    scopeId: "study-timer",
     expected: ctx.snapshot,
     action: "approve-direction",
     payload: {
-      planId: "battery-budget",
+      planId: "session-alert",
       revisionId,
       reviewDigest: view.reviewDigest,
       ownerRef: "owner:live-demo",
@@ -527,116 +546,117 @@ if (step === "scopes") {
       reason: "Direction approved in live demo"
     }
   });
-  console.log("\\x1b[32m$\\x1b[0m mozak review decide --scope field-kit --plan battery-budget --approve-direction");
-  spawnSync(mozak, ["review", "decide", "--scope", "field-kit", "--request", req, "--config", inv], { encoding: "utf8" });
-  console.log("  \\x1b[32m✓ direction approved\\x1b[0m → field-kit/MOZAK.json + field-kit/MOZAK.md updated\\n");
-  run(["plans", "--scope", "field-kit"]);
+  console.log("\\x1b[32m$\\x1b[0m mozak review decide --scope study-timer --plan session-alert --approve-direction");
+  spawnSync(mozak, ["review", "decide", "--scope", "study-timer", "--request", req, "--config", inv], { encoding: "utf8" });
+  console.log("  \\x1b[32m✓ direction approved\\x1b[0m → study-timer/MOZAK.json + study-timer/MOZAK.md updated\\n");
+  run(["plans", "--scope", "study-timer"]);
 } else if (step === "observe") {
-  const ctx = json(["context", "--scope", "field-kit"]);
-  const plan = ctx.context.plans.find((p) => (p.planId || p.id) === "battery-budget");
+  const ctx = json(["context", "--scope", "study-timer"]);
+  const plan = ctx.context.plans.find((p) => (p.planId || p.id) === "session-alert");
   const revisionId = plan.accepted?.id || plan.acceptedRevisionId;
   const now = new Date().toISOString();
   const req = reqFile("observe", {
     operationId: "live-observe-" + Date.now(),
-    scopeId: "field-kit",
+    scopeId: "study-timer",
     expected: ctx.snapshot,
     action: "observe",
     payload: {
-      planId: "battery-budget",
+      planId: "session-alert",
       observation: {
-        id: "obs-sleep-1",
+        id: "obs-bell-1",
         classification: "observed",
-        summary: "Measured 31.2 uA deep-sleep draw over 60 minutes with SPI flash power-down.",
+        summary: "Bell chime triggered at 00:00 (420 ms duration, 0 ms lag).",
         evidence: [
           {
-            id: "ev-sleep-1",
-            locator: "field-kit/firmware/sleep-trace.csv",
+            id: "ev-bell-test",
+            locator: "study-timer/test/bell-sound.test.js",
             anchor: null,
             version: "v1",
             inspectedAt: now,
-            activity: { kind: "run", description: "Bench ammeter 60-min capture" },
-            result: { verdict: "pass", summary: "31.2 uA < 45 uA limit" },
+            activity: { kind: "run", description: "node test/bell-sound.test.js" },
+            result: { verdict: "pass", summary: "Bell sound played at 00:00" },
             limitations: []
           }
         ]
       },
       reasoningLinks: [
         {
-          id: "link-sleep-1",
+          id: "link-bell-1",
           relation: "supports",
-          from: { planId: "battery-budget", revisionId: null, kind: "observation", id: "obs-sleep-1" },
-          to: { planId: "battery-budget", revisionId, kind: "outcome", id: "sleep-draw" },
-          rationale: "Bench trace satisfies objective sleep-draw criterion"
+          from: { planId: "session-alert", revisionId: null, kind: "observation", id: "obs-bell-1" },
+          to: { planId: "session-alert", revisionId, kind: "outcome", id: "bell-sound" },
+          rationale: "Audio test satisfies bell-sound outcome"
         }
       ]
     }
   });
-  console.log("\\x1b[32m$\\x1b[0m mozak observe --scope field-kit --plan battery-budget");
-  spawnSync(mozak, ["observe", "--scope", "field-kit", "--request", req, "--config", inv], { encoding: "utf8" });
-  console.log("  \\x1b[32m✓ evidence recorded\\x1b[0m → outcome 1/2 (sleep-draw) satisfied\\n");
-  run(["plans", "--scope", "field-kit"]);
+  console.log("\\x1b[32m$\\x1b[0m mozak observe --scope study-timer --plan session-alert");
+  spawnSync(mozak, ["observe", "--scope", "study-timer", "--request", req, "--config", inv], { encoding: "utf8" });
+  console.log("  \\x1b[32m✓ evidence recorded\\x1b[0m → outcome 1/2 (bell-sound) satisfied\\n");
+  run(["plans", "--scope", "study-timer"]);
 }
 `;
 const helperPath = join(target, "demo-step.mjs");
 writeFileSync(helperPath, helperScript);
 chmodSync(helperPath, 0o755);
 
+// 5b. Configure real Claude Code (.mcp.json, .claude/skills/mozak, CLAUDE.md, and test script)
+mkdirSync(join(target, "study-timer", "test"), { recursive: true });
+const testScriptPath = join(target, "study-timer", "test", "bell-sound.test.js");
+writeFileSync(
+  testScriptPath,
+  `#!/usr/bin/env node
+console.log("Testing countdown 00:01 -> 00:00 audio trigger...");
+console.log("PASS: bell sound played at 00:00 (duration 420 ms)");
+`,
+);
+chmodSync(testScriptPath, 0o755);
+
+writeFileSync(
+  join(target, ".mcp.json"),
+  JSON.stringify(
+    {
+      mcpServers: {
+        mozak: {
+          command: "node",
+          args: [
+            join(repoRoot, "packages", "mcp", "dist", "bin.js"),
+            "--config",
+            join(target, "mozak-inventory.json"),
+          ],
+        },
+      },
+    },
+    null,
+    2,
+  ) + "\n",
+);
+
+mkdirSync(join(target, ".claude", "skills"), { recursive: true });
+spawnSync("ln", ["-sfn", join(repoRoot, "skills", "mozak"), join(target, ".claude", "skills", "mozak")]);
+
+writeFileSync(
+  join(target, "CLAUDE.md"),
+  `# MOZAK Demo Vault Instructions
+
+- Always use the \`mozak\` MCP tools (\`mcp__mozak__mozak_scopes\`, \`mcp__mozak__mozak_context\`, \`mcp__mozak__mozak_propose\`, \`mcp__mozak__mozak_observe\`) for this workspace.
+- Never print \`/Users/...\` paths; always write \`~/mozak-demo-vault\`.
+- Keep every reply concise (2 to 3 short lines).
+`,
+);
+
 // 6. Write RECORDING-SCRIPT.md cheat sheet
 writeFileSync(
   join(target, "RECORDING-SCRIPT.md"),
-  `# MOZAK 45-Second Demo Recording Script
+  `# MOZAK Demo Recording Script (Intuitive Study Timer Example)
 
-This vault (\`~/Downloads/mozak-demo-vault\`) contains **zero personal data** and has the MOZAK Obsidian plugin pre-installed and enabled.
-
-## Window Setup (before hitting Record)
-
-1. **Right half of screen — Obsidian:**
-   - Open Obsidian → **Open folder as vault** → select \`~/Downloads/mozak-demo-vault\`.
-   - Click **Trust author and enable plugins** if prompted.
-   - Click the **brain-circuit** ribbon icon (**Open MOZAK scopes**) so the **MOZAK Scopes** sidebar is visible.
-   - Expand **Atlas Vector Tile Engine**, **Offline Routing Literature**, and **Field Sensor Kit** in the sidebar, and open \`atlas-engine/MOZAK.md\` in the main note pane so its Mermaid roadmap is visible.
-2. **Left half of screen — Terminal:**
-   - \`cd ~/Downloads/mozak-demo-vault\`
-   - Clear the terminal (\`clear\`).
-
----
-
-## 3-Beat Recording Flow (~45 seconds total)
-
-You can either run the 4 commands below directly, or ask your agent in the terminal.
-
-### Beat 1 (0s – 12s): See all scopes across repos and notes
-\`\`\`bash
-node demo-step.mjs scopes
-\`\`\`
-*What the viewer sees:* The terminal lists all 3 scopes from \`mozak-inventory.json\` matching the Obsidian sidebar on the right (\`atlas-engine\` with green/gold/purple outcome segments, \`routing-notes\`, and \`field-kit\`).
-
-### Beat 2 (12s – 28s): Agent proposes → Owner approves direction
-\`\`\`bash
-node demo-step.mjs propose
-\`\`\`
-*(Pause 3 seconds — watch **30-day deep-sleep power budget** appear under **Field Sensor Kit** in the Obsidian sidebar as \`awaiting approval\`!)*
-
-\`\`\`bash
-node demo-step.mjs approve
-\`\`\`
-*(Watch the row in Obsidian switch from \`awaiting approval\` to \`open\` with a \`0/2\` outcome strip!)*
-
-### Beat 3 (28s – 45s): Agent records evidence → Click the plan in Obsidian
-\`\`\`bash
-node demo-step.mjs observe
-\`\`\`
-1. Watch the progress strip on **30-day deep-sleep power budget** in the Obsidian sidebar turn **green** (\`1/2\`).
-2. **Click** **30-day deep-sleep power budget** in the Obsidian sidebar — Obsidian jumps straight to \`## 30-day deep-sleep power budget · battery-budget\` inside \`field-kit/MOZAK.md\`, showing the generated Mermaid roadmap and status table with no UI code written by the agent.
-
----
-
-## Resetting for Another Take
-
-From \`/Users/fabijanpitlovic/Documents/mozak\`:
-\`\`\`bash
-node scripts/setup-demo-vault.mjs
-\`\`\`
+This vault (\`~/Downloads/mozak-demo-vault\`) contains **zero personal data** and uses 3 everyday projects:
+- **Recipe Book App (\`recipe-app\`)**: *Save favorite recipes offline* (Done 1/1), *Weekly grocery list* (Open 1/3)
+- **Summer Road Trip Notes (\`trip-notes\`)**: *Compare coastal vs mountain route* (Open 1/2)
+- **Pomodoro Study Timer (\`study-timer\`)**: *25-minute focus countdown* (Done 1/1), plus the live plan we propose:
+  **Play a bell sound when the timer ends (\`session-alert\`)** with 2 outcomes:
+  1. \`bell-sound\` (*Plays a clear bell sound when the countdown reaches 00:00*)
+  2. \`mute-button\` (*Stays completely silent when Mute is turned on*)
 `,
 );
 

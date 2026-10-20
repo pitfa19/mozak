@@ -6,7 +6,7 @@
  * `mozak-agent-chat.gif`) side-by-side with the live Obsidian `mozak-demo-vault` IDE.
  *
  * Shows the conversational `/mozak` flow:
- *   Beat 1 (0–8s):   You ask `/mozak field-kit ...` -> Agent calls `mozak_scopes` & `mozak_context`,
+ *   Beat 1 (0–8s):   You ask `/mozak study-timer ...` -> Agent calls `mozak_scopes` & `mozak_context`,
  *                    summarizes state in 2 lines, and asks 1 focused clarifying question.
  *   Beat 2 (8–16s):  You answer -> Agent calls `mozak_propose` and pauses at the direction approval gate
  *                    while Obsidian cross-dissolves to `Awaiting first approval`.
@@ -54,7 +54,16 @@ console.log("1. Rendering 384 Retina HD frames (1920x1080 @ 12fps) for Agent Cha
 const swiftCompositor = `
 import AppKit
 import CoreGraphics
+import CoreText
 import Foundation
+
+let fontDir = ${JSON.stringify(join(repoRoot, "docs/assets/brand/fonts"))}
+if let items = try? FileManager.default.contentsOfDirectory(atPath: fontDir) {
+  for item in items where item.hasSuffix(".ttf") {
+    let url = URL(fileURLWithPath: fontDir + "/" + item) as CFURL
+    CTFontManagerRegisterFontsForURL(url, .process, nil)
+  }
+}
 
 let obsDir = ${JSON.stringify(obsDir)}
 let framesDir = ${JSON.stringify(framesDir)}
@@ -78,28 +87,29 @@ let fps = 12.0
 let totalSeconds = 32.0
 let totalFrames = Int(fps * totalSeconds)
 
-// MOZAK Palette
-let bgCol = NSColor(calibratedRed: 0.059, green: 0.067, blue: 0.102, alpha: 1.0)       // #0f111a
-let panelBg = NSColor(calibratedRed: 0.090, green: 0.102, blue: 0.149, alpha: 1.0)    // #171a26
-let headerBg = NSColor(calibratedRed: 0.118, green: 0.133, blue: 0.192, alpha: 1.0)   // #1e2231
-let userCardBg = NSColor(calibratedRed: 0.135, green: 0.145, blue: 0.220, alpha: 1.0) // subtle purple-tinted card
-let agentCardBg = NSColor(calibratedRed: 0.110, green: 0.125, blue: 0.180, alpha: 1.0)
-let toolPillBg = NSColor(calibratedRed: 0.075, green: 0.086, blue: 0.129, alpha: 1.0)
-let borderCol = NSColor(calibratedRed: 0.180, green: 0.204, blue: 0.302, alpha: 1.0)  // #2e344d
-let goldCol = NSColor(calibratedRed: 0.847, green: 0.702, blue: 0.353, alpha: 1.0)    // #d8b35a
-let purpleCol = NSColor(calibratedRed: 0.604, green: 0.549, blue: 0.910, alpha: 1.0)  // #9a8ce8
-let greenCol = NSColor(calibratedRed: 0.361, green: 0.749, blue: 0.541, alpha: 1.0)   // #5cbf8a
-let textCol = NSColor(calibratedRed: 0.925, green: 0.937, blue: 0.969, alpha: 1.0)    // #eceff7
-let mutedCol = NSColor(calibratedRed: 0.604, green: 0.639, blue: 0.737, alpha: 1.0)   // #9aa3bc
+// MOZAK light palette (brand accents darkened for contrast on white)
+func rgb(_ r: CGFloat, _ g: CGFloat, _ b: CGFloat) -> NSColor { NSColor(srgbRed: r / 255, green: g / 255, blue: b / 255, alpha: 1) }
+let bgCol = rgb(244, 245, 248)
+let panelBg = rgb(255, 255, 255)
+let headerBg = rgb(236, 238, 243)
+let userCardBg = rgb(243, 240, 253)   // subtle purple-tinted card
+let agentCardBg = rgb(250, 250, 252)
+let toolPillBg = rgb(246, 247, 250)
+let borderCol = rgb(214, 218, 228)
+let goldCol = rgb(176, 132, 28)
+let purpleCol = rgb(110, 91, 214)
+let greenCol = rgb(30, 138, 82)
+let textCol = rgb(26, 30, 40)
+let mutedCol = rgb(98, 106, 126)
 
-let fontMono = NSFont.monospacedSystemFont(ofSize: 13.0, weight: .medium)
-let fontMonoBold = NSFont.monospacedSystemFont(ofSize: 13.5, weight: .bold)
-let fontMonoSmall = NSFont.monospacedSystemFont(ofSize: 12.0, weight: .semibold)
-let fontBody = NSFont.systemFont(ofSize: 14.0, weight: .regular)
-let fontBodyBold = NSFont.systemFont(ofSize: 14.0, weight: .semibold)
-let fontTitle = NSFont.systemFont(ofSize: 15.5, weight: .bold)
-let fontBadge = NSFont.systemFont(ofSize: 12.5, weight: .bold)
-let fontCaption = NSFont.systemFont(ofSize: 14.5, weight: .medium)
+let fontMono = NSFont(name: "JetBrainsMono-Medium", size: 13.0) ?? NSFont.monospacedSystemFont(ofSize: 13.0, weight: .medium)
+let fontMonoBold = NSFont(name: "JetBrainsMono-Bold", size: 13.5) ?? NSFont.monospacedSystemFont(ofSize: 13.5, weight: .bold)
+let fontMonoSmall = NSFont(name: "JetBrainsMono-SemiBold", size: 12.0) ?? NSFont.monospacedSystemFont(ofSize: 12.0, weight: .semibold)
+let fontBody = NSFont(name: "PlusJakartaSans-Regular", size: 14.2) ?? NSFont.systemFont(ofSize: 14.0, weight: .regular)
+let fontBodyBold = NSFont(name: "PlusJakartaSans-SemiBold", size: 14.2) ?? NSFont.systemFont(ofSize: 14.0, weight: .semibold)
+let fontTitle = NSFont(name: "SpaceGroteskLight-Bold", size: 16.0) ?? NSFont(name: "PlusJakartaSans-Bold", size: 15.5) ?? NSFont.systemFont(ofSize: 15.5, weight: .bold)
+let fontBadge = NSFont(name: "JetBrainsMono-Bold", size: 12.5) ?? NSFont.systemFont(ofSize: 12.5, weight: .bold)
+let fontCaption = NSFont(name: "PlusJakartaSans-Medium", size: 14.5) ?? NSFont.systemFont(ofSize: 14.5, weight: .medium)
 
 func fillRoundRect(_ ctx: CGContext, x: CGFloat, yTop: CGFloat, w: CGFloat, h: CGFloat, r: CGFloat, fill: NSColor, stroke: NSColor? = nil, lineWidth: CGFloat = 1.5) {
   let rect = CGRect(x: x, y: CGFloat(height) - yTop - h, width: w, height: h)
@@ -161,125 +171,124 @@ let beats: [BeatSpec] = [
     badge: "BEAT 1 / 4",
     start: 0.0,
     end: 8.0,
-    headerTitle: "You talk in the terminal → Agent reads MOZAK state & asks 1 focused question",
+    headerTitle: "You ask in plain words → Agent reads the project & asks 1 question",
     accent: goldCol,
     obsStart: img1,
     obsEnd: img1,
     transitionAt: 99.0,
     userLines: [
-      "/mozak field-kit — plan the 30-day deep-sleep power budget",
-      "(< 45 uA sleep current, -10 C cold soak)."
+      "/mozak study-timer — add a bell sound when the 25-minute",
+      "timer ends, plus a mute button."
     ],
     userTypeStart: 0.2,
     userTypeEnd: 1.9,
     tools: [
-      ToolChip(appearAt: 2.2, col: goldCol, text: "⚙ MCP: mozak_scopes  →  3 scopes (atlas-engine, field-kit, routing-notes)"),
-      ToolChip(appearAt: 2.7, col: goldCol, text: "⚙ MCP: mozak_context (field-kit)  →  1 completed, 0 open, 0 awaiting")
+      ToolChip(appearAt: 2.2, col: goldCol, text: "⚙ MCP: mozak_scopes  →  3 scopes (recipe-app, study-timer, trip-notes)"),
+      ToolChip(appearAt: 2.7, col: goldCol, text: "⚙ MCP: mozak_context (study-timer)  →  1 completed, 0 open, 0 awaiting")
     ],
     agentAppearAt: 3.3,
-    agentTitle: "Agent • /mozak (Overview & Focused Clarification)",
+    agentTitle: "Agent • /mozak (Overview & Focused Question)",
     agentLines: [
-      ("Field Sensor Kit (field-kit) has 1 completed plan (telemetry-schema) and 0 open.", textCol, false),
+      ("Pomodoro Study Timer (study-timer) has 1 completed plan (25-minute focus countdown).", textCol, false),
       ("", textCol, false),
-      ("Before I draft battery-budget, one focused question:", mutedCol, false),
-      ("Q1: Should both outcomes (sleep-draw < 45 uA and cold-soak at -10 C)", goldCol, true),
-      ("    be objective test checks, or owner sign-off?", goldCol, true)
+      ("Before I draft session-alert, one question:", mutedCol, false),
+      ("Q1: Can both steps (bell-sound at 00:00 and mute-button) be checked", goldCol, true),
+      ("    by automated audio tests, or do you want to sign off yourself?", goldCol, true)
     ],
     highlight: (2.4, 1536, 150, 345, 315, goldCol, "3 scopes in shared inventory"),
-    caption: "The /mozak skill reads MOZAK.json via MCP, summarizes the project in 2 lines, and asks 1 focused question."
+    caption: "You type /mozak and ask in plain words. The agent reads the project notes first, then asks one question."
   ),
   BeatSpec(
     index: 2,
     badge: "BEAT 2 / 4",
     start: 8.0,
     end: 16.0,
-    headerTitle: "Agent proposes the plan → pauses at the owner direction-approval gate",
+    headerTitle: "Agent drafts the plan → pauses for your direction approval",
     accent: goldCol,
     obsStart: img1,
     obsEnd: img2,
     transitionAt: 10.5,
     userLines: [
-      "Both objective — bench ammeter trace for sleep-draw,",
-      "chamber log for cold-soak."
+      "Automated audio tests for both."
     ],
     userTypeStart: 8.2,
-    userTypeEnd: 9.7,
+    userTypeEnd: 9.5,
     tools: [
-      ToolChip(appearAt: 10.0, col: goldCol, text: "⚙ MCP: mozak_propose (field-kit / battery-budget)  →  awaiting approval")
+      ToolChip(appearAt: 10.0, col: goldCol, text: "⚙ MCP: mozak_propose (study-timer / session-alert)  →  awaiting approval")
     ],
     agentAppearAt: 10.8,
-    agentTitle: "Agent • /mozak (Draft Proposed — Waiting at Owner Gate)",
+    agentTitle: "Agent • /mozak (Draft Proposed — Waiting for Your Approval)",
     agentLines: [
-      ("Proposed battery-budget (30-day deep-sleep power budget) with 2 outcomes:", textCol, false),
-      ("  1. sleep-draw — Deep-sleep current stays under 45 uA with RTC alarm", mutedCol, false),
-      ("  2. cold-soak  — 30-day projected capacity holds at -10 C", mutedCol, false),
+      ("Proposed session-alert (Play a bell sound when the timer ends) with 2 outcomes:", textCol, false),
+      ("  1. bell-sound  — Plays a clear bell sound when countdown reaches 00:00", mutedCol, false),
+      ("  2. mute-button — Stays completely silent when Mute is turned on", mutedCol, false),
       ("", textCol, false),
       ("⏸ Paused for direction approval.", goldCol, true),
-      ("Check field-kit/MOZAK.md in Obsidian and reply to approve direction.", textCol, false)
+      ("Check study-timer/MOZAK.md in Obsidian and reply to approve direction.", textCol, false)
     ],
     highlight: (10.9, 1536, 302, 345, 44, goldCol, "Awaiting owner approval"),
-    caption: "Agents cannot self-approve: mozak_propose writes a pending draft, and Obsidian immediately shows 'awaiting approval'."
+    caption: "The agent writes the plan into MOZAK.json and MOZAK.md. Obsidian shows 'awaiting approval': nothing happens until you say yes."
   ),
   BeatSpec(
     index: 3,
     badge: "BEAT 3 / 4",
     start: 16.0,
     end: 24.0,
-    headerTitle: "Owner approves direction in chat → Obsidian roadmap & status table light up",
+    headerTitle: "You approve direction → Plan turns Open & 'Bell sound' lights up",
     accent: purpleCol,
     obsStart: img2,
     obsEnd: img3,
     transitionAt: 18.4,
     userLines: [
-      "Looks right — approve direction for battery-budget."
+      "Looks good — approve direction for session-alert."
     ],
     userTypeStart: 16.2,
     userTypeEnd: 17.5,
     tools: [
-      ToolChip(appearAt: 17.9, col: purpleCol, text: "✓ mozak review decide --scope field-kit --plan battery-budget --approve-direction")
+      ToolChip(appearAt: 17.9, col: purpleCol, text: "✓ mozak review decide --scope study-timer --plan session-alert --approve-direction")
     ],
     agentAppearAt: 18.7,
     agentTitle: "Agent • /mozak (Direction Approved → Open 0/2)",
     agentLines: [
-      ("Direction approved! field-kit/MOZAK.json and field-kit/MOZAK.md updated.", textCol, false),
+      ("Direction approved! study-timer/MOZAK.json and study-timer/MOZAK.md updated.", textCol, false),
       ("", textCol, false),
       ("• Plan status: Open (0/2 outcomes done)", purpleCol, true),
-      ("• Active roadmap stop: #1 sleep-draw (< 45 uA over 1 hour)", purpleCol, true),
+      ("• Current roadmap stop: #1 bell-sound (Plays a bell sound at 00:00)", purpleCol, true),
       ("• Obsidian roadmap & sidebar progress strip updated live.", mutedCol, false)
     ],
-    highlight: (18.8, 836, 750, 340, 96, purpleCol, "Current stop lights up purple"),
-    caption: "Only the owner's explicit decision unlocks the plan. Obsidian redraws the 0/2 strip and highlights the active Mermaid node."
+    highlight: (18.8, 836, 742, 412, 110, purpleCol, "Current stop lights up purple"),
+    caption: "Your yes unlocks the plan. In Obsidian it turns Open, and the roadmap's first step, Bell sound, becomes the current stop."
   ),
   BeatSpec(
     index: 4,
     badge: "BEAT 4 / 4",
     start: 24.0,
     end: 32.0,
-    headerTitle: "Agent runs verification & records evidence → Outcome 1/2 turns green",
+    headerTitle: "Agent runs audio test & records proof → 'Bell sound' turns green (1/2)",
     accent: greenCol,
     obsStart: img3,
     obsEnd: img4,
     transitionAt: 26.5,
     userLines: [
-      "Run the 1-hour bench ammeter trace and record the observation."
+      "Run the bell audio test and record the observation."
     ],
     userTypeStart: 24.2,
     userTypeEnd: 25.5,
     tools: [
-      ToolChip(appearAt: 25.8, col: greenCol, text: "⚙ bash: node firmware/bench-ammeter.mjs  →  PASS (avg 38.4 uA < 45 uA)"),
-      ToolChip(appearAt: 26.3, col: greenCol, text: "⚙ MCP: mozak_observe (battery-budget / sleep-draw  →  pass)")
+      ToolChip(appearAt: 25.8, col: greenCol, text: "⚙ bash: node test/bell-sound.test.js  →  PASS (bell sound played at 00:00)"),
+      ToolChip(appearAt: 26.3, col: greenCol, text: "⚙ MCP: mozak_observe (session-alert / bell-sound  →  pass)")
     ],
     agentAppearAt: 26.9,
     agentTitle: "Agent • /mozak (Evidence Recorded → Outcome 1/2 Done)",
     agentLines: [
-      ("Recorded passing evidence (ev-sleep-draw-bench: 38.4 uA avg < 45 uA).", textCol, false),
+      ("Recorded passing evidence (ev-bell-test: Bell sound played at 00:00).", textCol, false),
       ("", textCol, false),
-      ("✓ Outcome 1/2 (sleep-draw): done — green in sidebar & Mermaid roadmap", greenCol, true),
-      ("→ Next roadmap stop: #2 cold-soak (-10 C chamber log)", purpleCol, false),
+      ("✓ Outcome 1/2 (bell-sound): done — green in sidebar & Mermaid roadmap", greenCol, true),
+      ("→ Next roadmap stop: #2 mute-button (Silent when Mute is on)", purpleCol, false),
       ("Saved in git & Obsidian so any future agent session resumes here.", mutedCol, false)
     ],
-    highlight: (27.0, 836, 750, 340, 96, greenCol, "Outcome 1/2 verified & green"),
-    caption: "Generative UI from plain files: you talk in the terminal, and Obsidian renders the live project IDE."
+    highlight: (27.0, 836, 742, 412, 110, greenCol, "Outcome 1/2 verified & green"),
+    caption: "The test result is saved as evidence in the plan. Obsidian marks Bell sound done, and the roadmap moves on to Mute button."
   )
 ]
 
@@ -339,11 +348,11 @@ for f in 0..<totalFrames {
       fillRoundRect(ctx, x: 44, yTop: curY, w: 680, h: 36, r: 8, fill: toolPillBg, stroke: borderCol, lineWidth: 1.0)
       let prevSummary: String
       if beat.index == 2 {
-        prevSummary = "✓ Beat 1: /mozak read field-kit (1 completed, 0 open) and asked Q1 on outcome acceptance"
+        prevSummary = "✓ Beat 1: /mozak read study-timer (1 done, 0 open) and asked Q1 on audio tests"
       } else if beat.index == 3 {
-        prevSummary = "✓ Beat 2: mozak_propose created battery-budget (awaiting owner direction approval)"
+        prevSummary = "✓ Beat 2: mozak_propose drafted session-alert (awaiting your direction approval)"
       } else {
-        prevSummary = "✓ Beat 3: Owner approved direction → battery-budget is Open (0/2 outcomes done)"
+        prevSummary = "✓ Beat 3: You approved direction → session-alert is Open (0/2 outcomes done)"
       }
       drawText(prevSummary, x: 58, yTop: curY + 10, font: fontMonoSmall, col: mutedCol)
       curY += 52

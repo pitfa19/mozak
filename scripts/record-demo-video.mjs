@@ -12,6 +12,7 @@
 //    docs/assets/mozak-demo.mp4, ~/Downloads/mozak-demo.mp4, and docs/assets/mozak-demo.gif.
 
 import { spawnSync } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -63,6 +64,58 @@ function captureObsidian(wid, outPath) {
   }
 }
 
+// Background Electron windows are throttled, so the file watcher and Mermaid
+// renderer may not redraw until Obsidian is frontmost.
+function activateObsidian() {
+  spawnSync("osascript", ["-e", 'tell application "Obsidian" to activate']);
+}
+
+function ocrText(path) {
+  const r = spawnSync(
+    "swift",
+    [
+      "-e",
+      `
+import Vision
+import AppKit
+let img = NSImage(contentsOfFile: CommandLine.arguments[1])!
+let cg = img.cgImage(forProposedRect: nil, context: nil, hints: nil)!
+let req = VNRecognizeTextRequest()
+req.recognitionLevel = .fast
+try! VNImageRequestHandler(cgImage: cg).perform([req])
+for o in req.results ?? [] { print(o.topCandidates(1).first?.string ?? "") }
+`,
+      path,
+    ],
+    { encoding: "utf8" },
+  );
+  return r.stdout || "";
+}
+
+// Capture once the window differs from the previous beat and has stopped changing.
+// Optionally require that a Mermaid roadmap is drawn (no raw `classDef` source visible).
+function captureAfterRedraw(wid, outPath, previousPath, { needsDiagram = false, timeoutMs = 20000 } = {}) {
+  activateObsidian();
+  const prev = previousPath ? readFileSync(previousPath) : null;
+  const deadline = Date.now() + timeoutMs;
+  let last = null;
+  while (Date.now() < deadline) {
+    sleep(700);
+    captureObsidian(wid, outPath);
+    const cur = readFileSync(outPath);
+    const changed = !prev || !cur.equals(prev);
+    const stable = last && cur.equals(last);
+    last = cur;
+    if (!changed || !stable) continue;
+    if (needsDiagram) {
+      const text = ocrText(outPath);
+      if (/classDef|flowchart LR/.test(text) || !/Roadmap/.test(text)) continue;
+    }
+    return;
+  }
+  throw new Error(`Obsidian did not redraw for ${outPath} within ${timeoutMs}ms`);
+}
+
 function stripAnsi(s) {
   return s
     .replace(/\x1b\[[0-9;]*m/g, "")
@@ -79,53 +132,84 @@ function runDemoStep(step) {
 }
 
 console.log("1. Resetting clean demo vault and launching Obsidian...");
+const obsSupportDir = join(homedir(), "Library", "Application Support", "obsidian");
+const obsJsonPath = join(obsSupportDir, "obsidian.json");
+// Obsidian's vault list is user state. Snapshot it and always put it back, even on failure.
+const obsJsonBackup = existsSync(obsJsonPath) ? readFileSync(obsJsonPath, "utf8") : null;
+let obsRestored = false;
+function restoreObsidian() {
+  if (obsRestored || obsJsonBackup === null) return;
+  obsRestored = true;
+  spawnSync("killall", ["Obsidian"]);
+  spawnSync("sleep", ["2"]);
+  writeFileSync(obsJsonPath, obsJsonBackup);
+  spawnSync("open", ["-a", "Obsidian"]);
+  console.log("   Restored Obsidian vault list and reopened Obsidian");
+}
+process.on("exit", restoreObsidian);
+for (const sig of ["SIGINT", "SIGTERM"]) process.on(sig, () => process.exit(130));
+
 spawnSync("killall", ["Obsidian"]);
-sleep(1000);
+sleep(2000);
 spawnSync("node", [join(repoRoot, "scripts", "setup-demo-vault.mjs")], { stdio: "inherit" });
 
-const obsWinCfg = join(homedir(), "Library", "Application Support", "obsidian", "cee2fe55be9fff82.json");
-if (existsSync(dirname(obsWinCfg))) {
-  writeFileSync(
-    obsWinCfg,
-    JSON.stringify({ isMaximized: false, devTools: false, zoom: 0, x: 350, y: 33, width: 1120, height: 880 }),
-  );
+if (existsSync(obsJsonPath)) {
+  try {
+    const obsMeta = JSON.parse(readFileSync(obsJsonPath, "utf8"));
+    obsMeta.vaults ||= {};
+    if (!Object.values(obsMeta.vaults).some((v) => v && v.path === demoVault)) {
+      obsMeta.vaults[randomBytes(8).toString("hex")] = { path: demoVault, ts: Date.now() };
+    }
+    for (const [vid, info] of Object.entries(obsMeta.vaults)) {
+      if (info && typeof info.path === "string" && info.path.endsWith("mozak-demo-vault")) {
+        info.open = true;
+        writeFileSync(
+          join(obsSupportDir, `${vid}.json`),
+          JSON.stringify({ isMaximized: false, devTools: false, zoom: 0, x: 260, y: 33, width: 1120, height: 836 }),
+        );
+      } else if (info && typeof info === "object") {
+        delete info.open;
+      }
+    }
+    writeFileSync(obsJsonPath, JSON.stringify(obsMeta));
+  } catch {}
 }
 
 spawnSync("open", ["obsidian://open?vault=mozak-demo-vault"]);
-sleep(4500); // wait for Obsidian to finish loading
-
-const wid = getDemoWindowId();
+sleep(5500); // wait for Obsidian to finish loading and start file watchers
+let wid = getDemoWindowId();
+for (let i = 0; !wid && i < 30; i++) {
+  sleep(1000);
+  wid = getDemoWindowId();
+}
 if (!wid) throw new Error("Could not find Obsidian window for mozak-demo-vault");
 console.log(`   Found mozak-demo-vault Obsidian window ID: ${wid}`);
 
-// Capture Beat 1: field-kit/MOZAK.md open with all 3 scopes expanded in sidebar
+// Capture Beat 1: study-timer/MOZAK.md open with all 3 scopes expanded in sidebar
 const obsBeat1a = join(workDir, "obs", "beat1a.png");
-captureObsidian(wid, obsBeat1a);
+captureAfterRedraw(wid, obsBeat1a, null);
 const obsBeat1b = obsBeat1a;
-console.log("   Captured Beat 1 (field-kit/MOZAK.md + 3 scopes in sidebar, zero toast)");
+console.log("   Captured Beat 1 (study-timer/MOZAK.md + 3 scopes in sidebar, zero toast)");
 
 // Run Beat 1 CLI (`mozak scopes`)
 const outScopes = runDemoStep("scopes");
 
 // Beat 2: Run live `propose` and capture Obsidian window as it auto-refreshes
 const outPropose = runDemoStep("propose");
-sleep(1800);
 const obsBeat2 = join(workDir, "obs", "beat2.png");
-captureObsidian(wid, obsBeat2);
+captureAfterRedraw(wid, obsBeat2, obsBeat1a, { needsDiagram: true });
 console.log("   Captured Beat 2 (after propose -> awaiting approval + Mermaid roadmap)");
 
 // Beat 3: Run live `approve` and capture Obsidian window as it auto-refreshes
 const outApprove = runDemoStep("approve");
-sleep(1800);
 const obsBeat3 = join(workDir, "obs", "beat3.png");
-captureObsidian(wid, obsBeat3);
+captureAfterRedraw(wid, obsBeat3, obsBeat2, { needsDiagram: true });
 console.log("   Captured Beat 3 (after approve-direction -> Open 0/2 + purple current outcome)");
 
 // Beat 4: Run live `observe` and capture Obsidian window as it auto-refreshes
 const outObserve = runDemoStep("observe");
-sleep(1800);
 const obsBeat4 = join(workDir, "obs", "beat4.png");
-captureObsidian(wid, obsBeat4);
+captureAfterRedraw(wid, obsBeat4, obsBeat3, { needsDiagram: true });
 console.log("   Captured Beat 4 (after observe -> Open 1/2 green segment + Mermaid done node)");
 
 // Prepare timeline specification for Swift CoreGraphics frame compositor (12 fps * 32s = 384 frames)
@@ -162,7 +246,16 @@ writeFileSync(
   `
 import AppKit
 import CoreGraphics
+import CoreText
 import Foundation
+
+let fontDir = ${JSON.stringify(join(repoRoot, "docs/assets/brand/fonts"))}
+if let items = try? FileManager.default.contentsOfDirectory(atPath: fontDir) {
+  for item in items where item.hasSuffix(".ttf") {
+    let url = URL(fileURLWithPath: fontDir + "/" + item) as CFURL
+    CTFontManagerRegisterFontsForURL(url, .process, nil)
+  }
+}
 
 struct TimelineSpec: Decodable {
   let fps: Int
@@ -197,25 +290,26 @@ func color(_ r: CGFloat, _ g: CGFloat, _ b: CGFloat, _ a: CGFloat = 1.0) -> NSCo
   return NSColor(srgbRed: r / 255.0, green: g / 255.0, blue: b / 255.0, alpha: a)
 }
 
-let bgDark      = color(11, 13, 19)
-let panelBg     = color(18, 21, 30)
-let termBg      = color(15, 17, 23)
-let termHeader  = color(26, 30, 40)
-let borderCol   = color(48, 54, 72)
-let goldCol     = color(216, 179, 90)
-let purpleCol   = color(154, 140, 232)
-let greenCol    = color(92, 191, 138)
-let textMain    = color(232, 236, 244)
-let textMuted   = color(148, 156, 176)
-let promptCol   = color(92, 191, 138)
-let cmdCol      = color(242, 245, 250)
+// Light palette (brand accents darkened for contrast on white)
+let bgDark      = color(244, 245, 248)
+let panelBg     = color(255, 255, 255)
+let termBg      = color(250, 250, 252)
+let termHeader  = color(236, 238, 243)
+let borderCol   = color(214, 218, 228)
+let goldCol     = color(176, 132, 28)
+let purpleCol   = color(110, 91, 214)
+let greenCol    = color(30, 138, 82)
+let textMain    = color(26, 30, 40)
+let textMuted   = color(98, 106, 126)
+let promptCol   = color(30, 138, 82)
+let cmdCol      = color(18, 21, 30)
 
-let fontMonoBold = NSFont.monospacedSystemFont(ofSize: 14.5, weight: .semibold)
-let fontMono     = NSFont.monospacedSystemFont(ofSize: 13.5, weight: .regular)
-let fontTitle    = NSFont.systemFont(ofSize: 16, weight: .bold)
-let fontStep     = NSFont.systemFont(ofSize: 15, weight: .semibold)
-let fontCaption  = NSFont.systemFont(ofSize: 15, weight: .medium)
-let fontSmall    = NSFont.monospacedSystemFont(ofSize: 12.5, weight: .medium)
+let fontMonoBold = NSFont(name: "JetBrainsMono-SemiBold", size: 14.5) ?? NSFont.monospacedSystemFont(ofSize: 14.5, weight: .semibold)
+let fontMono     = NSFont(name: "JetBrainsMono-Regular", size: 13.5) ?? NSFont.monospacedSystemFont(ofSize: 13.5, weight: .regular)
+let fontTitle    = NSFont(name: "SpaceGroteskLight-Bold", size: 16.5) ?? NSFont(name: "PlusJakartaSans-Bold", size: 16.0) ?? NSFont.systemFont(ofSize: 16, weight: .bold)
+let fontStep     = NSFont(name: "PlusJakartaSans-SemiBold", size: 15.0) ?? NSFont.systemFont(ofSize: 15, weight: .semibold)
+let fontCaption  = NSFont(name: "PlusJakartaSans-Medium", size: 15.0) ?? NSFont.systemFont(ofSize: 15, weight: .medium)
+let fontSmall    = NSFont(name: "JetBrainsMono-Medium", size: 12.5) ?? NSFont.monospacedSystemFont(ofSize: 12.5, weight: .medium)
 
 func drawText(_ str: String, x: CGFloat, yTop: CGFloat, font: NSFont, col: NSColor) {
   let attrs: [NSAttributedString.Key: Any] = [
@@ -244,9 +338,9 @@ func fillRoundRect(_ ctx: CGContext, x: CGFloat, yTop: CGFloat, w: CGFloat, h: C
 }
 
 let cmd1 = "mozak scopes"
-let cmd2 = "mozak plan propose --scope field-kit --plan battery-budget"
-let cmd3 = "mozak review decide --scope field-kit --plan battery-budget --approve-direction"
-let cmd4 = "mozak observe --scope field-kit --plan battery-budget"
+let cmd2 = "mozak plan propose --scope study-timer --plan session-alert"
+let cmd3 = "mozak review decide --scope study-timer --plan session-alert --approve-direction"
+let cmd4 = "mozak observe --scope study-timer --plan session-alert"
 
 for f in 0..<totalFrames {
   autoreleasepool {
@@ -301,7 +395,7 @@ for f in 0..<totalFrames {
       obsImg = (t < 18.2) ? img2 : img3
       captionText = "Owner approves direction. Obsidian redraws the 0/2 outcome strip and lights up the current Mermaid node."
       if t >= 18.4 {
-        highlightBox = (836, 750, 340, 96, purpleCol, "Mermaid roadmap redraws live")
+        highlightBox = (836, 742, 412, 110, purpleCol, "Mermaid roadmap redraws live")
       }
     } else {
       stepBadge = "STEP 4 / 4"
@@ -310,7 +404,7 @@ for f in 0..<totalFrames {
       obsImg = (t < 26.0) ? img3 : img4
       captionText = "Generative UI without UI code: the agent writes plain files; Obsidian renders the live UI."
       if t >= 26.2 {
-        highlightBox = (836, 750, 340, 96, greenCol, "Outcome 1/2 verified & green")
+        highlightBox = (836, 742, 412, 110, greenCol, "Outcome 1/2 verified & green")
       }
     }
 
@@ -360,7 +454,7 @@ for f in 0..<totalFrames {
             lineCol = greenCol
           } else if line.contains("→ proposed") || line.contains("awaiting") {
             lineCol = goldCol
-          } else if line.contains("[atlas-engine]") || line.contains("[routing-notes]") || line.contains("[field-kit]") || line.contains("[battery-budget]") {
+          } else if line.contains("[recipe-app]") || line.contains("[trip-notes]") || line.contains("[study-timer]") || line.contains("[session-alert]") {
             lineCol = textMain
           }
           drawText(line, x: leftX + 6, yTop: cursorY, font: fontMono, col: lineCol)
