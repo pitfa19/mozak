@@ -1,12 +1,25 @@
 // Pure view models. Turns core ScopeState plus review rows into plain data for the UI. No IO.
 // Plans are read in mozak.md, so the sidebar only needs identity, state, progress and a heading to jump to.
-import { completedPlanLine, isBridgeFileName, planHeading, planRoadmap, type Plan, type ScopeState } from "@mozak/core";
+import { completedPlanLine, isBridgeFileName, planHeading, planRoadmap, resolveRef, type AnnotationsDoc, type Plan, type ScopeLookup, type ScopeState } from "@mozak/core";
 
 export type PlanStateKey = "completed" | "open" | "paused" | "awaiting" | "rejected";
 export type StopKey = "done" | "evidence" | "current" | "todo";
 
 /** One sidebar segment per outcome, in roadmap order. */
 export interface StripVM { stops: { key: StopKey; label: string }[]; done: number; total: number }
+/** One cross-plan reference from owner annotations, seen from one plan. */
+export interface RefVM {
+  direction: "out" | "in";
+  relation: "needs" | "informs" | "supersedes";
+  /** Short reading: "needs", "needed by", "informs", "informed by", "supersedes", "superseded by". */
+  verb: string;
+  /** The other plan as scope/plan[#outcome]. */
+  other: string;
+  /** Title of the other plan when it resolves, else the raw target. */
+  label: string;
+  status: "resolved" | "dangling" | "unavailable";
+  evidence: string;
+}
 export interface PlanVM {
   scopeId: string;
   id: string;
@@ -24,6 +37,8 @@ export interface PlanVM {
   strip: StripVM | null;
   /** Exact heading or collapsed completed-plan line in mozak.md. */
   heading: string;
+  /** Owner annotation refs from this plan and to it. Present only when there is at least one. */
+  refs?: RefVM[];
 }
 export interface RemoteVM {
   spec: string;
@@ -74,6 +89,8 @@ export interface ScopeLoad {
   reviewNeededPlanIds?: string[];
   remote?: RemoteVM;
   error?: { code: string; message: string };
+  /** Parsed mozak.annotations.json, when the scope has a valid one. */
+  annotations?: AnnotationsDoc | null;
 }
 
 const STATE_LABEL: Record<PlanStateKey, string> = {
@@ -194,8 +211,44 @@ export function scopeViewModel(load: ScopeLoad): ScopeVM {
   };
 }
 
+const VERB: Record<RefVM["relation"], [string, string]> = { needs: ["needs", "needed by"], informs: ["informs", "informed by"], supersedes: ["supersedes", "superseded by"] };
+
+/**
+ * Attach owner annotation refs to plan view models, both directions, across every loaded scope. Pure: resolution
+ * uses only the states already loaded. A scope that failed to load makes its targets "unavailable".
+ */
+export function attachRefs(loads: ScopeLoad[], scopes: ScopeVM[]): void {
+  const lookup: ScopeLookup = (id) => {
+    const load = loads.find((l) => l.id === id);
+    if (!load) return "unknown";
+    return load.state && !load.error ? load.state : "unavailable";
+  };
+  const plans = new Map<string, PlanVM>();
+  for (const s of scopes) for (const p of s.plans) plans.set(`${s.id}/${p.id}`, p);
+  const add = (key: string, ref: RefVM) => {
+    const vm = plans.get(key);
+    if (vm) vm.refs = [...(vm.refs ?? []), ref];
+  };
+  for (const load of loads) {
+    const doc = load.state && !load.error ? load.annotations : null;
+    if (!doc) continue;
+    for (const planId of Object.keys(doc.plans).sort()) {
+      for (const r of doc.plans[planId]!.refs) {
+        const res = resolveRef(r.target, lookup);
+        const to = res.status === "resolved" ? `${res.scope}/${res.planId}` : null;
+        const from = `${load.id}/${planId}`;
+        add(from, { direction: "out", relation: r.relation, verb: VERB[r.relation][0], other: r.target, label: to ? plans.get(to)?.title ?? r.target : r.target, status: res.status, evidence: r.evidence });
+        if (to) add(to, { direction: "in", relation: r.relation, verb: VERB[r.relation][1], other: from, label: plans.get(from)?.title ?? from, status: "resolved", evidence: r.evidence });
+      }
+    }
+  }
+  // Outgoing first, then incoming; within each, the order the owner recorded them per scope.
+  for (const vm of plans.values()) if (vm.refs) vm.refs = [...vm.refs.filter((r) => r.direction === "out"), ...vm.refs.filter((r) => r.direction === "in")];
+}
+
 export function scopesModel(inventoryPath: string, loads: ScopeLoad[], now = new Date()): ScopesModel {
   const scopes = loads.map(scopeViewModel);
+  attachRefs(loads, scopes);
   const totals = { completed: 0, open: 0, awaiting: 0, scopes: scopes.length, failed: 0 };
   for (const s of scopes) {
     if (s.status === "failed") totals.failed++;

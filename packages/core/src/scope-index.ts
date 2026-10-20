@@ -27,6 +27,8 @@ export interface ScopeInventory {
   scopes: ScopeEntry[];
   /** SHA-256 over the normalized explicit inventory: format plus sorted id and canonical root. */
   digest: string;
+  /** Absolute inventory file path, set by loadInventory as a non-enumerable property. */
+  readonly path?: string;
 }
 
 const INVENTORY_KEYS = ["format", "scopes"] as const;
@@ -218,7 +220,10 @@ export function loadInventory(configPath: string): ScopeInventory {
   }
 
   scopes.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-  return { format, scopes, digest: digestOf(format, scopes) };
+  const inventory: ScopeInventory = { format, scopes, digest: digestOf(format, scopes) };
+  // Not enumerable: the loaded inventory compares and serializes exactly as before. Used to find mozak-settings.json.
+  Object.defineProperty(inventory, "path", { value: file, enumerable: false });
+  return inventory;
 }
 
 /**

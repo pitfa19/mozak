@@ -3,7 +3,7 @@
 // renderStaleProjections, regenerates mozak.md through core and never touches mozak.json.
 import { lstatSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { DomainError, executeOperation, loadInventory, readRemoteMeta, readScope, resolveScope, reviewRows, SCOPE_FILE_NAMES } from "@mozak/core";
+import { DomainError, executeOperation, loadInventory, readAnnotations, readRemoteMeta, readScope, resolveScope, reviewRows, SCOPE_FILE_NAMES } from "@mozak/core";
 import { remoteVM, scopesModel, type ScopeLoad, type ScopesModel } from "./model.ts";
 
 const ENTRY_NAMES = ["AGENTS.md", ...SCOPE_FILE_NAMES, "README.md"];
@@ -43,6 +43,8 @@ export function loadScopesModel(inventoryPath: string): ScopesModel {
         counts: { completed: groups.completed.length, open: groups.open.length, awaiting: groups.awaiting.length },
         awaitingRows: groups.awaiting.map((r) => ({ planId: r.planId, rowKind: r.rowKind })),
         reviewNeededPlanIds: reviewNeeded,
+        // Owner annotations are display-only here. A broken sidecar simply shows no refs; `mozak check` reports it.
+        annotations: readAnnotations(resolved.root, entry.id).doc,
         ...(remote ? { remote } : {}),
       };
     } catch (err) {

@@ -24,3 +24,7 @@ export * from "./visibility.ts";
 export * from "./working-copy.ts";
 export * from "./durable.ts";
 export * from "./update.ts";
+export * from "./annotations.ts";
+export * from "./deadlines.ts";
+export * from "./crossplan.ts";
+export * from "./settings.ts";

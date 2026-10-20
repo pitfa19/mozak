@@ -70,7 +70,22 @@ export const TOOLS: ToolDef[] = [
       includeRejected: { type: "boolean", description: "Include rejected drafts." },
       limit: { type: "integer", description: "Page size per group." },
       continuation: { type: "string", description: "Opaque continuation token from a previous page." },
+      sort: { type: "string", enum: ["deadline"], description: "Order rows by owner or inferred deadline, earliest first; rows gain deadline fields." },
     },
+    [],
+  ),
+  tool(
+    "mozak_plan_graph",
+    "graph",
+    "Cross-plan references from owner annotations (needs, informs, supersedes) with how each target resolves: live plan, merged plan, dangling or unavailable. Plans carry their deadline. Read-only; annotations are written only by the owner.",
+    { scope: SCOPE, all: { type: "boolean", description: "Every inventoried scope instead of one." } },
+    [],
+  ),
+  tool(
+    "mozak_ready",
+    "ready",
+    "Open plans whose needs are met, ordered by deadline, then by how many plans need them. Blocked plans list what they wait on; superseded plans are listed apart. Advisory only: needs never refuse a write.",
+    { scope: SCOPE, all: { type: "boolean", description: "Every inventoried scope instead of one." } },
     [],
   ),
   tool(

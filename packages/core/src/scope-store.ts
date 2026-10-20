@@ -10,6 +10,7 @@ import { inspectSpecification } from "./spec-file.ts";
 import { renderBridge, renderBridgeLegacy } from "./bridge.ts";
 import { removeLeftoverTempFiles, replaceFileDurable, writeFileDurable, fsyncDir } from "./durable.ts";
 import { ensureStorageIgnored, storageIgnoreIssues } from "./storage-hygiene.ts";
+import { ANNOTATIONS_FILE, annotationsBytes, applyAnnotate, emptyAnnotations, readAnnotations, validateAnnotateRequest, type ScopeLookup } from "./annotations.ts";
 
 export { renderBridge, renderBridgeLegacy } from "./bridge.ts";
 
@@ -455,4 +456,51 @@ export function repairProjection(entry: ScopeEntry, input: unknown, options: Sto
     tx.projectionUpdated = true;
     return outcome(entry, tx, "ok");
   });
+}
+
+export interface AnnotateOutcome extends OperationResult { annotations: FileToken | null }
+/**
+ * Owner-only: apply owner-approved annotation items to mozak.annotations.json. Runs under the scope lock, writes one
+ * temp file and one rename, and never touches mozak.json or mozak.md. The CAS input is only the sidecar token the
+ * owner reviewed: graph writes by agents neither need nor change it, and an annotation never makes an agent stale.
+ * A retried identical request replays its receipt before the CAS check. `lookup` resolves targets in other scopes.
+ */
+export function annotateScope(entry: ScopeEntry, input: unknown, lookup: ScopeLookup, options: StoreOptions = {}): AnnotateOutcome {
+  bounded(input);
+  const { request, items } = validateAnnotateRequest(input);
+  identity(entry, request as unknown as Record<string, unknown>);
+  const tx: Transaction = { operationId: request.operationId, committed: false, projectionUpdated: false, temporary: [] };
+  let token: FileToken | null = null;
+  const out = transaction(entry, options, tx, () => {
+    const read = readScope(entry);
+    const side = readAnnotations(entry.root, entry.id);
+    if (side.issues.length) throw new DomainError(side.issues[0]!.code, `${side.issues[0]!.message}; repair the sidecar by hand before annotating`, 3);
+    const requestDigest = digest(input);
+    const base = { operationId: request.operationId, snapshot: read.snapshot, projectionStatus: read.projectionStatus, projectionUpdated: false, issues: [] as ScopeIssue[] };
+    if (side.doc && own(side.doc.receipts, request.operationId)) {
+      const prior = side.doc.receipts[request.operationId]!;
+      if (prior.requestDigest !== requestDigest) throw new DomainError("operation-conflict", "operation ID was already used with different input", 3);
+      tx.committed = true; tx.result = prior.result; token = side.token;
+      return { ...base, status: "replayed", committed: true, replayed: true, result: prior.result };
+    }
+    if (!same(side.token, request.expectedAnnotations)) throw new DomainError("stale-input", "mozak.annotations.json changed; reread it and show the items again", 3);
+    const now = new Date().toISOString();
+    const revision = randomUUID();
+    const current = side.doc ?? emptyAnnotations(entry.id, now);
+    const local: ScopeLookup = (id) => (id === entry.id ? read.state : lookup(id));
+    const applied = applyAnnotate(current, read.state, items, request, local, now, revision);
+    const result = { action: "annotate" as const, ids: applied.ids };
+    Object.defineProperty(applied.doc.receipts, request.operationId, { value: { requestDigest, revision, recordedAt: now, result }, enumerable: true, writable: true, configurable: true });
+    const bytes = annotationsBytes(applied.doc);
+    const path = join(entry.root, ANNOTATIONS_FILE);
+    options.onPhase?.("before-annotations");
+    replaceFileDurable(path, bytes, (temporary) => tx.temporary.push(temporary), () => {
+      options.onPhase?.("temp-written:annotations");
+      if (!same(readAnnotations(entry.root).token, side.token)) throw new DomainError("annotations-changed-during-write", "mozak.annotations.json changed during the write; external bytes preserved", 3);
+    });
+    tx.committed = true; tx.result = result;
+    token = { exists: true, sha256: hashBytes(bytes) };
+    return { ...base, status: "ok", committed: true, result };
+  });
+  return { ...out, annotations: token };
 }

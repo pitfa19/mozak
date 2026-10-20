@@ -52,8 +52,8 @@ export function replaceFileDurable(path: string, data: string | Uint8Array, onTe
   fsyncDir(dirname(path));
 }
 
-/** Names of temp files an interrupted write of a plan file (either name case) can leave behind in a scope folder. */
-const LEFTOVER = /^(?:mozak|MOZAK)\.(json|md)\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.tmp$/;
+/** Names of temp files an interrupted write of a plan file (either name case) or of the annotations sidecar can leave behind. */
+const LEFTOVER = /^(?:(?:mozak|MOZAK)\.(?:json|md)|mozak\.annotations\.json)\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.tmp$/;
 
 export function leftoverTempFiles(root: string): string[] {
   try {
