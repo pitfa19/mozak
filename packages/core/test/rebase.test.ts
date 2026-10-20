@@ -348,3 +348,18 @@ test("V-race 7: seeded random histories with stale snapshots are serially equiva
   assert.equal(notEquivalent, 0);
   assert.ok(rebasedCount > 0, "the generator exercises the rebase path");
 });
+
+test("V-race 8: P0.6 with rebase on: a rebased write still refuses when mozak.json or mozak.md changes before its rename", () => {
+  for (const name of ["mozak.json", "mozak.md"]) {
+    const entry = accepted();
+    const snap = readScope(entry).snapshot;
+    write(entry, "observe", observe(entry, "other", "o2"));
+    const changed = name === "mozak.json" ? `${readFileSync(join(entry.root, name), "utf8")}\n` : "External bridge edit\n";
+    const graphBefore = readFileSync(join(entry.root, "mozak.json"), "utf8");
+    assert.throws(() => mutateScope(entry, { operationId: op(), scopeId: entry.id, expected: snap, action: "observe", payload: observe(entry, "mine", "o1") }, "agent", { ...NO_GUARD, onPhase(p) {
+      if (p === "before-graph") writeFileSync(join(entry.root, name), changed);
+    } }), { code: "graph-changed-during-write" });
+    assert.equal(readFileSync(join(entry.root, name), "utf8"), changed);
+    if (name === "mozak.md") assert.equal(readFileSync(join(entry.root, "mozak.json"), "utf8"), graphBefore);
+  }
+});
