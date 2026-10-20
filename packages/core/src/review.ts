@@ -502,8 +502,6 @@ export function findSimilarPlans(
       `${existing.title} ${existing.purpose} ${existing.outcomes.map((o) => o.statement).join(" ")}`,
     );
     const existIdNums = numericTokens(plan.id);
-    const differentIdNumbers = candIdNums.join(",") !== existIdNums.join(",");
-    if (differentIdNumbers && digest(existing) === digest(candidate.content)) continue;
     const disjointIdNumbers =
       candIdNums.length > 0 && existIdNums.length > 0 && !candIdNums.some((n) => existIdNums.includes(n));
 
@@ -530,6 +528,20 @@ export function findSimilarPlans(
     }
   }
   return matches;
+}
+
+function mergeDiscussionQuestions(target: Plan, source: Plan) {
+  const texts = new Set((target.discussion?.questions ?? []).map((q) => q.text.trim().toLowerCase()));
+  const migrated = (source.discussion?.questions ?? []).filter((q) => {
+    const text = q.text.trim().toLowerCase();
+    if (texts.has(text)) return false;
+    texts.add(text);
+    return true;
+  });
+  if ((target.discussion?.questions.length ?? 0) + migrated.length > 32) {
+    throw new DomainError("merge-capacity", "merged discussion exceeds the 32-question capacity", 2);
+  }
+  return migrated;
 }
 
 function foldMergedPlan(next: ScopeState, target: Plan, source: Plan, promotedId: string, now: UtcTimestamp): void {
@@ -658,9 +670,7 @@ function foldMergedPlan(next: ScopeState, target: Plan, source: Plan, promotedId
   }
 
   if (source.discussion && source.discussion.questions.length > 0) {
-    const existingTexts = new Set((target.discussion?.questions ?? []).map((q) => q.text.trim().toLowerCase()));
-    const migrated = source.discussion.questions
-      .filter((q) => !existingTexts.has(q.text.trim().toLowerCase()))
+    const migrated = mergeDiscussionQuestions(target, source)
       .map((q) => ({
         ...structuredClone(q),
         id: freshId(q.id),
@@ -671,7 +681,7 @@ function foldMergedPlan(next: ScopeState, target: Plan, source: Plan, promotedId
       }));
     if (migrated.length > 0) {
       if (!target.discussion) {
-        const combined = migrated.slice(0, 32);
+        const combined = migrated;
         target.discussion = {
           id: freshId(source.discussion.id),
           updatedAt: now,
@@ -682,7 +692,7 @@ function foldMergedPlan(next: ScopeState, target: Plan, source: Plan, promotedId
           questions: combined,
         };
       } else {
-        const combined = [...target.discussion.questions, ...migrated].slice(0, 32);
+        const combined = [...target.discussion.questions, ...migrated];
         target.discussion = {
           ...target.discussion,
           updatedAt: now,
@@ -920,6 +930,7 @@ export function applyMutation(
         if (next.plans.some((other) => other.id !== plan.id && (other.pending?.mergeFromPlanId === source.id || other.pending?.mergeFromPlanId === plan.id))) {
           throw new DomainError("invalid-lifecycle", `plan "${source.id}" is already involved in another pending merge`, 3);
         }
+        mergeDiscussionQuestions(plan, source);
       }
       const rev = newRevision(checkContent(p.content), now);
       plan.pending = {
@@ -971,6 +982,7 @@ export function applyMutation(
       if (mergeSource && mergeSource.lifecycle.state === "completed") {
         throw new DomainError("invalid-lifecycle", `cannot merge completed plan "${mergeSource.id}"`, 3);
       }
+      if (mergeSource) mergeDiscussionQuestions(plan, mergeSource);
       const decision = recordDecision(plan, "approve-direction", p, pending, now);
       if (mergeSource) decision.mergedPlanId = mergeSource.id;
       const promoted = newRevision(pending.content, now);

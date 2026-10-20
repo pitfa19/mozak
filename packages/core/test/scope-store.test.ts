@@ -209,7 +209,8 @@ test("A09: canonical capacity fails without truncating receipts or replacing fil
   for (let i = 0; i < 5; i++) assert.equal(mutateScope(entry, { operationId: `large-${i}`, scopeId: entry.id, expected: readScope(entry).snapshot, action: "propose", payload: { planId: `large-${i}`, content: large } }, "agent").status, "ok");
   const before = readFileSync(join(entry.root, "mozak.json"));
   const bridge = readFileSync(join(entry.root, "mozak.md"));
-  assert.throws(() => mutateScope(entry, { operationId: "too-large", scopeId: entry.id, expected: readScope(entry).snapshot, action: "propose", payload: { planId: "too-large", content: large } }, "agent"), { code: "capacity-exceeded" });
+  // Explicitly distinct synthetic copies reach the canonical byte-capacity check.
+  assert.throws(() => mutateScope(entry, { operationId: "too-large", scopeId: entry.id, expected: readScope(entry).snapshot, action: "propose", payload: { planId: "too-large", content: large, distinctFromPlanIds: readScope(entry).state.plans.map(p => p.id) } }, "agent"), { code: "capacity-exceeded" });
   assert.deepEqual(readFileSync(join(entry.root, "mozak.json")), before);
   assert.deepEqual(readFileSync(join(entry.root, "mozak.md")), bridge);
   assert.equal(Object.keys(readScope(entry).state.receipts).length, 6);
