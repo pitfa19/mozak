@@ -1,5 +1,5 @@
 import { ItemView, Notice, setIcon, type WorkspaceLeaf } from "obsidian";
-import { countRemote, planMatches, scopesModel, type PlanFilter, type PlanVM, type ScopeVM, type ScopesModel, type StripVM } from "./model.ts";
+import { countRemote, planMatches, scopesModel, type PlanFilter, type PlanVM, type RefVM, type ScopeVM, type ScopesModel, type StripVM } from "./model.ts";
 import { loadScopesModel, describeError, syncRemoteScopes } from "./load.ts";
 import type MozakPlugin from "./main.ts";
 import { cachedUpdateNotice } from "@mozak/core";
@@ -248,7 +248,17 @@ export class ScopesView extends ItemView {
         renderStrip(p, plan.strip);
       }
       p.addEventListener("click", () => void this.plugin.openPlan(scope, plan));
+      if (plan.refs?.length) renderRefs(body, plan.refs);
     }
+  }
+}
+
+/** Incoming and outgoing owner annotation refs under a plan row. Display only; annotations change only by `mozak annotate`. */
+function renderRefs(parent: HTMLElement, refs: RefVM[]): void {
+  const box = el(parent, "div", "mozak-plan-refs");
+  for (const ref of refs) {
+    const item = el(box, "span", `mozak-ref ref-${ref.direction} ref-${ref.status}`, `${ref.direction === "out" ? "→" : "←"} ${ref.verb} ${ref.label}${ref.status === "resolved" ? "" : ` (${ref.status})`}`);
+    item.setAttr("title", `${ref.other}\n${ref.evidence}`);
   }
 }
 

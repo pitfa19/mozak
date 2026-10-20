@@ -9,7 +9,7 @@ import { executeOperation, loadInventory, MAX_REQUEST_BYTES, scopeForWorkingCopy
 import { runningVersion, upgrade } from "./upgrade.js";
 import { doctor, renderDoctor } from "./doctor.js";
 
-const OWNER_ROUTES = new Set(["decide", "init", "repair", "pull", "rename-files", "retitle"]);
+const OWNER_ROUTES = new Set(["decide", "init", "repair", "pull", "rename-files", "retitle", "annotate"]);
 /** Read routes that may omit --scope: the scope is then found from the current folder's git origin. */
 const CWD_SCOPE_ROUTES = new Set(["context", "check", "review show", "plans"]);
 
@@ -26,11 +26,14 @@ const ROUTES: Record<string, Route> = {
   context: { operation: "context", flags: ["config", "scope", "brief", "plan", "json"], requires: ["config"], requestFile: false },
   plans: {
     operation: "plans",
-    flags: ["config", "scope", "all", "include-rejected", "limit", "continuation", "json"],
+    flags: ["config", "scope", "all", "include-rejected", "limit", "continuation", "sort", "json"],
     requires: ["config"],
     requestFile: false,
     mode: "scope",
   },
+  graph: { operation: "graph", flags: ["config", "scope", "all", "json"], requires: ["config"], requestFile: false },
+  ready: { operation: "ready", flags: ["config", "scope", "all", "json"], requires: ["config"], requestFile: false },
+  annotate: { operation: "annotate", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
   "review show": { operation: "review", flags: ["config", "scope", "plan", "purpose", "outcome", "json"], requires: ["config", "plan"], requestFile: false },
   scopes: { operation: "scopes", flags: ["config", "json"], requires: ["config"], requestFile: false },
   sync: { operation: "sync", flags: ["config", "scope", "json"], requires: ["config"], requestFile: false },
@@ -64,7 +67,10 @@ function usage(): string {
     "  mozak scope init --scope ID --request FILE          (owner)",
     "  mozak scope retitle --scope ID --request FILE       (owner; change the scope's display title)",
     "  mozak context [--scope ID] [--brief] [--plan ID] [--json]",
-    "  mozak plans [--scope ID | --all] [--include-rejected] [--limit 1..100] [--continuation TOKEN] [--json]",
+    "  mozak plans [--scope ID | --all] [--include-rejected] [--limit 1..100] [--sort deadline] [--continuation TOKEN] [--json]",
+    "  mozak graph (--scope ID | --all) [--json]           (cross-plan refs from owner annotations, with resolution)",
+    "  mozak ready (--scope ID | --all) [--json]           (open plans whose needs are met, by deadline; blocked and superseded apart)",
+    "  mozak annotate --scope ID --request FILE            (owner; refs and deadlines in mozak.annotations.json)",
     "  mozak scopes [--json]                                (read-only index of every scope: id, folder, title, plan counts)",
     "  mozak sync [--scope ID] [--json]                     (force-refresh remote scopes; reads refresh them after 10 minutes)",
     "  mozak pull --scope ID [--into PATH]                  (owner; clone the code; vault-plans scopes keep plans in the vault)",
@@ -212,6 +218,8 @@ interface HumanRow {
   paused?: boolean;
   reason?: string;
   continuation?: string;
+  deadline?: string | null;
+  deadlineStatus?: string;
 }
 interface RemoteInfoRow { scope: string; remote: string; ref: string; stale: boolean; lastFetchAt: string | null; error?: string; source: string }
 function remoteLines(remote: RemoteInfoRow[] | undefined): string[] {
@@ -238,6 +246,8 @@ function renderPlansHuman(data: {
       if (group === "awaiting" && AWAITING_PURPOSE[row.rowKind]) lines.push(`      ${AWAITING_PURPOSE[row.rowKind]}`);
       if (row.outcome) lines.push(`      outcome: ${row.outcome}`);
       if (row.date) lines.push(`      date: ${row.date}`);
+      if (row.deadline) lines.push(`      deadline: ${row.deadline} (${row.deadlineStatus})`);
+      else if (row.deadlineStatus === "candidates") lines.push("      deadline: several dates, owner picks one");
       if (row.paused) lines.push(`      paused${row.reason ? `: ${row.reason}` : ""}`);
       else if (row.reason) lines.push(`      reason: ${row.reason}`);
     }
@@ -405,6 +415,7 @@ function run(argv: string[]): number {
             ...(values.scope !== undefined ? { scope: values.scope } : { all: true }),
             ...(values["include-rejected"] ? { includeRejected: true } : {}),
             ...(values.limit !== undefined ? { limit: Number(values.limit) } : {}),
+            ...(values.sort !== undefined ? { sort: values.sort } : {}),
           };
     if (values.limit !== undefined && !/^[0-9]+$/.test(String(values.limit))) {
       process.stderr.write("limit must be an integer from 1 to 100\n");
@@ -412,6 +423,12 @@ function run(argv: string[]): number {
     }
   } else if (route.operation === "scopes") {
     args = {};
+  } else if (route.operation === "graph" || route.operation === "ready") {
+    if ((values.scope === undefined) === (values.all === undefined)) {
+      process.stderr.write(`${route.operation} needs exactly one of --scope or --all\n${usage()}\n`);
+      return 2;
+    }
+    args = values.all ? { all: true } : { scope: values.scope };
   } else if (route.operation === "sync") {
     args = values.scope !== undefined ? { scope: values.scope } : {};
   } else if (route.operation === "render" || route.operation === "rename-files") {

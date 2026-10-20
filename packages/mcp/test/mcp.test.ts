@@ -12,7 +12,9 @@ import { initScopeState, loadInventory } from "@mozak/core";
 // Read tools map to API operations; mutation tools map to API operations; every call is actor "agent".
 const READ_TOOLS: Record<string, { op: string; args: string[]; required: string[] }> = {
   mozak_context: { op: "context", args: ["scope", "brief", "plan"], required: ["scope"] },
-  mozak_plans: { op: "plans", args: ["scope", "all", "includeRejected", "limit", "continuation"], required: [] },
+  mozak_plans: { op: "plans", args: ["scope", "all", "includeRejected", "limit", "continuation", "sort"], required: [] },
+  mozak_plan_graph: { op: "graph", args: ["scope", "all"], required: [] },
+  mozak_ready: { op: "ready", args: ["scope", "all"], required: [] },
   mozak_scopes: { op: "scopes", args: [], required: [] },
   mozak_sync: { op: "sync", args: ["scope"], required: [] },
   mozak_review_show: { op: "review", args: ["scope", "plan", "purpose", "outcome"], required: ["scope", "plan"] },
@@ -173,7 +175,7 @@ async function snapshotOf(s: Server): Promise<{ revision: string; graphHash: str
 
 // ---- tool metadata -------------------------------------------------------
 
-test("tools/list advertises exactly the thirteen permitted tools", () => {
+test("tools/list advertises exactly the fifteen permitted tools", () => {
   const r = handle({ jsonrpc: "2.0", id: 1, method: "tools/list" }, { inventory: emptyInventory(), execute: spyExecute().execute }) as {
     result: { tools: { name: string }[] };
   };
