@@ -181,20 +181,21 @@ function readableOperationId(args: unknown): string | undefined {
 
 export function errorOutput(err: DomainError, operation?: string, args?: unknown): OperationOutput {
   const operationId = readableOperationId(args);
-  // A failed observation returns its unsaved request, never an implied persisted record.
+  // A failed observation returns its unsaved request, never an implied persisted record. It goes last, after the
+  // issues, so output truncated by a host still shows why the request failed.
   const unsaved = operation === "observe" && isPlain(args) && isPlain(args.request) ? { unsavedRequest: args.request } : {};
   return {
     exitCode: err.exitCode,
     data: {
       status: err.code,
+      issues: [{ code: err.code, message: err.message }],
       committed: false,
       ...(operation ? { operation } : {}),
       ...(operationId ? { operationId } : {}),
-      ...unsaved,
       snapshot: null,
       projectionStatus: null,
       projectionUpdated: false,
-      issues: [{ code: err.code, message: err.message }],
+      ...unsaved,
     },
   };
 }

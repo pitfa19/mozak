@@ -87,7 +87,11 @@ function parity(w: ReturnType<typeof fixture>, args: Record<string, unknown>, fl
   assert.deepEqual(JSON.parse(command.stdout), core.data);
   const mcp = rpc(w, "tools/call", { name: "mozak_context", arguments: { scope: "fixture", ...args } });
   assert.equal(mcp.isError === true, core.exitCode !== 0);
-  assert.deepEqual(JSON.parse(mcp.content[0].text), core.data);
+  // A failed MCP call adds a one-line reason in front of the same result.
+  const { reason, ...mcpData } = JSON.parse(mcp.content[0].text);
+  assert.deepEqual(mcpData, core.data);
+  if (core.exitCode !== 0) assert.equal(reason, `${(core.data as any).issues[0].code}: ${(core.data as any).issues[0].message}`);
+  else assert.equal(reason, undefined);
   return core.data as any;
 }
 

@@ -5,7 +5,7 @@ import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSy
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { handle, TOOLS } from "../src/server.ts";
+import { errorText, handle, TOOLS } from "../src/server.ts";
 import { initScopeState, loadInventory } from "@mozak/core";
 
 // Package 1 contract (docs/implementation-package-1-plan-state-review.md, sections 5 and 8).
@@ -265,7 +265,10 @@ test("a committed partial failure keeps its full structured result and sets isEr
   };
   const r = call({ inventory: emptyInventory(), execute: () => ({ exitCode: 5, data }) }, "mozak_observe", { scope: "alpha", request: {} });
   assert.equal(r.isError, true);
-  assert.deepEqual(JSON.parse(r.text), data, "committed state is not replaced by a generic message");
+  const { reason, ...rest } = JSON.parse(r.text);
+  assert.deepEqual(rest, data, "committed state is not replaced by a generic message");
+  assert.equal(reason, "lock-release-failed: held");
+  assert.match(r.text, /"committed": true/);
 });
 
 test("malformed tool calls and unknown tools are errors, never crashes", () => {
@@ -370,6 +373,47 @@ test("real round trip: propose in one process, then a fresh process reads it bac
   const context = await second.tool("mozak_context", { scope: "alpha" });
   assert.match(context.text, /"implementationAuthorized": false/);
   assert.notEqual(bytes(f.scopeDir), before, "the committed proposal changed the scope files");
+});
+
+test("gaps 2 and 3: a failed call leads with a one-line reason and the issues, before a large unsavedRequest", async () => {
+  const f = fixture();
+  const s = new Server(["--config", f.configPath]);
+  const snapshot = await snapshotOf(s);
+  const before = bytes(f.scopeDir);
+  const bulky = Array.from({ length: 40 }, (_, i) => ({ id: `obs-${i}`, summary: "x".repeat(200) }));
+  const r = await s.tool("mozak_observe", {
+    scope: "alpha",
+    request: { operationId: "op-bulky", scopeId: "alpha", expected: snapshot, action: "observe", payload: { planId: "p1", observations: bulky } },
+  });
+  assert.equal(r.isError, true);
+  assert.ok(r.text.length > 8000, "the unsaved request makes the result long");
+  const head = r.text.slice(0, 400);
+  assert.match(head, /^\{\n {2}"reason": "invalid-payload: payload has unknown field \\"observations\\"",\n {2}"issues": \[/);
+  const data = JSON.parse(r.text);
+  assert.deepEqual(Object.keys(data).slice(0, 3), ["reason", "issues", "status"]);
+  assert.equal(Object.keys(data).at(-1), "unsavedRequest");
+  assert.equal(data.unsavedRequest.payload.observations.length, 40);
+  assert.equal(bytes(f.scopeDir), before);
+
+  const ok = await s.tool("mozak_propose", {
+    scope: "alpha",
+    request: { operationId: "op-r1", scopeId: "alpha", expected: snapshot, action: "propose", payload: { planId: "plan-first", content: PLAN_CONTENT } },
+  });
+  assert.equal(ok.isError, false, ok.text);
+  assert.equal(JSON.parse(ok.text).reason, undefined, "a successful call has no reason line");
+  const stale = await s.tool("mozak_propose", {
+    scope: "alpha",
+    request: { operationId: "op-r2", scopeId: "alpha", expected: snapshot, action: "propose", payload: { planId: "plan-second", content: { ...PLAN_CONTENT, title: "Second" } } },
+  });
+  assert.equal(stale.isError, true);
+  assert.match(stale.text.split("\n")[1]!, /^ {2}"reason": "stale-input: snapshot changed/);
+});
+
+test("errorText: one-line reason from the first issue, counts the rest, falls back to status", () => {
+  const two = JSON.parse(errorText({ status: "findings", issues: [{ code: "a", message: "first\nline" }, { code: "b", message: "second" }], big: "y" }));
+  assert.equal(two.reason, "a: first line (and 1 more)");
+  assert.deepEqual(Object.keys(two), ["reason", "issues", "status", "big"]);
+  assert.equal(JSON.parse(errorText({ status: "partial-coverage" })).reason, "partial-coverage");
 });
 
 test("a stale snapshot is refused, returns structured status, and leaves files unchanged", async () => {

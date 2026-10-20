@@ -10,6 +10,7 @@ User-visible changes, newest first. Releases are git tags `vX.Y.Z` on `main`; `m
 - Plan files are now `mozak.json` and `mozak.md`. Older scopes with `MOZAK.json` and `MOZAK.md` keep working unchanged: reads accept both names and writes keep the scope's existing names. New scopes get the lowercase names.
 - A late supporting observation no longer drops an owner-accepted outcome from `done` to `evidence` in the roadmap, `mozak.md` and `needs` checks. Only a new challenge reopens it. `plan complete` still needs an owner acceptance bound to the exact current evidence.
 - Fixed: revising an accepted plan with content keys in a different order than the schema no longer leaves `mozak.md` in `bridge-conflict` after a reread. Changed fields are listed in schema order.
+- A failed MCP tool call now starts with a one-line `reason` and the `issues`, before the rest of the result. A failed `observe` echoes its `unsavedRequest` last, in the CLI JSON too. Hosts that cut long tool output still show why the call failed.
 
 ### Added
 
