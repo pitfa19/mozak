@@ -13,7 +13,7 @@ User-visible changes, newest first. Releases are git tags `vX.Y.Z` on `main`; `m
 
 ### Added
 
-- Experimental read-set rebase for parallel agents, off by default. With `{ "concurrency": { "rebase": true } }` in a scope's `mozak-settings.json`, a stale `observe`, `save-discussion` or new-id `propose` commits onto the fresh state when nothing it read has changed, and the result reports `rebased: { from, onto }`. Decisions, `revise`, `complete` and `attach-spec` keep the exact snapshot check.
+- Experimental read-set rebase for parallel agents, off by default. With `concurrency.rebase: true` in the `mozak-settings.json` next to the inventory (per scope under `scopes.<id>.concurrency`, or top level for every scope), a stale `observe`, `save-discussion` or new-id `propose` commits onto the fresh state when nothing it read has changed, and the result reports `rebased: { from, onto }`. Decisions, `revise`, `complete` and `attach-spec` keep the exact snapshot check.
 - Final 76 second demo video and the logo at the top of the README.
 - `mozak scope retitle --scope ID --request FILE` (owner): change a scope's display title. Plans and approvals are untouched.
 - `mozak rename-files (--scope ID | --all)` (owner): renames a scope's old `MOZAK.*` files to lowercase under the scope lock and regenerates the note so its link points to `mozak.json`. Plan bytes are unchanged. Refuses notes with hand edits. Repo scopes are skipped.

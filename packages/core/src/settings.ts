@@ -3,25 +3,31 @@
 //
 // { "format": "mozak.settings/v1",
 //   "annotations": { "personalVaults": ["../obsidian"] },
-//   "scopes": { "anpit": { "annotations": false } } }
+//   "concurrency": { "rebase": false },
+//   "scopes": { "anpit": { "annotations": false, "concurrency": { "rebase": true } } } }
+//
+// One file per installation, never inside a scope folder: a scope folder can be a public repo.
 //
 // Only the keys this version understands are validated. Keys reserved for later slices are accepted. Any other
 // key is reported by `check` as settings-unknown-key and has no effect.
 
-import { readFileSync, realpathSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { dirname, join, resolve, sep } from "node:path";
 import { DomainError } from "./errors.ts";
 import type { ScopeEntry, ScopeInventory } from "./scope-index.ts";
 
 export const SETTINGS_FILE = "mozak-settings.json";
 export const SETTINGS_FORMAT = "mozak.settings/v1";
-const RESERVED_TOP = ["concurrency", "indexRoots"];
-const KNOWN_TOP = ["format", "annotations", "scopes"];
+const RESERVED_TOP = ["indexRoots"];
+const KNOWN_TOP = ["format", "annotations", "concurrency", "scopes"];
+const KNOWN_SCOPE = ["annotations", "concurrency"];
 
+export interface ConcurrencySettings { rebase?: boolean }
 export interface Settings {
   path: string | null;
   personalVaults: string[] | null;
-  scopes: Record<string, { annotations?: boolean }>;
+  concurrency: ConcurrencySettings;
+  scopes: Record<string, { annotations?: boolean; concurrency?: ConcurrencySettings }>;
   issues: { code: string; message: string }[];
 }
 
@@ -31,7 +37,7 @@ function realOr(path: string): string { try { return realpathSync(path); } catch
 /** Read settings for an inventory. Absent file: defaults. Invalid file: throws settings-invalid. */
 export function loadSettings(inv: ScopeInventory): Settings {
   const inventoryPath = (inv as { path?: string }).path;
-  const empty: Settings = { path: null, personalVaults: null, scopes: {}, issues: [] };
+  const empty: Settings = { path: null, personalVaults: null, concurrency: {}, scopes: {}, issues: [] };
   if (!inventoryPath) return empty;
   const path = join(dirname(inventoryPath), SETTINGS_FILE);
   let text: string;
@@ -46,6 +52,13 @@ export function loadSettings(inv: ScopeInventory): Settings {
   for (const key of Object.keys(raw)) {
     if (!KNOWN_TOP.includes(key) && !RESERVED_TOP.includes(key)) issues.push({ code: "settings-unknown-key", message: `${SETTINGS_FILE}: unknown key "${key}" has no effect` });
   }
+  const concurrencyOf = (value: unknown, at: string): ConcurrencySettings => {
+    if (!isPlain(value)) return fail(`"${at}" must be an object`);
+    for (const key of Object.keys(value)) if (key !== "rebase") issues.push({ code: "settings-unknown-key", message: `${SETTINGS_FILE}: unknown key "${at}.${key}" has no effect` });
+    if (value.rebase !== undefined && typeof value.rebase !== "boolean") fail(`${at}.rebase must be true or false`);
+    return value.rebase === undefined ? {} : { rebase: value.rebase as boolean };
+  };
+  const concurrency = raw.concurrency === undefined ? {} : concurrencyOf(raw.concurrency, "concurrency");
   let personalVaults: string[] | null = null;
   if (raw.annotations !== undefined) {
     if (!isPlain(raw.annotations)) fail(`"annotations" must be an object`);
@@ -62,13 +75,37 @@ export function loadSettings(inv: ScopeInventory): Settings {
     for (const [id, value] of Object.entries(raw.scopes as Record<string, unknown>)) {
       if (!isPlain(value)) fail(`scopes.${id} must be an object`);
       const v = value as Record<string, unknown>;
-      for (const key of Object.keys(v)) if (key !== "annotations" && !RESERVED_TOP.includes(key)) issues.push({ code: "settings-unknown-key", message: `${SETTINGS_FILE}: unknown key "scopes.${id}.${key}" has no effect` });
+      for (const key of Object.keys(v)) if (!KNOWN_SCOPE.includes(key) && !RESERVED_TOP.includes(key)) issues.push({ code: "settings-unknown-key", message: `${SETTINGS_FILE}: unknown key "scopes.${id}.${key}" has no effect` });
       if (v.annotations !== undefined && typeof v.annotations !== "boolean") fail(`scopes.${id}.annotations must be true or false`);
-      scopes[id] = v.annotations === undefined ? {} : { annotations: v.annotations as boolean };
+      scopes[id] = {
+        ...(v.annotations === undefined ? {} : { annotations: v.annotations as boolean }),
+        ...(v.concurrency === undefined ? {} : { concurrency: concurrencyOf(v.concurrency, `scopes.${id}.concurrency`) }),
+      };
       if (!inv.scopes.some((s) => s.id === id)) issues.push({ code: "settings-unknown-scope", message: `${SETTINGS_FILE}: scope "${id}" is not in the inventory` });
     }
   }
-  return { path, personalVaults, scopes, issues };
+  return { path, personalVaults, concurrency, scopes, issues };
+}
+
+/**
+ * Experimental read-set rebase for one scope (S1b). A per-scope `scopes.<id>.concurrency.rebase` wins over the
+ * top-level `concurrency.rebase`. Default off. An unreadable or invalid settings file keeps it off; `check`
+ * reports the file.
+ */
+export function rebaseEnabled(inv: ScopeInventory, scopeId: string): boolean {
+  let settings: Settings;
+  try { settings = loadSettings(inv); }
+  catch (e) { if (e instanceof DomainError) return false; throw e; }
+  return (settings.scopes[scopeId]?.concurrency?.rebase ?? settings.concurrency.rebase) === true;
+}
+
+/** A mozak-settings.json inside a scope folder is never read. Returns its path when one exists, for `check`. */
+export function ignoredScopeSettingsFile(inv: ScopeInventory, entry: ScopeEntry): string | null {
+  const local = join(entry.root, SETTINGS_FILE);
+  if (!existsSync(local)) return null;
+  const inventoryPath = (inv as { path?: string }).path;
+  if (inventoryPath && realOr(join(dirname(inventoryPath), SETTINGS_FILE)) === realOr(local)) return null;
+  return local;
 }
 
 export type AnnotationsMode = { enabled: true; source: "setting" | "default" } | { enabled: false; source: "setting" | "default" | "repo-mode" };

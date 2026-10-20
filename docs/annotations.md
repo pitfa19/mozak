@@ -42,18 +42,21 @@ Temp files are named `mozak.annotations.json.<uuid>.tmp`. `init` and `projection
 
 ## Settings
 
-`mozak-settings.json` sits next to the inventory file. It is optional.
+`mozak-settings.json` sits next to the inventory file. It is optional. There is one per installation. mozak never reads a `mozak-settings.json` inside a scope folder, because a scope folder can be a public repo. `check` reports such a file as `settings-scope-file-deprecated`.
 
 ```json
 { "format": "mozak.settings/v1",
   "annotations": { "personalVaults": ["../obsidian"] },
-  "scopes": { "anpit": { "annotations": false } } }
+  "concurrency": { "rebase": false },
+  "scopes": { "anpit": { "annotations": false, "concurrency": { "rebase": true } } } }
 ```
 
 - Repo-mode remote scopes are always refused. Their plans are pushed to a repository.
 - A per-scope `annotations` value wins.
 - Otherwise annotations are on for local and vault-plans scopes. When `annotations.personalVaults` is set, the default is on only for scope roots inside those folders.
-- Keys reserved for later slices (`concurrency`, `indexRoots`) are accepted. Any other key is a `settings-unknown-key` finding with no effect.
+- `concurrency.rebase` turns on the experimental read-set rebase (see `docs/installation.md`, Parallel writes). A per-scope `scopes.<id>.concurrency.rebase` wins over the top-level value. The default is off.
+- The key reserved for a later slice (`indexRoots`) is accepted. Any other key is a `settings-unknown-key` finding with no effect.
+- A wrong value type or a missing `format` makes the file invalid. `annotate` then refuses with `settings-invalid`, `check` reports it, and rebase stays off.
 
 ## Resolution
 

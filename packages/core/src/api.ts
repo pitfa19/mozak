@@ -30,7 +30,7 @@ import { annotateScope } from "./scope-store.ts";
 import { readAnnotations, type AnnotationsDoc } from "./annotations.ts";
 import { annotationFindings, graphView, readyView, type Universe } from "./crossplan.ts";
 import { effectiveDeadline, planDeadline, today } from "./deadlines.ts";
-import { annotationsMode, loadSettings } from "./settings.ts";
+import { annotationsMode, ignoredScopeSettingsFile, loadSettings, rebaseEnabled, SETTINGS_FILE } from "./settings.ts";
 import type { ScopeState } from "./understanding.ts";
 
 /**
@@ -518,6 +518,9 @@ function annotationCheck(inv: ScopeInventory, entry: ScopeEntry, read: ScopeRead
   const out: { code: string; message: string }[] = [];
   const side = readAnnotations(entry.root, entry.id);
   out.push(...side.issues);
+  if (ignoredScopeSettingsFile(inv, entry)) {
+    out.push({ code: "settings-scope-file-deprecated", message: `${SETTINGS_FILE} in the scope folder is ignored. Put concurrency.rebase under scopes.${entry.id}.concurrency in the ${SETTINGS_FILE} next to the inventory file` });
+  }
   try {
     const settings = loadSettings(inv);
     out.push(...settings.issues);
@@ -854,7 +857,7 @@ function writeOp(inv: ScopeInventory, operation: string, a: Record<string, unkno
   if (operation === "init") result = initScopeState(entry, request);
   else if (operation === "repair") result = repairProjection(entry, request);
   else if (operation === "retitle") result = retitleScope(entry, request);
-  else result = mutateScope(entry, request, actor);
+  else result = mutateScope(entry, request, actor, { rebase: rebaseEnabled(inv, entry.id) });
   return { exitCode: resultExit(result), data: { ...result, operation } };
 }
 

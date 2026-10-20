@@ -1,11 +1,10 @@
 // S1b read-set rebase (V-race cases 2 to 7 in process). Synthetic scopes in temp dirs only.
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync, readFileSync, rmSync, symlinkSync } from "node:fs";
+import { mkdtempSync, writeFileSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { initScopeState, readScope, mutateScope, type StoreOptions } from "../src/scope-store.ts";
 import { applyMutation, outcomeStatus, reviewShow } from "../src/review.ts";
-import { readScopeSettings, SETTINGS_FILE } from "../src/scope-settings.ts";
 import { REBASE_GUARD_MS } from "../src/rebase.ts";
 import { canonical, type ScopeState } from "../src/understanding.ts";
 
@@ -14,7 +13,8 @@ if (!scratch) throw new Error("tests require JCODE_SCRATCH_DIR or TMPDIR");
 const roots: string[] = [];
 after(() => { for (const root of roots) rmSync(root, { recursive: true, force: true }); });
 
-type Entry = { id: string; root: string };
+// `rebase` stands for the resolved concurrency.rebase setting (see settings-rebase.test.ts for the file).
+type Entry = { id: string; root: string; rebase: boolean };
 const OWNER_AT = "2026-10-12T08:00:00.000Z";
 const INSPECTED = "2026-10-12T08:30:00.000Z";
 // Tests that are not about the guard window turn it off through the internal seam.
@@ -31,8 +31,7 @@ function world(rebase: boolean | null = true): Entry {
   roots.push(root);
   writeFileSync(join(root, "README.md"), "Human instructions\n");
   writeFileSync(join(root, "AGENTS.md"), "Agent instructions\n");
-  if (rebase !== null) writeFileSync(join(root, SETTINGS_FILE), JSON.stringify({ concurrency: { rebase }, futureKey: { anything: 1 } }));
-  const entry = { id: "sample", root };
+  const entry = { id: "sample", root, rebase: rebase === true };
   initScopeState(entry, { operationId: "init-1", scopeId: "sample", kind: "project", title: "Sample", expectedAbsent: { graph: true, bridge: true }, ownerRef: "synthetic-owner:init", ownerMessageAt: OWNER_AT });
   return entry;
 }
@@ -40,7 +39,7 @@ function world(rebase: boolean | null = true): Entry {
 let counter = 0;
 const op = () => `op-${++counter}`;
 function write(entry: Entry, action: string, payload: unknown, expected = readScope(entry).snapshot, actor: "agent" | "owner" = "agent", options: StoreOptions = NO_GUARD) {
-  return mutateScope(entry, { operationId: op(), scopeId: entry.id, expected, action, payload }, actor, options);
+  return mutateScope(entry, { operationId: op(), scopeId: entry.id, expected, action, payload }, actor, { rebase: entry.rebase, ...options });
 }
 function approve(entry: Entry, planId: string, options: StoreOptions = NO_GUARD) {
   const shown = reviewShow(readScope(entry).state, planId, "approve-direction");
@@ -73,22 +72,6 @@ function discussion(entry: Entry, planId: string, summary: string) {
   return { planId, acceptedRevisionId: plan.accepted?.id ?? null, pendingRevisionId: plan.pending?.id ?? null, summary, stage: "clarifying", questions: [] };
 }
 const files = (entry: Entry) => ["mozak.json", "mozak.md"].map(n => readFileSync(join(entry.root, n), "utf8"));
-
-test("settings: missing, malformed, non-true and symlinked files keep rebase off; unknown keys are tolerated", () => {
-  const entry = world(null);
-  assert.equal(readScopeSettings(entry.root).concurrency.rebase, false);
-  for (const text of ["{", "[]", "null", JSON.stringify({ concurrency: { rebase: "yes" } }), JSON.stringify({ concurrency: true })]) {
-    writeFileSync(join(entry.root, SETTINGS_FILE), text);
-    assert.equal(readScopeSettings(entry.root).concurrency.rebase, false, text);
-  }
-  writeFileSync(join(entry.root, SETTINGS_FILE), JSON.stringify({ concurrency: { rebase: true, other: 1 }, unknown: [1] }));
-  assert.equal(readScopeSettings(entry.root).concurrency.rebase, true);
-  const target = join(entry.root, "real-settings.json");
-  writeFileSync(target, JSON.stringify({ concurrency: { rebase: true } }));
-  rmSync(join(entry.root, SETTINGS_FILE));
-  symlinkSync(target, join(entry.root, SETTINGS_FILE));
-  assert.equal(readScopeSettings(entry.root).concurrency.rebase, false);
-});
 
 test("flag off: a stale observe is refused exactly as before and nothing is written", () => {
   for (const rebase of [null, false]) {
@@ -356,7 +339,7 @@ test("V-race 8: P0.6 with rebase on: a rebased write still refuses when mozak.js
     write(entry, "observe", observe(entry, "other", "o2"));
     const changed = name === "mozak.json" ? `${readFileSync(join(entry.root, name), "utf8")}\n` : "External bridge edit\n";
     const graphBefore = readFileSync(join(entry.root, "mozak.json"), "utf8");
-    assert.throws(() => mutateScope(entry, { operationId: op(), scopeId: entry.id, expected: snap, action: "observe", payload: observe(entry, "mine", "o1") }, "agent", { ...NO_GUARD, onPhase(p) {
+    assert.throws(() => mutateScope(entry, { operationId: op(), scopeId: entry.id, expected: snap, action: "observe", payload: observe(entry, "mine", "o1") }, "agent", { ...NO_GUARD, rebase: true, onPhase(p) {
       if (p === "before-graph") writeFileSync(join(entry.root, name), changed);
     } }), { code: "graph-changed-during-write" });
     assert.equal(readFileSync(join(entry.root, name), "utf8"), changed);

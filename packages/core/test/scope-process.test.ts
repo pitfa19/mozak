@@ -71,10 +71,13 @@ function world(name: string): { entry: Scope; initRequest: Record<string, unknow
 
 // Job files are written into a sibling directory owned by this test root. The scope root itself
 // holds only real scope files, so snapshots and lock inspection stay clean.
+// Scope roots whose concurrency.rebase setting is on. Every child job for them carries the resolved flag,
+// as the write route passes it to the store.
+const rebaseRoots = new Set<string>();
 function jobFile(root: string, name: string, job: Record<string, unknown>): string {
   const dir = scratchJobs(root);
   const path = join(dir, `${name}-${randomSuffix()}.json`);
-  writeFileSync(path, JSON.stringify(job));
+  writeFileSync(path, JSON.stringify(rebaseRoots.has(root) ? { ...job, rebase: true } : job));
   return path;
 }
 
@@ -674,7 +677,7 @@ const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function raceWorld(name: string, rebase: boolean, outcomes: string[], extraPlans: string[] = []): Promise<Scope> {
   const { entry } = await initialized(name);
-  if (rebase) writeFileSync(join(entry.root, "mozak-settings.json"), JSON.stringify({ concurrency: { rebase: true } }));
+  if (rebase) rebaseRoots.add(entry.root);
   const setup = await runChild({ mode: "setup", root: entry.root, scopeId: entry.id, setup: { planId: "demo", outcomes, extraPlans } }, { jobName: "setup" });
   assert.equal(setup.ok, true, `setup failed: ${setup.code} ${setup.message}`);
   return entry;

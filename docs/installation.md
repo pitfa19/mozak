@@ -237,13 +237,15 @@ If a write saved the JSON but not the generated `mozak.md` bridge, the result sa
 
 ### Parallel writes: `concurrency.rebase` (experimental, off by default)
 
-Every write names the snapshot it was based on. By default any other write in between makes it `stale-input` (exit 3), even when the two writes do not touch the same thing. A scope can opt in to read-set rebase with a `mozak-settings.json` file next to `mozak.json`:
+Every write names the snapshot it was based on. By default any other write in between makes it `stale-input` (exit 3), even when the two writes do not touch the same thing. A scope can opt in to read-set rebase in the `mozak-settings.json` next to the inventory file (the same file as the annotation settings, see `docs/annotations.md`):
 
 ```json
-{ "concurrency": { "rebase": true } }
+{ "format": "mozak.settings/v1",
+  "concurrency": { "rebase": false },
+  "scopes": { "my-scope": { "concurrency": { "rebase": true } } } }
 ```
 
-Unknown keys are ignored. A missing, malformed or symlinked file, or any value other than `true`, keeps the default (off).
+A per-scope value wins over the top-level `concurrency.rebase`. A missing or invalid file keeps the default (off), and `check` reports an invalid one. A `mozak-settings.json` inside a scope folder is not read. `check` reports it as `settings-scope-file-deprecated`.
 
 With rebase on, a stale write can still commit onto the fresh state when it only appends:
 

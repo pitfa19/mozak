@@ -11,7 +11,6 @@ import { renderBridge, renderBridgeLegacy } from "./bridge.ts";
 import { removeLeftoverTempFiles, replaceFileDurable, writeFileDurable, fsyncDir } from "./durable.ts";
 import { ensureStorageIgnored, storageIgnoreIssues } from "./storage-hygiene.ts";
 import { ANNOTATIONS_FILE, annotationsBytes, applyAnnotate, emptyAnnotations, readAnnotations, validateAnnotateRequest, type ScopeLookup } from "./annotations.ts";
-import { readScopeSettings } from "./scope-settings.ts";
 import { checkRebase, type Rebased } from "./rebase.ts";
 
 export { renderBridge, renderBridgeLegacy } from "./bridge.ts";
@@ -28,7 +27,8 @@ export interface OperationResult {
   rebased?: Rebased;
 }
 /** Internal testing seam, never accepted from CLI/MCP input. */
-export interface StoreOptions { lockTimeoutMs?: number; onPhase?: (phase: string) => void; rebaseGuardMs?: number }
+/** `rebase`: experimental read-set rebase (S1b), resolved by the caller from mozak-settings.json. Default off. */
+export interface StoreOptions { lockTimeoutMs?: number; onPhase?: (phase: string) => void; rebaseGuardMs?: number; rebase?: boolean }
 const absent = (): FileToken => ({ exists: false, sha256: null });
 const sleep = (ms: number) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 const own = (o: object, k: string) => Object.prototype.hasOwnProperty.call(o, k);
@@ -336,7 +336,7 @@ export function mutateScope(entry: ScopeEntry, input: unknown, actor: "agent" | 
     try { match(read, snapshot); }
     catch (e) {
       // Off by default. Only a stale snapshot is a rebase candidate; checkRebase refuses with stale-input.
-      if (!(e instanceof DomainError && e.code === "stale-input") || !readScopeSettings(entry.root).concurrency.rebase) throw e;
+      if (!(e instanceof DomainError && e.code === "stale-input") || options.rebase !== true) throw e;
       rebased = checkRebase(read.state, read.snapshot, snapshot, r.action as string, r.payload as Record<string, unknown>, options.rebaseGuardMs);
     }
     if (read.projectionStatus !== "current" && !isLegacyBridge(entry, read)) throw new DomainError(read.projectionStatus, "projection requires explicit repair or conflict resolution before new writes", 3);
