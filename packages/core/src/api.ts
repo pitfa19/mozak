@@ -36,6 +36,8 @@ import type { ScopeState } from "./understanding.ts";
 import { inspectLock, recoverLock } from "./lock-recover.ts";
 import { handEditHistory, MAX_HISTORY } from "./history.ts";
 import { LOCAL_SYNC_OK, localEntries, syncLocal, type LocalSyncRow } from "./local-sync.ts";
+import { appendUsage, usageLine, usageLogEnabled } from "./usage.ts";
+import { dirname } from "node:path";
 
 /**
  * The scopes index's update notice: reads the cache only, and starts a background refresh when it is old.
@@ -1072,8 +1074,18 @@ function renameFilesOp(inv: ScopeInventory, a: Record<string, unknown>): Operati
  * Single entry point for every operation. Expected domain failures come back as a structured
  * envelope with an exit code. Only unexpected, non-domain errors are rethrown. The caller's
  * transport supplies the actor. This function never reads it from the arguments.
+ * Each call appends one counts-only line to the usage log next to a file-loaded inventory (MOZAK_USAGE_LOG=0 turns it off).
  */
 export function executeOperation(inv: ScopeInventory, operation: string, args: unknown, actor: Actor = "agent"): OperationOutput {
+  const started = performance.now();
+  const output = runOperation(inv, operation, args, actor);
+  if (inv.path && usageLogEnabled()) {
+    try { appendUsage(dirname(inv.path), usageLine(operation, args, String(actor), output.data, output.exitCode, performance.now() - started)); } catch { /* never affects the result */ }
+  }
+  return output;
+}
+
+function runOperation(inv: ScopeInventory, operation: string, args: unknown, actor: Actor): OperationOutput {
   try {
     if (actor !== "agent" && actor !== "owner") throw invalid("actor must be agent or owner");
     if (LEGACY_OPERATIONS.has(operation)) {
