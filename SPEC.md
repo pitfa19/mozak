@@ -1,6 +1,8 @@
 # mozak v1 spec
 
-Status: draft, from the 24 grilling decisions of 2026-10-11. Not yet implemented.
+> **Legacy format 1. Do not build against this file.** It records the early 2026-10-11 design. mozak now uses `mozak.json` (format `mozak.scope/v3`) with a generated `mozak.md`. Read the current contract in [docs/installation.md](docs/installation.md), [docs/implementation-package-1-plan-state-review.md](docs/implementation-package-1-plan-state-review.md), [docs/implementation-package-2-conversation-and-handoff.md](docs/implementation-package-2-conversation-and-handoff.md) and [docs/implementation-package-3-portable-workspace.md](docs/implementation-package-3-portable-workspace.md).
+
+Status: historical draft from the 24 grilling decisions of 2026-10-11.
 
 ## Purpose
 
