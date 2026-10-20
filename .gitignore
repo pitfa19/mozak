@@ -8,3 +8,10 @@ scratch
 /MOZAK.json
 /MOZAK.md
 /.mozak-write-lock
+# Old generated demos with the uppercase name. scripts/record-demo-video.mjs and
+# scripts/record-agent-chat-video.mjs write them; regenerate them before scripts/package-demo-kit.mjs.
+# The README demo lives on the readme-assets release instead.
+/docs/assets/mozak-demo.gif
+/docs/assets/mozak-demo.mp4
+/docs/assets/mozak-agent-chat.gif
+/docs/assets/mozak-agent-chat.mp4
