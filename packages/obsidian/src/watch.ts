@@ -1,9 +1,9 @@
 // Auto-refresh support. Watches the files that change when a plan changes and calls back once, debounced.
-// Local scopes: <scope root>/MOZAK.json. Remote scopes: the sparse cache copy of MOZAK.json (a sync rewrites it),
+// Local scopes: <scope root>/mozak.json (or pre-0.4 MOZAK.json). Remote scopes: the sparse cache copy of it (a sync rewrites it),
 // plus the cache metadata. The inventory file itself is watched too. Read-only: nothing here writes.
 import { watch, type FSWatcher } from "node:fs";
 import { basename, dirname } from "node:path";
-import { loadInventory, resolveScope } from "@mozak/core";
+import { loadInventory, resolveScope, GRAPH_FILE, LEGACY_GRAPH_FILE } from "@mozak/core";
 
 export interface WatchTarget { dir: string; match: (file: string) => boolean }
 
@@ -21,7 +21,7 @@ export function watchTargets(inventoryPath: string): WatchTarget[] {
     for (const entry of inv.scopes) {
       let root = entry.root;
       try { root = resolveScope(inv, entry.id).root; } catch { /* fall back to the declared root */ }
-      if (root) add(root, "MOZAK.json");
+      if (root) { add(root, GRAPH_FILE); add(root, LEGACY_GRAPH_FILE); }
       if (entry.remote && entry.remote.plansMode === "repo") add(`${entry.remote.baseDir}/.mozak-cache`, `${entry.id}.meta.json`);
     }
   } catch { /* an unreadable inventory is reported by the view, the inventory file watch still fires */ }

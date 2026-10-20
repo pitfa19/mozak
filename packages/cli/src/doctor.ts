@@ -169,14 +169,14 @@ export function doctor(args: DoctorArgs): { exitCode: number; data: Record<strin
   } catch { /* reported below */ }
   const reinstall = `git clone https://github.com/pitfa19/mozak && cd mozak && npm ci && npm run build && node scripts/install.mjs --prefix ${prefix} --json`;
   if (!version) {
-    add({ id: "installation", state: "fail", message: `no MOZAK installation at ${prefix}`, fix: reinstall });
+    add({ id: "installation", state: "fail", message: `no mozak installation at ${prefix}`, fix: reinstall });
   } else {
     const bad = verifyInstallation(prefix);
     const cliOk = !bad && runs(prefix, "mozak", ["--help"]);
     const mcpOk = !bad && mcpAnswers(prefix);
     if (bad || !cliOk) add({ id: "installation", state: "fail", message: `${prefix} (${version}): ${bad ?? "bin/mozak does not run"}`, fix: `Move ${prefix} to the Trash, then: ${reinstall}` });
     else if (!mcpOk) add({ id: "installation", state: "fail", message: `${prefix} (${version}): bin/mozak-mcp does not answer an MCP handshake`, fix: `Move ${prefix} to the Trash, then: ${reinstall}` });
-    else add({ id: "installation", state: "ok", message: `${prefix} is MOZAK ${version}; mozak and mozak-mcp run` });
+    else add({ id: "installation", state: "ok", message: `${prefix} is mozak ${version}; mozak and mozak-mcp run` });
     if (!source) add({ id: "source", state: "warn", message: "installation.json does not record its source checkout, so mozak upgrade needs --source PATH", fix: `mozak upgrade --source /path/to/mozak` });
     else if (!existsSync(join(source, ".git"))) add({ id: "source", state: "warn", message: `source checkout ${source} is gone, so mozak upgrade needs --source PATH`, fix: "git clone https://github.com/pitfa19/mozak, then mozak upgrade --source <that folder>" });
     else add({ id: "source", state: "ok", message: `upgrades build from ${source}` });
@@ -268,7 +268,7 @@ export function doctor(args: DoctorArgs): { exitCode: number; data: Record<strin
           state: "fail",
           message: `${inventoryPath}: ${failed.length || "some"} scope(s) do not read: ${failed.map((r) => `${r.id}${codeOf(r) ? ` (${codeOf(r)})` : ""}`).join(", ")}`,
           fix: uninit.length === failed.length && uninit.length > 0
-            ? `These folders have no MOZAK.json. If your notes repo should have them, pull it; otherwise start each with mozak scope init (see the skill's references/bootstrap.md).`
+            ? `These folders have no mozak.json. If your notes repo should have them, pull it; otherwise start each with mozak scope init (see the skill's references/bootstrap.md).`
             : `mozak check --config ${inventoryPath} --scope ${failed[0]?.id ?? "<id>"}`,
         });
       }
@@ -301,7 +301,7 @@ export function doctor(args: DoctorArgs): { exitCode: number; data: Record<strin
 
   // 8. Update notice, from the cache only.
   const update = version ? cachedUpdateNotice(version, { env }) : null;
-  if (update) add({ id: "update", state: "warn", message: `MOZAK ${update.latest} is available (installed ${update.installed})`, fix: update.command });
+  if (update) add({ id: "update", state: "warn", message: `mozak ${update.latest} is available (installed ${update.installed})`, fix: update.command });
 
   // A check that was fixed counts as ok.
   const open = checks.filter((c) => !c.fixed);

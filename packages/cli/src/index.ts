@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// MOZAK v2 CLI. Thin transport over the shared executeOperation facade in @mozak/core.
+// mozak v2 CLI. Thin transport over the shared executeOperation facade in @mozak/core.
 // Strict flags: unknown and duplicate flags are rejected. No shell, no eval, request files are data.
 // The actor is chosen by route here (owner for decide/init/repair, agent otherwise). No flag sets it.
 
@@ -9,7 +9,7 @@ import { executeOperation, loadInventory, MAX_REQUEST_BYTES, scopeForWorkingCopy
 import { runningVersion, upgrade } from "./upgrade.js";
 import { doctor, renderDoctor } from "./doctor.js";
 
-const OWNER_ROUTES = new Set(["decide", "init", "repair", "pull"]);
+const OWNER_ROUTES = new Set(["decide", "init", "repair", "pull", "rename-files"]);
 /** Read routes that may omit --scope: the scope is then found from the current folder's git origin. */
 const CWD_SCOPE_ROUTES = new Set(["context", "check", "review show", "plans"]);
 
@@ -46,6 +46,7 @@ const ROUTES: Record<string, Route> = {
   "spec attach": { operation: "attach-spec", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
   "projection repair": { operation: "repair", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
   render: { operation: "render", flags: ["config", "scope", "all", "json"], requires: ["config"], requestFile: false },
+  "rename-files": { operation: "rename-files", flags: ["config", "scope", "all", "json"], requires: ["config"], requestFile: false },
   translate: { operation: "translate", flags: ["config", "scope", "idea", "from", "to", "assumption", "write"], requires: ["config"], requestFile: false },
   resolve: { operation: "resolve", flags: ["config", "scope", "in", "idea", "n"], requires: ["config"], requestFile: false },
   init: { operation: "legacy-init", flags: ["config", "kind", "id"], requires: ["config"], requestFile: false },
@@ -74,7 +75,8 @@ function usage(): string {
     "  mozak spec attach --scope ID --request FILE          (agent; descriptor only, no approval)",
     "  mozak review decide --scope ID --request FILE        (owner)",
     "  mozak projection repair --scope ID --request FILE    (owner)",
-    "  mozak render (--scope ID | --all) [--json]           (regenerate stale MOZAK.md only; never MOZAK.json)",
+    "  mozak render (--scope ID | --all) [--json]           (regenerate stale mozak.md only; never mozak.json)",
+    "  mozak rename-files (--scope ID | --all) [--json]     (owner; rename pre-0.4 MOZAK.json/MOZAK.md to lowercase)",
     "Maintenance (no --config needed):",
     "  mozak --version",
     "  mozak upgrade [--check] [--vault PATH ...] [--source PATH] [--prefix PATH]   (owner; newest tagged release)",
@@ -410,9 +412,9 @@ function run(argv: string[]): number {
     args = {};
   } else if (route.operation === "sync") {
     args = values.scope !== undefined ? { scope: values.scope } : {};
-  } else if (route.operation === "render") {
+  } else if (route.operation === "render" || route.operation === "rename-files") {
     if ((values.scope === undefined) === (values.all === undefined)) {
-      process.stderr.write(`render needs exactly one of --scope or --all\n${usage()}\n`);
+      process.stderr.write(`${route.operation} needs exactly one of --scope or --all\n${usage()}\n`);
       return 2;
     }
     args = values.all ? { all: true } : { scope: values.scope };

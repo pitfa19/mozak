@@ -112,7 +112,7 @@ export class ScopesView extends ItemView {
       sync.addEventListener("click", () => this.syncRemote(sync));
     }
     const btn = el(tools, "button", "clickable-icon mozak-refresh");
-    btn.setAttr("aria-label", "Refresh (regenerates stale MOZAK.md files)");
+    btn.setAttr("aria-label", "Refresh (regenerates stale mozak.md files)");
     setIcon(btn, "refresh-cw");
     btn.addEventListener("click", () => { this.plugin.renderProjections(); this.refresh(); });
 
@@ -206,7 +206,7 @@ export class ScopesView extends ItemView {
     if (scope.hasMozakMd) {
       const md = el(row, "span", "clickable-icon mozak-md");
       setIcon(md, "file-text");
-      md.setAttr("aria-label", "Open MOZAK.md");
+      md.setAttr("aria-label", `Open ${scope.bridgeFile ?? "mozak.md"}`);
       md.addEventListener("click", (ev) => { ev.stopPropagation(); void this.plugin.openMozakMd(scope); });
     }
     row.addEventListener("click", () => {
@@ -239,7 +239,7 @@ export class ScopesView extends ItemView {
     if (empty) el(body, "div", "mozak-muted mozak-noplans", "No plans yet");
     for (const plan of scope.plans.filter((p) => planMatches(p, this.filter))) {
       const p = el(body, "div", `mozak-plan-row row-${plan.state}`);
-      p.setAttr("title", `${plan.stateLabel}: ${plan.title}${plan.strip ? `\n${plan.strip.done}/${plan.strip.total} outcomes done` : ""}\nOpen in MOZAK.md`);
+      p.setAttr("title", `${plan.stateLabel}: ${plan.title}${plan.strip ? `\n${plan.strip.done}/${plan.strip.total} outcomes done` : ""}\nOpen in ${scope.bridgeFile ?? "mozak.md"}`);
       el(p, "span", `mozak-dot dot-${plan.state}`);
       el(p, "span", "mozak-plan-title", plan.title);
       if (plan.state === "awaiting" || plan.state === "paused" || plan.state === "rejected") {

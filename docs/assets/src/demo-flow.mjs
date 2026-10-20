@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Demo driver. Runs the REAL MOZAK CLI against a throwaway repo and notes folder.
+// Demo driver. Runs the REAL mozak CLI against a throwaway repo and notes folder.
 // Only the pacing is scripted. Every result shown is the CLI's actual output.
 // Usage: node docs/assets/src/demo-flow.mjs [--fast]
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, realpathSync } from 'node:fs';
@@ -55,17 +55,17 @@ const tree = dir => readdirSync(dir).sort().join('  ');
 for (const [dir, name] of [[repo, 'Atlas App'], [notes, 'Field Notes']]) {
   mkdirSync(dir);
   writeFileSync(join(dir, 'README.md'), `# ${name}\n`);
-  writeFileSync(join(dir, 'AGENTS.md'), 'Read MOZAK.md first.\n');
+  writeFileSync(join(dir, 'AGENTS.md'), 'Read mozak.md first.\n');
 }
 mkdirSync(join(repo, 'src')); mkdirSync(join(notes, 'papers'));
 writeFileSync(join(root, 'inventory.json'), '{\n  "format": "mozak.local/v2",\n  "scopes": [\n    { "id": "atlas-app",   "root": "./atlas-app" },\n    { "id": "field-notes", "root": "./field-notes" }\n  ]\n}\n');
 const git = (cwd, ...a) => spawnSync('git', ['-c', 'user.name=Demo', '-c', 'user.email=demo@example.com', '-c', 'init.defaultBranch=main', ...a], { cwd, encoding: 'utf8' });
 
-out(`${C.b}MOZAK${C.x}  agentic planning for developers and researchers`);
+out(`${C.b}mozak${C.x}  agentic planning for developers and researchers`);
 out(`${C.dim}Real commands and real output. Only the typing pace is scripted.${C.x}`);
 
 // ── 1 register ──────────────────────────────────────────────────
-scene(1, 'Register: you list the scopes. MOZAK never crawls.');
+scene(1, 'Register: you list the scopes. mozak never crawls.');
 say('Synthetic demo: a git repo and an Obsidian-style notes folder.');
 out(`${C.g}$${C.x} cat inventory.json`); pause(400);
 out(readFileSync(inventory, 'utf8').trimEnd()); pause(1200);
@@ -80,7 +80,7 @@ for (const [id, title] of [['atlas-app', 'Atlas App'], ['field-notes', 'Field No
 say('After: each folder owns its plan as plain files.');
 out(`  atlas-app/    ${tree(repo)}`);
 out(`  field-notes/  ${tree(notes)}`); pause(1400);
-git(repo, 'init', '-q'); git(repo, 'add', '-A'); git(repo, 'commit', '-q', '-m', 'Register atlas-app with MOZAK');
+git(repo, 'init', '-q'); git(repo, 'add', '-A'); git(repo, 'commit', '-q', '-m', 'Register atlas-app with mozak');
 
 // ── 2 propose ───────────────────────────────────────────────────
 scene(2, 'Agent proposes. Nothing is approved yet.');
@@ -121,7 +121,7 @@ const stale = mutate('atlas-app', ['observe'], 'observe', {
 }, oldSnapshot);
 const sj = JSON.parse(stale.stdout || '{}');
 out(`${C.g}$${C.x} mozak observe --scope atlas-app  ${C.r}REFUSED${C.x} ${C.dim}(exit ${stale.status}, ${sj.issues?.[0]?.code ?? sj.status})${C.x}`);
-const kept = JSON.parse(readFileSync(join(repo, 'MOZAK.json'), 'utf8'));
+const kept = JSON.parse(readFileSync(join(repo, 'mozak.json'), 'utf8'));
 const has = JSON.stringify(kept).includes('Tile cache fits in 40 MB');
 const lost = JSON.stringify(kept).includes('Overwrites A without seeing it');
 out(`  ${C.dim}Agent A's finding still on disk:${C.x} ${has ? C.g + 'yes' : C.r + 'NO'}${C.x}   ${C.dim}Agent B's write on disk:${C.x} ${lost ? C.r + 'YES' : C.g + 'no'}${C.x}`);

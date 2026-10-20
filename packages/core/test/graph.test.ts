@@ -10,7 +10,7 @@ function scope(root: string, rel: string, id: string, kind: "project" | "topic",
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, "README.md"), `# ${id}\n`);
   writeFileSync(join(dir, "AGENTS.md"), `# ${id}\n`);
-  writeFileSync(join(dir, "MOZAK.md"), `---\nid: ${id}\nkind: ${kind}\nformat: 1\n---\n## Plan\n## Links\n${links.join("\n")}\n## Translations\n`);
+  writeFileSync(join(dir, "mozak.md"), `---\nid: ${id}\nkind: ${kind}\nformat: 1\n---\n## Plan\n## Links\n${links.join("\n")}\n## Translations\n`);
   return dir;
 }
 
@@ -58,7 +58,7 @@ test("a scope that fails check still appears and is flagged", () => {
   const dir = scope(root, "bad", "bad", "project", []);
   writeFileSync(join(dir, "AGENTS.md"), "");
   // remove a required file by overwriting MOZAK links with an invalid relation instead
-  writeFileSync(join(dir, "MOZAK.md"), `---\nid: bad\nkind: project\nformat: 1\n---\n## Plan\n## Links\n- likes: x\n## Translations\n`);
+  writeFileSync(join(dir, "mozak.md"), `---\nid: bad\nkind: project\nformat: 1\n---\n## Plan\n## Links\n- likes: x\n## Translations\n`);
   const g = buildGraph({ roots: [root] });
   assert.equal(g.nodes[0].ok, false);
   assert.match(renderText(g), /\[check failed\]/);

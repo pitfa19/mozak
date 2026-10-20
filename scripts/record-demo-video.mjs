@@ -6,7 +6,7 @@
 // 1. Resets ~/Downloads/mozak-demo-vault and launches Obsidian on that vault window.
 // 2. Runs the 4 live beats (scopes -> propose -> approve -> observe) on disk while
 //    capturing the real Obsidian window via `screencapture -l <windowID> -o -x` as
-//    Obsidian's file watcher and Mermaid renderer redraw MOZAK.md and the Scopes sidebar.
+//    Obsidian's file watcher and Mermaid renderer redraw mozak.md and the Scopes sidebar.
 // 3. Composites the live Terminal typing + stdout on the left and the live Obsidian
 //    window capture on the right onto a 1920x1080 canvas at 12 fps, then encodes
 //    docs/assets/mozak-demo.mp4, ~/Downloads/mozak-demo.mp4, and docs/assets/mozak-demo.gif.
@@ -185,11 +185,11 @@ for (let i = 0; !wid && i < 30; i++) {
 if (!wid) throw new Error("Could not find Obsidian window for mozak-demo-vault");
 console.log(`   Found mozak-demo-vault Obsidian window ID: ${wid}`);
 
-// Capture Beat 1: study-timer/MOZAK.md open with all 3 scopes expanded in sidebar
+// Capture Beat 1: study-timer/mozak.md open with all 3 scopes expanded in sidebar
 const obsBeat1a = join(workDir, "obs", "beat1a.png");
 captureAfterRedraw(wid, obsBeat1a, null);
 const obsBeat1b = obsBeat1a;
-console.log("   Captured Beat 1 (study-timer/MOZAK.md + 3 scopes in sidebar, zero toast)");
+console.log("   Captured Beat 1 (study-timer/mozak.md + 3 scopes in sidebar, zero toast)");
 
 // Run Beat 1 CLI (`mozak scopes`)
 const outScopes = runDemoStep("scopes");
@@ -398,7 +398,7 @@ for f in 0..<totalFrames {
       }
     } else if t < 24.0 {
       stepBadge = "STEP 3 / 4"
-      stepTitle = "Owner approves direction → MOZAK.json + MOZAK.md update"
+      stepTitle = "Owner approves direction → mozak.json + mozak.md update"
       stepAccent = purpleCol
       obsImg = (t < 18.2) ? img2 : img3
       captionText = "Owner approves direction. Obsidian redraws the 0/2 outcome strip and lights up the current Mermaid node."

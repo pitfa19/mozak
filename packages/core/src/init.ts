@@ -33,7 +33,7 @@ export interface AuditReport {
   intent: string | null;
   openQuestions: string[];
   counts: Record<string, number>;
-  /** Suggested MOZAK.md text. The owner edits it and approves. Nothing is written. */
+  /** Suggested mozak.md text. The owner edits it and approves. Nothing is written. */
   draft: string;
   notes: string[];
 }
@@ -62,7 +62,7 @@ function section(md: string, heading: string): string {
   return m ? m[1].trim() : "";
 }
 
-/** Read only. Look at an old .mozak/ directory and propose a MOZAK.md draft. Never writes, never deletes. */
+/** Read only. Look at an old .mozak/ directory and propose a mozak.md draft. Never writes, never deletes. */
 export function auditProject(dir: string, kind: "project" | "topic" = "project"): AuditReport {
   const root = resolve(dir);
   const old = join(root, ".mozak");

@@ -76,7 +76,7 @@ test("context, plans, check and review show without --scope inside a clone resol
   const show = await run(["review", "show", "--config", inv, "--plan", "nope"], clone);
   assert.notEqual(JSON.parse(show.out).status, "scope-not-found");
   // The clone never receives plan files.
-  assert.ok(!existsSync(join(clone, "MOZAK.json")));
+  assert.ok(!existsSync(join(clone, "mozak.json")));
   assert.equal(g(clone, "status", "--porcelain"), "");
 });
 
@@ -106,11 +106,11 @@ test("explicit --scope still wins inside a clone", async () => {
 
 test("pull --into a Downloads folder clones code only", async () => {
   const { inv, base, plans } = fixture();
-  const before = readFileSync(join(plans, "MOZAK.json"));
+  const before = readFileSync(join(plans, "mozak.json"));
   const dest = join(base, "Downloads", "fresh");
   const r = await run(["pull", "--config", inv, "--scope", "tool", "--into", dest, "--json"], base);
   assert.equal(r.code, 0, r.out + r.err);
   assert.ok(existsSync(join(dest, "index.js")));
-  assert.ok(!existsSync(join(dest, "MOZAK.json")));
-  assert.deepEqual(readFileSync(join(plans, "MOZAK.json")), before);
+  assert.ok(!existsSync(join(dest, "mozak.json")));
+  assert.deepEqual(readFileSync(join(plans, "mozak.json")), before);
 });

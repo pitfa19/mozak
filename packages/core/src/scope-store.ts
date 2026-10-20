@@ -5,6 +5,7 @@ import { DomainError } from "./errors.ts";
 import { canonical, digest, hashBytes, validateScope, SCOPE_FORMAT, MAX_REQUEST_BYTES, MAX_SCOPE_BYTES, type FileToken, type ScopeState, type Receipt, type Specification } from "./understanding.ts";
 import { applyMutation, validateMutation, specificationKey, type MutationAction, type ReviewEnvironment } from "./review.ts";
 import { assertScopeFiles, type ScopeEntry } from "./scope-index.ts";
+import { isGraphPath, scopeFile, scopeFileName, GRAPH_FILE, BRIDGE_FILE, LEGACY_GRAPH_FILE, LEGACY_BRIDGE_FILE } from "./scope-files.ts";
 import { inspectSpecification } from "./spec-file.ts";
 import { renderBridge, renderBridgeLegacy } from "./bridge.ts";
 import { removeLeftoverTempFiles, replaceFileDurable, writeFileDurable, fsyncDir } from "./durable.ts";
@@ -71,9 +72,9 @@ function pathExists(path: string): boolean {
 const same = (a: FileToken, b: FileToken) => a.exists === b.exists && a.sha256 === b.sha256;
 function decode(bytes: string, entry: ScopeEntry): ScopeState {
   let raw: unknown;
-  try { raw = JSON.parse(bytes); } catch { throw new DomainError("invalid-json", "MOZAK.json is not valid JSON"); }
+  try { raw = JSON.parse(bytes); } catch { throw new DomainError("invalid-json", "mozak.json is not valid JSON"); }
   const state = validateScope(raw);
-  if (state.scope.id !== entry.id) throw new DomainError("scope-mismatch", "inventory identity does not match MOZAK.json");
+  if (state.scope.id !== entry.id) throw new DomainError("scope-mismatch", "inventory identity does not match mozak.json");
   return state;
 }
 /**
@@ -81,40 +82,41 @@ function decode(bytes: string, entry: ScopeEntry): ScopeState {
  * are a byte-exact legacy projection of this graph. Only known renderer output is safe to regenerate.
  * A digest stored in the bridge itself is not proof of provenance. Other content is preserved as a conflict.
  */
-function projectStatus(state: ScopeState, graphHash: string, bridge: ReturnType<typeof file>): ProjectionStatus {
-  if (bridge.token.exists && bridge.token.sha256 === hashBytes(renderBridge(state, graphHash))) return "current";
+function projectStatus(state: ScopeState, graphHash: string, bridge: ReturnType<typeof file>, graphName: string): ProjectionStatus {
+  if (bridge.token.exists && bridge.token.sha256 === hashBytes(renderBridge(state, graphHash, graphName))) return "current";
   if (same(bridge.token, state.storage.previousBridge)) return "bridge-stale";
   if (bridge.bytes !== null && bridge.validUtf8 && isOlderRender(state, graphHash, bridge.bytes)) return "bridge-stale";
   return "bridge-conflict";
 }
 /** Only byte-exact UTF-8 can be recognised as a generated render. Lossy decoding must never look current or stale. */
 function isOlderRender(state: ScopeState, graphHash: string, bytes: string): boolean {
-  return hashBytes(bytes) === hashBytes(renderBridgeLegacy(state, graphHash));
+  const h = hashBytes(bytes);
+  return h === hashBytes(renderBridgeLegacy(state, graphHash)) || h === hashBytes(renderBridge(state, graphHash, LEGACY_GRAPH_FILE));
 }
 /** True when the bridge is an unedited older render of this state. A write may replace it like a current one. */
 function isLegacyBridge(entry: ScopeEntry, read: ScopeRead): boolean {
   if (!read.snapshot.bridge?.exists) return false;
-  const bridge = file(join(entry.root, "MOZAK.md"), MAX_SCOPE_BYTES * 2);
+  const bridge = file(scopeFile(entry.root, "bridge"), MAX_SCOPE_BYTES * 2);
   return bridge.bytes !== null && bridge.validUtf8 && same(bridge.token, read.snapshot.bridge) && isOlderRender(read.state, read.snapshot.graphHash, bridge.bytes);
 }
 export function readScope(entry: ScopeEntry, options: StoreOptions = {}): ScopeRead {
   assertScopeFiles(entry.root);
   for (let attempt = 0; attempt < 3; attempt++) {
-    const a = file(join(entry.root, "MOZAK.json"));
-    if (a.bytes === null) throw new DomainError("scope-uninitialized", entry.remote ? `not a scope: ${entry.remote.spec}@${entry.remote.ref} has no MOZAK.json at its root` : `no MOZAK.json for ${entry.id}`);
+    const a = file(scopeFile(entry.root, "graph"));
+    if (a.bytes === null) throw new DomainError("scope-uninitialized", entry.remote ? `not a scope: ${entry.remote.spec}@${entry.remote.ref} has no mozak.json at its root` : `no mozak.json for ${entry.id}`);
     let bridge: ReturnType<typeof file> | null = null;
     let bridgeIssue: ScopeIssue | null = null;
-    try { bridge = file(join(entry.root, "MOZAK.md"), MAX_SCOPE_BYTES * 2); }
+    try { bridge = file(scopeFile(entry.root, "bridge"), MAX_SCOPE_BYTES * 2); }
     catch (e) {
       if (e instanceof DomainError && e.code === "unsafe-path") throw e;
       bridgeIssue = { code: "bridge-unavailable", message: e instanceof Error ? e.message : String(e) };
     }
     options.onPhase?.("reader-between");
-    const b = file(join(entry.root, "MOZAK.json"));
+    const b = file(scopeFile(entry.root, "graph"));
     if (!same(a.token, b.token)) continue;
-    if (!a.validUtf8) throw new DomainError("invalid-encoding", "MOZAK.json must contain valid UTF-8 bytes");
+    if (!a.validUtf8) throw new DomainError("invalid-encoding", "mozak.json must contain valid UTF-8 bytes");
     const state = decode(a.bytes, entry);
-    const projectionStatus = bridge ? projectStatus(state, a.token.sha256!, bridge) : "bridge-conflict";
+    const projectionStatus = bridge ? projectStatus(state, a.token.sha256!, bridge, scopeFileName(entry.root, "graph")) : "bridge-conflict";
     const issues: ScopeIssue[] = bridgeIssue ? [bridgeIssue] : [];
     if (projectionStatus !== "current") issues.push({ code: projectionStatus, message: "Canonical context is available. Explicit projection repair or conflict review is required before further writes." });
     for (const name of ["README.md", "AGENTS.md"]) {
@@ -246,7 +248,7 @@ function transaction(entry: ScopeEntry, options: StoreOptions, tx: Transaction, 
   return result!;
 }
 function publish(path: string, bytes: string, tx: Transaction, options: StoreOptions = {}): void {
-  replaceFileDurable(path, bytes, (temporary) => tx.temporary.push(temporary), () => options.onPhase?.(`temp-written:${path.endsWith("MOZAK.json") ? "graph" : "bridge"}`));
+  replaceFileDurable(path, bytes, (temporary) => tx.temporary.push(temporary), () => options.onPhase?.(`temp-written:${isGraphPath(path) ? "graph" : "bridge"}`));
 }
 function publishGraph(entry: ScopeEntry, state: ScopeState, previousBridge: FileToken, tx: Transaction, options: StoreOptions): OperationResult {
   state.storage.previousBridge = previousBridge;
@@ -254,12 +256,12 @@ function publishGraph(entry: ScopeEntry, state: ScopeState, previousBridge: File
   const bytes = canonical(state);
   if (Buffer.byteLength(bytes) > MAX_SCOPE_BYTES) throw new DomainError("capacity-exceeded", "canonical state would exceed 4 MiB");
   options.onPhase?.("before-graph");
-  publish(join(entry.root, "MOZAK.json"), bytes, tx, options);
+  publish(scopeFile(entry.root, "graph"), bytes, tx, options);
   tx.committed = true; tx.state = state;
   options.onPhase?.("after-graph");
-  const bridge = file(join(entry.root, "MOZAK.md"), MAX_SCOPE_BYTES * 2);
+  const bridge = file(scopeFile(entry.root, "bridge"), MAX_SCOPE_BYTES * 2);
   if (!same(bridge.token, previousBridge)) throw new DomainError("bridge-conflict", "bridge changed after canonical commit", 3);
-  publish(join(entry.root, "MOZAK.md"), renderBridge(state, hashBytes(bytes)), tx, options);
+  publish(scopeFile(entry.root, "bridge"), renderBridge(state, hashBytes(bytes), scopeFileName(entry.root, "graph")), tx, options);
   tx.projectionUpdated = true;
   options.onPhase?.("after-bridge");
   return outcome(entry, tx, "ok");
@@ -288,12 +290,12 @@ export function initScopeState(entry: ScopeEntry, input: unknown, options: Store
   if (missing.graph !== true || missing.bridge !== true) throw new DomainError("invalid-input", "init requires absent graph and bridge");
   const tx: Transaction = { operationId, committed: false, projectionUpdated: false, temporary: [] };
   return transaction(entry, options, tx, () => {
-    if (file(join(entry.root, "MOZAK.json")).token.exists) {
+    if (file(scopeFile(entry.root, "graph")).token.exists) {
       const prior = receipt(readScope(entry), operationId, digest(input), tx, entry);
       if (prior) return prior;
       throw new DomainError("already-exists", "existing canonical graph cannot be initialized again", 3);
     }
-    if (file(join(entry.root, "MOZAK.md")).token.exists || pathExists(join(entry.root, ".mozak"))) throw new DomainError("conversion-required", "existing bridge or legacy state requires separately approved conversion", 3);
+    if (file(scopeFile(entry.root, "bridge")).token.exists || pathExists(join(entry.root, ".mozak"))) throw new DomainError("conversion-required", "existing bridge or legacy state requires separately approved conversion", 3);
     for (const name of ["README.md", "AGENTS.md"]) if (!file(join(entry.root, name)).token.exists) throw new DomainError("missing-entry-document", `create/review ${name} explicitly before init`);
     const now = new Date().toISOString(); const revision = randomUUID();
     const result = { action: "init", ids: [entry.id] };
@@ -334,7 +336,7 @@ export function mutateScope(entry: ScopeEntry, input: unknown, actor: "agent" | 
 }
 export type RenderResult = "rendered" | "current" | "conflict" | "failed";
 /**
- * Regenerate a stale MOZAK.md from canonical state. Agent-safe: never opens MOZAK.json for writing, never
+ * Regenerate a stale mozak.md from canonical state. Agent-safe: never opens mozak.json for writing, never
  * overwrites a conflicting bridge (that stays an owner repair), and runs inside the scope lock.
  */
 export function renderProjection(entry: ScopeEntry, options: StoreOptions = {}): { result: RenderResult; outcome: OperationResult } {
@@ -344,15 +346,53 @@ export function renderProjection(entry: ScopeEntry, options: StoreOptions = {}):
   const out = transaction(entry, options, tx, () => {
     const read = readScope(entry);
     if (read.projectionStatus === "current") return outcome(entry, tx, "already-current");
-    if (read.projectionStatus === "bridge-conflict") { result = "conflict"; return outcome(entry, tx, "bridge-conflict", [{ code: "bridge-conflict", message: "MOZAK.md differs from every known render; preserved for owner review (projection repair)" }]); }
+    if (read.projectionStatus === "bridge-conflict") { result = "conflict"; return outcome(entry, tx, "bridge-conflict", [{ code: "bridge-conflict", message: "mozak.md differs from every known render; preserved for owner review (projection repair)" }]); }
     options.onPhase?.("before-render");
     const again = readScope(entry);
     if (canonical(again.snapshot) !== canonical(read.snapshot)) throw new DomainError("stale-input", "scope changed while rendering; rerun render", 3);
-    publish(join(entry.root, "MOZAK.md"), renderBridge(again.state, again.snapshot.graphHash), tx);
+    publish(scopeFile(entry.root, "bridge"), renderBridge(again.state, again.snapshot.graphHash, scopeFileName(entry.root, "graph")), tx);
     tx.projectionUpdated = true; result = "rendered";
     return outcome(entry, tx, "ok");
   });
   if (!["ok", "already-current", "bridge-conflict"].includes(out.status)) result = "failed";
+  return { result, outcome: out };
+}
+export type RenameResult = "renamed" | "current" | "failed";
+/**
+ * Rename a pre-0.4 scope's MOZAK.json and MOZAK.md to mozak.json and mozak.md, then re-render the note so its link
+ * names the new file. Runs inside the scope lock. Refuses when the note is a conflict (hand edits are owner review)
+ * or when both names exist. Bytes of mozak.json are unchanged, so snapshots and approvals stay valid.
+ * The rename goes through a temporary name, which also works on case-insensitive disks.
+ */
+export function renameScopeFiles(entry: ScopeEntry, options: StoreOptions = {}): { result: RenameResult; outcome: OperationResult } {
+  if (entry.remote && entry.remote.plansMode === "repo") throw new DomainError("remote-rename-refused", "rename only local or vault-plans scopes; a repo scope is renamed in its own clone", 2);
+  let result: RenameResult = "current";
+  const tx: Transaction = { committed: false, projectionUpdated: false, temporary: [] };
+  const out = transaction(entry, options, tx, () => {
+    const graphName = scopeFileName(entry.root, "graph");
+    const bridgeName = scopeFileName(entry.root, "bridge");
+    if (graphName === GRAPH_FILE && bridgeName === BRIDGE_FILE) return outcome(entry, tx, "already-current");
+    const names = readdirSync(entry.root);
+    if ((names.includes(GRAPH_FILE) && names.includes(LEGACY_GRAPH_FILE)) || (names.includes(BRIDGE_FILE) && names.includes(LEGACY_BRIDGE_FILE))) {
+      throw new DomainError("rename-conflict", "both uppercase and lowercase plan files exist; keep one by hand", 3);
+    }
+    const read = readScope(entry);
+    if (read.projectionStatus === "bridge-conflict") throw new DomainError("bridge-conflict", "mozak.md has hand edits; review them before renaming", 3);
+    const move = (from: string, to: string) => {
+      if (from === to) return;
+      const via = join(entry.root, `.${to}.${randomUUID()}.rename`);
+      renameSync(join(entry.root, from), via);
+      renameSync(via, join(entry.root, to));
+    };
+    move(graphName, GRAPH_FILE);
+    if (pathExists(join(entry.root, bridgeName))) move(bridgeName, BRIDGE_FILE);
+    fsyncDir(entry.root);
+    const again = readScope(entry);
+    publish(join(entry.root, BRIDGE_FILE), renderBridge(again.state, again.snapshot.graphHash, GRAPH_FILE), tx);
+    tx.projectionUpdated = true; result = "renamed";
+    return outcome(entry, tx, "ok");
+  });
+  if (!["ok", "already-current"].includes(out.status)) result = "failed";
   return { result, outcome: out };
 }
 export function repairProjection(entry: ScopeEntry, input: unknown, options: StoreOptions = {}): OperationResult {
@@ -367,7 +407,7 @@ export function repairProjection(entry: ScopeEntry, input: unknown, options: Sto
     if (read.projectionStatus === "bridge-conflict") throw new DomainError("bridge-conflict", "manual bridge conflict preserved; automatic repair refused", 3);
     options.onPhase?.("before-repair");
     const current = readScope(entry); match(current, snapshot);
-    publish(join(entry.root, "MOZAK.md"), renderBridge(current.state, current.snapshot.graphHash), tx);
+    publish(scopeFile(entry.root, "bridge"), renderBridge(current.state, current.snapshot.graphHash, scopeFileName(entry.root, "graph")), tx);
     tx.projectionUpdated = true;
     return outcome(entry, tx, "ok");
   });

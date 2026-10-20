@@ -1,8 +1,8 @@
-# Idea-oriented MOZAK and simple Monokl
+# Idea-oriented mozak and simple Monokl
 
 **Design status: owner choices P1–P5 approved individually, completed at `2026-10-11T23:28:21.909Z`. Remaining engineering details are proposals for implementation planning. This design approval alone did not authorize implementation, pilot execution, migration or publication.**
 
-**Later bounded execution:** the owner separately approved package 1 at `2026-10-12T08:16:20.810Z` against checkpoint `caffffa`. Its local MOZAK plan-state/review implementation and A01–A15 checks are complete, with 239/239 tests passing. See `implementation-package-1-acceptance.md`. Monokl, the actual pilot, global setup, migration and publication remain outside that grant.
+**Later bounded execution:** the owner separately approved package 1 at `2026-10-12T08:16:20.810Z` against checkpoint `caffffa`. Its local mozak plan-state/review implementation and A01–A15 checks are complete, with 239/239 tests passing. See `implementation-package-1-acceptance.md`. Monokl, the actual pilot, global setup, migration and publication remain outside that grant.
 
 **Design handoff record:** `detailed-specification-handoff.md` indexes the actual owner design decisions, requirement coverage and downstream package status. Completion of the specification workflow does not imply completion or approval of future implementation and pilot work.
 
@@ -16,9 +16,9 @@ I also want to give an agent a source and find out how its mechanism could help 
 
 ## Solution
 
-**MOZAK owns understanding and review. Monokl produces mechanism-grounded adaptation proposals. The host agent reasons and uses existing implementation workflows.**
+**mozak owns understanding and review. Monokl produces mechanism-grounded adaptation proposals. The host agent reasons and uses existing implementation workflows.**
 
-MOZAK's skill presents **Completed briefly → Open → Awaiting approval**, consistently. Discussions create drafts without rewriting accepted direction. Direction approval starts detailed planning. Implementation approval is a separate, scoped decision. Completion means the expected outcome was verified.
+mozak's skill presents **Completed briefly → Open → Awaiting approval**, consistently. Discussions create drafts without rewriting accepted direction. Direction approval starts detailed planning. Implementation approval is a separate, scoped decision. Completion means the expected outcome was verified.
 
 Monokl is one simple entry skill with a small deterministic packet contract. The host reads and reasons about the source. Optional adapters supply source material, project context and draft delivery. No fixed research stages, model service, scheduler or compulsory vault belongs in its core.
 
@@ -43,7 +43,7 @@ Monokl is one simple entry skill with a small deterministic packet contract. The
 ### Progress and continuity
 
 6. **U06.** As an agent, I want to record findings and evidence without repeatedly asking permission, so the understanding stays current.
-7. **U07.** As an owner, I want downstream outcomes linked back to expectations without copying task lists, so MOZAK remains high-level.
+7. **U07.** As an owner, I want downstream outcomes linked back to expectations without copying task lists, so mozak remains high-level.
 8. **U08.** As an owner, I want completed work backed by the agreed outcome, with my review for subjective acceptance, so “done” is meaningful.
 9. **U09.** As an owner, I want rejected ideas retained with a dated reason but hidden normally, so agents do not repeatedly propose them.
 10. **U10.** As an owner, I want source changes assessed for actual impact, so timestamps do not silently invalidate accepted plans.
@@ -58,7 +58,7 @@ Monokl is one simple entry skill with a small deterministic packet contract. The
 
 ### Integration and safe boundaries
 
-16. **U16.** As a standalone user, I want Monokl to work with supplied source and target context, so MOZAK installation is optional.
+16. **U16.** As a standalone user, I want Monokl to work with supplied source and target context, so mozak installation is optional.
 17. **U17.** As an owner, I want useful Monokl results to enter Awaiting approval as drafts, so they are not lost in chat.
 18. **U18.** As an adapter author, I want small data contracts without approval or execution authority, so integrations cannot take over the core workflow.
 19. **U19.** As an owner, I want source text and repository instructions treated as untrusted evidence during analysis, so they cannot grant permissions.
@@ -67,7 +67,7 @@ Monokl is one simple entry skill with a small deterministic packet contract. The
 ### Integrity and rollout
 
 21. **U21.** As a concurrent agent, I want stale writes and stale approvals refused, so another session's work is not overwritten.
-22. **U22.** As an owner, I want ordinary note links preserved while declared idea connections remain explicit, so adopting MOZAK does not require reorganising my vault.
+22. **U22.** As an owner, I want ordinary note links preserved while declared idea connections remain explicit, so adopting mozak does not require reorganising my vault.
 23. **U23.** As an owner, I want duplicate identities, inaccessible inputs and interrupted writes reported accurately, so failures cannot look like success.
 24. **U24.** As an owner, I want source access and resource use bounded, so one idea analysis does not become an unapproved crawl or experiment.
 25. **U25.** As an owner, I want a real end-to-end pilot and safe direct migration, so a clean demo does not hide lost evidence or broken global routing.
@@ -80,9 +80,9 @@ The following contracts are proposed engineering decisions. They preserve R1–R
 
 | Component | Owns | Does not own |
 | --- | --- | --- |
-| MOZAK core | Scope understanding, plan revisions, review records, declared connections, validation, guarded storage and derived views | Model reasoning, task scheduling, experiments, general-purpose memory |
-| MOZAK CLI and MCP | Thin public read and operation-specific mutation interfaces over the same core | A second state store or a raw unrestricted JSON replacement API |
-| MOZAK skill | Consistent presentation, discussions, reading context, recording actual owner decisions and handoff to existing workflows | Inventing approval or keeping authoritative state only in chat |
+| mozak core | Scope understanding, plan revisions, review records, declared connections, validation, guarded storage and derived views | Model reasoning, task scheduling, experiments, general-purpose memory |
+| mozak CLI and MCP | Thin public read and operation-specific mutation interfaces over the same core | A second state store or a raw unrestricted JSON replacement API |
+| mozak skill | Consistent presentation, discussions, reading context, recording actual owner decisions and handoff to existing workflows | Inventing approval or keeping authoritative state only in chat |
 | Monokl skill and packet validator | Source-mechanism analysis contract, target adaptation result, evidence and uncertainty validation | Mandatory research stages, internal model routing, crawling engine or experiment runner |
 | External adapters | Bounded source/context acquisition and submission of unapproved proposals | Marking approval, accepting connections, changing expectations or executing work |
 
@@ -158,7 +158,7 @@ Default to the explicitly discussed scope. If there is no resolvable current sco
 
 For long lists, display bounded groups with an explicit total and continuation indicator. Never imply that a truncated list is complete. The initial proposed presentation limit is five visible items per group. The owner can request the rest or an expanded full view.
 
-Discussing a plan first shows the accepted expectation and proposed change. Use focused questions only for unresolved decisions. Look up environmental facts rather than asking the owner to supply them. Do not rerun a complete interview for an unchanged, already-approved plan. Detailed implementation questions belong to the existing grill/spec workflow, not a second workflow engine in MOZAK.
+Discussing a plan first shows the accepted expectation and proposed change. Use focused questions only for unresolved decisions. Look up environmental facts rather than asking the owner to supply them. Do not rerun a complete interview for an unchanged, already-approved plan. Detailed implementation questions belong to the existing grill/spec workflow, not a second workflow engine in mozak.
 
 ### D6. Connections, source changes and graph ownership
 
@@ -239,11 +239,11 @@ The validator checks shape, provenance presence, bounded content and authority e
 
 **Context adapter:** reads relevant scope summaries first, then expands a bounded set of candidate targets and declared connections. It exposes unresolved identity and coverage rather than silently searching every file on the machine.
 
-**Draft sink:** accepts only unapproved proposals. The MOZAK integration checks target snapshot and existing rejection/duplicate information, then submits a draft under CAS. A timeout after delivery uses operation identity to recover the existing draft. If MOZAK is unavailable, preserve the standalone result and report delivery failure, not success.
+**Draft sink:** accepts only unapproved proposals. The mozak integration checks target snapshot and existing rejection/duplicate information, then submits a draft under CAS. A timeout after delivery uses operation identity to recover the existing draft. If mozak is unavailable, preserve the standalone result and report delivery failure, not success.
 
-The first proposed adapter set is a host/local-source adapter and the MOZAK context/draft adapter. Network, PDF, reverse-engineering and research services are optional source helpers, outside the core. No plugin marketplace or dynamic package loader is required.
+The first proposed adapter set is a host/local-source adapter and the mozak context/draft adapter. Network, PDF, reverse-engineering and research services are optional source helpers, outside the core. No plugin marketplace or dynamic package loader is required.
 
-**Packaging proposal:** keep host reasoning in the portable skill. Standalone use with supplied source and context requires zero adapters and no validator installation. Offer a small optional standalone validator/CLI for machine-checked export and integration workflows. Validate packets before a MOZAK draft sink accepts them. Prefer a slim Python boundary initially because Monokl already ships Python, but do not import the HyperResearch root or install its crawler, PDF, vault or model-route dependencies for basic use. TypeScript is accepted for MOZAK only. A Monokl language rewrite is not silently authorised by that choice.
+**Packaging proposal:** keep host reasoning in the portable skill. Standalone use with supplied source and context requires zero adapters and no validator installation. Offer a small optional standalone validator/CLI for machine-checked export and integration workflows. Validate packets before a mozak draft sink accepts them. Prefer a slim Python boundary initially because Monokl already ships Python, but do not import the HyperResearch root or install its crawler, PDF, vault or model-route dependencies for basic use. TypeScript is accepted for mozak only. A Monokl language rewrite is not silently authorised by that choice.
 
 Jcode is the proposed first end-to-end reference host. Portable contracts must not hardcode its swarm capabilities or a model provider. Other hosts can be advertised as tested only after their actual user flow passes. Missing optional adapters must not trigger the old mandatory doctor, vault-init or stage-installation sequence.
 
@@ -260,9 +260,9 @@ The proposal output links to source anchors by default, not a copy of an entire 
 ### D11. Implementation sequence after design approval
 
 1. **Planning slice:** canonical understanding, pending revisions, typed operations, dates and the deterministic review view, including concurrency and projection recovery.
-2. **Conversation slice:** MOZAK skill presentation, real owner-decision binding, downstream handoff and fresh-session recovery.
+2. **Conversation slice:** mozak skill presentation, real owner-decision binding, downstream handoff and fresh-session recovery.
 3. **Monokl slice:** the simple entry skill, standalone packet validation, bounded local input and explicit no-fit/incomplete outcomes.
-4. **Integration and proof:** optional MOZAK context/draft adapter, duplicate/rejection handling and the real pilot described in the companion protocol.
+4. **Integration and proof:** optional mozak context/draft adapter, duplicate/rejection handling and the real pilot described in the companion protocol.
 5. **Rollout slice:** approved conversion, coordinated CLI/skill/config/global-routing switch and release validation. No broad migration before the pilot passes.
 
 These are vertical delivery slices, not a replacement goal DAG. Detailed tickets and package-level authorisations follow this specification's review. Use Haiku 5.5 at high effort for smaller implementation tasks as requested. If that route is unavailable, report the constraint rather than silently substituting another model.
@@ -290,7 +290,7 @@ Usefulness and whether a fresh agent genuinely understood the same direction req
 | Check | User stories | Observable acceptance |
 | --- | --- | --- |
 | C06 Source and fit | U11–U15 | Owner evaluates a proposal against inspected source anchors, mechanism, target-specific adaptation and explicit uncertainties. No-fit and partial access are valid visible results. |
-| C07 Standalone and adapters | U16–U18 | Same packet is produced without MOZAK, an unavailable optional adapter does not block core use, and the draft sink cannot approve or execute. |
+| C07 Standalone and adapters | U16–U18 | Same packet is produced without mozak, an unavailable optional adapter does not block core use, and the draft sink cannot approve or execute. |
 | C08 Adversarial and bounded input | U19, U20, U24 | Embedded approval text, source commands, path escapes, oversized input and requests to widen paid access cannot escape invocation bounds. No watcher or idle ingestion starts. |
 | C09 Concurrency and recovery | U21, U23 | Two real writers cannot lose accepted state. Slow-live locks, stale-owner/successor races, return-to-identical-text approval attempts, inconsistent reader snapshots, post-commit crashes, manual bridge edits and retry-after-timeout yield explicit, recoverable outcomes without duplicates. |
 | C10 Real pilot and conversion | U01, U17, U25 | Owner accepts usefulness, reviews an actual draft, authorises detailed planning, and a fresh session resumes correctly. Conversion reports all carry-forward material before any separately approved removal. |
@@ -309,11 +309,11 @@ Current tests have been **read**, not rerun as evidence for the new system. None
 
 ### Observed baseline, not future claims
 
-The inspected MOZAK v1 source is **79b4bb9a3c7f369fb2f2013d0681715721a39c49**. Its current plan is free-form Markdown, its MCP surface exposes five tools and a single guarded plan replacement, and its translation helper builds an assumptions checklist. It does not contain the new understanding/revision/approval model. A read-only check of the repository root reports missing agent and bridge entry documents, so the source repository is not yet a valid operational v1 scope.
+The inspected mozak v1 source is **79b4bb9a3c7f369fb2f2013d0681715721a39c49**. Its current plan is free-form Markdown, its MCP surface exposes five tools and a single guarded plan replacement, and its translation helper builds an assumptions checklist. It does not contain the new understanding/revision/approval model. A read-only check of the repository root reports missing agent and bridge entry documents, so the source repository is not yet a valid operational v1 scope.
 
 The inspected Monokl source is **728f2af4862d36cf62df66d245b011e6132a8768**. It currently packages the HyperResearch CLI, research engine and stage skills. Its current functionality and benchmarks do not prove the new simple tool works.
 
-The installed MOZAK registration still resolves MOZAK to the legacy repository. That registry was read for orientation, not treated as permission to follow obsolete legacy goals or publish the old Monokl release. No new legacy feature or goal records were created for this redesign.
+The installed mozak registration still resolves mozak to the legacy repository. That registry was read for orientation, not treated as permission to follow obsolete legacy goals or publish the old Monokl release. No new legacy feature or goal records were created for this redesign.
 
 ### Migration obligations
 
@@ -329,10 +329,10 @@ Independent read-only review found no material blockers against the accepted exp
 
 ### Owner review points
 
-1. **P1 Data ownership: APPROVED.** Canonical JSON is the editable source of truth, with a generated, checked `MOZAK.md` bridge rather than two editable authorities. Owner confirmed at `2026-10-11T23:23:28.952Z`, responding to decision 1 of 5 after documentation checkpoint `7014969`. This accepts the data-ownership choice only, not every proposed storage mechanism, P2–P5, implementation, migration or publication.
+1. **P1 Data ownership: APPROVED.** Canonical JSON is the editable source of truth, with a generated, checked `mozak.md` bridge rather than two editable authorities. Owner confirmed at `2026-10-11T23:23:28.952Z`, responding to decision 1 of 5 after documentation checkpoint `7014969`. This accepts the data-ownership choice only, not every proposed storage mechanism, P2–P5, implementation, migration or publication.
 2. **P2 Review semantics: APPROVED.** Keep one accepted version and one pending revision per plan, with proposed changes under Awaiting approval and approval bound to the exact displayed revision. Direction approval starts detailed planning, not coding. Owner confirmed at `2026-10-11T23:24:14.417Z`, responding to decision 2 of 5. This accepts the stated review semantics, not undisplayed connection declarations, P3–P5 or implementation.
-3. **P3 Small core: APPROVED.** Monokl is a simple skill-first tool: the host agent investigates and produces an actionable adaptation proposal. Standalone use requires zero adapters. A small optional Python validator checks structured output, while source helpers and MOZAK integration remain external adapters with no HyperResearch dependencies. Owner confirmed at `2026-10-11T23:24:58.254Z`, responding to decision 3 of 5. This accepts the stated core and integration boundary, not every serialized field, P4–P5, implementation or pilot execution.
-4. **P4 First proof: APPROVED.** Use the local `/grill-me` method as the source for an adaptation to MOZAK plan discussion, with the existing agentic-systems topic as related context. The pilot requires a real draft, owner usefulness review, direction approval into detailed planning and genuinely fresh-session recovery without the original chat. Owner confirmed at `2026-10-11T23:26:34.289Z`, responding to decision 4 of 5. This approves the pilot design and source/target selection only, not execution, implementation, P5 or a claim of success.
+3. **P3 Small core: APPROVED.** Monokl is a simple skill-first tool: the host agent investigates and produces an actionable adaptation proposal. Standalone use requires zero adapters. A small optional Python validator checks structured output, while source helpers and mozak integration remain external adapters with no HyperResearch dependencies. Owner confirmed at `2026-10-11T23:24:58.254Z`, responding to decision 3 of 5. This accepts the stated core and integration boundary, not every serialized field, P4–P5, implementation or pilot execution.
+4. **P4 First proof: APPROVED.** Use the local `/grill-me` method as the source for an adaptation to mozak plan discussion, with the existing agentic-systems topic as related context. The pilot requires a real draft, owner usefulness review, direction approval into detailed planning and genuinely fresh-session recovery without the original chat. Owner confirmed at `2026-10-11T23:26:34.289Z`, responding to decision 4 of 5. This approves the pilot design and source/target selection only, not execution, implementation, P5 or a claim of success.
 5. **P5 Delivery scope: APPROVED.** Prove the workflow in Jcode first through a bounded local-only pilot using selected local inputs, with no new paid services, installations, experiments or changes to global setup. Keep the design portable. Owner confirmed at `2026-10-11T23:28:21.909Z`, responding to decision 5 of 5. Implementation, pilot execution, migration and publication still require separate approval. This completes P1–P5 design review, not an implementation grant.
 
 Issue-tracker publication and a ready-for-agent label are intentionally withheld. The current request authorises a local design, and public posting is manual. Keep the existing accepted brief unchanged as the requirements authority.

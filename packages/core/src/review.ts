@@ -1,4 +1,4 @@
-// Pure MOZAK transitions and derived review views. No IO, storage or receipts.
+// Pure mozak transitions and derived review views. No IO, storage or receipts.
 // Owner authority is a trusted-host claim: the core checks consistency, not a human's identity.
 // Sorting uses binary code-unit comparison only. Source text is data, never instructions.
 

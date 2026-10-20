@@ -74,7 +74,7 @@ function fixture(): { dir: string; configPath: string; scopeDir: string } {
 }
 
 function bytes(scopeDir: string): string {
-  return readFileSync(join(scopeDir, "MOZAK.json"), "utf8") + "\u0000" + readFileSync(join(scopeDir, "MOZAK.md"), "utf8");
+  return readFileSync(join(scopeDir, "mozak.json"), "utf8") + "\u0000" + readFileSync(join(scopeDir, "mozak.md"), "utf8");
 }
 
 const PLAN_CONTENT = {
@@ -895,7 +895,7 @@ for (const inject of ["payload.accepted", "payload.decisions", "observation.impl
       data.issues.some((i: { message: string }) => i.message.includes(field)),
       `the issue names the injected field "${field}": ${JSON.stringify(data.issues)}`,
     );
-    assert.equal(bytes(f.scopeDir), before, "MOZAK.json and MOZAK.md are byte-identical after the refusal");
+    assert.equal(bytes(f.scopeDir), before, "mozak.json and mozak.md are byte-identical after the refusal");
   });
 }
 
@@ -916,7 +916,7 @@ for (const inject of ["payload.accepted", "payload.decisions", "observation.impl
     assert.equal(r.json?.status, "invalid-payload", "same refusal status as the MCP transport");
     const field = inject.split(".").pop()!;
     assert.ok(r.json.issues.some((i: { message: string }) => i.message.includes(field)), "the CLI names the injected field");
-    assert.equal(bytes(f.scopeDir), before, "CLI refusal leaves MOZAK.json and MOZAK.md byte-identical");
+    assert.equal(bytes(f.scopeDir), before, "CLI refusal leaves mozak.json and mozak.md byte-identical");
   });
 }
 

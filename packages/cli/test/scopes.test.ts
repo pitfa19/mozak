@@ -110,7 +110,7 @@ test("scopes lists which entry documents exist in each scope root", async () => 
   const f = await fixture();
   const body = json(await run(["scopes", "--config", f.config, "--json"]));
   const byId = Object.fromEntries(body.scopes.map((s: any) => [s.id, s]));
-  assert.deepEqual(byId.alpha.entryFiles, ["AGENTS.md", "MOZAK.json", "MOZAK.md", "README.md"]);
+  assert.deepEqual(byId.alpha.entryFiles, ["AGENTS.md", "mozak.json", "mozak.md", "README.md"]);
   assert.deepEqual(byId.gamma.entryFiles, ["README.md"]);
   assert.deepEqual(byId.delta.entryFiles, []);
 });
@@ -127,7 +127,7 @@ test("scopes is deterministic, sorted by id, and reports the inventory digest", 
 
 test("scopes writes nothing: every file in the scope roots is byte-identical afterwards", async () => {
   const f = await fixture();
-  const snapshot = () => f.entries.slice(0, 3).flatMap((e) => ["MOZAK.json", "MOZAK.md", "README.md"].map((n) => {
+  const snapshot = () => f.entries.slice(0, 3).flatMap((e) => ["mozak.json", "mozak.md", "README.md"].map((n) => {
     try { return readFileSync(join(e.root, n), "utf8"); } catch { return "<absent>"; }
   }));
   const before = snapshot();
@@ -174,10 +174,10 @@ test("scopes without --json prints a readable table naming each scope and its fo
   assert.match(r.out, /failed/);
 });
 
-test("scopes does not follow a symlinked MOZAK.json out of the scope root", async () => {
+test("scopes does not follow a symlinked mozak.json out of the scope root", async () => {
   const f = await fixture();
   const { symlinkSync, rmSync: rm } = await import("node:fs");
-  const link = join(f.entries[1].root, "MOZAK.json");
+  const link = join(f.entries[1].root, "mozak.json");
   const target = join(f.base, "outside.json");
   writeFileSync(target, readFileSync(link));
   rm(link);

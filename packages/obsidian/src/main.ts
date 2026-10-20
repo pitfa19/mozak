@@ -1,5 +1,6 @@
 import { FileSystemAdapter, MarkdownView, Notice, Plugin, PluginSettingTab, Setting, TFile, type App, type WorkspaceLeaf } from "obsidian";
 import { readFileSync } from "node:fs";
+import { BRIDGE_FILE } from "@mozak/core";
 import { chooseInventory } from "./discover.ts";
 import { renderStaleProjections, syncRemoteScopes } from "./load.ts";
 import { startWatching, watchTargets } from "./watch.ts";
@@ -27,7 +28,7 @@ export default class MozakPlugin extends Plugin {
     this.addCommand({ id: "open-scopes", name: "Open scopes", callback: () => void this.activateScopes() });
     this.addSettingTab(new MozakSettingTab(this.app, this));
     this.app.workspace.onLayoutReady(() => {
-      // The plan detail tab is retired: plans are read in MOZAK.md. Close tabs restored from older versions.
+      // The plan detail tab is retired: plans are read in mozak.md. Close tabs restored from older versions.
       this.app.workspace.getLeavesOfType(LEGACY_PLAN_VIEW_TYPE).forEach((l) => l.detach());
       this.restartAutoRefresh();
     });
@@ -75,8 +76,8 @@ export default class MozakPlugin extends Plugin {
   }
 
   /**
-   * Regenerate stale MOZAK.md projections of local scopes through core (the same code as `mozak render`).
-   * Never writes MOZAK.json; conflicting hand edits are left alone. Quiet unless something fails.
+   * Regenerate stale mozak.md projections of local scopes through core (the same code as `mozak render`).
+   * Never writes mozak.json; conflicting hand edits are left alone. Quiet unless something fails.
    */
   renderProjections(): void {
     const path = this.inventory().path;
@@ -110,13 +111,13 @@ export default class MozakPlugin extends Plugin {
     if (leaf) await workspace.revealLeaf(leaf);
   }
 
-  /** Open the scope's MOZAK.md scrolled to this plan's heading. Plans are read there, not in a plugin pane. */
+  /** Open the scope's mozak.md scrolled to this plan's heading. Plans are read there, not in a plugin pane. */
   async openPlan(scope: ScopeVM, plan: PlanVM): Promise<void> {
     if (plan.state === "rejected") {
-      new Notice("mozak: rejected plans are not shown in MOZAK.md. Their record remains in MOZAK.json.", 6000);
+      new Notice("mozak: rejected plans are not shown in mozak.md. Their record remains in mozak.json.", 6000);
       return;
     }
-    const file = `${scope.root}/MOZAK.md`;
+    const file = `${scope.root}/${scope.bridgeFile ?? BRIDGE_FILE}`;
     const target = resolveOpenTarget(this.vaultBase() ?? "", file);
     if (target.kind === "vault") {
       const abstract = this.app.vault.getAbstractFileByPath(target.path);
@@ -139,12 +140,12 @@ export default class MozakPlugin extends Plugin {
     try { found = headingLine(readFileSync(file, "utf8"), plan.heading) !== null; } catch { /* reported below */ }
     const err = await this.openExternal(file);
     if (err) new Notice(`mozak: could not open ${file}: ${err}`);
-    else if (!found) new Notice("mozak: this MOZAK.md is not rendered with plan sections yet. Run `mozak render` or refresh.", 6000);
+    else if (!found) new Notice("mozak: this mozak.md is not rendered with plan sections yet. Run `mozak render` or refresh.", 6000);
   }
 
-  /** Open the scope's MOZAK.md: in Obsidian when inside this vault, otherwise with the OS default app. */
+  /** Open the scope's mozak.md: in Obsidian when inside this vault, otherwise with the OS default app. */
   async openMozakMd(scope: ScopeVM): Promise<void> {
-    return this.openScopeFile(scope, "MOZAK.md");
+    return this.openScopeFile(scope, scope.bridgeFile ?? BRIDGE_FILE);
   }
 
   /** Open a file at the scope root: in Obsidian when inside this vault, otherwise with the OS default app. */

@@ -62,28 +62,28 @@ test("A01: built CLI init preserves entry files, replays exactly and refuses exi
   const f = fixture(false), root = f.entries[0].root;
   const entriesBefore = ["README.md", "AGENTS.md"].map(name => readFileSync(join(root, name)));
   assert.equal(init(f).committed, true);
-  const saved = ["MOZAK.json", "MOZAK.md"].map(name => readFileSync(join(root, name)));
+  const saved = ["mozak.json", "mozak.md"].map(name => readFileSync(join(root, name)));
   assert.equal(init(f).status, "replayed");
   assert.equal(init(f, { ...input, title: "different request" }, 3).committed, false);
   assert.equal(init(f, { ...input, operationId: "unrelated-init" }, 3).committed, false);
-  assert.deepEqual(["MOZAK.json", "MOZAK.md"].map(name => readFileSync(join(root, name))), saved);
+  assert.deepEqual(["mozak.json", "mozak.md"].map(name => readFileSync(join(root, name))), saved);
   assert.deepEqual(["README.md", "AGENTS.md"].map(name => readFileSync(join(root, name))), entriesBefore);
   for (const kind of ["bridge", "legacy", "duplicate-id", "duplicate-root", "graph-link", "bridge-link", "lock-link"]) {
     const g = fixture(false), scopeRoot = g.entries[0].root;
     const outside = join(g.root, "outside"); mkdirSync(outside);
     const sentinel = join(outside, "sentinel"); writeFileSync(sentinel, "preserve outside bytes\n");
-    if (kind === "bridge") writeFileSync(join(scopeRoot, "MOZAK.md"), "manual bridge\n");
+    if (kind === "bridge") writeFileSync(join(scopeRoot, "mozak.md"), "manual bridge\n");
     if (kind === "legacy") { mkdirSync(join(scopeRoot, ".mozak")); writeFileSync(join(scopeRoot, ".mozak", "legacy"), "legacy bytes\n"); }
     if (kind === "duplicate-id") writeFileSync(g.config, JSON.stringify({ format: "mozak.local/v2", scopes: [g.entries[0], { ...g.entries[1], id: "one" }] }));
     if (kind === "duplicate-root") writeFileSync(g.config, JSON.stringify({ format: "mozak.local/v2", scopes: [g.entries[0], { id: "alias", root: scopeRoot }] }));
-    if (kind.endsWith("-link")) symlinkSync(kind === "lock-link" ? outside : sentinel, join(scopeRoot, kind === "graph-link" ? "MOZAK.json" : kind === "bridge-link" ? "MOZAK.md" : ".mozak-write-lock"));
+    if (kind.endsWith("-link")) symlinkSync(kind === "lock-link" ? outside : sentinel, join(scopeRoot, kind === "graph-link" ? "mozak.json" : kind === "bridge-link" ? "mozak.md" : ".mozak-write-lock"));
     const before = readdirSync(scopeRoot).sort();
     assert.equal(init(g, input, ["bridge", "legacy"].includes(kind) ? 3 : 2).committed, false);
     assert.deepEqual(readdirSync(scopeRoot).sort(), before);
     assert.equal(readFileSync(sentinel, "utf8"), "preserve outside bytes\n");
     assert.equal(readFileSync(join(scopeRoot, "README.md"), "utf8"), "Owner README\n");
     assert.equal(readFileSync(join(scopeRoot, "AGENTS.md"), "utf8"), "Owner agent instructions\n");
-    if (kind === "bridge") assert.equal(readFileSync(join(scopeRoot, "MOZAK.md"), "utf8"), "manual bridge\n");
+    if (kind === "bridge") assert.equal(readFileSync(join(scopeRoot, "mozak.md"), "utf8"), "manual bridge\n");
     if (kind === "legacy") assert.equal(readFileSync(join(scopeRoot, ".mozak", "legacy"), "utf8"), "legacy bytes\n");
   }
 });
@@ -225,7 +225,7 @@ test("A06/A10: all-scope pages retain every group, invalidate stale cursors and 
     f.mutate(scope, "complete", { planId: completed, revisionId: f.plan(scope, completed).accepted!.id, limitations: [] });
     f.decide(scope, open, "approve-direction");
   }
-  const names = ["MOZAK.json", "MOZAK.md", "README.md", "AGENTS.md"];
+  const names = ["mozak.json", "mozak.md", "README.md", "AGENTS.md"];
   const before = f.entries.flatMap(e => names.map(n => readFileSync(join(e.root, n))));
   const first = f.run(["plans", "--all"]);
   const groupOrder = Object.keys(first.groups);

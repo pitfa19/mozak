@@ -47,7 +47,7 @@ function world(ids = ["alpha", "beta"]) {
 /** Simulate a scope last written by the pre-roadmap CLI. */
 function makeLegacy(entry: { id: string; root: string }) {
   const read = readScope(entry);
-  writeFileSync(join(entry.root, "MOZAK.md"), renderBridgeLegacy(read.state, read.snapshot.graphHash));
+  writeFileSync(join(entry.root, "mozak.md"), renderBridgeLegacy(read.state, read.snapshot.graphHash));
 }
 
 test("legacy-format bridge reads as stale, not conflict", () => {
@@ -59,7 +59,7 @@ test("legacy-format bridge reads as stale, not conflict", () => {
 test("a self-asserted body digest never authorizes overwriting unknown text", () => {
   const { entries } = world(["alpha"]);
   const entry = entries[0]!;
-  const md = join(entry.root, "MOZAK.md");
+  const md = join(entry.root, "mozak.md");
   const body = "\n# Older layout\n";
   const graph = readScope(entry).snapshot.graphHash;
   const older = `---\nformat: 3\nid: "alpha"\nkind: project\ngraph_sha256: ${graph}\nprojection_sha256: ${createHash("sha256").update(body).digest("hex")}\n---\n${body}`;
@@ -74,7 +74,7 @@ test("render reports a failed cleanup even if the projection was already publish
   const { entries } = world(["alpha"]);
   const entry = entries[0]!;
   makeLegacy(entry);
-  const json = sha(join(entry.root, "MOZAK.json"));
+  const json = sha(join(entry.root, "mozak.json"));
   const result = renderProjection(entry, { onPhase(phase) {
     if (phase === "before-release") throw new Error("injected release failure");
   } });
@@ -83,7 +83,7 @@ test("render reports a failed cleanup even if the projection was already publish
   assert.equal(result.outcome.projectionUpdated, true);
   assert.equal(result.outcome.committed, false);
   assert.equal(result.outcome.projectionStatus, "current");
-  assert.equal(sha(join(entry.root, "MOZAK.json")), json);
+  assert.equal(sha(join(entry.root, "mozak.json")), json);
 });
 
 test("direct render refuses remote scopes before touching their cache", () => {
@@ -92,9 +92,9 @@ test("direct render refuses remote scopes before touching their cache", () => {
   const remote = loadInventory(config).scopes[0]!;
   const entry = { ...entries[0]!, remote: remote.remote };
   makeLegacy(entries[0]!);
-  const before = sha(join(entry.root, "MOZAK.md"));
+  const before = sha(join(entry.root, "mozak.md"));
   assert.throws(() => renderProjection(entry), { code: "remote-render-refused" });
-  assert.equal(sha(join(entry.root, "MOZAK.md")), before);
+  assert.equal(sha(join(entry.root, "mozak.md")), before);
   const out = executeOperation(loadInventory(config), "render", { all: true }, "agent");
   assert.equal(out.exitCode, 0);
   assert.equal((out.data.scopes as { result: string }[])[0]!.result, "remote-skipped");
@@ -102,7 +102,7 @@ test("direct render refuses remote scopes before touching their cache", () => {
 
 test("a hand-edited bridge stays a conflict and render refuses to overwrite it", () => {
   const { entries } = world(["alpha"]);
-  const md = join(entries[0]!.root, "MOZAK.md");
+  const md = join(entries[0]!.root, "mozak.md");
   writeFileSync(md, readFileSync(md, "utf8") + "\nmy own note\n");
   const before = readFileSync(md);
   assert.equal(readScope(entries[0]!).projectionStatus, "bridge-conflict");
@@ -110,17 +110,17 @@ test("a hand-edited bridge stays a conflict and render refuses to overwrite it",
   assert.deepEqual(readFileSync(md), before);
 });
 
-test("render rewrites a stale bridge, skips a current one, and never changes MOZAK.json", () => {
+test("render rewrites a stale bridge, skips a current one, and never changes mozak.json", () => {
   const { entries } = world(["alpha"]);
   const entry = entries[0]!;
   makeLegacy(entry);
-  const json = sha(join(entry.root, "MOZAK.json"));
+  const json = sha(join(entry.root, "mozak.json"));
   const r1 = renderProjection(entry);
   assert.equal(r1.result, "rendered");
   assert.equal(readScope(entry).projectionStatus, "current");
-  assert.ok(readFileSync(join(entry.root, "MOZAK.md"), "utf8").includes("```mermaid"));
+  assert.ok(readFileSync(join(entry.root, "mozak.md"), "utf8").includes("```mermaid"));
   assert.equal(renderProjection(entry).result, "current");
-  assert.equal(sha(join(entry.root, "MOZAK.json")), json);
+  assert.equal(sha(join(entry.root, "mozak.json")), json);
   assert.equal(existsSync(join(entry.root, ".mozak-write-lock")), false);
 });
 
@@ -136,15 +136,15 @@ test("a write over a legacy bridge succeeds and leaves a current new-format brid
 test("facade render --all reports per scope and is partial when one scope conflicts", () => {
   const { config, entries } = world(["alpha", "beta"]);
   makeLegacy(entries[0]!);
-  const md = join(entries[1]!.root, "MOZAK.md");
+  const md = join(entries[1]!.root, "mozak.md");
   writeFileSync(md, "hand edit\n");
-  const jsons = entries.map((e) => sha(join(e.root, "MOZAK.json")));
+  const jsons = entries.map((e) => sha(join(e.root, "mozak.json")));
   const out = executeOperation(loadInventory(config), "render", { all: true }, "agent");
   assert.equal(out.exitCode, 6);
   const rows = (out.data.scopes as { scope: string; result: string }[]).map((r) => `${r.scope}:${r.result}`);
   assert.deepEqual(rows, ["alpha:rendered", "beta:conflict"]);
   assert.equal(readFileSync(md, "utf8"), "hand edit\n");
-  assert.deepEqual(entries.map((e) => sha(join(e.root, "MOZAK.json"))), jsons);
+  assert.deepEqual(entries.map((e) => sha(join(e.root, "mozak.json"))), jsons);
 });
 
 test("facade render refuses ambiguous selection", () => {

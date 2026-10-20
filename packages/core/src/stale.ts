@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { basename, join, relative, sep } from "node:path";
 import { buildGraph, type LocalConfig } from "./graph.ts";
+import { scopeFile, isBridgeFileName } from "./scope-files.ts";
 
 /** When something was last changed, derived from git. Nothing is stored, so there is no timestamp to forget to update. */
 export interface Touched {
@@ -96,7 +97,7 @@ export interface StaleReport {
 }
 
 export interface StaleOptions {
-  /** Only compare each scope's MOZAK.md, not every file in the scope. Quieter for busy code repos. */
+  /** Only compare each scope's mozak.md, not every file in the scope. Quieter for busy code repos. */
   planOnly?: boolean;
   now?: number;
 }
@@ -131,7 +132,7 @@ export function staleReports(config: LocalConfig, only?: string, opts: StaleOpti
   const scopeTouched = (id: string): Touched => {
     const n = byId.get(id);
     if (!n) return NONE;
-    return touched(opts.planOnly ? join(n.dir, "MOZAK.md") : n.dir);
+    return touched(opts.planOnly ? scopeFile(n.dir, "bridge") : n.dir);
   };
   const noteIndex = new Map<string, Map<string, string>>(); // repo root -> lowercase basename -> path
 
@@ -172,7 +173,7 @@ export function staleReports(config: LocalConfig, only?: string, opts: StaleOpti
       const idx = noteIndex.get(root)!;
       const seen = new Set<string>();
       for (const f of mdFiles(node.dir)) {
-        if (basename(f) === "MOZAK.md") continue;
+        if (isBridgeFileName(basename(f))) continue;
         for (const name of wikiNames(readFileSync(f, "utf8"))) {
           const target = idx.get(name.toLowerCase());
           if (!target || target.startsWith(node.dir + sep) || seen.has(target)) continue;

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// MOZAK MCP stdio entrypoint. A trusted launcher must pass exactly one --config FILE.
+// mozak MCP stdio entrypoint. A trusted launcher must pass exactly one --config FILE.
 // No environment variable, default path or per-tool config is consulted.
 
 import { resolve } from "node:path";

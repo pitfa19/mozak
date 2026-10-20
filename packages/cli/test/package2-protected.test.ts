@@ -48,7 +48,7 @@ function fixture() {
     writeFileSync(file, JSON.stringify({ operationId: `op-${seq}`, scopeId: "one", expected: snapshot(), action, payload }));
     return cli([...route, "--scope", "one", "--request", file]);
   };
-  const bytes = () => ["MOZAK.json", "MOZAK.md"].map((n) => readFileSync(join(path, n), "utf8")).join("\u0000");
+  const bytes = () => ["mozak.json", "mozak.md"].map((n) => readFileSync(join(path, n), "utf8")).join("\u0000");
   // Real owner setup through the built CLI, ending with an accepted plan and no discussion or specification.
   const init = join(root, "init.json");
   writeFileSync(init, JSON.stringify({ operationId: "init-one", scopeId: "one", kind: "project", title: "one", expectedAbsent: { graph: true, bridge: true }, ownerRef: OWNER, ownerMessageAt: ownerAt }));

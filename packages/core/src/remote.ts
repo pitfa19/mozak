@@ -1,8 +1,9 @@
-// Remote scopes. A remote scope is a git repo cached next to the inventory file. Only README.md, MOZAK.json,
-// MOZAK.md and AGENTS.md are checked out (sparse, blobless, depth 1). Everything shells out to git with
+// Remote scopes. A remote scope is a git repo cached next to the inventory file. Only README.md, the plan files
+// (mozak.json, mozak.md, or their pre-0.4 MOZAK.* names) and AGENTS.md are checked out (sparse, blobless, depth 1). Everything shells out to git with
 // execFile (no shell), a hard timeout and no terminal prompts. Nothing outside inventoried scopes is touched.
 
 import { execFileSync } from "node:child_process";
+import { SCOPE_FILE_NAMES, scopeFile, scopeFileName } from "./scope-files.ts";
 import { randomUUID } from "node:crypto";
 import { existsSync, lstatSync, mkdirSync, renameSync, rmSync } from "node:fs";
 import { homedir } from "node:os";
@@ -11,7 +12,7 @@ import { DomainError } from "./errors.ts";
 import { FRESH_MS, readRemoteMeta, writeRemoteMeta, type RemoteStatus } from "./remote-meta.ts";
 import type { ScopeEntry, ScopeInventory } from "./scope-index.ts";
 
-export const SPARSE_FILES = ["README.md", "MOZAK.json", "MOZAK.md", "AGENTS.md"] as const;
+export const SPARSE_FILES = ["README.md", ...SCOPE_FILE_NAMES, "AGENTS.md"] as const;
 const CLONE_TIMEOUT_MS = 120_000;
 const GIT_TIMEOUT_MS = 60_000;
 
@@ -68,7 +69,7 @@ function cloneSparse(entry: ScopeEntry): void {
 }
 
 function pendingFiles(dir: string): boolean {
-  return git(["status", "--porcelain", "--", "MOZAK.json", "MOZAK.md"], dir).trim() !== "";
+  return git(["status", "--porcelain", "--", ...SCOPE_FILE_NAMES], dir).trim() !== "";
 }
 
 function aheadCount(dir: string, ref: string): number {
@@ -83,14 +84,14 @@ function identityEnvFix(dir: string): string[] {
   // Commit with the user's git identity. Fall back to a neutral one only when none is configured.
   let email = "";
   try { email = git(["config", "user.email"], dir).trim(); } catch { /* unset */ }
-  return email ? [] : ["-c", "user.name=MOZAK", "-c", "user.email=mozak@localhost"];
+  return email ? [] : ["-c", "user.name=mozak", "-c", "user.email=mozak@localhost"];
 }
 
 function currentBranch(dir: string): string {
   return git(["rev-parse", "--abbrev-ref", "HEAD"], dir).trim();
 }
 
-/** Commit only MOZAK.json and MOZAK.md, then push. Returns whether a commit was made. */
+/** Commit only the two plan files, then push. Returns whether a commit was made. */
 export function commitAndPush(entry: ScopeEntry, message: string): { committed: boolean; pushed: boolean } {
   const r = remoteOf(entry);
   const dir = entry.root;
@@ -99,7 +100,7 @@ export function commitAndPush(entry: ScopeEntry, message: string): { committed: 
   }
   let committed = false;
   if (pendingFiles(dir)) {
-    const present = ["MOZAK.json", "MOZAK.md"].filter((n) => existsSync(join(dir, n)));
+    const present = [scopeFileName(dir, "graph"), scopeFileName(dir, "bridge")].filter((n) => existsSync(join(dir, n)));
     git(["add", "--", ...present], dir);
     git([...identityEnvFix(dir), "commit", "--no-verify", "--quiet", "-m", message, "--", ...present], dir);
     committed = true;
@@ -221,7 +222,7 @@ export function pullRemote(entry: ScopeEntry, into?: string): PullResult {
     if (!vault && isRepo(r.cacheRoot) && r.fullClone === null) {
       try { if (pendingFiles(r.cacheRoot) || aheadCount(r.cacheRoot, r.ref) > 0) commitAndPush({ ...entry, root: r.cacheRoot }, "mozak: push pending scope state"); } catch (err) {
         if (!(err instanceof GitFailure)) throw err;
-        throw new DomainError("pull-unpushed-state", `sparse cache has unpushed MOZAK state: ${err.message}`, 3);
+        throw new DomainError("pull-unpushed-state", `sparse cache has unpushed mozak state: ${err.message}`, 3);
       }
     }
     try {
@@ -235,8 +236,8 @@ export function pullRemote(entry: ScopeEntry, into?: string): PullResult {
     created = true;
   }
   if (vault) return { scope: entry.id, destination: dest, created, remote: r.spec, ref: r.ref };
-  if (!existsSync(join(dest, "MOZAK.json"))) {
-    throw new DomainError("scope-uninitialized", `not a scope: no MOZAK.json at the root of ${dest}`, 2);
+  if (!existsSync(scopeFile(dest, "graph"))) {
+    throw new DomainError("scope-uninitialized", `not a scope: no mozak.json at the root of ${dest}`, 2);
   }
   writeRemoteMeta(r.baseDir, entry.id, { lastFetchAt: meta.lastFetchAt, lastError: null, fullClone: dest });
   return { scope: entry.id, destination: dest, created, remote: r.spec, ref: r.ref };

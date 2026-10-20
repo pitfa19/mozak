@@ -56,7 +56,7 @@ test("packet carries both plans, the existing relation, and the draft", () => {
 test("legacy translation writer is disabled without changing existing Markdown", () => {
   const dir = mkdtempSync(join(tmpdir(), "mozak-t-"));
   mkdirSync(dir, { recursive: true });
-  const f = join(dir, "MOZAK.md");
+  const f = join(dir, "mozak.md");
   writeFileSync(f, base);
   try {
     let called = false;

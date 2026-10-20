@@ -1,4 +1,4 @@
-# Implementation package 1: MOZAK plan state and review
+# Implementation package 1: mozak plan state and review
 
 **Status: the bounded package-1 build and A01–A15 verification are complete on October 12, 2026. Build succeeds and 239/239 tests pass at implementation checkpoint `78896e9`. See `implementation-package-1-acceptance.md` for evidence and limits. Owner approval was granted at `2026-10-12T08:16:20.810Z` for checkpoint `caffffa`. All exclusions below remain in force.**
 
@@ -6,7 +6,7 @@ Prepared after the owner's `2026-10-11T23:32:29.420Z` approval to detail the fir
 
 ## 1. Outcome and approval scope
 
-**Deliverable:** a local, testable MOZAK foundation in which an owner or host can create several high-level plans, discuss pending changes without replacing accepted direction, record observations, make narrowly bound review decisions, and recover the resulting context through a new CLI/MCP process. All supported changes use the same guarded JSON store and generated bridge.
+**Deliverable:** a local, testable mozak foundation in which an owner or host can create several high-level plans, discuss pending changes without replacing accepted direction, record observations, make narrowly bound review decisions, and recover the resulting context through a new CLI/MCP process. All supported changes use the same guarded JSON store and generated bridge.
 
 This is the first engineering slice, not the whole product. Completing it must not be reported as completion of Monokl, the polished conversational skill, accepted cross-scope transfer, the fresh-host usefulness pilot or migration.
 
@@ -30,7 +30,7 @@ The missing capabilities are explicit package boundaries, not removed product re
 
 ## 2. Observed baseline and proposed file boundary
 
-Inspected source tree: `b74be59ef5a6e81f48750b44cc583fe862009205`, clean before this document. The latest commits there are documentation approvals. Current installed MOZAK still resolves `mozak` to the legacy repository, with no ready goals in its context. This package follows the newly approved direction, not legacy execution records. Do not change that registration or create a legacy feature record as a side effect.
+Inspected source tree: `b74be59ef5a6e81f48750b44cc583fe862009205`, clean before this document. The latest commits there are documentation approvals. Current installed mozak still resolves `mozak` to the legacy repository, with no ready goals in its context. This package follows the newly approved direction, not legacy execution records. Do not change that registration or create a legacy feature record as a side effect.
 
 Static observations, not new test results:
 
@@ -58,8 +58,8 @@ Function/file splits may be adjusted within these responsibilities during implem
 
 ### Storage layout proposal
 
-- `MOZAK.json`: the sole authoritative understanding graph, discriminator `format: "mozak.scope/v2"`.
-- `MOZAK.md`: entirely generated format-2 bridge. Contains scope identity, canonical-file link, current snapshot digest, concise review summaries and an explicit statement that this package supports no accepted cross-scope declarations.
+- `mozak.json`: the sole authoritative understanding graph, discriminator `format: "mozak.scope/v2"`.
+- `mozak.md`: entirely generated format-2 bridge. Contains scope identity, canonical-file link, current snapshot digest, concise review summaries and an explicit statement that this package supports no accepted cross-scope declarations.
 - `README.md` and `AGENTS.md`: existing documents preserved byte-for-byte by store operations. Missing files are reported by check, not silently manufactured during a plan mutation.
 - `.mozak-write-lock/`: transient coordination directory, never an authority or archive. Temporary graph/bridge files have unique names in the same directory as their destination and are never input authorities.
 - Git stores historical versions. There is no per-plan version directory or second editable Markdown plan.
@@ -84,7 +84,7 @@ Read one selected scope or explicitly `--all`. With all scopes, return per-scope
 
 ### Explicit bootstrap, no user-project onboarding in this package
 
-Provide a create-only `scope init` route so real-interface tests do not handwrite authoritative graph fixtures. It requires an explicit inventoried empty/new test scope, ID, kind, title, operation ID and owner-init decision reference. Refuse any existing `MOZAK.json`, `MOZAK.md` or detected legacy `.mozak` state. Do not convert it. Require existing README/AGENTS for a valid scope, or return a read-only list of missing entry documents before writing.
+Provide a create-only `scope init` route so real-interface tests do not handwrite authoritative graph fixtures. It requires an explicit inventoried empty/new test scope, ID, kind, title, operation ID and owner-init decision reference. Refuse any existing `mozak.json`, `mozak.md` or detected legacy `.mozak` state. Do not convert it. Require existing README/AGENTS for a valid scope, or return a read-only list of missing entry documents before writing.
 
 Tests create ordinary README/AGENTS fixture files themselves, then invoke init. Product store operations must never write or rewrite AGENTS instructions. Init publishes canonical JSON before the bridge under the same lock protocol, so a crash after JSON creation is recoverable through canonical reads and explicit repair with an expected-absent prior bridge. The only existing-state exception is an exact matching init receipt: return its recorded result and current projection health, without overwriting or silently repairing anything. An existing graph without that matching receipt is refused.
 
@@ -232,7 +232,7 @@ CLI exit proposal: 0 complete success, 2 invalid/unsupported/capacity-exceeded i
 
 ## 7. Implementation order after approval
 
-These are package work units, not new MOZAK high-level plans. Keep them in the downstream implementation workflow.
+These are package work units, not new mozak high-level plans. Keep them in the downstream implementation workflow.
 
 1. **Model and pure transitions:** closed validators, deterministic bytes/digests, revision identities, decisions/observations and view DTOs. Test direction changes separately from facts.
 2. **Storage proof:** scope index, lock invariant, CAS/receipts, dual-file publication and repair. Prove crash/interleaving behavior before exposing semantic mutations.

@@ -26,7 +26,7 @@ function titleOf(line: string): string | null {
 
 /** Append a translation block to the end of the Translations section. Refuses a duplicate title. */
 export function insertTranslation(text: string, block: string, title: string): string {
-  if (!/^## Translations\s*$/m.test(text)) throw new Error('MOZAK.md has no "## Translations" section');
+  if (!/^## Translations\s*$/m.test(text)) throw new Error('mozak.md has no "## Translations" section');
   if (text.split(/\r?\n/).some((l) => titleOf(l) === title.trim())) throw new Error(`translation "${title}" already exists`);
   return text.replace(/\s*$/, "\n") + "\n" + block + "\n";
 }

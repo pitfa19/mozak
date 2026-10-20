@@ -1,6 +1,6 @@
 # Bootstrap: first use on a machine or project
 
-MOZAK has no global registry and never scans directories. Everything hangs off one explicit **inventory file** the owner controls. A fresh agent that was told "use mozak" but given no inventory path follows this page instead of reverse-engineering the core.
+mozak has no global registry and never scans directories. Everything hangs off one explicit **inventory file** the owner controls. A fresh agent that was told "use mozak" but given no inventory path follows this page instead of reverse-engineering the core.
 
 ## 1. Find the inventory
 
@@ -32,7 +32,7 @@ Rules enforced by core:
 
 - `format` is `"mozak.local/v3"` (v2 is accepted read-compatibly).
 - Each scope entry has exactly `id` + `root` (local) or `id` + `remote` [+ `ref`] [+ `plans`] (remote).
-- Routing rule: a **private** repo keeps plans inside the repo (shared with collaborators). A **public** repo gets `plans`, a folder for its MOZAK.json and MOZAK.md, usually in the owner's notes. Ask the owner which applies; never put plans in a public repo. MOZAK refuses writes to a repo-mode scope whose repo is public (`public-repo-plans`).
+- Routing rule: a **private** repo keeps plans inside the repo (shared with collaborators). A **public** repo gets `plans`, a folder for its mozak.json and mozak.md, usually in the owner's notes. Ask the owner which applies; never put plans in a public repo. mozak refuses writes to a repo-mode scope whose repo is public (`public-repo-plans`).
 - A `plans` folder is initialized like a local scope: it needs its own `README.md` and `AGENTS.md` describing the project.
 - Read routes (`context`, `plans`, `check`, `review show`) run inside a clone may omit `--scope`; the scope is found from the clone's git origin. Writes always name `--scope`.
 - Scope ids are unique; two scopes may not resolve to the same root.
@@ -45,7 +45,7 @@ Every CLI call takes `--config INVENTORY`. There is no default path and no envir
 `scope init` is owner-only and refuses to run until the scope root is a real project entrance:
 
 1. The root directory exists and contains **`README.md` and `AGENTS.md`**, written or reviewed explicitly for this scope. Core refuses init without them (`missing-entry-document`).
-2. The root contains no `MOZAK.json`, no `MOZAK.md`, and no legacy `.mozak/` directory (legacy state needs separately approved conversion).
+2. The root contains no `mozak.json`, no `mozak.md`, and no legacy `.mozak/` directory (legacy state needs separately approved conversion).
 3. The scope has an entry in the inventory.
 4. The owner has confirmed, in this conversation, initializing this scope id at this root.
 
@@ -71,7 +71,7 @@ node {{MOZAK_CLI}} scope init --config INVENTORY --scope ID --request init.json
 
 - `kind` is `project` or `topic`.
 - `ownerRef` / `ownerMessageAt` follow the same provenance rules as decisions (see `routes.md`): a genuine owner message ID, or a labelled host assertion. Never fabricated.
-- Success writes `MOZAK.json` + `MOZAK.md` into the root and returns the first `snapshot` for subsequent `expected` blocks.
+- Success writes `mozak.json` + `mozak.md` into the root and returns the first `snapshot` for subsequent `expected` blocks.
 
 ## 4. After init
 

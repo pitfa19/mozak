@@ -12,8 +12,8 @@ function scope(rel: string, id: string, kind: "project" | "topic", links: string
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, "README.md"), `# ${id}\n`);
   writeFileSync(join(dir, "AGENTS.md"), `# ${id}\n`);
-  writeFileSync(join(dir, "MOZAK.md"), `---\nid: ${id}\nkind: ${kind}\nformat: 1\n---\n## Plan\n- [ ] start\n## Links\n${links.join("\n")}\n## Translations\n`);
-  return join(dir, "MOZAK.md");
+  writeFileSync(join(dir, "mozak.md"), `---\nid: ${id}\nkind: ${kind}\nformat: 1\n---\n## Plan\n- [ ] start\n## Links\n${links.join("\n")}\n## Translations\n`);
+  return join(dir, "mozak.md");
 }
 
 const research = scope("vault/research", "research", "topic", []);
@@ -23,7 +23,7 @@ const cfg = { roots: [root] };
 say("== graph before");
 say(renderText(buildGraph(cfg)));
 
-say("\n== agent A and agent B both read research/MOZAK.md");
+say("\n== agent A and agent B both read research/mozak.md");
 const a = readSnapshot(research);
 const b = readSnapshot(research);
 say(`A base ${a.hash.slice(0, 8)}   B base ${b.hash.slice(0, 8)}`);
@@ -47,7 +47,7 @@ say("A: accepted");
 say("\n== agent on api adds an edge at the same time");
 updateFile(api, (t) => t.replace("## Translations", "- informs: [[research]]\n## Translations"));
 
-say("\n== research/MOZAK.md plan, both edits survived");
+say("\n== research/mozak.md plan, both edits survived");
 say(readSnapshot(research).text.split("## Links")[0].split("## Plan")[1].trim());
 
 say("\n== graph after");

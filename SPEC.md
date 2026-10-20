@@ -1,10 +1,10 @@
-# MOZAK v1 spec
+# mozak v1 spec
 
 Status: draft, from the 24 grilling decisions of 2026-10-11. Not yet implemented.
 
 ## Purpose
 
-MOZAK connects the git and Obsidian stack for humans and AI agents. In the AI era developers and researchers work with ideas more than with files. Until tooling is AI native they need an intermediate. This is it.
+mozak connects the git and Obsidian stack for humans and AI agents. In the AI era developers and researchers work with ideas more than with files. Until tooling is AI native they need an intermediate. This is it.
 
 Pitch order:
 1. **Organisation.** Projects are git repos. Topics are Obsidian folders. Each has the same three root files, and together they form one graph.
@@ -26,15 +26,15 @@ The three files:
 |---|---|---|
 | `README.md` | humans | stable description. For a topic it is the index note |
 | `AGENTS.md` | agents | instructions an agent needs |
-| `MOZAK.md` | both | the bridge: living plan, links, translations |
+| `mozak.md` | both | the bridge: living plan, links, translations |
 
-`MOZAK.md` is, by convention, the only file that links to other scopes or to MOZAK related work. It may reference files inside its own scope. This is not enforced: `check` does not scan other files for links, `graph` reads only `MOZAK.md`, and `stale` also follows wikilinks in a scope's other files to see whether a cited note changed.
+`mozak.md` is, by convention, the only file that links to other scopes or to mozak related work. It may reference files inside its own scope. This is not enforced: `check` does not scan other files for links, `graph` reads only `mozak.md`, and `stale` also follows wikilinks in a scope's other files to see whether a cited note changed.
 
 `CLAUDE.md` is optional. Claude Code 2.1.277 and newer reads `AGENTS.md` only when no `CLAUDE.md` exists in the working directory or above it. A `CLAUDE.md` that merely mentions `AGENTS.md` in words therefore hides it. When a `CLAUDE.md` exists, `check` requires a line `@AGENTS.md` (an import, which Claude Code does not read twice) or a symlink to `AGENTS.md`. A mention inside a code span or fenced block is not an import. Versions before 2.1.277 ignore `AGENTS.md`, so the import is how those versions read it. Source: the Claude Code memory docs.
 
 All Obsidian scopes live inside one git repository, so the vault is shared across machines and users.
 
-## MOZAK.md format
+## mozak.md format
 
 Plain Markdown that Obsidian renders. Frontmatter:
 
@@ -66,7 +66,7 @@ One block per idea moved between scopes. Each block names the source, the target
 
 ## Link resolution
 
-`MOZAK.md` stores only the portable link. A local config maps each link to a folder on the current machine (vault root, repo clones). `graph` and `translate` read only those local folders and never use the network. Each person sets up their own mapping.
+`mozak.md` stores only the portable link. A local config maps each link to a folder on the current machine (vault root, repo clones). `graph` and `translate` read only those local folders and never use the network. Each person sets up their own mapping.
 
 ## Core operations
 
@@ -74,7 +74,7 @@ One block per idea moved between scopes. Each block names the source, the target
 2. `check`: validate structure, verify links resolve, rebuild the graph cache, and flag unapproved changes to Links and Translations by comparing against git history.
 3. `graph`: print the cross-scope graph.
 4. `translate`: produce the packet for moving an idea into a target scope.
-5. `audit`: read-only. List what an old `.mozak/` directory holds and propose a draft `MOZAK.md`. The owner edits and approves, then the old directory is archived.
+5. `audit`: read-only. List what an old `.mozak/` directory holds and propose a draft `mozak.md`. The owner edits and approves, then the old directory is archived.
 
 ## Concurrency
 
@@ -85,9 +85,9 @@ Plain files are the source of truth. Writes made through the CLI or MCP server:
 3. write to a temporary file and atomically rename,
 4. release the lock.
 
-A stale write is refused with an error, and the caller re-reads and retries. The graph is a derived cache, always rebuildable from the `MOZAK.md` files. No daemon, no database, no server.
+A stale write is refused with an error, and the caller re-reads and retries. The graph is a derived cache, always rebuildable from the `mozak.md` files. No daemon, no database, no server.
 
-Direct edits (a human in Obsidian, an agent in an editor) cannot be blocked. The guarded path covers only writes through MOZAK, and `check` catches the rest.
+Direct edits (a human in Obsidian, an agent in an editor) cannot be blocked. The guarded path covers only writes through mozak, and `check` catches the rest.
 
 ## Packages
 
@@ -103,7 +103,7 @@ Later: an Obsidian plugin and a Pi harness extension import `core` in process.
 
 ## Out of scope
 
-Improve Lab, goal plans, executions, knowledge packages, attestation, research run recorders, tool evidence hashing, Meta KB registry, feature record files. Research evidence is plain notes in a topic, linked from `MOZAK.md`.
+Improve Lab, goal plans, executions, knowledge packages, attestation, research run recorders, tool evidence hashing, Meta KB registry, feature record files. Research evidence is plain notes in a topic, linked from `mozak.md`.
 
 ## Build order
 
@@ -114,7 +114,7 @@ Improve Lab, goal plans, executions, knowledge packages, attestation, research r
 5. `init` and `audit`.
 6. README, demo GIF, v0.1 release.
 
-Steps 1 to 3 form the first milestone and the demo: two agents on two repos update `MOZAK.md`, one write is refused as stale and retried, and `graph` stays consistent.
+Steps 1 to 3 form the first milestone and the demo: two agents on two repos update `mozak.md`, one write is refused as stale and retried, and `graph` stays consistent.
 
 ## Versioning and migration
 

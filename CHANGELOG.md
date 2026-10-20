@@ -2,6 +2,17 @@
 
 User-visible changes, newest first. Releases are git tags `vX.Y.Z` on `main`; `mozak upgrade` installs the newest one.
 
+## Unreleased
+
+### Changed
+
+- The name is written `mozak` everywhere: the Obsidian sidebar title, plugin name, messages, CLI help and docs.
+- Plan files are now `mozak.json` and `mozak.md`. Older scopes with `MOZAK.json` and `MOZAK.md` keep working unchanged: reads accept both names and writes keep the scope's existing names. New scopes get the lowercase names.
+
+### Added
+
+- `mozak rename-files (--scope ID | --all)` (owner): renames a scope's old `MOZAK.*` files to lowercase under the scope lock and regenerates the note so its link points to `mozak.json`. Plan bytes are unchanged. Refuses notes with hand edits. Repo scopes are skipped.
+
 ## 0.3.0 (2026-10-19)
 
 ### Added

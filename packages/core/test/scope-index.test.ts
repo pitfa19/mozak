@@ -236,13 +236,13 @@ test("assertScopeFiles accepts a root with no scope files and writes nothing", (
   assert.doesNotThrow(() => assertScopeFiles(root));
 
   assert.deepEqual(listing(root), before);
-  assert.equal(existsSync(join(root, "MOZAK.json")), false);
+  assert.equal(existsSync(join(root, "mozak.json")), false);
 });
 
 test("assertScopeFiles accepts regular graph and bridge files and a lock directory", () => {
   const root = dir(join(workspace(), "populated-scope"));
-  writeFileSync(join(root, "MOZAK.json"), "{}\n");
-  writeFileSync(join(root, "MOZAK.md"), "# bridge\n");
+  writeFileSync(join(root, "mozak.json"), "{}\n");
+  writeFileSync(join(root, "mozak.md"), "# bridge\n");
   dir(join(root, ".mozak-write-lock"));
   const before = listing(root);
 
@@ -254,8 +254,8 @@ test("assertScopeFiles accepts regular graph and bridge files and a lock directo
 test("assertScopeFiles rejects symlinked graph, bridge, or lock paths", () => {
   const ws = workspace();
   const cases: Array<[string, "file" | "dir"]> = [
-    ["MOZAK.json", "file"],
-    ["MOZAK.md", "file"],
+    ["mozak.json", "file"],
+    ["mozak.md", "file"],
     [".mozak-write-lock", "dir"],
   ];
   for (const [name, kind] of cases) {
@@ -271,7 +271,7 @@ test("assertScopeFiles rejects symlinked graph, bridge, or lock paths", () => {
 
 test("assertScopeFiles rejects a directory used as the graph or bridge file", () => {
   const ws = workspace();
-  for (const name of ["MOZAK.json", "MOZAK.md"]) {
+  for (const name of ["mozak.json", "mozak.md"]) {
     const root = dir(join(ws, `dir-as-${name.replace(/\W+/g, "")}`));
     dir(join(root, name));
 

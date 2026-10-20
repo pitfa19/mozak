@@ -25,7 +25,7 @@ A new entry form, allowed only in `mozak.local/v3`:
 ## 3. Behaviour of a vault-plans scope
 
 - **Reads and writes** go through the ordinary local path on the plans folder: lock, CAS, receipts, projection and `check`. No git command runs for this scope on any path, including recovery and `sync`. `mozak sync` reports it as `source: "vault"`, `stale: false`, and does not fetch.
-- **Render** treats it as local: `render --all` regenerates its `MOZAK.md`.
+- **Render** treats it as local: `render --all` regenerates its `mozak.md`.
 - **scope init** works on it like a local scope, with `README.md` and `AGENTS.md` required in the plans folder.
 - **Specs** are read relative to the plans folder.
 - **Listing**: `scopes`, `plans`, `context` and the MCP tools show `remote`, `ref` and `source: "vault"` for it, exactly as other remote rows show their remote. No network.
@@ -51,9 +51,9 @@ A new entry form, allowed only in `mozak.local/v3`:
 
 ## 7. Migration (owner-approved rollout, after tests pass)
 
-1. Back up the inventory, both `MOZAK.json` files and spec files.
-2. `obsidian-plugins-mcp`: create `~/Documents/obsidian/creations/obsidian-plugins-mcp/` with `README.md` and `AGENTS.md` written for the scope, plus `MOZAK.json` and `.mozak/npm-publish-spec.md` restored from the 2026-10-18 backup (the spec file is restored from the repo's last commit if present, else the scope records its spec as missing, which `check` reports without failing reads). Add the vault entry to the inventory.
-3. `mozak`: create `~/Documents/obsidian/creations/mozak/` with `README.md` and `AGENTS.md`, copy `MOZAK.json` and the referenced spec files (`docs/obsidian-roadmap-spec.md`, `docs/private-plan-storage-spec.md`) into the same relative paths. Replace the inventory entry with the vault form. Then `git rm --cached MOZAK.json MOZAK.md` in the mozak repo, add both to `.gitignore`, and update the repo's `AGENTS.md` and `README.md` to point to the vault.
+1. Back up the inventory, both `mozak.json` files and spec files.
+2. `obsidian-plugins-mcp`: create `~/Documents/obsidian/creations/obsidian-plugins-mcp/` with `README.md` and `AGENTS.md` written for the scope, plus `mozak.json` and `.mozak/npm-publish-spec.md` restored from the 2026-10-18 backup (the spec file is restored from the repo's last commit if present, else the scope records its spec as missing, which `check` reports without failing reads). Add the vault entry to the inventory.
+3. `mozak`: create `~/Documents/obsidian/creations/mozak/` with `README.md` and `AGENTS.md`, copy `mozak.json` and the referenced spec files (`docs/obsidian-roadmap-spec.md`, `docs/private-plan-storage-spec.md`) into the same relative paths. Replace the inventory entry with the vault form. Then `git rm --cached mozak.json mozak.md` in the mozak repo, add both to `.gitignore`, and update the repo's `AGENTS.md` and `README.md` to point to the vault.
 4. `mozak render --all`, `mozak check` on both, and compare plans, observations, decisions and receipts before and after by canonical JSON.
 5. Reinstall the CLI and the plugin into the vaults.
 
@@ -69,4 +69,4 @@ A new entry form, allowed only in `mozak.local/v3`:
 
 - Visibility checks only work for GitHub and only for repos the public API can see. A private repo shows as `private-or-missing`.
 - Plans for public repos are private to this machine and its vault repo. Teammates cannot see them (a shared plans repo is a later non-goal).
-- Earlier commits of the mozak repo keep their public `MOZAK.json` history.
+- Earlier commits of the mozak repo keep their public `mozak.json` history.

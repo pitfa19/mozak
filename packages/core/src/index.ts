@@ -12,6 +12,7 @@ export * from "./errors.ts";
 export * from "./understanding.ts";
 export * from "./scope-index.ts";
 export * from "./scope-store.ts";
+export * from "./scope-files.ts";
 export * from "./scope-list.ts";
 export * from "./review.ts";
 export * from "./roadmap.ts";

@@ -1,6 +1,7 @@
 import { existsSync, lstatSync, readFileSync, realpathSync } from "node:fs";
 import { join } from "node:path";
 import { parseMozak, type Issue, type MozakDoc } from "./parse.ts";
+import { scopeFile, BRIDGE_FILE } from "./scope-files.ts";
 
 export interface CheckResult {
   ok: boolean;
@@ -8,7 +9,7 @@ export interface CheckResult {
   issues: Issue[];
 }
 
-const REQUIRED = ["README.md", "AGENTS.md", "MOZAK.md"];
+const REQUIRED = ["README.md", "AGENTS.md"];
 
 /**
  * Claude Code only follows an `@AGENTS.md` import. Prose such as "see AGENTS.md" is not an import, and once a
@@ -39,12 +40,14 @@ function exists(path: string): boolean {
   }
 }
 
-/** Validate one scope directory: three root files plus a well formed MOZAK.md. */
+/** Validate one scope directory: three root files plus a well formed mozak.md (or pre-0.4 MOZAK.md). */
 export function checkScope(dir: string): CheckResult {
   const issues: Issue[] = [];
   for (const f of REQUIRED) {
     if (!existsSync(join(dir, f))) issues.push({ code: "file-missing", message: `missing ${f}` });
   }
+  const mozak = scopeFile(dir, "bridge");
+  if (!existsSync(mozak)) issues.push({ code: "file-missing", message: `missing ${BRIDGE_FILE}` });
   if (exists(join(dir, "CLAUDE.md")) && !claudeReachesAgents(dir)) {
     issues.push({
       code: "claude-pointer",
@@ -53,7 +56,6 @@ export function checkScope(dir: string): CheckResult {
     });
   }
   let doc: MozakDoc | null = null;
-  const mozak = join(dir, "MOZAK.md");
   if (existsSync(mozak)) {
     doc = parseMozak(readFileSync(mozak, "utf8"));
     issues.push(...doc.issues);

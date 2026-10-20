@@ -1,4 +1,4 @@
-// MOZAK MCP tool layer. Thin transport over the shared core operation seam.
+// mozak MCP tool layer. Thin transport over the shared core operation seam.
 // Core validation is authoritative. This layer only closes the advertised surface:
 // fixed tool names, closed argument objects, a fixed agent actor and no config input.
 

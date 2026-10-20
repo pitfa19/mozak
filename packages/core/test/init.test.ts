@@ -58,10 +58,10 @@ test("audit reads old state, proposes a valid draft, and changes no file", () =>
   assert.match(a.draft, /- \[ \] Pricing\?/);
   assert.ok(a.notes.some((n) => /1 feature files/.test(n)));
 
-  // the proposed draft must itself be a valid MOZAK.md
+  // the proposed draft must itself be a valid mozak.md
   writeFileSync(join(dir, "README.md"), "x\n");
   writeFileSync(join(dir, "AGENTS.md"), "x\n");
-  writeFileSync(join(dir, "MOZAK.md"), a.draft);
+  writeFileSync(join(dir, "mozak.md"), a.draft);
   assert.equal(checkScope(dir).ok, true);
 });
 

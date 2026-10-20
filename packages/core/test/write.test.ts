@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { guardedWrite, hashText, readSnapshot, updateFile } from "../src/write.ts";
 
-const fresh = () => join(mkdtempSync(join(process.env.JCODE_SCRATCH_DIR ?? tmpdir(), "mozak-retired-write-")), "MOZAK.md");
+const fresh = () => join(mkdtempSync(join(process.env.JCODE_SCRATCH_DIR ?? tmpdir(), "mozak-retired-write-")), "mozak.md");
 test("legacy snapshot/hash helpers remain read-only", () => {
   const file = fresh();
   assert.equal(readSnapshot(file).hash, hashText(""));
@@ -24,5 +24,5 @@ test("retired transform writer never evaluates its callback or changes existing 
   assert.throws(() => updateFile(file, () => { called = true; return "injected"; }), { code: "unsupported-legacy-operation" });
   assert.equal(called, false);
   assert.equal(readFileSync(file, "utf8"), "protected\n");
-  assert.deepEqual(readdirSync(join(file, "..")), ["MOZAK.md"]);
+  assert.deepEqual(readdirSync(join(file, "..")), ["mozak.md"]);
 });

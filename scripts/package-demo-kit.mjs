@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Packages ~/Downloads/mozak-demo-kit and ~/Downloads/mozak-demo-kit.zip
 // with the clean Pomodoro Study Timer / Recipe Book App / Summer Road Trip Notes
-// demo captures, transcripts, composited keyframes, videos, and official MOZAK Brand Kit.
+// demo captures, transcripts, composited keyframes, videos, and official mozak Brand Kit.
 
 import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -29,7 +29,7 @@ const sanitize = (s) =>
     .replaceAll(join(downloads, "mozak-demo-vault"), "~/mozak-demo-vault")
     .replaceAll(homedir(), "~");
 
-// 1. Official MOZAK Brand & Icon Kit (including brand/fonts/)
+// 1. Official mozak Brand & Icon Kit (including brand/fonts/)
 cpSync(join(repo, "docs/assets/brand"), join(kit, "brand"), { recursive: true });
 copyFileSync(join(repo, "docs/assets/hero.svg"), join(kit, "brand/hero.svg"));
 copyFileSync(join(repo, "docs/assets/hero-pixel.gif"), join(kit, "brand/hero-pixel.gif"));
@@ -80,7 +80,7 @@ for (const scope of ["recipe-app", "trip-notes", "study-timer"]) {
   const scopeSrc = join(vaultDir, scope);
   const scopeDst = join(kit, "demo-vault-template", scope);
   mkdirSync(scopeDst, { recursive: true });
-  for (const f of ["README.md", "AGENTS.md", "MOZAK.json", "MOZAK.md"]) {
+  for (const f of ["README.md", "AGENTS.md", "mozak.json", "mozak.md"]) {
     if (existsSync(join(scopeSrc, f))) {
       writeFileSync(join(scopeDst, f), sanitize(readFileSync(join(scopeSrc, f), "utf8")));
     }

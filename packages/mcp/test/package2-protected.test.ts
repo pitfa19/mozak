@@ -76,7 +76,7 @@ function fixture() {
     path,
     acceptedId,
     snapshot,
-    bytes: () => ["MOZAK.json", "MOZAK.md"].map((n) => readFileSync(join(path, n), "utf8")).join("\u0000"),
+    bytes: () => ["mozak.json", "mozak.md"].map((n) => readFileSync(join(path, n), "utf8")).join("\u0000"),
     plan: () => readScope(loadInventory(config).scopes[0]).state.plans[0]!,
   };
 }

@@ -10,8 +10,7 @@ export const INVENTORY_FORMAT_V2 = "mozak.local/v2" as const;
 export const INVENTORY_FORMAT = "mozak.local/v3" as const;
 export type InventoryFormat = typeof INVENTORY_FORMAT_V2 | typeof INVENTORY_FORMAT;
 export const WRITE_LOCK_DIR = ".mozak-write-lock";
-const GRAPH_FILE = "MOZAK.json";
-const BRIDGE_FILE = "MOZAK.md";
+import { SCOPE_FILE_NAMES, scopeFile } from "./scope-files.ts";
 
 export interface ScopeEntry {
   id: string;
@@ -179,7 +178,7 @@ export function loadInventory(configPath: string): ScopeInventory {
         remote = { spec: entry.remote, url: parsed.url, ref, repoName: parsed.repoName, baseDir: base, cacheRoot, fullClone: null, plansMode: "vault" };
       } else {
         const meta = readRemoteMeta(base, id);
-        const fullClone = meta.fullClone !== null && existsSync(join(meta.fullClone, ".git")) && existsSync(join(meta.fullClone, "MOZAK.json")) ? canonicalPath(meta.fullClone) : null;
+        const fullClone = meta.fullClone !== null && existsSync(join(meta.fullClone, ".git")) && existsSync(scopeFile(meta.fullClone, "graph")) ? canonicalPath(meta.fullClone) : null;
         root = fullClone ?? cacheRoot;
         remote = { spec: entry.remote, url: parsed.url, ref, repoName: parsed.repoName, baseDir: base, cacheRoot, fullClone, plansMode: "repo" };
       }
@@ -276,7 +275,7 @@ export function assertScopeFiles(root: string): void {
     throw new DomainError("scope-root-not-directory", `scope root is not a directory: ${root}`);
   }
 
-  for (const name of [GRAPH_FILE, BRIDGE_FILE]) {
+  for (const name of SCOPE_FILE_NAMES) {
     const entry = lstatOrNull(join(root, name));
     if (entry === null) continue;
     if (entry.isSymbolicLink()) {

@@ -1,5 +1,5 @@
 {
-  "title": "MOZAK v0.3.0 — Agent Chat + Obsidian IDE",
+  "title": "mozak v0.3.0 — Agent Chat + Obsidian IDE (Pomodoro Study Timer)",
   "durationSeconds": 32,
   "fps": 12,
   "width": 1920,
@@ -15,38 +15,55 @@
     "text": "#eceff7",
     "muted": "#9aa3bc"
   },
+  "scopes": [
+    {
+      "id": "recipe-app",
+      "title": "Recipe Book App",
+      "plans": ["Save favorite recipes offline (Completed 1/1)", "Weekly grocery list (Open 1/3)"]
+    },
+    {
+      "id": "trip-notes",
+      "title": "Summer Road Trip Notes",
+      "plans": ["Compare coastal vs mountain route (Open 1/2)"]
+    },
+    {
+      "id": "study-timer",
+      "title": "Pomodoro Study Timer",
+      "plans": ["25-minute focus countdown (Completed 1/1)", "Play a bell sound when the timer ends (session-alert)"]
+    }
+  ],
   "beats": [
     {
       "id": "beat1-overview",
       "badge": "BEAT 1 / 4",
       "start": 0.0,
       "end": 8.0,
-      "headerTitle": "You talk in the terminal → Agent reads MOZAK state & asks 1 focused question",
+      "headerTitle": "01 You ask in plain words → Agent reads the project & asks 1 question",
       "accent": "gold",
       "obsidianStartImage": "beat1a.png",
       "obsidianEndImage": "beat1a.png",
       "transitionAt": null,
-      "userPrompt": "/mozak field-kit — plan the 30-day deep-sleep power budget (< 45 uA sleep, -10 C cold soak)",
+      "userPrompt": "/mozak study-timer — add a bell sound when the 25-minute timer ends, plus a mute button",
       "userTypedBy": 1.8,
       "toolCalls": [
         {
           "appearAt": 2.1,
           "status": "ok",
-          "label": "⚙ mozak_scopes  →  3 scopes (atlas-engine, field-kit, routing-notes)"
+          "label": "⚙ MCP: mozak_scopes  →  3 scopes (recipe-app, study-timer, trip-notes)"
         },
         {
           "appearAt": 2.6,
           "status": "ok",
-          "label": "⚙ mozak_context (scope: \"field-kit\")  →  1 completed, 0 open, 0 awaiting"
+          "label": "⚙ MCP: mozak_context (study-timer)  →  1 completed, 0 open, 0 awaiting"
         }
       ],
       "agentReplyAppearAt": 3.2,
       "agentReplyLines": [
-        "Field Sensor Kit (field-kit) has 1 completed plan (telemetry-schema) and 0 open.",
+        "Pomodoro Study Timer (study-timer) has 1 completed plan (25-minute focus countdown).",
         "",
-        "Before I draft battery-budget, one question:",
-        "Q1: Should both outcomes (sleep-draw < 45 uA and cold-soak at -10 C)",
-        "    be objective test checks, or owner sign-off?"
+        "Before I draft session-alert, one question:",
+        "Q1: Can both steps (bell-sound at 00:00 and mute-button) be checked",
+        "    by automated audio tests, or do you want to sign off yourself?"
       ],
       "highlight": {
         "appearAt": 2.4,
@@ -57,127 +74,127 @@
         "color": "gold",
         "label": "3 scopes in shared inventory"
       },
-      "caption": "The /mozak skill reads MOZAK.json via MCP, summarizes the project in 2 lines, and asks 1 focused question."
+      "caption": "You type /mozak and ask in plain words. The agent reads the project notes first, then asks one question."
     },
     {
       "id": "beat2-propose",
       "badge": "BEAT 2 / 4",
       "start": 8.0,
       "end": 16.0,
-      "headerTitle": "Agent proposes the plan → pauses at the owner direction-approval gate",
+      "headerTitle": "02 It drafts, then waits for you → Obsidian shows 'awaiting approval'",
       "accent": "gold",
       "obsidianStartImage": "beat1a.png",
       "obsidianEndImage": "beat2.png",
-      "transitionAt": 10.6,
-      "userPrompt": "Both objective — bench ammeter trace for sleep-draw, chamber log for cold-soak.",
-      "userTypedBy": 9.6,
+      "transitionAt": 10.5,
+      "userPrompt": "Automated audio tests for both.",
+      "userTypedBy": 9.5,
       "toolCalls": [
         {
           "appearAt": 10.0,
           "status": "warn",
-          "label": "⚙ mozak_propose (scope: \"field-kit\", plan: \"battery-budget\")  →  awaiting approval"
+          "label": "⚙ MCP: mozak_propose (study-timer / session-alert)  →  awaiting approval"
         }
       ],
       "agentReplyAppearAt": 10.8,
       "agentReplyLines": [
-        "Drafted battery-budget (30-day deep-sleep power budget) with 2 objective outcomes:",
-        "  1. sleep-draw — Deep-sleep current stays under 45 uA with RTC alarm active",
-        "  2. cold-soak  — 30-day projected capacity holds at -10 C",
+        "Drafted session-alert (Play a bell sound when the timer ends) with 2 outcomes:",
+        "  1. bell-sound  — Plays a clear bell sound when the countdown reaches 00:00",
+        "  2. mute-button — Stays completely silent when Mute is turned on",
         "",
-        "⏸ Paused at direction approval gate.",
-        "Check field-kit/MOZAK.md in Obsidian and tell me if you approve this direction."
+        "⏸ Paused for your direction approval.",
+        "Check study-timer/mozak.md in Obsidian and reply to approve direction."
       ],
       "highlight": {
-        "appearAt": 11.0,
+        "appearAt": 10.9,
         "x": 1536,
         "yTop": 302,
         "w": 345,
         "h": 44,
         "color": "gold",
-        "label": "Awaiting owner approval"
+        "label": "Awaiting your approval"
       },
-      "caption": "Agents cannot self-approve: mozak_propose writes a pending draft, and Obsidian immediately shows 'awaiting approval'."
+      "caption": "The agent writes the plan into mozak.json and mozak.md. Obsidian shows 'awaiting approval': nothing happens until you say yes."
     },
     {
       "id": "beat3-approve",
       "badge": "BEAT 3 / 4",
       "start": 16.0,
       "end": 24.0,
-      "headerTitle": "Owner approves direction in chat → Obsidian roadmap & status table light up",
+      "headerTitle": "03 You approve the direction → Plan turns Open & 'Bell sound' lights up",
       "accent": "purple",
       "obsidianStartImage": "beat2.png",
       "obsidianEndImage": "beat3.png",
-      "transitionAt": 18.5,
-      "userPrompt": "Looks right — approve direction for battery-budget.",
+      "transitionAt": 18.4,
+      "userPrompt": "Looks good — approve direction for session-alert.",
       "userTypedBy": 17.5,
       "toolCalls": [
         {
           "appearAt": 17.9,
           "status": "purple",
-          "label": "✓ mozak review decide --scope field-kit --plan battery-budget --approve-direction"
+          "label": "✓ mozak review decide --scope study-timer --plan session-alert --approve-direction"
         }
       ],
       "agentReplyAppearAt": 18.7,
       "agentReplyLines": [
-        "Direction approved! field-kit/MOZAK.json and field-kit/MOZAK.md are updated.",
+        "Direction approved! study-timer/mozak.json and study-timer/mozak.md updated.",
         "",
-        "• Status: Open (0/2 outcomes done)",
-        "• Current roadmap stop: #1 sleep-draw (< 45 uA over 1 hour)",
-        "• Ready to run the bench verification or attach an implementation spec."
+        "• Plan status: Open (0/2 outcomes done)",
+        "• Current roadmap stop: #1 bell-sound (Plays a bell sound at 00:00)",
+        "• Obsidian roadmap & sidebar progress strip updated live."
       ],
       "highlight": {
-        "appearAt": 18.9,
+        "appearAt": 18.8,
         "x": 836,
         "yTop": 750,
         "w": 340,
         "h": 96,
         "color": "purple",
-        "label": "Current stop lights up purple"
+        "label": "Current stop: #1 Bell sound"
       },
-      "caption": "Only the owner's explicit decision unlocks the plan. Obsidian redraws the 0/2 strip and highlights the active Mermaid node."
+      "caption": "Your yes unlocks the plan. In Obsidian it turns Open, and the roadmap's first step, Bell sound, becomes the current stop."
     },
     {
       "id": "beat4-observe",
       "badge": "BEAT 4 / 4",
       "start": 24.0,
       "end": 32.0,
-      "headerTitle": "Agent runs verification & records evidence → Outcome 1/2 turns green",
+      "headerTitle": "04 It runs the test & records proof → 'Bell sound' turns green (1/2 done)",
       "accent": "green",
       "obsidianStartImage": "beat3.png",
       "obsidianEndImage": "beat4.png",
-      "transitionAt": 26.6,
-      "userPrompt": "Run the 1-hour bench ammeter trace and record the observation.",
+      "transitionAt": 26.5,
+      "userPrompt": "Run the bell audio test and record the observation.",
       "userTypedBy": 25.5,
       "toolCalls": [
         {
-          "appearAt": 25.9,
+          "appearAt": 25.8,
           "status": "ok",
-          "label": "⚙ bash: node firmware/bench-ammeter.mjs  →  PASS (avg 38.4 uA < 45 uA)"
+          "label": "⚙ bash: node test/bell-sound.test.js  →  PASS (bell sound played at 00:00)"
         },
         {
-          "appearAt": 26.4,
+          "appearAt": 26.3,
           "status": "ok",
-          "label": "⚙ mozak_observe (plan: \"battery-budget\", outcome: \"sleep-draw\" -> pass)"
+          "label": "⚙ MCP: mozak_observe (session-alert / bell-sound  →  pass)"
         }
       ],
-      "agentReplyAppearAt": 27.0,
+      "agentReplyAppearAt": 26.9,
       "agentReplyLines": [
-        "Recorded passing evidence (ev-sleep-draw-bench: 38.4 uA avg < 45 uA).",
+        "Recorded passing evidence (ev-bell-test: Bell sound played at 00:00).",
         "",
-        "• Outcome 1/2 (sleep-draw): ✓ done (green in sidebar & Mermaid roadmap)",
-        "• Next roadmap stop: #2 cold-soak (-10 C chamber log)",
-        "• Saved in git & Obsidian — the next agent session picks up right here."
+        "✓ Outcome 1/2 (bell-sound): done — green in sidebar & Mermaid roadmap",
+        "→ Next roadmap stop: #2 mute-button (Silent when Mute is on)",
+        "Saved in git & Obsidian so any future agent session picks up here."
       ],
       "highlight": {
-        "appearAt": 27.1,
+        "appearAt": 27.0,
         "x": 836,
         "yTop": 750,
         "w": 340,
         "h": 96,
         "color": "green",
-        "label": "Outcome 1/2 verified & green"
+        "label": "Bell sound verified & green"
       },
-      "caption": "Generative UI from plain files: you talk in the terminal, and Obsidian renders the live project IDE."
+      "caption": "The test result is saved as evidence in the plan. Obsidian marks Bell sound done, and the roadmap moves on to Mute button."
     }
   ]
 }

@@ -4,9 +4,9 @@
 
 ## 1. Outcome and accepted expectations
 
-**Outcome:** in an explicitly activated local MOZAK conversation, the owner sees what is completed, open and awaiting approval, clarifies only unresolved questions, approves a reviewed implementation package separately from its direction, and can later continue that same work without repeating the interview. A saved pause prevents continuation until explicit resume.
+**Outcome:** in an explicitly activated local mozak conversation, the owner sees what is completed, open and awaiting approval, clarifies only unresolved questions, approves a reviewed implementation package separately from its direction, and can later continue that same work without repeating the interview. A saved pause prevents continuation until explicit resume.
 
-MOZAK stores understanding and permission. Existing host workflows write specifications and execute work. This package does not introduce a task runner.
+mozak stores understanding and permission. Existing host workflows write specifications and execute work. This package does not introduce a task runner.
 
 ### Accepted conversation decisions
 
@@ -70,7 +70,7 @@ File splits may change within these responsibilities. A new dependency, runtime 
 
 ### Explicit format change, no migration
 
-**Proposal:** new scopes use `mozak.scope/v3` and generated format-3 `MOZAK.md`. Keep the explicit local inventory format `mozak.local/v2` unchanged. The new reader rejects older scope formats clearly as unsupported; it never silently upgrades, rewrites or reinitialises them. Package-1 code remains available at its checkpoint for old test scopes. This is not a permanent dual-format runtime.
+**Proposal:** new scopes use `mozak.scope/v3` and generated format-3 `mozak.md`. Keep the explicit local inventory format `mozak.local/v2` unchanged. The new reader rejects older scope formats clearly as unsupported; it never silently upgrades, rewrites or reinitialises them. Package-1 code remains available at its checkpoint for old test scopes. This is not a permanent dual-format runtime.
 
 This format bump is a proposed engineering choice, not an already accepted owner decision. It makes the newly non-null authority fields and closed decision shapes explicit. New regression fixtures use v3 while retaining package-1 safety assertions. Add explicit refusal tests for old formats. Do not “fix” tests by deleting their behavioural guarantees.
 
@@ -91,7 +91,7 @@ A `Question` has `id`, `text`, `status: "open"|"answered"|"deferred"`, `answers:
 
 The agent may save this advisory checkpoint through a typed operation. Its presence, an answer's owner reference or `ready-for-spec` **never grants authority or edits accepted content**. It does not create decision-to-question graph edges in this slice. Semantic direction changes discovered while grilling become normal pending revisions and need direction approval.
 
-On same-revision updates preserve existing question IDs, text and answer history. Additional answers append; reopening a settled question appends a generated-timestamp entry to `reopenings` and retains prior answers. For reopening, `status: open` permits retained answers but none is treated as effective. New questions may be added; dropping existing questions is refused. When revision bindings change, the old checkpoint remains readable but is labelled stale and is not used as current clarification or attachment input. The next explicit save rebases the checkpoint onto current revision IDs, carrying forward still-applicable answers and identifying changed assumptions in its summary. Normal Git history may retain the prior whole checkpoint; MOZAK does not claim to commit Git automatically. Do not pretend old answers approve new meaning.
+On same-revision updates preserve existing question IDs, text and answer history. Additional answers append; reopening a settled question appends a generated-timestamp entry to `reopenings` and retains prior answers. For reopening, `status: open` permits retained answers but none is treated as effective. New questions may be added; dropping existing questions is refused. When revision bindings change, the old checkpoint remains readable but is labelled stale and is not used as current clarification or attachment input. The next explicit save rebases the checkpoint onto current revision IDs, carrying forward still-applicable answers and identifying changed assumptions in its summary. Normal Git history may retain the prior whole checkpoint; mozak does not claim to commit Git automatically. Do not pretend old answers approve new meaning.
 
 The exact question input is `{id: string|null, text, status, answers, reopenReason: string|null}`. Null ID means new question: core generates the ID, `reopenReason` must be null and `reopenings` starts empty. A string ID must name an existing question, never a new caller-chosen ID. Answer input has exactly the stored Answer fields except `recordedAt`; an existing answer prefix must match all other fields and keeps its original times, while new suffix entries get generated times. Existing question reopenings are carried by core, never accepted from input. A nonempty `reopenReason` is required only for a settled-to-open transition, and otherwise must be null. Re-answering a reopened question requires an additional answer. Results return the saved checkpoint with assigned IDs in input order, so the next CLI/MCP save can reference them.
 
@@ -150,7 +150,7 @@ The review digest includes scope ID, plan ID, permission purpose, accepted revis
 
 A conversational “yes” is consumed only from an actual owner-role message answering the immediately preceding unambiguous displayed confirmation. An overview, a quoted approval, source instruction, tool result, reminder, swarm DM or another session's unanswered confirmation is not consent. Clarification acceptance, direction acceptance and coding permission are separately named. Do not reuse an answer across them.
 
-The host supplies the actual session and message provenance in the existing opaque `ownerRef`, with `ownerMessageAt`. Use a genuine message ID where available. Otherwise a documented reference comprising actual session ID, supplied user-message timestamp and digest of the actual response is permissible, explicitly labelled as a host assertion rather than a host-native ID. Never fabricate a message locator or infer a timestamp from file mtime. If provenance or immediate-question context cannot be established, redisplay and obtain a fresh confirmation. No complete transcript is stored or parsed by MOZAK.
+The host supplies the actual session and message provenance in the existing opaque `ownerRef`, with `ownerMessageAt`. Use a genuine message ID where available. Otherwise a documented reference comprising actual session ID, supplied user-message timestamp and digest of the actual response is permissible, explicitly labelled as a host assertion rather than a host-native ID. Never fabricate a message locator or infer a timestamp from file mtime. If provenance or immediate-question context cannot be established, redisplay and obtain a fresh confirmation. No complete transcript is stored or parsed by mozak.
 
 A replayed receipt proves only what was committed then. Before execution, always reread current context and actual spec health. A committed approval followed by projection failure is reported honestly, repaired through the explicit owner path, and rechecked before handoff. Do not ask for duplicate approval merely because the bridge needs repair.
 

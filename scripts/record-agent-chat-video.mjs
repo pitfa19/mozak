@@ -224,10 +224,10 @@ let beats: [BeatSpec] = [
       ("  2. mute-button — Stays completely silent when Mute is turned on", mutedCol, false),
       ("", textCol, false),
       ("⏸ Paused for direction approval.", goldCol, true),
-      ("Check study-timer/MOZAK.md in Obsidian and reply to approve direction.", textCol, false)
+      ("Check study-timer/mozak.md in Obsidian and reply to approve direction.", textCol, false)
     ],
     highlight: (10.9, 1536, 302, 345, 44, goldCol, "Awaiting owner approval"),
-    caption: "The agent writes the plan into MOZAK.json and MOZAK.md. Obsidian shows 'awaiting approval': nothing happens until you say yes."
+    caption: "The agent writes the plan into mozak.json and mozak.md. Obsidian shows 'awaiting approval': nothing happens until you say yes."
   ),
   BeatSpec(
     index: 3,
@@ -250,7 +250,7 @@ let beats: [BeatSpec] = [
     agentAppearAt: 18.7,
     agentTitle: "Agent • /mozak (Direction Approved → Open 0/2)",
     agentLines: [
-      ("Direction approved! study-timer/MOZAK.json and study-timer/MOZAK.md updated.", textCol, false),
+      ("Direction approved! study-timer/mozak.json and study-timer/mozak.md updated.", textCol, false),
       ("", textCol, false),
       ("• Plan status: Open (0/2 outcomes done)", purpleCol, true),
       ("• Current roadmap stop: #1 bell-sound (Plays a bell sound at 00:00)", purpleCol, true),

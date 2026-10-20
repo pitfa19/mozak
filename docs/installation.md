@@ -1,6 +1,6 @@
 # Installation, safety, and recovery
 
-This guide covers building MOZAK from source, the portable installer, exit codes, and recovery. The short version is in the [README](../README.md).
+This guide covers building mozak from source, the portable installer, exit codes, and recovery. The short version is in the [README](../README.md).
 
 **Status key:** *Verified* means checked in this repo. *Planned* means specified but not yet implemented. *Pending* means not yet run on the target platform.
 
@@ -20,7 +20,7 @@ This guide covers building MOZAK from source, the portable installer, exit codes
 - **Git**, to get the source.
 - **Linux or macOS.** Other systems are not supported.
 
-MOZAK does not install Node, npm, or Git for you. It does not edit shell profiles or change `PATH`. Install the prerequisites with your normal method.
+mozak does not install Node, npm, or Git for you. It does not edit shell profiles or change `PATH`. Install the prerequisites with your normal method.
 
 ## 2. Build from source
 
@@ -42,7 +42,7 @@ Notes:
 - `npm ci` installs only what `package-lock.json` pins. `--ignore-scripts` blocks install scripts from dependencies.
 - The test run uses `scratch/`, which is git-ignored. Any existing writable directory works. The run needs a writable temporary directory, and `TMPDIR` points there.
 - Build the exact commit you were given, and check it with `git log --oneline -1`.
-- Building or testing does not install MOZAK globally. It does not create any scope or project state.
+- Building or testing does not install mozak globally. It does not create any scope or project state.
 
 ## 3. Portable installer
 
@@ -64,7 +64,7 @@ node scripts/install.mjs --prefix "$PREFIX" --json
 - There is no implicit `HOME` default, no global install, and no `PATH` change.
 - The source folder is found from the installer's own location. It is never taken from your current directory.
 - The installer runs no network access, no Git command, no package install, and no build. It copies built files that already exist.
-- It does not read or print credentials, and it does not initialize any MOZAK scope.
+- It does not read or print credentials, and it does not initialize any mozak scope.
 - Use `--check` first. It writes nothing, not even a lock or staging folder. It is a preflight, not a reservation. Running `--check` does not authorize an install.
 
 Use a canonical parent path. On macOS the path `/tmp` is a symlink to `/private/tmp`, so the `pwd -P` above resolves it.
@@ -122,6 +122,18 @@ Because the new release lands at the same path, skill links to `PREFIX/skills/mo
 
 Installations from before 0.2.0 do not record their checkout: run `mozak upgrade --source /path/to/mozak` once, or reinstall by hand (move the old prefix to the Trash, build, run the installer with the same prefix).
 
+### Lowercase plan files (0.4)
+
+Plan files are now `mozak.json` and `mozak.md`. Scopes made before 0.4 keep `MOZAK.json` and `MOZAK.md` and keep working: every read accepts both names, and a write goes to whichever name the scope already has. New scopes get the lowercase names.
+
+To move older scopes to the new names, run once (owner only):
+
+```sh
+mozak rename-files --config INVENTORY --all
+```
+
+It renames both files under the scope lock and regenerates the note so its link points to `mozak.json`. The plan bytes do not change, so approvals stay valid. It refuses a scope whose note has hand edits, or one that has both names. Repo scopes that commit plans to GitHub are skipped: rename those in a clone with `git mv` and push. Commit the rename in your notes repo afterwards. On a case-insensitive disk, git needs `git add -A` to record a case-only rename.
+
 ### Update notice
 
 `mozak scopes` adds an `update-available` issue, and the Obsidian sidebar a line under its header, when a newer release exists. The check reads GitHub's public tag list for `pitfa19/mozak` with no login, at most once every 24 hours (once an hour after a failure), in a background process, so commands never wait on the network. The answer is cached in `~/.local/state/mozak/update.json` (or `$XDG_STATE_HOME/mozak/update.json`). Set `MOZAK_NO_UPDATE_CHECK=1` to turn it off. Only an installed `mozak` checks; a source checkout never does.
@@ -138,7 +150,7 @@ Installations from before 0.2.0 do not record their checkout: run `mozak upgrade
 
 It never edits MCP settings, the inventory or any plan file. For those it prints the change to make.
 
-**Restoring on a new machine or account:** install Node, clone and build MOZAK, run the installer, clone your notes repo (with the inventory and vault-plans folders), connect the MCP server to the inventory, then run `mozak doctor --fix` and follow what it prints until it reports no failures.
+**Restoring on a new machine or account:** install Node, clone and build mozak, run the installer, clone your notes repo (with the inventory and vault-plans folders), connect the MCP server to the inventory, then run `mozak doctor --fix` and follow what it prints until it reports no failures.
 
 ## 4. Exit codes and status values
 
@@ -198,7 +210,7 @@ Do not trust a partial folder. It is not a working installation, and `committed`
 
 ### Scope write lock (`.mozak-write-lock`)
 
-MOZAK never steals a write lock because it is old. Follow this order:
+mozak never steals a write lock because it is old. Follow this order:
 
 1. Stop every writer for that scope. This includes paused processes and child workers. A timeout, an old timestamp, or one PID check does not prove that no writer is active.
 2. Keep the lock metadata and the graph and bridge files as they are.
@@ -211,7 +223,7 @@ There is no online force-unlock command.
 
 ### Projection repair
 
-If a write saved the JSON but not the generated `MOZAK.md` bridge, the result says so (exit 5). Later semantic writes wait until you run an explicit `projection repair`. `check` never repairs anything.
+If a write saved the JSON but not the generated `mozak.md` bridge, the result says so (exit 5). Later semantic writes wait until you run an explicit `projection repair`. `check` never repairs anything.
 
 ## 6. Safety rules
 
@@ -237,15 +249,15 @@ A scope can live in a GitHub repo instead of a local folder. List it with `remot
 
 `remote` is `github:owner/repo`, an `https://` URL, or an absolute `file://` URL. `ref` is a plain branch name and defaults to `main`.
 
-- **Fetch.** MOZAK makes a sparse, blobless, depth 1 git clone under `.mozak-cache/<id>/` next to the inventory file. Only `README.md`, `MOZAK.json`, `MOZAK.md` and `AGENTS.md` are checked out. It is real git, so you can also commit and push normally. Add `.mozak-cache/` to the `.gitignore` of the inventory folder if it is a git repo (`mozak sync` warns when it is not ignored).
+- **Fetch.** mozak makes a sparse, blobless, depth 1 git clone under `.mozak-cache/<id>/` next to the inventory file. Only `README.md`, `mozak.json`, `mozak.md` and `AGENTS.md` are checked out. It is real git, so you can also commit and push normally. Add `.mozak-cache/` to the `.gitignore` of the inventory folder if it is a git repo (`mozak sync` warns when it is not ignored).
 - **Freshness.** `mozak scopes`, `plans` and `context` refresh a remote scope when the last fetch is older than 10 minutes. `mozak sync [--scope ID]` forces a refresh. If the fetch fails (offline, auth), the cached copy is used and marked `stale` (JSON: `stale`, `lastFetchAt`, `remote[]`, a `remote-stale` issue). The MCP tool `mozak_sync` does the same as `mozak sync`.
-- **Writes.** `propose`, `revise`, `complete`, `observe` and the rest work against the sparse copy. After a successful write MOZAK commits only `MOZAK.json` and `MOZAK.md` and pushes. Owner approval rules are unchanged. A write refuses with `remote-stale` if the copy cannot be refreshed first. If the push fails, the commit stays local, the result is exit 5 with `remote-push-failed`, and the next `mozak sync` pushes it.
+- **Writes.** `propose`, `revise`, `complete`, `observe` and the rest work against the sparse copy. After a successful write mozak commits only `mozak.json` and `mozak.md` and pushes. Owner approval rules are unchanged. A write refuses with `remote-stale` if the copy cannot be refreshed first. If the push fails, the commit stays local, the result is exit 5 with `remote-push-failed`, and the next `mozak sync` pushes it.
 - **Pull.** `mozak pull --scope ID [--into PATH]` (owner) makes a full working clone, default `~/Documents/<repo-name>`. It refuses a destination that exists and is not a clone of the same remote. Afterwards the inventory still says `remote`, but reads and writes use the full clone (recorded in `.mozak-cache/<id>.meta.json`). A sync of a full clone only fast-forwards it. It never overwrites your working tree.
-- **Vault plans (public repos).** Add `"plans": "<folder>"` to a remote entry to keep its `MOZAK.json` and `MOZAK.md` in that folder instead of the repo. The folder works like a local scope (it needs `README.md` and `AGENTS.md`, created before `scope init`). MOZAK never clones, fetches, commits or pushes for such a scope, so it works offline and plans are never published. `sync` reports it as `source: "vault"`. `pull` clones the code only and leaves the plans where they are.
-- **Visibility guard.** For a remote scope whose plans live in the repo, MOZAK asks the public GitHub API (no login, 5 second timeout) whether the repo is public, and caches the answer for 24 hours in the scope's meta file. A public answer refuses writes with `public-repo-plans` (exit 3) and adds a warning to `sync` and `scopes`. Reads are never blocked, and a failed check never blocks anything.
+- **Vault plans (public repos).** Add `"plans": "<folder>"` to a remote entry to keep its `mozak.json` and `mozak.md` in that folder instead of the repo. The folder works like a local scope (it needs `README.md` and `AGENTS.md`, created before `scope init`). mozak never clones, fetches, commits or pushes for such a scope, so it works offline and plans are never published. `sync` reports it as `source: "vault"`. `pull` clones the code only and leaves the plans where they are.
+- **Visibility guard.** For a remote scope whose plans live in the repo, mozak asks the public GitHub API (no login, 5 second timeout) whether the repo is public, and caches the answer for 24 hours in the scope's meta file. A public answer refuses writes with `public-repo-plans` (exit 3) and adds a warning to `sync` and `scopes`. Reads are never blocked, and a failed check never blocks anything.
 - **Inside a clone.** `context`, `plans`, `check` and `review show` may omit `--scope` when run inside a clone of an inventoried repo. The scope is found from the clone's `origin` URL (https, ssh, `github:` and local path forms). Writes always need `--scope`.
-- **Auth.** MOZAK shells out to `git` (no shell, hard timeouts, no prompts), so your credential helper, for example `gh auth setup-git`, is used.
-- A repo with no `MOZAK.json` at its root is reported as `scope-uninitialized` ("not a scope").
+- **Auth.** mozak shells out to `git` (no shell, hard timeouts, no prompts), so your credential helper, for example `gh auth setup-git`, is used.
+- A repo with no `mozak.json` at its root is reported as `scope-uninitialized` ("not a scope").
 
 Cache layout: `.mozak-cache/<id>/` (sparse git clone) and `.mozak-cache/<id>.meta.json` (last fetch time, last error, full clone path). Deleting the cache is safe once everything is pushed. Unpushed commits in a sparse copy are pushed by the next `mozak sync`.
 
@@ -253,24 +265,24 @@ Cache layout: `.mozak-cache/<id>/` (sparse git clone) and `.mozak-cache/<id>.met
 
 - **One branch per remote scope.** There is no merge handling: a diverged remote makes a write or sync fail and the scope shows stale. The installer does not edit your `.gitignore`.
 - **No network filesystems.** Locking and crash safety assume a local disk. Network filesystems and concurrent editors (sync tools writing the same files) are not covered.
-- **Approval is a trusted-host convention.** MOZAK records the owner's approval message as given by the agent host. It does not authenticate the owner; an agent host that lies can forge an approval.
-- **Restore needs the notes repo plus `mozak doctor --fix`.** Plans live in your notes (and private repos). A new machine needs that repo cloned, MOZAK installed, the MCP server connected, then `mozak doctor --fix` (section 3, Checking a setup).
+- **Approval is a trusted-host convention.** mozak records the owner's approval message as given by the agent host. It does not authenticate the owner; an agent host that lies can forge an approval.
+- **Restore needs the notes repo plus `mozak doctor --fix`.** Plans live in your notes (and private repos). A new machine needs that repo cloned, mozak installed, the MCP server connected, then `mozak doctor --fix` (section 3, Checking a setup).
 - Crash safety: plan files are flushed to disk before they replace the old ones, and the folder after. On filesystems that ignore folder flushes this is best effort, and it always depends on the disk honouring flushes.
 - Upgrading needs the source checkout the installation came from (or `--source PATH`), and only knows release tags of that checkout's `origin`.
 - The source copy of the conversation skill is a template. The installer refuses an unrendered template. Load the skill only from the installed folder, directly or through a symlink.
-- Older scope formats are refused. MOZAK does not migrate them.
+- Older scope formats are refused. mozak does not migrate them.
 
 ## 8. Verification status
 
 | Check | Status |
 | --- | --- |
-| Public GitHub clone and install on macOS (Node 26.11.1, `8337e04`, isolated `HOME`) | Passed: clean clone, `npm ci --ignore-scripts`, build, install (67 files), `mozak --help`. The public clone contains no `MOZAK.json` or `MOZAK.md`. |
+| Public GitHub clone and install on macOS (Node 26.11.1, `8337e04`, isolated `HOME`) | Passed: clean clone, `npm ci --ignore-scripts`, build, install (67 files), `mozak --help`. The public clone contains no `mozak.json` or `mozak.md`. |
 | README walkthrough with the fresh install | Passed: `scope init` for a local scope and a vault-plans scope for a real public GitHub repo, `scopes`, `context`, `plans`, `check`, `sync`, `pull --into ~/Downloads/x` (code only, 0 plan files), `context` with no `--scope` inside that clone, `mozak-mcp` (13 tools), `install-obsidian-plugin.mjs <vault> --build`, and the Contributing commands (416 tests, installer 69 passed and 1 skipped). |
 | Linux relocation from a git archive, Node 24.11.0 | Passed earlier at `c324d45`: 334 tests, 0 failed. Reused the local npm cache. Not a clean machine. |
 | Installer suite (70 tests): install, check, unchanged, conflict, partial, concurrency, symlinks, bounds, timeouts, unreadable target | Passed on macOS (69, 1 skipped) and Linux. |
 | `mozak scopes` and `mozak_scopes` | Passed on both platforms. A fresh MCP session listed all scopes of a real workspace. |
 | Installed skill loaded by a fresh agent host | Passed: jcode registered and loaded `/mozak` through a symlink to the installed skill. |
 | CI on Ubuntu and macOS | Passing on every push, latest `2bd8cfc`. |
-| Restoring a workspace from GitHub and a private vault | Built (`mozak doctor --fix`). Simulated 2026-10-18 on macOS with an isolated `HOME`: public clone at `v0.2.0`, build, install, plugin, a standard MCP setting, then `mozak doctor --fix` created both wrappers and both skill links and the only remaining failure was the synthetic scope with no `MOZAK.json` (fixed on `main`: clearer messages for that case). Owner run on a real fresh account or machine pending. |
+| Restoring a workspace from GitHub and a private vault | Built (`mozak doctor --fix`). Simulated 2026-10-18 on macOS with an isolated `HOME`: public clone at `v0.2.0`, build, install, plugin, a standard MCP setting, then `mozak doctor --fix` created both wrappers and both skill links and the only remaining failure was the synthetic scope with no `mozak.json` (fixed on `main`: clearer messages for that case). Owner run on a real fresh account or machine pending. |
 
 Record the actual results of any new check here before claiming it passed.

@@ -1,6 +1,6 @@
 # Package 1 acceptance evidence
 
-**Scope:** the owner-approved local MOZAK plan-state and review package, not the entire MOZAK/Monokl product.
+**Scope:** the owner-approved local mozak plan-state and review package, not the entire mozak/Monokl product.
 
 Approval: `2026-10-12T08:16:20.810Z`, against package checkpoint `caffffa`. Tested implementation checkpoint: `78896e9` (the following documentation-only commit records these results).
 

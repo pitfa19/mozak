@@ -1,6 +1,6 @@
 // Pure view models. Turns core ScopeState plus review rows into plain data for the UI. No IO.
-// Plans are read in MOZAK.md, so the sidebar only needs identity, state, progress and a heading to jump to.
-import { completedPlanLine, planHeading, planRoadmap, type Plan, type ScopeState } from "@mozak/core";
+// Plans are read in mozak.md, so the sidebar only needs identity, state, progress and a heading to jump to.
+import { completedPlanLine, isBridgeFileName, planHeading, planRoadmap, type Plan, type ScopeState } from "@mozak/core";
 
 export type PlanStateKey = "completed" | "open" | "paused" | "awaiting" | "rejected";
 export type StopKey = "done" | "evidence" | "current" | "todo";
@@ -22,7 +22,7 @@ export interface PlanVM {
   reason: string | null;
   /** Progress over accepted outcomes. Null before the first approval. */
   strip: StripVM | null;
-  /** Exact heading or collapsed completed-plan line in MOZAK.md. */
+  /** Exact heading or collapsed completed-plan line in mozak.md. */
   heading: string;
 }
 export interface RemoteVM {
@@ -48,6 +48,8 @@ export interface ScopeVM {
   plans: PlanVM[];
   entryFiles: string[];
   hasMozakMd: boolean;
+  /** Actual note file name: mozak.md, or MOZAK.md for a scope not yet renamed. Null when absent. */
+  bridgeFile: string | null;
   /** Null for a local scope. */
   remote: RemoteVM | null;
   errorCode: string | null;
@@ -98,7 +100,7 @@ export function stripVM(state: ScopeState, plan: Plan): StripVM | null {
   };
 }
 
-/** Zero-based line of a plan heading in MOZAK.md text, or null when the projection is stale or the plan is not rendered. */
+/** Zero-based line of a plan heading in mozak.md text, or null when the projection is stale or the plan is not rendered. */
 export function headingLine(markdown: string, heading: string): number | null {
   const i = markdown.split("\n").indexOf(heading);
   return i < 0 ? null : i;
@@ -152,7 +154,8 @@ export function planViewModel(
 }
 
 export function scopeViewModel(load: ScopeLoad): ScopeVM {
-  const hasMozakMd = load.entryFiles.includes("MOZAK.md");
+  const bridgeName = load.entryFiles.find(isBridgeFileName) ?? null;
+  const hasMozakMd = bridgeName !== null;
   if (!load.state || load.error) {
     return {
       id: load.id,
@@ -164,6 +167,7 @@ export function scopeViewModel(load: ScopeLoad): ScopeVM {
       plans: [],
       entryFiles: load.entryFiles,
       hasMozakMd,
+      bridgeFile: bridgeName,
       remote: load.remote ?? null,
       errorCode: load.error?.code ?? "unknown",
       errorMessage: load.error?.message ?? "scope could not be read",
@@ -183,6 +187,7 @@ export function scopeViewModel(load: ScopeLoad): ScopeVM {
     plans,
     entryFiles: load.entryFiles,
     hasMozakMd,
+    bridgeFile: bridgeName,
     remote: load.remote ?? null,
     errorCode: null,
     errorMessage: null,

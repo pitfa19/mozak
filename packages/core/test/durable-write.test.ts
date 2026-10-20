@@ -26,7 +26,7 @@ test("every plan write flushes the file and its folder", () => {
   const ctx = executeOperation(loadInventory(inv), "context", { scope: "s" });
   const out = executeOperation(loadInventory(inv), "propose", { scope: "s", request: { operationId: "p", scopeId: "s", expected: ctx.data.snapshot, action: "propose", payload: { planId: "p1", content } } });
   assert.equal(out.exitCode, 0, JSON.stringify(out.data));
-  // MOZAK.json, MOZAK.md and the lock owner file: three flushed files, and a folder flush after each.
+  // mozak.json, mozak.md and the lock owner file: three flushed files, and a folder flush after each.
   assert.ok(durableStats.fileSyncs - before.fileSyncs >= 3, `file syncs ${durableStats.fileSyncs - before.fileSyncs}`);
   assert.ok(durableStats.dirSyncs - before.dirSyncs >= 3, `dir syncs ${durableStats.dirSyncs - before.dirSyncs}`);
 });
@@ -41,16 +41,16 @@ test("remote meta writes are durable too", () => {
 
 test("replaceFileDurable leaves no temp file and replaces atomically", () => {
   const base = mkdtempSync(join(scratch, "mozak-durable-")); made.push(base);
-  const p = join(base, "MOZAK.json");
+  const p = join(base, "mozak.json");
   writeFileSync(p, "old");
   replaceFileDurable(p, "new");
   assert.equal(readFileSync(p, "utf8"), "new");
-  assert.deepEqual(readdirSync(base), ["MOZAK.json"]);
+  assert.deepEqual(readdirSync(base), ["mozak.json"]);
 });
 
 test("check reports a leftover temp file as info without failing; unrelated .tmp files are ignored", () => {
   const { root, inv } = scope();
-  const stray = "MOZAK.json.0123abcd-0123-4567-89ab-0123456789ab.tmp";
+  const stray = "mozak.json.0123abcd-0123-4567-89ab-0123456789ab.tmp";
   writeFileSync(join(root, stray), "{}");
   writeFileSync(join(root, "notes.tmp"), "mine");
   const out = executeOperation(loadInventory(inv), "check", { scope: "s" });

@@ -1,6 +1,6 @@
-// Durable file writes. A plan write must survive a crash of MOZAK and a power loss: the new bytes are flushed to
+// Durable file writes. A plan write must survive a crash of mozak and a power loss: the new bytes are flushed to
 // disk before the rename makes them visible, and the folder is flushed after it so the rename itself is on disk.
-// Without this, a power cut right after a write can leave an empty or truncated MOZAK.json.
+// Without this, a power cut right after a write can leave an empty or truncated mozak.json.
 
 import { closeSync, fsyncSync, openSync, readdirSync, renameSync, unlinkSync, writeSync } from "node:fs";
 import { dirname } from "node:path";
@@ -52,8 +52,8 @@ export function replaceFileDurable(path: string, data: string | Uint8Array, onTe
   fsyncDir(dirname(path));
 }
 
-/** Names of temp files an interrupted write of MOZAK.json or MOZAK.md can leave behind in a scope folder. */
-const LEFTOVER = /^MOZAK\.(json|md)\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.tmp$/;
+/** Names of temp files an interrupted write of a plan file (either name case) can leave behind in a scope folder. */
+const LEFTOVER = /^(?:mozak|MOZAK)\.(json|md)\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.tmp$/;
 
 export function leftoverTempFiles(root: string): string[] {
   try {

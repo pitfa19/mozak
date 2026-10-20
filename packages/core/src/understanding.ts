@@ -1,4 +1,4 @@
-// MOZAK v3 understanding model: closed types, validators, canonical bytes and digests.
+// mozak v3 understanding model: closed types, validators, canonical bytes and digests.
 // Owner refs are trusted-host claims, not cryptographic verification.
 // No JSON Schema dependency, no generic unchecked cast as validation.
 

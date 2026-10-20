@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Copies the built MOZAK Obsidian plugin into <vault>/.obsidian/plugins/mozak/.
+// Copies the built mozak Obsidian plugin into <vault>/.obsidian/plugins/mozak/.
 // Usage: node scripts/install-obsidian-plugin.mjs <vault-folder> [--build]
 import { copyFileSync, existsSync, mkdirSync, statSync } from "node:fs";
 import { spawnSync } from "node:child_process";
@@ -30,4 +30,4 @@ if (args.includes("--build") || !existsSync(join(dist, "main.js"))) {
 const target = join(vaultDir, ".obsidian", "plugins", "mozak");
 mkdirSync(target, { recursive: true });
 for (const f of ["main.js", "manifest.json", "styles.css"]) copyFileSync(join(dist, f), join(target, f));
-console.log(`installed MOZAK plugin to ${target}\nEnable it in Obsidian: Settings > Community plugins.`);
+console.log(`installed mozak plugin to ${target}\nEnable it in Obsidian: Settings > Community plugins.`);

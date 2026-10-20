@@ -230,7 +230,7 @@ function lockPath(root: string): string {
 
 function snapshotFiles(root: string): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const name of ["MOZAK.json", "MOZAK.md"]) {
+  for (const name of ["mozak.json", "mozak.md"]) {
     const p = join(root, name);
     if (existsSync(p)) out[name] = readFileSync(p, "utf8");
   }
@@ -308,8 +308,8 @@ test("A13 before graph init retry: after a crash before graph publication, init 
   assert.equal(phase, "before-graph");
   await killAndJoin(child);
 
-  assert.equal(existsSync(join(entry.root, "MOZAK.json")), false, "no graph exists before publication");
-  assert.equal(existsSync(join(entry.root, "MOZAK.md")), false, "no bridge exists before publication");
+  assert.equal(existsSync(join(entry.root, "mozak.json")), false, "no graph exists before publication");
+  assert.equal(existsSync(join(entry.root, "mozak.md")), false, "no bridge exists before publication");
 
   // Offline recovery in a test root only, after the holder is joined.
   rmSync(lockPath(entry.root), { recursive: true, force: true });
@@ -330,10 +330,10 @@ test("A13 post-canonical: a crash after graph publication leaves a committed gra
     "post-canonical",
   );
   assert.equal(phase, "after-graph");
-  const graphAfterCommit = readFileSync(join(entry.root, "MOZAK.json"), "utf8");
+  const graphAfterCommit = readFileSync(join(entry.root, "mozak.json"), "utf8");
   await killAndJoin(child);
 
-  assert.equal(readFileSync(join(entry.root, "MOZAK.json"), "utf8"), graphAfterCommit, "canonical graph retained after kill");
+  assert.equal(readFileSync(join(entry.root, "mozak.json"), "utf8"), graphAfterCommit, "canonical graph retained after kill");
   rmSync(lockPath(entry.root), { recursive: true, force: true });
 
   const read = await readViaChild(entry);
@@ -479,8 +479,8 @@ test("A13 existing scope before-graph crash: graph and bridge bytes are preserve
   // An existing, valid scope with a proposed plan. A later observe crashes before graph publication.
   const { entry } = await withPlan("existing-before-graph");
   const validSnapshot = (await readViaChild(entry)).outcome.snapshot;
-  const graphBefore = readFileSync(join(entry.root, "MOZAK.json"), "utf8");
-  const bridgeBefore = readFileSync(join(entry.root, "MOZAK.md"), "utf8");
+  const graphBefore = readFileSync(join(entry.root, "mozak.json"), "utf8");
+  const bridgeBefore = readFileSync(join(entry.root, "mozak.md"), "utf8");
   const request = observeRequest(entry, validSnapshot, "obs-existing-bg", "eb1");
 
   const { child, phase } = await startPaused(
@@ -491,8 +491,8 @@ test("A13 existing scope before-graph crash: graph and bridge bytes are preserve
   await killAndJoin(child);
 
   // The crash left canonical and projection bytes exactly as they were before the attempt.
-  assert.equal(readFileSync(join(entry.root, "MOZAK.json"), "utf8"), graphBefore, "graph bytes preserved");
-  assert.equal(readFileSync(join(entry.root, "MOZAK.md"), "utf8"), bridgeBefore, "bridge bytes preserved");
+  assert.equal(readFileSync(join(entry.root, "mozak.json"), "utf8"), graphBefore, "graph bytes preserved");
+  assert.equal(readFileSync(join(entry.root, "mozak.md"), "utf8"), bridgeBefore, "bridge bytes preserved");
 
   // Before offline recovery, a fresh writer is refused as busy and changes nothing.
   const blocked = await runChild({
@@ -501,7 +501,7 @@ test("A13 existing scope before-graph crash: graph and bridge bytes are preserve
   assert.equal(blocked.ok, false);
   // The holder wrote owner metadata before pausing, so the lock is reported busy, not stolen by age.
   assert.equal(blocked.code, "busy", "a crashed holder with owner metadata still blocks until offline recovery");
-  assert.equal(readFileSync(join(entry.root, "MOZAK.json"), "utf8"), graphBefore, "blocked writer changes no canonical bytes");
+  assert.equal(readFileSync(join(entry.root, "mozak.json"), "utf8"), graphBefore, "blocked writer changes no canonical bytes");
 
   // Offline recovery in this test root only, after the holder is joined.
   rmSync(lockPath(entry.root), { recursive: true, force: true });
@@ -624,7 +624,7 @@ for (const { phase, state, temps: expectedTemps } of CRASH_POINTS) {
     // An offline operator removes the dead holder's lock, as docs/installation.md describes.
     rmSync(lockPath(entry.root), { recursive: true, force: true });
 
-    const temps = readdirSync(entry.root).filter((n) => /^MOZAK\.(json|md)\.[0-9a-f-]{36}\.tmp$/.test(n));
+    const temps = readdirSync(entry.root).filter((n) => /^mozak\.(json|md)\.[0-9a-f-]{36}\.tmp$/.test(n));
     assert.equal(temps.length, expectedTemps, "flushed temp files left by the dead writer");
     // A temp file is complete: it was flushed before the crash point.
     if (phase === "temp-written:graph") assert.doesNotThrow(() => JSON.parse(readFileSync(join(entry.root, temps[0]!), "utf8")));

@@ -4,17 +4,17 @@ Status: the complete workspace roadmap remains proposed. **Package 3A (section 6
 
 ## Owner direction and unresolved boundary
 
-The owner requested GitHub plus a private Obsidian vault and MOZAK as the reproducible source of their local setup on 2026-10-12. The owner then requested preparation of the official MOZAK repository and identified a new Mac as the real acceptance machine. Linux and macOS are both required targets.
+The owner requested GitHub plus a private Obsidian vault and mozak as the reproducible source of their local setup on 2026-10-12. The owner then requested preparation of the official mozak repository and identified a new Mac as the real acceptance machine. Linux and macOS are both required targets.
 
 This package follows that direction. The exact installer, catalog, migration and publishing choices below are proposals. Packages 1 and 2 did not grant installation, global changes, legacy migration or publication. Their approvals are not reused here.
 
-Interpretation to confirm: "local setup" includes project repositories, knowledge, MOZAK scope discovery and selected agent/tool configuration. It does not mean cloning credentials, browser sessions, OS preferences, every installed application, caches or every GitHub repository. Missing desired setup components must be listed, not silently excluded. The selected tool list requires an explicit inventory before claiming setup parity.
+Interpretation to confirm: "local setup" includes project repositories, knowledge, mozak scope discovery and selected agent/tool configuration. It does not mean cloning credentials, browser sessions, OS preferences, every installed application, caches or every GitHub repository. Missing desired setup components must be listed, not silently excluded. The selected tool list requires an explicit inventory before claiming setup parity.
 
 ## 1. Delivery boundaries
 
-1. Public product: this repository, `pitfa19/mozak`, is the intended official MOZAK code repository. Prepare reviewed source, locked build instructions, an installer, portable skill delivery and Linux/macOS CI. Do not claim a release is published before a remote read verifies it.
+1. Public product: this repository, `pitfa19/mozak`, is the intended official mozak code repository. Prepare reviewed source, locked build instructions, an installer, portable skill delivery and Linux/macOS CI. Do not claim a release is published before a remote read verifies it.
 2. Private workspace: the private vault holds the portable workspace catalog, selected setup declarations and reviewed knowledge content. Never put private repository names, the owner's registry, machine configurations, transcripts or credentials into the public product repository.
-3. Repository-owned understanding: each project or topic keeps its own canonical MOZAK state. The private catalog locates it. The catalog does not copy plan authority, create approvals or mark a project complete.
+3. Repository-owned understanding: each project or topic keeps its own canonical mozak state. The private catalog locates it. The catalog does not copy plan authority, create approvals or mark a project complete.
 4. Machine-local state: installation paths, generated inventory, local checkout roots, caches and credential-store bindings are reconstructed on each machine. Existing credentials are not exported.
 5. Legacy transition: preserve old checkouts and knowledge while their useful content is mapped and verified. Do not retain the old runtime as a permanent architectural dependency. No deletion, overwrite or silent conversion is part of preparation.
 
@@ -48,7 +48,7 @@ Limits: this reused the machine's Node/npm executables and package cache. It is 
 
 1. Check supported OS, Node, Git and GitHub CLI prerequisites. Explain missing prerequisites without silently installing package managers or modifying shell profiles. Initial supported runtime is Node 24, the tested major, with precise minimum version determined by CI before release.
 2. Obtain an explicit official release revision. Verify the checkout revision and locked dependencies. Install into a new user-owned location without sudo and without replacing an existing `mozak` command implicitly.
-3. Authenticate to GitHub interactively using the user's normal GitHub CLI login. MOZAK neither requests credentials in chat nor copies credentials from another laptop. Verify access without printing tokens.
+3. Authenticate to GitHub interactively using the user's normal GitHub CLI login. mozak neither requests credentials in chat nor copies credentials from another laptop. Verify access without printing tokens.
 4. Clone the explicitly selected private vault into a new location. Load its reviewed workspace catalog as data, not as instructions to run scripts.
 5. Show a bounded restore plan, then apply the approved plan. Fetch only declared repositories, reconstruct local scope/Notes bindings, and report restored, missing, inaccessible, legacy-format and conflicting entries separately.
 

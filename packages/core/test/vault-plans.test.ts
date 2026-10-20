@@ -82,8 +82,8 @@ test("vault scope: reads, writes, sync and render never touch the repo", () => {
   const out = exec(inv, "propose", { scope: "tool", request: req });
   assert.equal(out.exitCode, 0, JSON.stringify(out.data));
   assert.equal((out.data as any).remotePush, undefined);
-  assert.match(readFileSync(join(plans, "MOZAK.json"), "utf8"), /Vault plan/);
-  assert.match(readFileSync(join(plans, "MOZAK.md"), "utf8"), /Vault plan/);
+  assert.match(readFileSync(join(plans, "mozak.json"), "utf8"), /Vault plan/);
+  assert.match(readFileSync(join(plans, "mozak.md"), "utf8"), /Vault plan/);
   const sync = exec(inv, "sync", {});
   assert.equal(sync.exitCode, 0);
   assert.equal((sync.data.remote as any[])[0].source, "vault");
@@ -112,14 +112,14 @@ test("vault scope works with no network and with the origin gone", () => {
 
 test("pull of a vault scope clones code only and leaves the plans untouched", () => {
   const { inv, base, plans } = fixture();
-  const plansBefore = readFileSync(join(plans, "MOZAK.json"));
+  const plansBefore = readFileSync(join(plans, "mozak.json"));
   const dest = join(base, "Downloads", "tool");
   const out = exec(inv, "pull", { scope: "tool", into: dest }, "owner");
   assert.equal(out.exitCode, 0, JSON.stringify(out.data));
   assert.ok(existsSync(join(dest, "index.js")));
-  assert.ok(!existsSync(join(dest, "MOZAK.json")));
-  assert.ok(!existsSync(join(dest, "MOZAK.md")));
-  assert.deepEqual(readFileSync(join(plans, "MOZAK.json")), plansBefore);
+  assert.ok(!existsSync(join(dest, "mozak.json")));
+  assert.ok(!existsSync(join(dest, "mozak.md")));
+  assert.deepEqual(readFileSync(join(plans, "mozak.json")), plansBefore);
   // The scope root is still the vault folder, not the clone.
   assert.equal(loadInventory(inv).scopes[0]!.root, execFileSync("realpath", [plans], { encoding: "utf8" }).trim());
   assert.equal(readRemoteMeta(join(base, "vault"), "tool").fullClone, null);
@@ -158,7 +158,7 @@ test("spec files resolve inside the plans folder", () => {
   ctx = exec(inv, "context", { scope: "tool" });
   const d = { operationId: "op-d", scopeId: "tool", expected: ctx.data.snapshot, action: "approve-direction", payload: { planId: "p1", revisionId: (show.data as any).review.revisionId, reviewDigest: (show.data as any).review.reviewDigest, ownerRef: "host:t", ownerMessageAt: "2026-10-18T09:00:00.000Z", reason: "ok" } };
   assert.equal(exec(inv, "decide", { scope: "tool", request: d }, "owner").exitCode, 0);
-  const graph = JSON.parse(readFileSync(join(plans, "MOZAK.json"), "utf8"));
+  const graph = JSON.parse(readFileSync(join(plans, "mozak.json"), "utf8"));
   const accepted = graph.plans[0].accepted.id;
   ctx = exec(inv, "context", { scope: "tool" });
   const bounds = { summary: "s", allowedPaths: ["src"], excludedActions: [], outcomeChecks: [{ outcomeId: "first-step", criterion: "c" }], limitations: [] };

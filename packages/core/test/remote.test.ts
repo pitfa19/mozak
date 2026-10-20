@@ -66,7 +66,7 @@ test("first read fetches a sparse copy with only the four files", () => {
   const remote = (out.data.remote as any[])[0];
   assert.equal(remote.stale, false);
   const cache = join(base, ".mozak-cache", "genome-mcp");
-  assert.ok(existsSync(join(cache, "MOZAK.json")));
+  assert.ok(existsSync(join(cache, "mozak.json")));
   assert.ok(existsSync(join(cache, "AGENTS.md")));
   assert.ok(!existsSync(join(cache, "big.bin")));
   assert.ok(existsSync(join(cache, ".git")));
@@ -97,7 +97,7 @@ test("offline: cached copy is used and marked stale; fresh copy skips fetch", ()
   assert.equal((w.data as any).status, "remote-stale");
 });
 
-test("write commits only MOZAK.json and MOZAK.md and pushes; sync pulls it elsewhere", () => {
+test("write commits only mozak.json and mozak.md and pushes; sync pulls it elsewhere", () => {
   const { inv, base, bare } = fixture();
   const ctx = exec(inv, "context", { scope: "genome-mcp" });
   const req = { operationId: "op-1", scopeId: "genome-mcp", expected: ctx.data.snapshot, action: "propose", payload: { planId: "p1", content: content("Remote plan") } };
@@ -108,9 +108,9 @@ test("write commits only MOZAK.json and MOZAK.md and pushes; sync pulls it elsew
   assert.deepEqual((out.data as any).remotePush, { committed: true, pushed: true });
   const verify = join(base, "verify");
   g(base, "clone", bare, verify);
-  assert.match(readFileSync(join(verify, "MOZAK.json"), "utf8"), /Remote plan/);
+  assert.match(readFileSync(join(verify, "mozak.json"), "utf8"), /Remote plan/);
   assert.equal(readFileSync(join(verify, "README.md"), "utf8"), "# r\n");
-  assert.equal(g(verify, "show", "--name-only", "--format=", "HEAD").trim().split("\n").sort().join(","), "MOZAK.json,MOZAK.md");
+  assert.equal(g(verify, "show", "--name-only", "--format=", "HEAD").trim().split("\n").sort().join(","), "mozak.json,mozak.md");
   const plans = exec(inv, "plans", { scope: "genome-mcp" });
   assert.equal((plans.data as any).groups.awaiting.count, 1);
   // Owner rules unchanged: an agent cannot decide.
@@ -133,7 +133,7 @@ test("push failure keeps the local commit and reports it; sync recovers", () => 
   assert.equal(sync.exitCode, 0, JSON.stringify(sync.data));
   const verify = join(base, "verify");
   g(base, "clone", bare, verify);
-  assert.match(readFileSync(join(verify, "MOZAK.json"), "utf8"), /Queued plan/);
+  assert.match(readFileSync(join(verify, "mozak.json"), "utf8"), /Queued plan/);
 });
 
 test("pull makes a full clone, reads prefer it, and an existing foreign destination is refused", () => {
@@ -158,7 +158,7 @@ test("pull makes a full clone, reads prefer it, and an existing foreign destinat
   assert.equal(exec(inv, "propose", { scope: "genome-mcp", request: req }).exitCode, 0);
   const verify = join(base, "verify");
   g(base, "clone", bare, verify);
-  assert.match(readFileSync(join(verify, "MOZAK.json"), "utf8"), /Full plan/);
+  assert.match(readFileSync(join(verify, "mozak.json"), "utf8"), /Full plan/);
   // A different directory is refused.
   const other = join(base, "other");
   mkdirSync(other);
@@ -166,7 +166,7 @@ test("pull makes a full clone, reads prefer it, and an existing foreign destinat
   assert.equal((exec(inv, "pull", { scope: "genome-mcp", into: other }, "owner").data as any).status, "pull-destination-exists");
 });
 
-test("not a scope: remote without MOZAK.json fails clearly", () => {
+test("not a scope: remote without mozak.json fails clearly", () => {
   const base = mkdtempSync(join(scratch, "mozak-remote-")); made.push(base);
   const bare = join(base, "o.git"), seed = join(base, "s");
   g(base, "init", "--bare", "-b", "main", bare);

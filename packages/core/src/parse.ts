@@ -62,7 +62,7 @@ export function parseMozak(text: string): MozakDoc {
   const doc: MozakDoc = { id: "", kind: "project", format: 0, plan: "", links: [], translations: [], issues };
   const split = splitFrontmatter(text);
   if (!split) {
-    issues.push({ code: "frontmatter-missing", message: "MOZAK.md must start with a --- frontmatter block" });
+    issues.push({ code: "frontmatter-missing", message: "mozak.md must start with a --- frontmatter block" });
     return doc;
   }
   const { fm, body, offset } = split;

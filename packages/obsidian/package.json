@@ -3,7 +3,7 @@
   "version": "0.3.0",
   "private": true,
   "type": "module",
-  "description": "Read-only Obsidian plugin that lists every MOZAK scope and its plans.",
+  "description": "Read-only Obsidian plugin that lists every mozak scope and its plans.",
   "scripts": {
     "build": "node scripts/build.mjs",
     "typecheck": "tsc -b",

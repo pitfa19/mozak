@@ -38,9 +38,9 @@ interface Installation { prefix: string; version: string; source: string | null 
 function readInstallation(prefix: string): Installation {
   const path = join(prefix, "installation.json");
   let m: { format?: unknown; version?: unknown; source?: unknown };
-  try { m = JSON.parse(readFileSync(path, "utf8")); } catch { throw new Refusal("installation-unavailable", `no readable MOZAK installation at ${prefix} (missing ${path})`); }
+  try { m = JSON.parse(readFileSync(path, "utf8")); } catch { throw new Refusal("installation-unavailable", `no readable mozak installation at ${prefix} (missing ${path})`); }
   if (m.format !== "mozak.installation/v1" || typeof m.version !== "string" || !parseVersion(m.version)) {
-    throw new Refusal("installation-unavailable", `${path} is not a MOZAK installation manifest`);
+    throw new Refusal("installation-unavailable", `${path} is not a mozak installation manifest`);
   }
   return { prefix, version: m.version, source: typeof m.source === "string" ? m.source : null };
 }
@@ -51,7 +51,7 @@ function checkout(path: string): { root: string; origin: string } {
   if (!top || realpathSync(top) !== realpathSync(path)) throw new Refusal("source-unavailable", `${path} is not the top of a git checkout`);
   const origin = tryGit(path, ["remote", "get-url", "origin"]);
   if (!origin) throw new Refusal("source-unavailable", `${path} has no origin remote to fetch releases from`);
-  if (!existsSync(join(path, "scripts", "install.mjs"))) throw new Refusal("source-unavailable", `${path} is not a MOZAK checkout (no scripts/install.mjs)`);
+  if (!existsSync(join(path, "scripts", "install.mjs"))) throw new Refusal("source-unavailable", `${path} is not a mozak checkout (no scripts/install.mjs)`);
   return { root: path, origin };
 }
 

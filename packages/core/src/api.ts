@@ -12,6 +12,7 @@ import {
   readScopeView,
   repairProjection,
   renderProjection,
+  renameScopeFiles,
   type OperationResult,
   type ScopeRead,
 } from "./scope-store.ts";
@@ -26,14 +27,14 @@ import { canonical, digest } from "./understanding.ts";
 
 /**
  * The scopes index's update notice: reads the cache only, and starts a background refresh when it is old.
- * Only an installed MOZAK (one with installation.json) checks; a source checkout or test run never does.
+ * Only an installed mozak (one with installation.json) checks; a source checkout or test run never does.
  */
 function scopesUpdateIssue(): Record<string, unknown> | null {
   const installed = installedVersion();
   if (!installed) return null;
   refreshUpdateCacheIfStale();
   const n = cachedUpdateNotice(installed.version);
-  return n ? { code: "update-available", message: `MOZAK ${n.latest} is available (installed ${n.installed}). Run: ${n.command}`, installed: n.installed, latest: n.latest, command: n.command } : null;
+  return n ? { code: "update-available", message: `mozak ${n.latest} is available (installed ${n.installed}). Run: ${n.command}`, installed: n.installed, latest: n.latest, command: n.command } : null;
 }
 
 export type Actor = "agent" | "owner";
@@ -61,10 +62,11 @@ export const OPERATIONS = [
   "sync",
   "pull",
   "render",
+  "rename-files",
 ] as const;
 
 /** Owner-only: refused for every other actor before any file is touched. */
-const OWNER_ONLY = new Set(["decide", "init", "repair", "pull"]);
+const OWNER_ONLY = new Set(["decide", "init", "repair", "pull", "rename-files"]);
 /** Route name must equal request.action for these routes. */
 const ROUTE_ACTIONS = new Set(["propose", "revise", "observe", "complete", "save-discussion", "attach-spec"]);
 export const DECISION_ACTIONS = [
@@ -751,7 +753,7 @@ function attachRemote(output: OperationOutput, statuses: RemoteStatus[]): Operat
 }
 
 /**
- * Regenerate stale MOZAK.md projections for one local scope or every local scope. Writes only MOZAK.md.
+ * Regenerate stale mozak.md projections for one local scope or every local scope. Writes only mozak.md.
  * Remote scopes are skipped: their projection follows their next sync or write. Conflicts are reported, not overwritten.
  */
 function renderOp(inv: ScopeInventory, a: Record<string, unknown>): OperationOutput {
@@ -787,6 +789,42 @@ function renderOp(inv: ScopeInventory, a: Record<string, unknown>): OperationOut
 }
 
 /**
+ * Rename pre-0.4 MOZAK.json / MOZAK.md to mozak.json / mozak.md for one local scope or every local scope.
+ * Repo-mode remote scopes are skipped: rename those in their own clone and push. Never changes plan content.
+ */
+function renameFilesOp(inv: ScopeInventory, a: Record<string, unknown>): OperationOutput {
+  const o = closed(a, "rename-files arguments", [], ["scope", "all"]);
+  const all = strictBoolean(o.all, "all");
+  if ((o.scope === undefined) === !all) throw invalid("rename-files needs exactly one of scope or all");
+  const targets = all ? inv.scopes : [resolveScope(inv, nonEmpty(o.scope, "scope"))];
+  const rows = targets.map((entry) => {
+    if (entry.remote && entry.remote.plansMode === "repo") return { scope: entry.id, result: "remote-skipped", exitCode: 0 };
+    try {
+      const { result, outcome } = renameScopeFiles(entry);
+      return { scope: entry.id, result, exitCode: resultExit(outcome), code: outcome.status, ...(outcome.issues.length ? { issues: outcome.issues } : {}) };
+    } catch (err) {
+      if (!(err instanceof DomainError)) throw err;
+      return { scope: entry.id, result: "failed", exitCode: err.exitCode, code: err.code, message: err.message };
+    }
+  });
+  const bad = rows.filter((r) => r.result === "failed").length;
+  const exitCode = bad === 0 ? 0 : all ? 6 : rows[0]!.exitCode;
+  return {
+    exitCode,
+    data: {
+      status: bad === 0 ? "ok" : all ? "partial" : "failed",
+      committed: false,
+      operation: "rename-files",
+      snapshot: null,
+      projectionStatus: null,
+      projectionUpdated: rows.some((r) => r.result === "renamed"),
+      issues: rows.flatMap((r) => (r.result === "failed" ? [{ code: (r as { code: string }).code, message: `${r.scope}: ${(r as { message?: string }).message ?? "failed"}`, scope: r.scope }] : [])),
+      scopes: rows,
+    },
+  };
+}
+
+/**
  * Single entry point for every operation. Expected domain failures come back as a structured
  * envelope with an exit code. Only unexpected, non-domain errors are rethrown. The caller's
  * transport supplies the actor. This function never reads it from the arguments.
@@ -808,6 +846,11 @@ export function executeOperation(inv: ScopeInventory, operation: string, args: u
     if (operation === "render") {
       if (!isPlain(args)) throw invalid("arguments must be an object");
       return renderOp(inv, args);
+    }
+    if (operation === "rename-files") {
+      requireOwner(operation, actor);
+      if (!isPlain(args)) throw invalid("arguments must be an object");
+      return renameFilesOp(inv, args);
     }
     if (REMOTE_READ_OPS.has(operation)) {
       if (!isPlain(args)) throw invalid("arguments must be an object");
@@ -832,7 +875,7 @@ export function executeOperation(inv: ScopeInventory, operation: string, args: u
   }
 }
 
-/** Write against a remote scope: refresh first, refuse on a stale base, then commit MOZAK.json and MOZAK.md and push. */
+/** Write against a remote scope: refresh first, refuse on a stale base, then commit mozak.json and mozak.md and push. */
 function remoteWrite(inv: ScopeInventory, operation: string, input: Record<string, unknown>, actor: Actor, entry: ScopeEntry): OperationOutput {
   if (OWNER_ONLY.has(operation)) requireOwner(operation, actor);
   if (scopeVisibility(entry) === "public") throw new DomainError("public-repo-plans", `refusing to write: ${publicRepoPlansMessage(entry)}`, 3);

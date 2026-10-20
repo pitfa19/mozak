@@ -78,5 +78,5 @@ export function cachedVisibility(entry: ScopeEntry): Visibility | null {
 }
 
 export function publicRepoPlansMessage(entry: ScopeEntry): string {
-  return `${entry.remote?.spec ?? entry.id} is public, so plans committed to it are published. Move them to a vault folder by adding "plans": "<folder>" to the "${entry.id}" inventory entry, then copy MOZAK.json there.`;
+  return `${entry.remote?.spec ?? entry.id} is public, so plans committed to it are published. Move them to a vault folder by adding "plans": "<folder>" to the "${entry.id}" inventory entry, then copy mozak.json there.`;
 }

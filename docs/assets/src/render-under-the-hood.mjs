@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // Generates docs/assets/under-the-hood.svg: a clean, looping vector diagram animation
-// in the MOZAK palette (gold #d8b35a, purple #9a8ce8, green #5cbf8a) showing:
+// in the mozak palette (gold #d8b35a, purple #9a8ce8, green #5cbf8a) showing:
 //   1. mozak-inventory.json points to scopes & agent proposes (gold)
 //   2. Owner approves direction (purple gate)
-//   3. MOZAK.json + MOZAK.md written atomically in the scope folder (green)
+//   3. mozak.json + mozak.md written atomically in the scope folder (green)
 //   4. Obsidian sidebar & Mermaid roadmap redraw from those plain files (generative UI)
 
 import { writeFileSync } from "node:fs";
@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 const outPath = resolve(here, "..", "under-the-hood.svg");
 
-const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 340" width="920" height="340" role="img" aria-label="Under the hood: mozak-inventory.json points to scopes, the agent proposes, the owner approves, MOZAK.json and MOZAK.md are written in the scope folder, and Obsidian redraws from those files">
+const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 340" width="920" height="340" role="img" aria-label="Under the hood: mozak-inventory.json points to scopes, the agent proposes, the owner approves, mozak.json and mozak.md are written in the scope folder, and Obsidian redraws from those files">
   <defs>
     <style>
       .bg { fill: #14161b; }
@@ -108,7 +108,7 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 340" width
   <rect class="bg" x="0" y="0" width="920" height="340" rx="14" />
 
   <!-- Top header bar -->
-  <text class="title" x="28" y="34">How MOZAK works under the hood</text>
+  <text class="title" x="28" y="34">How mozak works under the hood</text>
   <g transform="translate(600, 21)">
     <circle cx="8" cy="8" r="5" class="gold-fill" />
     <text class="muted" x="18" y="12">1. Propose</text>
@@ -128,9 +128,9 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 340" width
     <!-- mozak-inventory.json box -->
     <rect class="subcard" x="14" y="46" width="168" height="80" rx="6" />
     <text class="mono gold-fill" x="24" y="65">mozak-inventory.json</text>
-    <text class="mono" x="24" y="84" fill="#9aa3b5">├─ atlas-engine/</text>
-    <text class="mono" x="24" y="100" fill="#9aa3b5">├─ routing-notes/</text>
-    <text class="mono" x="24" y="116" fill="#d8b35a">└─ field-kit/</text>
+    <text class="mono" x="24" y="84" fill="#9aa3b5">├─ recipe-app/</text>
+    <text class="mono" x="24" y="100" fill="#9aa3b5">├─ trip-notes/</text>
+    <text class="mono" x="24" y="116" fill="#d8b35a">└─ study-timer/</text>
 
     <!-- Agent propose box -->
     <rect class="subcard" x="14" y="138" width="168" height="84" rx="6" />
@@ -177,16 +177,16 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 340" width
     <text class="badge-text green-fill" x="22" y="28">3</text>
     <text class="title" x="46" y="28">Scope Folder</text>
 
-    <!-- MOZAK.json -->
+    <!-- mozak.json -->
     <rect class="subcard" x="14" y="46" width="160" height="82" rx="6" />
-    <text class="mono green-fill" x="24" y="65">field-kit/MOZAK.json</text>
+    <text class="mono green-fill" x="24" y="65">study-timer/mozak.json</text>
     <text class="muted" x="24" y="83">Canonical state + CAS</text>
     <text class="muted" x="24" y="99">Stale writes refused</text>
     <text class="mono" x="24" y="116" fill="#5cbf8a">fsync + atomic rename</text>
 
-    <!-- MOZAK.md -->
+    <!-- mozak.md -->
     <rect class="subcard" x="14" y="140" width="160" height="82" rx="6" />
-    <text class="mono green-fill" x="24" y="159">field-kit/MOZAK.md</text>
+    <text class="mono green-fill" x="24" y="159">study-timer/mozak.md</text>
     <text class="muted" x="24" y="177">Readable note projection</text>
     <text class="muted" x="24" y="193">Mermaid roadmap +</text>
     <text class="muted" x="24" y="209">outcome status table</text>
@@ -206,9 +206,9 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 340" width
 
     <!-- Sidebar preview -->
     <rect class="subcard" x="14" y="46" width="168" height="86" rx="6" />
-    <text class="label" x="24" y="64">MOZAK Scopes Sidebar</text>
+    <text class="label" x="24" y="64">mozak Scopes Sidebar</text>
     <circle class="state-pill" cx="29" cy="82" r="4" />
-    <text class="mono" x="39" y="86">battery-budget</text>
+    <text class="mono" x="39" y="86">session-alert</text>
     <!-- 3-segment strip: green done, gold evidence, purple current -->
     <rect class="strip-done" x="24" y="98" width="36" height="7" rx="2" />
     <rect x="64" y="98" width="36" height="7" rx="2" fill="#d8b35a" />
@@ -216,9 +216,9 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 340" width
     <text class="mono" x="148" y="105" fill="#9aa3b5">1/3</text>
     <text class="muted" x="24" y="122">Click row → jumps to note</text>
 
-    <!-- Mermaid roadmap preview in MOZAK.md -->
+    <!-- Mermaid roadmap preview in mozak.md -->
     <rect class="subcard" x="14" y="142" width="168" height="80" rx="6" />
-    <text class="label" x="24" y="160">Rendered in MOZAK.md</text>
+    <text class="label" x="24" y="160">Rendered in mozak.md</text>
     <!-- Mini Mermaid nodes -->
     <rect x="24" y="172" width="42" height="22" rx="4" fill="#14291f" stroke="#5cbf8a" stroke-width="1.4" />
     <text class="badge-text green-fill" x="32" y="187">Done</text>

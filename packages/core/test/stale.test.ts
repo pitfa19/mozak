@@ -33,7 +33,7 @@ const moz = (id: string, kind: string, links = "", plan = "- [ ] x") =>
 const scopeFiles = (id: string, kind: string, links = "") => ({
   [`${id}/README.md`]: `# ${id}\n`,
   [`${id}/AGENTS.md`]: `# ${id}\n`,
-  [`${id}/MOZAK.md`]: moz(id, kind, links),
+  [`${id}/mozak.md`]: moz(id, kind, links),
 });
 
 test("touched reads the commit date of a file and of a directory", () => {
@@ -93,7 +93,7 @@ test("when I am newer than everything I rely on, nothing is flagged", () => {
 
 test("a note my files cite is flagged when it changed after me, and an unrelated note is not", () => {
   const r = repo();
-  commit(r, { "notes/Source A.md": "a\n", "notes/Source B.md": "b\n", "topic/README.md": "uses [[Source A]]\n", "topic/AGENTS.md": "x\n", "topic/MOZAK.md": moz("topic", "topic") }, "2026-01-10");
+  commit(r, { "notes/Source A.md": "a\n", "notes/Source B.md": "b\n", "topic/README.md": "uses [[Source A]]\n", "topic/AGENTS.md": "x\n", "topic/mozak.md": moz("topic", "topic") }, "2026-01-10");
   commit(r, { "notes/Source A.md": "a2\n", "notes/Source B.md": "b2\n" }, "2026-02-15");
   const t = staleReports({ roots: [r] }, "topic", { now: D("2026-03-01") })[0];
   assert.deepEqual(t.notes.map((n) => n.name), ["Source A"], "only the cited note, not Source B");
@@ -120,7 +120,7 @@ test("scopes across two different git repos are compared by their own commit dat
   assert.equal(api.upstream[0].newerBy, D("2026-02-20") - D("2026-02-01"));
 });
 
-test("planOnly ignores edits to other files in a scope and only compares MOZAK.md", () => {
+test("planOnly ignores edits to other files in a scope and only compares mozak.md", () => {
   const r = repo();
   commit(r, { ...scopeFiles("api", "project", "- depends-on: [[lib]]"), ...scopeFiles("lib", "project") }, "2026-01-10");
   commit(r, { "lib/src/code.ts": "x\n" }, "2026-02-20");

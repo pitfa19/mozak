@@ -2,7 +2,7 @@
 /**
  * scripts/generate-brand-kit.mjs
  *
- * Generates the official MOZAK Brand & Icon Kit in `docs/assets/brand/`:
+ * Generates the official mozak Brand & Icon Kit in `docs/assets/brand/`:
  *   - mozak-icon.svg              (1024x1024 squircle app/repo icon with semantic SVG IDs)
  *   - mozak-icon-1024.png         (1024x1024 PNG rendered via AppKit)
  *   - mozak-icon-512.png          (512x512 PNG)
@@ -11,7 +11,7 @@
  *   - mozak-lockup-dark.svg       (1600x480 horizontal brand lockup for README & video title cards)
  *   - mozak-lockup-dark.png       (1600x480 PNG)
  *   - brand-tokens.json           (Palette, typography, semantic state colors, and motion tokens)
- *   - BRAND.md                    (Guide for agents & designers using the MOZAK brand kit)
+ *   - BRAND.md                    (Guide for agents & designers using the mozak brand kit)
  */
 
 import { spawnSync } from "node:child_process";
@@ -24,12 +24,12 @@ const repoRoot = resolve(__dirname, "..");
 const brandDir = join(repoRoot, "docs", "assets", "brand");
 mkdirSync(brandDir, { recursive: true });
 
-// 1. Official MOZAK App / Repo Icon (1024x1024 squircle)
-// Combines a geometric brain silhouette + "M" circuit topology + the 3 MOZAK state nodes:
+// 1. Official mozak App / Repo Icon (1024x1024 squircle)
+// Combines a geometric brain silhouette + "M" circuit topology + the 3 mozak state nodes:
 //   - Left hemisphere node: Gold (#d8b35a) — Propose / Awaiting Owner Approval
 //   - Central cortex node:  Purple (#9a8ce8) — Approved Direction / Current Stop
 //   - Right hemisphere node: Green (#5cbf8a) — Verified Outcome with Evidence (checkmark)
-//   - Bottom bar: The signature 3-segment MOZAK progress strip
+//   - Bottom bar: The signature 3-segment mozak progress strip
 const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
   <defs>
     <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -124,7 +124,7 @@ const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"
     <path d="M -20 2 L -5 18 L 22 -14" fill="none" stroke="#5cbf8a" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
   </g>
 
-  <!-- Signature MOZAK 3-Segment Outcome Strip at Base -->
+  <!-- Signature mozak 3-Segment Outcome Strip at Base -->
   <g id="outcome-strip" transform="translate(232, 824)">
     <rect x="0" y="0" width="172" height="32" rx="16" fill="#5cbf8a"/>
     <rect x="194" y="0" width="172" height="32" rx="16" fill="#d8b35a"/>
@@ -165,7 +165,7 @@ const lockupSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 480
   <!-- Outer Card -->
   <rect x="8" y="8" width="1584" height="464" rx="36" fill="url(#banner-bg)" stroke="#2e344d" stroke-width="3"/>
 
-  <!-- Left: MOZAK Icon Badge (scaled to 320x320 at x=80, y=80) -->
+  <!-- Left: mozak Icon Badge (scaled to 320x320 at x=80, y=80) -->
   <g id="brand-mark" transform="translate(80, 80) scale(0.3125)">
     <rect x="0" y="0" width="1024" height="1024" rx="224" fill="url(#icon-bg)" stroke="#343b59" stroke-width="12"/>
     <path d="M 484 212 C 330 212, 206 310, 206 456 C 206 520, 236 575, 278 612 C 262 666, 304 724, 378 736 L 484 736"
@@ -196,7 +196,7 @@ const lockupSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 480
 
   <!-- Right: Wordmark, Version Pill, Tagline, and 3 State Pills -->
   <g id="brand-typography" font-family="'Plus Jakarta Sans', 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif">
-    <text x="456" y="192" font-family="'Space Grotesk', 'Plus Jakarta Sans', sans-serif" font-size="104" font-weight="700" letter-spacing="6" fill="#eceff7">MOZAK</text>
+    <text x="456" y="192" font-family="'Space Grotesk', 'Plus Jakarta Sans', sans-serif" font-size="104" font-weight="700" letter-spacing="6" fill="#eceff7">mozak</text>
 
     <!-- Version Badge -->
     <rect x="910" y="128" width="126" height="46" rx="23" fill="#9a8ce8" fill-opacity="0.16" stroke="#9a8ce8" stroke-width="2"/>
@@ -231,7 +231,7 @@ writeFileSync(join(brandDir, "mozak-lockup-dark.svg"), lockupSvg);
 
 // 4. Write brand-tokens.json and BRAND.md for the motion agent
 const brandTokens = {
-  name: "MOZAK",
+  name: "mozak",
   meaning: "Croatian for 'brain' — git-native project memory for humans and AI agents",
   version: "0.3.0",
   tagline: "Shared project memory in plain files — your agent writes, Obsidian renders.",
@@ -316,15 +316,15 @@ writeFileSync(join(brandDir, "brand-tokens.json"), JSON.stringify(brandTokens, n
 
 writeFileSync(
   join(brandDir, "BRAND.md"),
-  `# MOZAK Brand & Icon Kit (\`v0.3.0\`)
+  `# mozak Brand & Icon Kit (\`v0.3.0\`)
 
-**MOZAK** (*"brain"* in Croatian) is git-native project memory for humans and AI agents.
+**mozak** (*"brain"* in Croatian) is git-native project memory for humans and AI agents.
 
 ## Visual Metaphor
 
-The MOZAK mark combines:
+The mozak mark combines:
 1. **Two Brain Hemispheres** — representing shared understanding between **you** and **your coding agent**.
-2. **A 3-Node Directed Roadmap Circuit (\`M\` silhouette)** — representing MOZAK's 3-step loop:
+2. **A 3-Node Directed Roadmap Circuit (\`M\` silhouette)** — representing mozak's 3-step loop:
    - **Gold Node (\`#d8b35a\` — \`#node-gold-propose\`)**: Agent drafts a plan & pauses at the owner gate (*awaiting approval*).
    - **Purple Node (\`#9a8ce8\` — \`#node-purple-active\`)**: Owner approves direction; the plan opens and lights up the active roadmap stop (*current*).
    - **Green Node (\`#5cbf8a\` — \`#node-green-done\`)**: Agent runs tests and records proof; the outcome turns green (*done*).
@@ -338,7 +338,7 @@ The MOZAK mark combines:
 | \`mozak-icon-1024.png\` | \`1024×1024\` PNG | High-res app icon, title cards, avatars |
 | \`mozak-icon-512.png\` | \`512×512\` PNG | README badges, corner watermarks |
 | \`mozak-mark-transparent.svg\` / \`.png\` | \`512×512\` | Transparent background brain-circuit mark (no squircle box) for floating overlays |
-| \`mozak-lockup-dark.svg\` / \`.png\` | \`1600×480\` | Intro/outro hero title card with icon + \`MOZAK v0.3.0\` wordmark + 3 workflow pills |
+| \`mozak-lockup-dark.svg\` / \`.png\` | \`1600×480\` | Intro/outro hero title card with icon + \`mozak v0.3.0\` wordmark + 3 workflow pills |
 | \`brand-tokens.json\` | JSON | Machine-readable hex/RGB palette, fonts, and SVG element IDs |
 `,
 );
@@ -378,7 +378,7 @@ renderSvg(dir + "/mozak-icon.svg", dir + "/mozak-icon-1024.png", 1024, 1024)
 renderSvg(dir + "/mozak-icon.svg", dir + "/mozak-icon-512.png", 512, 512)
 renderSvg(dir + "/mozak-mark-transparent.svg", dir + "/mozak-mark-transparent.png", 512, 512)
 renderSvg(dir + "/mozak-lockup-dark.svg", dir + "/mozak-lockup-dark.png", 1600, 480)
-print("Rendered MOZAK brand PNGs in " + dir)
+print("Rendered mozak brand PNGs in " + dir)
 `;
 
 const r = spawnSync("swift", ["-e", swiftRender, brandDir], { stdio: "inherit" });

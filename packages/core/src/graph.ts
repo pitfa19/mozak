@@ -2,8 +2,9 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 import { checkScope } from "./check.ts";
 import type { Link, MozakDoc } from "./parse.ts";
+import { scopeFile } from "./scope-files.ts";
 
-/** Local, per machine mapping. MOZAK.md itself only ever stores portable links. */
+/** Local, per machine mapping. mozak.md itself only ever stores portable links. */
 export interface LocalConfig {
   /** Directories searched (recursively) for scopes, e.g. an Obsidian repo and a folder of clones. */
   roots: string[];
@@ -42,12 +43,12 @@ export function loadConfig(path: string): LocalConfig {
   return { roots: raw.roots.map((r) => resolve(r)), map: raw.map };
 }
 
-/** Find every directory under the roots that holds a MOZAK.md. Reads local files only. */
+/** Find every directory under the roots that holds a mozak.md (or pre-0.4 MOZAK.md). Reads local files only. */
 export function discoverScopes(roots: string[]): string[] {
   const found: string[] = [];
   const walk = (dir: string, depth: number) => {
     if (depth > 6) return;
-    if (existsSync(join(dir, "MOZAK.md"))) found.push(dir);
+    if (existsSync(scopeFile(dir, "bridge"))) found.push(dir);
     let entries: string[];
     try {
       entries = readdirSync(dir);
@@ -84,7 +85,7 @@ export function buildGraph(config: LocalConfig): Graph {
   for (const dir of discoverScopes(config.roots)) {
     const r = checkScope(dir);
     if (!r.doc || !r.doc.id) {
-      problems.push(`${dir}: MOZAK.md has no usable id`);
+      problems.push(`${dir}: mozak.md has no usable id`);
       continue;
     }
     if (docs.has(r.doc.id)) {

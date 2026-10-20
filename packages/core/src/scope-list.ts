@@ -6,11 +6,12 @@
 import { lstatSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { DomainError } from "./errors.ts";
+import { SCOPE_FILE_NAMES } from "./scope-files.ts";
 import { resolveScope, type ScopeInventory } from "./scope-index.ts";
 import { readScope } from "./scope-store.ts";
 import { reviewRows } from "./review.ts";
 
-const ENTRY_NAMES = ["AGENTS.md", "MOZAK.json", "MOZAK.md", "README.md"] as const;
+const ENTRY_NAMES = ["AGENTS.md", ...SCOPE_FILE_NAMES, "README.md"] as const;
 
 export interface ScopeIndexRow {
   id: string;
@@ -22,7 +23,7 @@ export interface ScopeIndexRow {
   title?: string;
   kind?: "project" | "topic";
   plans?: { completed: number; open: number; awaiting: number };
-  /** Which of AGENTS.md, MOZAK.json, MOZAK.md and README.md exist as regular files in the root. */
+  /** Which of AGENTS.md, mozak.json, mozak.md (or their pre-0.4 uppercase names) and README.md exist as regular files in the root. */
   entryFiles: string[];
 }
 

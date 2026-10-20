@@ -1,12 +1,12 @@
 // Impure loader. Reuses core for parsing and validation: loadInventory, resolveScope, readScope, reviewRows
 // (the same functions behind `mozak scopes` and `mozak plans`). Reading never writes. The single write path,
-// renderStaleProjections, regenerates MOZAK.md through core and never touches MOZAK.json.
+// renderStaleProjections, regenerates mozak.md through core and never touches mozak.json.
 import { lstatSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { DomainError, executeOperation, loadInventory, readRemoteMeta, readScope, resolveScope, reviewRows } from "@mozak/core";
+import { DomainError, executeOperation, loadInventory, readRemoteMeta, readScope, resolveScope, reviewRows, SCOPE_FILE_NAMES } from "@mozak/core";
 import { remoteVM, scopesModel, type ScopeLoad, type ScopesModel } from "./model.ts";
 
-const ENTRY_NAMES = ["AGENTS.md", "MOZAK.json", "MOZAK.md", "README.md"];
+const ENTRY_NAMES = ["AGENTS.md", ...SCOPE_FILE_NAMES, "README.md"];
 
 function entryFiles(root: string): string[] {
   let present: Set<string>;
@@ -55,8 +55,8 @@ export function loadScopesModel(inventoryPath: string): ScopesModel {
 export { fail as describeError };
 
 /**
- * Regenerate stale MOZAK.md projections through core's render operation (the same code as `mozak render --all`).
- * The only write the plugin makes: MOZAK.md of local scopes, never MOZAK.json. Conflicts are reported, not overwritten.
+ * Regenerate stale mozak.md projections through core's render operation (the same code as `mozak render --all`).
+ * The only write the plugin makes: mozak.md of local scopes, never mozak.json. Conflicts are reported, not overwritten.
  */
 export function renderStaleProjections(inventoryPath: string): { ok: boolean; rendered: number; message: string } {
   const inv = loadInventory(inventoryPath);
@@ -65,8 +65,8 @@ export function renderStaleProjections(inventoryPath: string): { ok: boolean; re
   const rendered = rows.filter((r) => r.result === "rendered").length;
   const bad = rows.filter((r) => r.result === "conflict" || r.result === "failed");
   if (out.exitCode !== 0 && bad.length === 0) return { ok: false, rendered, message: `Projection refresh failed (${String(out.data.status ?? "unknown")}).` };
-  if (bad.length === 0) return { ok: true, rendered, message: rendered ? `Regenerated ${rendered} MOZAK.md file${rendered === 1 ? "" : "s"}.` : "Local MOZAK.md projections are current. Remote scopes are skipped." };
-  return { ok: false, rendered, message: `MOZAK.md not regenerated for ${bad.map((r) => `${r.scope} (${r.result === "conflict" ? "unrecognized content preserved for owner review" : "render failed, inspect mozak render output"})`).join(", ")}.` };
+  if (bad.length === 0) return { ok: true, rendered, message: rendered ? `Regenerated ${rendered} mozak.md file${rendered === 1 ? "" : "s"}.` : "Local mozak.md projections are current. Remote scopes are skipped." };
+  return { ok: false, rendered, message: `mozak.md not regenerated for ${bad.map((r) => `${r.scope} (${r.result === "conflict" ? "unrecognized content preserved for owner review" : "render failed, inspect mozak render output"})`).join(", ")}.` };
 }
 
 /** Force-refresh every remote scope through core (the same code as `mozak sync`). Returns a one line summary. */

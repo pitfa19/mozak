@@ -29,7 +29,7 @@ format: 1
 - [re-derived] markdown build step
 `;
 
-test("parses a valid MOZAK.md", () => {
+test("parses a valid mozak.md", () => {
   const d = parseMozak(good);
   assert.deepEqual(d.issues, []);
   assert.equal(d.id, "demo");
@@ -68,7 +68,7 @@ test("sections must be present and ordered", () => {
 
 test("checkScope needs the three root files", () => {
   const dir = mkdtempSync(join(tmpdir(), "mozak-"));
-  writeFileSync(join(dir, "MOZAK.md"), good);
+  writeFileSync(join(dir, "mozak.md"), good);
   const r = checkScope(dir);
   assert.equal(r.ok, false);
   assert.deepEqual(r.issues.map((i) => i.message).sort(), ["missing AGENTS.md", "missing README.md"]);
@@ -80,7 +80,7 @@ test("checkScope needs the three root files", () => {
 function claudeIssues(setup: (dir: string) => void): number {
   const dir = mkdtempSync(join(tmpdir(), "mozak-"));
   for (const f of ["README.md", "AGENTS.md"]) writeFileSync(join(dir, f), "x\n");
-  writeFileSync(join(dir, "MOZAK.md"), good);
+  writeFileSync(join(dir, "mozak.md"), good);
   setup(dir);
   return checkScope(dir).issues.filter((i) => i.code === "claude-pointer").length;
 }

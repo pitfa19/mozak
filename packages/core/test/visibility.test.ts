@@ -115,6 +115,6 @@ test("a repo that becomes public is refused once the cached answer expires; sync
     assert.equal(calls(), 1);
     assert.equal(propose(inv, "p2").exitCode, 3);
   });
-  const graph = JSON.parse(readFileSync(loadInventory(inv).scopes[0]!.root + "/MOZAK.json", "utf8"));
+  const graph = JSON.parse(readFileSync(loadInventory(inv).scopes[0]!.root + "/mozak.json", "utf8"));
   assert.equal(graph.plans.length, 1);
 });

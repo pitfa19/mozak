@@ -23,9 +23,9 @@ test("countsSummary omits zero parts", () => {
 });
 
 test("resolveOpenTarget separates vault files from outside files", () => {
-  assert.deepEqual(resolveOpenTarget("/v/rector_award", "/v/rector_award/a/MOZAK.md"), { kind: "vault", path: "a/MOZAK.md" });
-  assert.deepEqual(resolveOpenTarget("/v/rector_award", "/v/anpit/MOZAK.md"), { kind: "external", path: "/v/anpit/MOZAK.md" });
-  assert.deepEqual(resolveOpenTarget("/v/a", "/v/ab/MOZAK.md"), { kind: "external", path: "/v/ab/MOZAK.md" });
+  assert.deepEqual(resolveOpenTarget("/v/rector_award", "/v/rector_award/a/mozak.md"), { kind: "vault", path: "a/mozak.md" });
+  assert.deepEqual(resolveOpenTarget("/v/rector_award", "/v/anpit/mozak.md"), { kind: "external", path: "/v/anpit/mozak.md" });
+  assert.deepEqual(resolveOpenTarget("/v/a", "/v/ab/mozak.md"), { kind: "external", path: "/v/ab/mozak.md" });
 });
 
 test("failed scope becomes an error row and counts as failed", () => {
@@ -99,7 +99,7 @@ test("vault-plans scopes keep the repo badge, are never stale, open plans inside
   assert.equal(scope.remote?.vault, true);
   assert.equal(scope.remote?.stale, false);
   assert.deepEqual(countRemote(model.scopes), { remote: 0, stale: 0 });
-  assert.equal(resolveOpenTarget(vault, join(scope.root, "MOZAK.md")).kind, "vault");
+  assert.equal(resolveOpenTarget(vault, join(scope.root, "mozak.md")).kind, "vault");
   assert.equal(remoteVM("github:o/r", "main", { lastFetchAt: null, lastError: "offline" }, new Date(), undefined, true).stale, false);
   assert.equal(scope.remote?.visibility, null, "never checked shows no badge");
   assert.equal(remoteVM("github:o/r", "main", { lastFetchAt: null, lastError: null, visibility: "public" }, new Date(), undefined, true).visibility, "public");
@@ -153,13 +153,13 @@ test("strip: one segment per outcome, done / current, from real core state", () 
   assert.equal(strip.total, 2);
 });
 
-test("plan row carries a strip and the exact MOZAK.md heading; the heading line is found in the rendered file", () => {
+test("plan row carries a strip and the exact mozak.md heading; the heading line is found in the rendered file", () => {
   const { inventory, entry } = roadWorld();
   const m = loadScopesModel(inventory);
   const plan = m.scopes[0]!.plans[0]!;
   assert.equal(plan.strip?.total, 2);
   assert.ok(plan.heading.startsWith("## Road \\[one\\] · `road-plan`"));
-  const md = readFileSync(join(entry.root, "MOZAK.md"), "utf8");
+  const md = readFileSync(join(entry.root, "mozak.md"), "utf8");
   const line = headingLine(md, plan.heading);
   assert.notEqual(line, null);
   assert.equal(md.split("\n")[line!], plan.heading);
@@ -189,7 +189,7 @@ test("completed sidebar rows resolve to their collapsed line in the real rendere
   const review = reviewShow(state, planId, "accept-outcome", "second-stop");
   apply("accept-outcome", { planId, revisionId, outcomeId: "second-stop", reviewDigest: review.reviewDigest, ownerRef: "synthetic-owner:accept", ownerMessageAt: OWNER_AT, reason: "fixture" }, "owner");
   apply("complete", { planId, revisionId });
-  const model = scopeViewModel({ id: entry.id, root: entry.root, entryFiles: ["MOZAK.md"], state });
+  const model = scopeViewModel({ id: entry.id, root: entry.root, entryFiles: ["mozak.md"], state });
   const target = model.plans[0]!.heading;
   assert.match(target, /^- ✅ /);
   const md = renderBridge(state, "a".repeat(64));
@@ -197,23 +197,23 @@ test("completed sidebar rows resolve to their collapsed line in the real rendere
   assert.ok(headingLine(md, target)! > headingLine(md, "## Completed")!);
 });
 
-test("renderStaleProjections rewrites only MOZAK.md, leaves MOZAK.json byte-identical and spares hand edits", () => {
+test("renderStaleProjections rewrites only mozak.md, leaves mozak.json byte-identical and spares hand edits", () => {
   const { inventory, entry } = roadWorld();
   const sha = (p: string) => createHash("sha256").update(readFileSync(p)).digest("hex");
   const read = readScope(entry);
-  writeFileSync(join(entry.root, "MOZAK.md"), renderBridgeLegacy(read.state, read.snapshot.graphHash));
-  const json = sha(join(entry.root, "MOZAK.json"));
+  writeFileSync(join(entry.root, "mozak.md"), renderBridgeLegacy(read.state, read.snapshot.graphHash));
+  const json = sha(join(entry.root, "mozak.json"));
   const files = readdirSync(entry.root).sort();
   const r = renderStaleProjections(inventory);
   assert.equal(r.ok, true);
   assert.equal(r.rendered, 1);
-  assert.equal(sha(join(entry.root, "MOZAK.json")), json);
+  assert.equal(sha(join(entry.root, "mozak.json")), json);
   assert.deepEqual(readdirSync(entry.root).sort(), files);
-  assert.ok(readFileSync(join(entry.root, "MOZAK.md"), "utf8").includes("```mermaid"));
-  writeFileSync(join(entry.root, "MOZAK.md"), "my edits\n");
+  assert.ok(readFileSync(join(entry.root, "mozak.md"), "utf8").includes("```mermaid"));
+  writeFileSync(join(entry.root, "mozak.md"), "my edits\n");
   const again = renderStaleProjections(inventory);
   assert.equal(again.ok, false);
-  assert.equal(readFileSync(join(entry.root, "MOZAK.md"), "utf8"), "my edits\n");
+  assert.equal(readFileSync(join(entry.root, "mozak.md"), "utf8"), "my edits\n");
 });
 
 test("the plan detail tab is gone: no PlanView class or registration remains", () => {

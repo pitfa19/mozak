@@ -33,7 +33,7 @@ It uses an immediately intuitive, everyday example (**`Pomodoro Study Timer`** a
   > **Pomodoro Study Timer (`study-timer`)** has 1 completed plan (*25-minute focus countdown*) and 0 open plans.
   >
   > **Q1:** Can both outcomes (**`bell-sound`** at `00:00` and **`mute-button`**) be verified by automated audio tests, or do you want to sign off yourself?
-- **Obsidian (Right Pane — `beat1a.png`):** Shows `study-timer/MOZAK.md` in Reading view and the `mozak scopes` sidebar (`All 4 · Open 2 · Done 2`).
+- **Obsidian (Right Pane — `beat1a.png`):** Shows `study-timer/mozak.md` in Reading view and the `mozak scopes` sidebar (`All 4 · Open 2 · Done 2`).
 
 ---
 
@@ -47,7 +47,7 @@ It uses an immediately intuitive, everyday example (**`Pomodoro Study Timer`** a
   > 1. `bell-sound` — Plays a clear bell sound when the countdown reaches `00:00`
   > 2. `mute-button` — Stays completely silent when Mute is turned on
   >
-  > ⏸ **Paused for your direction approval.** Check `study-timer/MOZAK.md` in Obsidian and tell me if you approve.
+  > ⏸ **Paused for your direction approval.** Check `study-timer/mozak.md` in Obsidian and tell me if you approve.
 - **Obsidian (Right Pane — `beat2.png`):** Immediately refreshes to show **`Play a bell sound when the timer ends · Awaiting first approval`**, sidebar badge **`awaiting approval`** (`All 5 · Open 3 · Done 2`), and the new Mermaid roadmap (**`Bell sound` ➔ `Mute button`**).
 
 ---
@@ -58,7 +58,7 @@ It uses an immediately intuitive, everyday example (**`Pomodoro Study Timer`** a
 - **Owner-authorized CLI decision runs:**
   - `✓ mozak review decide --scope study-timer --plan session-alert --approve-direction`
 - **Agent replies:**
-  > **Direction approved.** `study-timer/MOZAK.json` and `study-timer/MOZAK.md` are updated.
+  > **Direction approved.** `study-timer/mozak.json` and `study-timer/mozak.md` are updated.
   >
   > `session-alert` is now **Open (0/2 done)**. Current stop on the roadmap: **`#1 bell-sound`**.
 - **Obsidian (Right Pane — `beat3.png`):** Switches to **`Open · 0/2 done`**, the `0/2` progress strip appears in the sidebar, and **`Bell sound`** lights up in **purple (`current`)** on the Mermaid roadmap.

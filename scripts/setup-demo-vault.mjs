@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Creates (or resets) a clean, non-personal demo vault at ~/Downloads/mozak-demo-vault
-// with the MOZAK Obsidian plugin pre-installed and enabled, 3 intuitive everyday scopes,
+// with the mozak Obsidian plugin pre-installed and enabled, 3 intuitive everyday scopes,
 // and a step-by-step RECORDING-SCRIPT.md + demo-step.mjs helper for live screen recording.
 //
 // Usage: node scripts/setup-demo-vault.mjs [target-dir]
@@ -33,7 +33,7 @@ const scopes = [
     kind: "project",
     title: "Recipe Book App",
     readme: `# Recipe Book App\n\nSimple home cooking app for saving favorite recipes and building weekly grocery lists.\n`,
-    agents: `# Agent instructions for recipe-app\n\nRead \`MOZAK.md\` before making changes. Keep recipes and grocery lists available offline.\n`,
+    agents: `# Agent instructions for recipe-app\n\nRead \`mozak.md\` before making changes. Keep recipes and grocery lists available offline.\n`,
     extraDirs: ["src", "test"],
   },
   {
@@ -41,7 +41,7 @@ const scopes = [
     kind: "topic",
     title: "Summer Road Trip Notes",
     readme: `# Summer Road Trip Notes\n\nPlanning notes, driving routes, and campsite bookings for a 7-day summer road trip.\n`,
-    agents: `# Agent instructions for trip-notes\n\nRead \`MOZAK.md\` first. Keep driving segments under 4 hours per day.\n`,
+    agents: `# Agent instructions for trip-notes\n\nRead \`mozak.md\` first. Keep driving segments under 4 hours per day.\n`,
     extraDirs: ["routes"],
   },
   {
@@ -49,7 +49,7 @@ const scopes = [
     kind: "project",
     title: "Pomodoro Study Timer",
     readme: `# Pomodoro Study Timer\n\nMinimal 25-minute focus timer app with session alerts and break reminders.\n`,
-    agents: `# Agent instructions for study-timer\n\nRead \`MOZAK.md\` first. Keep the timer distraction-free and verify audio alerts with automated tests.\n`,
+    agents: `# Agent instructions for study-timer\n\nRead \`mozak.md\` first. Keep the timer distraction-free and verify audio alerts with automated tests.\n`,
     extraDirs: ["test"],
   },
 ];
@@ -389,9 +389,9 @@ writeFileSync(
                 type: "leaf",
                 state: {
                   type: "markdown",
-                  state: { file: "study-timer/MOZAK.md", mode: "preview", source: false },
+                  state: { file: "study-timer/mozak.md", mode: "preview", source: false },
                   icon: "lucide-file",
-                  title: "MOZAK",
+                  title: "mozak",
                 },
               },
             ],
@@ -434,7 +434,7 @@ writeFileSync(
                   type: "mozak-scopes",
                   state: {},
                   icon: "brain-circuit",
-                  title: "MOZAK scopes",
+                  title: "mozak scopes",
                 },
               },
             ],
@@ -446,7 +446,7 @@ writeFileSync(
         collapsed: false,
       },
       active: "demo-main-leaf",
-      lastOpenFiles: ["recipe-app/MOZAK.md", "study-timer/MOZAK.md"],
+      lastOpenFiles: ["recipe-app/mozak.md", "study-timer/mozak.md"],
     },
     null,
     2,
@@ -548,7 +548,7 @@ if (step === "scopes") {
   });
   console.log("\\x1b[32m$\\x1b[0m mozak review decide --scope study-timer --plan session-alert --approve-direction");
   spawnSync(mozak, ["review", "decide", "--scope", "study-timer", "--request", req, "--config", inv], { encoding: "utf8" });
-  console.log("  \\x1b[32m✓ direction approved\\x1b[0m → study-timer/MOZAK.json + study-timer/MOZAK.md updated\\n");
+  console.log("  \\x1b[32m✓ direction approved\\x1b[0m → study-timer/mozak.json + study-timer/mozak.md updated\\n");
   run(["plans", "--scope", "study-timer"]);
 } else if (step === "observe") {
   const ctx = json(["context", "--scope", "study-timer"]);
@@ -637,7 +637,7 @@ spawnSync("ln", ["-sfn", join(repoRoot, "skills", "mozak"), join(target, ".claud
 
 writeFileSync(
   join(target, "CLAUDE.md"),
-  `# MOZAK Demo Vault Instructions
+  `# mozak Demo Vault Instructions
 
 - Always use the \`mozak\` MCP tools (\`mcp__mozak__mozak_scopes\`, \`mcp__mozak__mozak_context\`, \`mcp__mozak__mozak_propose\`, \`mcp__mozak__mozak_observe\`) for this workspace.
 - Never print \`/Users/...\` paths; always write \`~/mozak-demo-vault\`.
@@ -648,7 +648,7 @@ writeFileSync(
 // 6. Write RECORDING-SCRIPT.md cheat sheet
 writeFileSync(
   join(target, "RECORDING-SCRIPT.md"),
-  `# MOZAK Demo Recording Script (Intuitive Study Timer Example)
+  `# mozak Demo Recording Script (Intuitive Study Timer Example)
 
 This vault (\`~/Downloads/mozak-demo-vault\`) contains **zero personal data** and uses 3 everyday projects:
 - **Recipe Book App (\`recipe-app\`)**: *Save favorite recipes offline* (Done 1/1), *Weekly grocery list* (Open 1/3)

@@ -113,7 +113,7 @@ Observed fingerprints at `2026-10-12T18:01:16Z`, unchanged on the `2026-10-12T18
 
 | Item | SHA-256 |
 | --- | --- |
-| Installed MOZAK config | `a50738be25634e57cd51284a0ba8c1b8a4434aaff2597e06ae777c5527ee3ddb` |
+| Installed mozak config | `a50738be25634e57cd51284a0ba8c1b8a4434aaff2597e06ae777c5527ee3ddb` |
 | Installed `~/.claude/skills/mozak/SKILL.md` | `afa45da091e12fe6f72321e4eb0f5d21cc51d77c98f416e4abc09e7568d11346` |
 | Accepted idea brief | `23e4718ab4e224c120adc03967467d419e9f0ebe45ea67b78d4d0417980ca696` |
 

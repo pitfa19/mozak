@@ -460,8 +460,8 @@ test("A04: observe with protected nested fields is refused and the persisted sco
   await initScope(f.config, f.scopeRoot);
   await propose(f, "plan-a04", "Protected field plan");
 
-  const graphPath = join(f.scopeRoot, "MOZAK.json");
-  const bridgePath = join(f.scopeRoot, "MOZAK.md");
+  const graphPath = join(f.scopeRoot, "mozak.json");
+  const bridgePath = join(f.scopeRoot, "mozak.md");
   const before = { graph: readFileSync(graphPath, "utf8"), bridge: readFileSync(bridgePath, "utf8") };
 
   const ctx = json(await run(["context", "--config", f.config, "--scope", "sample", "--json"]));
@@ -501,8 +501,8 @@ test("A04: observe with protected nested fields is refused and the persisted sco
   assert.equal(json(rNested).committed, false);
 
   // Rejected writes must leave canonical and bridge bytes exactly as they were.
-  assert.equal(readFileSync(graphPath, "utf8"), before.graph, "MOZAK.json changed after a refused observe");
-  assert.equal(readFileSync(bridgePath, "utf8"), before.bridge, "MOZAK.md changed after a refused observe");
+  assert.equal(readFileSync(graphPath, "utf8"), before.graph, "mozak.json changed after a refused observe");
+  assert.equal(readFileSync(bridgePath, "utf8"), before.bridge, "mozak.md changed after a refused observe");
 
   // The refused observation also must not appear in the stored plan.
   const after = json(await run(["context", "--config", f.config, "--scope", "sample", "--json"]));

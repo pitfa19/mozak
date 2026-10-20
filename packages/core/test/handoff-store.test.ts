@@ -45,14 +45,14 @@ function world() {
   writeFileSync(join(root, "spec.md"), "# Formatter\n\nImplement formatter with local tests.\n");
   return { root, entry, inv, request, change, show, decide, decisionPayload, plan, attach, view };
 }
-const bytes = root => ["MOZAK.json", "MOZAK.md"].map(name => readFileSync(join(root, name)));
+const bytes = root => ["mozak.json", "mozak.md"].map(name => readFileSync(join(root, name)));
 
 test("B01/B06: v3 init and old-format refusal never rewrite old bytes", () => {
   const w = world();
   assert.equal(readScope(w.entry).state.format, "mozak.scope/v3");
-  assert.match(readFileSync(join(w.root, "MOZAK.md"), "utf8"), /format: 3/);
-  const raw = JSON.parse(readFileSync(join(w.root, "MOZAK.json"), "utf8")); raw.format = "mozak.scope/v2";
-  writeFileSync(join(w.root, "MOZAK.json"), JSON.stringify(raw));
+  assert.match(readFileSync(join(w.root, "mozak.md"), "utf8"), /format: 3/);
+  const raw = JSON.parse(readFileSync(join(w.root, "mozak.json"), "utf8")); raw.format = "mozak.scope/v2";
+  writeFileSync(join(w.root, "mozak.json"), JSON.stringify(raw));
   const before = bytes(w.root);
   const read = executeOperation(w.inv, "context", { scope: "scope" });
   assert.equal(read.exitCode, 2); assert.equal(read.data.status, "unsupported-format");
