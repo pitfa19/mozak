@@ -30,3 +30,5 @@ export * from "./crossplan.ts";
 export * from "./settings.ts";
 export * from "./lock-recover.ts";
 export * from "./prune.ts";
+export * from "./history.ts";
+export * from "./local-sync.ts";

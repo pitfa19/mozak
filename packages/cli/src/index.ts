@@ -37,7 +37,7 @@ const ROUTES: Record<string, Route> = {
   recover: { operation: "recover", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
   "review show": { operation: "review", flags: ["config", "scope", "plan", "purpose", "outcome", "json"], requires: ["config", "plan"], requestFile: false },
   scopes: { operation: "scopes", flags: ["config", "json"], requires: ["config"], requestFile: false },
-  sync: { operation: "sync", flags: ["config", "scope", "json"], requires: ["config"], requestFile: false },
+  sync: { operation: "sync", flags: ["config", "scope", "local", "json"], requires: ["config"], requestFile: false },
   pull: { operation: "pull", flags: ["config", "scope", "into", "json"], requires: ["config", "scope"], requestFile: false },
   check: { operation: "check", flags: ["config", "scope", "history", "json"], requires: ["config"], requestFile: false },
   operation: { operation: "operation", flags: ["config", "scope", "id", "json"], requires: ["config", "scope", "id"], requestFile: false },
@@ -59,7 +59,7 @@ const ROUTES: Record<string, Route> = {
 };
 
 const ROUTE_NAMES = Object.keys(ROUTES);
-const BOOLEAN_FLAGS = new Set(["json", "include-rejected", "all", "write", "brief", "rejected"]);
+const BOOLEAN_FLAGS = new Set(["json", "include-rejected", "all", "write", "brief", "rejected", "local"]);
 
 class UsageError extends Error {}
 
@@ -74,7 +74,8 @@ function usage(): string {
     "  mozak ready (--scope ID | --all) [--json]           (open plans whose needs are met, by deadline; blocked and superseded apart)",
     "  mozak annotate --scope ID --request FILE            (owner; refs and deadlines in mozak.annotations.json)",
     "  mozak scopes [--json]                                (read-only index of every scope: id, folder, title, plan counts)",
-    "  mozak sync [--scope ID] [--json]                     (force-refresh remote scopes; reads refresh them after 10 minutes)",
+    "  mozak sync [--scope ID | --local] [--json]           (force-refresh remote scopes; reads refresh them after 10 minutes)",
+    "                                                       (a local --scope or --local: fetch, then fast-forward the vault repo under the scope locks)",
     "  mozak pull --scope ID [--into PATH]                  (owner; clone the code; vault-plans scopes keep plans in the vault)",
     "  mozak review show [--scope ID] --plan ID [--purpose P] [--outcome ID] [--json]",
     "  mozak check [--scope ID] [--history N] [--json]       (--history: hand edits in the last N commits of mozak.json)",
@@ -299,11 +300,13 @@ function renderScopesHuman(data: { coverage?: { selected: number; ok: number; fa
   return `${lines.join("\n")}\n`;
 }
 
-function renderSyncHuman(data: { remote?: RemoteInfoRow[]; issues?: { code: string; message: string }[] }): string {
+interface LocalSyncInfoRow { repo: string | null; scopes: string[]; status: string; from?: string; to?: string; error?: string }
+function renderSyncHuman(data: { remote?: RemoteInfoRow[]; local?: LocalSyncInfoRow[]; issues?: { code: string; message: string }[] }): string {
   const rows = data.remote ?? [];
-  if (rows.length === 0) return "no remote scopes in the inventory\n";
+  const local = (data.local ?? []).map((r) => `local ${r.repo ?? r.scopes.join(", ")}: ${r.status}${r.from && r.to && r.from !== r.to ? ` ${r.from.slice(0, 8)}..${r.to.slice(0, 8)}` : ""}${r.error ? ` (${r.error})` : ""}`);
+  if (rows.length === 0 && local.length === 0) return "no remote scopes in the inventory\n";
   const warn = (data.issues ?? []).filter((i) => i.code === "cache-not-ignored").map((i) => `warning: ${i.message}`);
-  return `${[...remoteLines(rows), ...warn].join("\n")}\n`;
+  return `${[...remoteLines(rows), ...local, ...warn].join("\n")}\n`;
 }
 
 function printEnvelope(output: OperationOutput, json: boolean, routeName: string): void {
@@ -434,7 +437,7 @@ function run(argv: string[]): number {
     }
     args = values.all ? { all: true } : { scope: values.scope };
   } else if (route.operation === "sync") {
-    args = values.scope !== undefined ? { scope: values.scope } : {};
+    args = { ...(values.scope !== undefined ? { scope: values.scope } : {}), ...(values.local ? { local: true } : {}) };
   } else if (route.operation === "render" || route.operation === "rename-files") {
     if ((values.scope === undefined) === (values.all === undefined)) {
       process.stderr.write(`${route.operation} needs exactly one of --scope or --all\n${usage()}\n`);

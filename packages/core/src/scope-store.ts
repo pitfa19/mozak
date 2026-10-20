@@ -240,6 +240,27 @@ interface Transaction {
   committed: boolean; projectionUpdated: boolean; state?: ScopeState; result?: Receipt["result"];
   temporary: string[]; operationId?: string; requestId?: string;
 }
+/**
+ * Take the write locks of several scope roots in path order, run `work`, then release in reverse order. Every
+ * multi-scope locker uses the same order and single writers hold one lock, so lockers cannot deadlock.
+ * A busy lock releases the ones already held and throws `busy`. Roots that do not exist are skipped.
+ */
+export function withScopeLocks<T>(roots: string[], work: () => T, options: StoreOptions = {}): T {
+  const sorted = [...new Set(roots)].filter((root) => pathExists(root)).sort();
+  const held: (() => void)[] = [];
+  let result: T | undefined;
+  let failure: unknown;
+  try {
+    for (const root of sorted) { assertScopeFiles(root); held.push(acquire(root, options)); }
+    options.onPhase?.("all-locked");
+    result = work();
+  } catch (e) { failure = e; }
+  let releaseError: unknown;
+  for (const release of held.reverse()) { try { release(); } catch (e) { releaseError ??= e; } }
+  if (releaseError) throw new DomainError("recovery-required", `${releaseError instanceof Error ? releaseError.message : String(releaseError)}; original failure: ${failure instanceof Error ? failure.message : "none"}`, 4);
+  if (failure) throw failure;
+  return result as T;
+}
 function outcome(entry: ScopeEntry, tx: Transaction, status: string, issues: ScopeIssue[] = []): OperationResult {
   let read: ScopeRead | null = null;
   try { read = readScope(entry); } catch { /* committed state is still reported even when readback fails */ }

@@ -35,6 +35,7 @@ import { annotationsMode, loadSettings } from "./settings.ts";
 import type { ScopeState } from "./understanding.ts";
 import { inspectLock, recoverLock } from "./lock-recover.ts";
 import { handEditHistory, MAX_HISTORY } from "./history.ts";
+import { LOCAL_SYNC_OK, localEntries, syncLocal, type LocalSyncRow } from "./local-sync.ts";
 
 /**
  * The scopes index's update notice: reads the cache only, and starts a background refresh when it is old.
@@ -927,7 +928,12 @@ function touchedRemotes(inv: ScopeInventory, operation: string, args: unknown): 
 function remoteOp(inv: ScopeInventory, operation: string, a: Record<string, unknown>): OperationOutput {
   const base = { committed: false, operation, snapshot: null, projectionStatus: null, projectionUpdated: false } as const;
   if (operation === "sync") {
-    const o = closed(a, "sync arguments", [], ["scope"]);
+    const o = closed(a, "sync arguments", [], ["scope", "local"]);
+    const local = strictBoolean(o.local, "local");
+    if (local && o.scope !== undefined) throw invalid("sync takes scope or local, not both");
+    // A local scope (no remote) syncs the git repo that holds it. --local syncs every local repo as well as remotes.
+    const named = o.scope === undefined ? undefined : inv.scopes.find((s) => s.id === nonEmpty(o.scope, "scope"));
+    if (named && !named.remote) return localSyncOutput(inv, [named], base);
     const targets = o.scope === undefined ? remoteEntries(inv) : [resolveRemoteTarget(inv, nonEmpty(o.scope, "scope"))];
     const remote = targets.map((e) => syncRemote(e, { force: true }));
     const stale = remote.filter((r) => r.stale).length;
@@ -936,9 +942,11 @@ function remoteOp(inv: ScopeInventory, operation: string, a: Record<string, unkn
     // Uses the 24-hour cached answer: the plugin syncs every minute and the unauthenticated API allows 60 calls an hour.
     // Every remote scope gets an answer for the sidebar label; only repo-mode scopes publish plans, so only they warn.
     const exposed = targets.filter((e) => scopeVisibility(e) === "public" && e.remote?.plansMode === "repo").map((e) => ({ code: "public-repo-plans", message: publicRepoPlansMessage(e), scope: e.id }));
+    const localRows = local ? syncLocal(localEntries(inv.scopes), inv.scopes) : [];
+    const localBad = localRows.filter((r) => !LOCAL_SYNC_OK.has(r.status));
     return {
-      exitCode: stale > 0 ? 6 : 0,
-      data: { status: stale > 0 ? "partial" : "ok", ...base, issues: [...remote.filter((r) => r.stale).map((r) => ({ code: "remote-stale", message: `${r.scope}: ${r.error ?? "stale"}`, scope: r.scope })), ...warnings, ...exposed], remote },
+      exitCode: stale > 0 || localBad.length > 0 ? 6 : 0,
+      data: { status: stale > 0 || localBad.length > 0 ? "partial" : "ok", ...base, issues: [...remote.filter((r) => r.stale).map((r) => ({ code: "remote-stale", message: `${r.scope}: ${r.error ?? "stale"}`, scope: r.scope })), ...warnings, ...exposed, ...localIssues(localRows)], remote, ...(local ? { local: localRows } : {}) },
     };
   }
   const o = closed(a, "pull arguments", ["scope"], ["into"]);
@@ -949,6 +957,19 @@ function remoteOp(inv: ScopeInventory, operation: string, a: Record<string, unkn
   }
   const pulled = pullRemote(entry, o.into === undefined ? undefined : nonEmpty(o.into, "into"));
   return { exitCode: 0, data: { status: "ok", ...base, issues: [], pull: pulled } };
+}
+
+function localIssues(rows: LocalSyncRow[]): { code: string; message: string; scope?: string }[] {
+  return rows.filter((r) => !LOCAL_SYNC_OK.has(r.status)).map((r) => ({ code: `local-sync-${r.status}`, message: `${r.repo ?? r.scopes.join(", ")}: ${r.error ?? r.status}`, scope: r.scopes[0] }));
+}
+
+/** `sync --scope LOCAL`: fast-forward the git repo that holds a local scope, under the locks of every scope in it. */
+function localSyncOutput(inv: ScopeInventory, targets: ScopeEntry[], base: Record<string, unknown>): OperationOutput {
+  const rows = syncLocal(targets, inv.scopes);
+  const bad = rows.filter((r) => !LOCAL_SYNC_OK.has(r.status));
+  const only = rows.length === 1 ? rows[0]! : null;
+  const exitCode = bad.length === 0 ? 0 : only?.status === "not-fast-forward" ? 3 : only?.status === "busy" ? 4 : only?.status === "not-in-git" || only?.status === "no-upstream" || only?.status === "detached" ? 2 : 6;
+  return { exitCode, data: { status: bad.length === 0 ? "ok" : only ? `local-sync-${only.status}` : "partial", ...base, issues: localIssues(rows), remote: [], local: rows } };
 }
 
 function resolveRemoteTarget(inv: ScopeInventory, id: string): ScopeEntry {

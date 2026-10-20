@@ -47,3 +47,16 @@ test("CLI: plan prune --rejected removes listed rejected plans and requires --re
   assert.deepEqual(JSON.parse(out.out).result, { action: "prune-rejected", ids: ["gone"] });
   assert.deepEqual(readScope(w.entries.alpha).state.plans.map((p) => p.id), ["keep"]);
 });
+
+test("CLI: check --history validates N; sync of a local scope outside git explains itself", () => {
+  const w = world();
+  assert.equal(cli(["check", "--config", w.config, "--scope", "alpha", "--history", "abc"]).code, 2);
+  const ok = cli(["check", "--config", w.config, "--scope", "alpha", "--history", "5"]);
+  assert.equal(ok.code, 0, ok.out + ok.err);
+  assert.equal(JSON.parse(ok.out).history.available, false);
+  const sync = cli(["sync", "--config", w.config, "--scope", "alpha"]);
+  assert.equal(sync.code, 2);
+  assert.match(sync.out, /local .*not-in-git/);
+  const json = cli(["sync", "--config", w.config, "--local", "--json"]);
+  assert.equal(JSON.parse(json.out).local[0].status, "not-in-git");
+});
