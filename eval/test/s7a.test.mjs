@@ -54,7 +54,7 @@ test('a run that never touches gold is censored at its last turn', () => {
 
 test('a mozak write counts as useful', () => {
   const t = asst('x', [{ type: 'tool_use', id: 'z', name: 'mcp__mozak__mozak_observe', input: {} }], u(1, 100, 0, 5));
-  const m = coldStart(parseStreamJson(t), [], ROOT);
+  const m = coldStart(parseStreamJson(`${t}\n${res('z', 'committed: true')}`), [], ROOT);
   assert.equal(m.reached, true);
   assert.equal(m.totalTokens, 106);
 });
@@ -77,6 +77,7 @@ test('final streaming usage replaces provisional output without duplicate accoun
     { type: 'stream_event', event: { type: 'message_delta', usage: { output_tokens: 20 } } },
     { type: 'stream_event', event: { type: 'message_delta', usage: { output_tokens: 80 } } },
     { type: 'stream_event', event: { type: 'message_stop' } },
+    JSON.parse(res('r', 'gold body')),
   ];
   assert.equal(assistantTurns(events).length, 1);
   assert.equal(assistantTurns(events)[0].usage.output_tokens, 80);
@@ -99,6 +100,15 @@ test('failed gold reads do not count as useful actions', () => {
   const events = [JSON.parse(asst('a', [{ type: 'tool_use', id: 'r', name: 'Read', input: { file_path: 'notes/gold.md' } }], u(2, 100, 200, 80))),
     { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 'r', is_error: true, content: 'permission denied' }] } }];
   assert.equal(coldStart(events, ['notes/gold.md'], ROOT).reached, false);
+});
+
+test('a gold read without a matching successful result stays censored', () => {
+  const events = [JSON.parse(asst('a', [{ type: 'tool_use', id: 'r', name: 'Read', input: { file_path: 'notes/gold.md' } }], u(2, 100, 200, 80)))];
+  assert.equal(coldStart(events, ['notes/gold.md'], ROOT).reached, false);
+  events.push(JSON.parse(res('unrelated', 'another file')));
+  assert.equal(coldStart(events, ['notes/gold.md'], ROOT).reached, false);
+  events.push(JSON.parse(res('r', 'gold body')));
+  assert.equal(coldStart(events, ['notes/gold.md'], ROOT).reached, true);
 });
 
 test('runner passes read-only tools to the CLI', () => {

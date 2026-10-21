@@ -90,10 +90,12 @@ Measured on synthetic plans (details in [the verification status](docs/installat
 ## See it run
 
 <div align="center">
-<a href="https://github.com/pitfa19/mozak/releases/download/readme-assets/mozak-demo.mp4"><img src="https://github.com/pitfa19/mozak/releases/download/readme-assets/mozak-demo-preview-v2.webp" width="900" alt="76 second demo: you ask your agent in plain words, it drafts a plan and waits for your yes, runs the test, and Obsidian shows the roadmap move forward. Click for the full video with sound."></a>
+<a href="https://github.com/pitfa19/mozak/releases/download/readme-assets/mozak-demo.mp4"><img src="docs/assets/mozak-demo-still-v3.png" width="900" alt="A real mozak roadmap in Obsidian: Bell sound is done and Mute button is next. Click to watch the 76 second demo with sound."></a>
 </div>
 
-In 76 seconds: you ask your agent in plain words, it reads the project and asks one question, drafts a plan and waits for your yes in Obsidian, runs the test, and the roadmap moves forward. Click it for the [full video with sound](https://github.com/pitfa19/mozak/releases/download/readme-assets/mozak-demo.mp4).
+The still loads without a large animation. Click it for the [76 second demo with sound](https://github.com/pitfa19/mozak/releases/download/readme-assets/mozak-demo.mp4): you ask your agent in plain words, it reads the project and asks one question, drafts a plan and waits for your yes in Obsidian, runs the test, and the roadmap moves forward.
+
+<!-- Rebuild the still from the existing full demo: node scripts/build-demo-preview.mjs SOURCE.mp4 docs/assets/mozak-demo-still-v3.png (choose a new output name if it already exists). -->
 
 ## How it works
 

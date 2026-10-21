@@ -86,15 +86,17 @@ export function coldStart(events, gold, root) {
   const result = events.find((e) => e.type === 'result') ?? null;
   if (turns.length === 0) return { turns: 0, reached: false, error: result?.result ?? 'no assistant turns' };
   const injected = ctxOf(turns[0].usage);
-  const failedToolIds = new Set(events.flatMap((e) => e.type === 'user' && Array.isArray(e.message?.content) ? e.message.content
-    .filter((c) => c.type === 'tool_result' && c.is_error).map((c) => c.tool_use_id) : []));
+  const toolResults = events.flatMap((e) => e.type === 'user' && Array.isArray(e.message?.content) ? e.message.content
+    .filter((c) => c.type === 'tool_result') : []);
+  const failedToolIds = new Set(toolResults.filter((c) => c.is_error).map((c) => c.tool_use_id));
+  const successfulToolIds = new Set(toolResults.filter((c) => !c.is_error).map((c) => c.tool_use_id));
   let outBefore = 0;
   const priorToolIds = new Set();
   let toolCallsBefore = 0;
   for (let k = 0; k < turns.length; k++) {
     const t = turns[k];
     const uses = t.content.filter((c) => c.type === 'tool_use');
-    const useful = uses.find((u) => !failedToolIds.has(u.id) && isUseful(u, goldAbs, root));
+    const useful = uses.find((u) => successfulToolIds.has(u.id) && !failedToolIds.has(u.id) && isUseful(u, goldAbs, root));
     if (useful) {
       const ctx = ctxOf(t.usage);
       return {
