@@ -73,7 +73,7 @@ committed: true
 $ mozak plan propose --scope my-app --request b.json   # agent B proposes from the same, now old, snapshot
 status: stale-input
 committed: false
-stale-input: snapshot changed; reread before submitting a new operation
+stale-input: snapshot changed; reread before submitting a new operation: take the new snapshot from context as expected and use a new operationId
 (exit 3)
 
 $ mozak plans --scope my-app   # what is in the plan now

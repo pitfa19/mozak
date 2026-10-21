@@ -647,10 +647,10 @@ function plansOp(inv: ScopeInventory, a: Record<string, unknown>): OperationOutp
   const bindingDigest = sidecars ? digest({ binding, sidecars }) : digest(binding);
   if (continuation) {
     if (continuation.inventory !== inv.digest) {
-      throw new DomainError("continuation-stale", "inventory changed since this continuation was issued", 3);
+      throw new DomainError("continuation-stale", "inventory changed since this continuation was issued; request the first page again without a continuation", 3);
     }
     if (continuation.binding !== bindingDigest) {
-      throw new DomainError("continuation-stale", "scope snapshots changed since this continuation was issued", 3);
+      throw new DomainError("continuation-stale", "scope snapshots changed since this continuation was issued; request the first page again without a continuation", 3);
     }
   }
 
@@ -994,7 +994,7 @@ function localSyncOutput(inv: ScopeInventory, targets: ScopeEntry[], base: Recor
 
 function resolveRemoteTarget(inv: ScopeInventory, id: string): ScopeEntry {
   const entry = inv.scopes.find((s) => s.id === id);
-  if (!entry) throw new DomainError("scope-not-found", `no scope "${id}" in the inventory`);
+  if (!entry) throw new DomainError("scope-not-found", `no scope "${id}" in the inventory; run mozak scopes (MCP mozak_scopes) to list the scope ids`);
   if (!entry.remote) throw new DomainError("scope-not-remote", `scope "${id}" is a local scope, there is nothing to sync`);
   return entry;
 }
@@ -1142,7 +1142,7 @@ function locatorsOp(inv: ScopeInventory, a: Record<string, unknown>): OperationO
       }
     }
   }
-  if (plan !== undefined && !r.read.some(({ state }) => state.plans.some((p) => p.id === plan))) throw new DomainError("plan-not-found", `no plan "${plan}" in the selected scopes`, 2);
+  if (plan !== undefined && !r.read.some(({ state }) => state.plans.some((p) => p.id === plan))) throw new DomainError("plan-not-found", `no plan "${plan}" in the selected scopes; run mozak plans (MCP mozak_plans) to list the plan ids`, 2);
   return {
     exitCode: r.complete ? 0 : 6,
     data: {

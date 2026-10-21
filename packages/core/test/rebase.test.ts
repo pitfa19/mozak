@@ -79,7 +79,7 @@ test("flag off: a stale observe is refused exactly as before and nothing is writ
     const stale = readScope(entry).snapshot;
     write(entry, "observe", observe(entry, "a", "o1"));
     const before = files(entry);
-    assert.throws(() => write(entry, "observe", observe(entry, "b", "o2"), stale), { code: "stale-input", message: "snapshot changed; reread before submitting a new operation" });
+    assert.throws(() => write(entry, "observe", observe(entry, "b", "o2"), stale), { code: "stale-input", message: "snapshot changed; reread before submitting a new operation: take the new snapshot from context as expected and use a new operationId" });
     assert.deepEqual(files(entry), before);
   }
 });
