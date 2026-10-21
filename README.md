@@ -4,59 +4,50 @@
 
 **Use Obsidian as your IDE.**
 
-You work in ideas and plans, not code. Agents build in parallel, and you orchestrate them from your notes.
+One plan file per project that your coding agents read and propose to. Nothing becomes the plan until you approve it.
 
 [![CI](https://github.com/pitfa19/mozak/actions/workflows/ci.yml/badge.svg)](https://github.com/pitfa19/mozak/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 [![Node 24.11+](https://img.shields.io/badge/node-24.11%2B-339933?style=flat-square)](docs/installation.md)
 [![Platforms](https://img.shields.io/badge/platforms-Linux%20%7C%20macOS-blue?style=flat-square)](docs/installation.md)
 
-[What it is](#what-it-is) · [See it run](#see-it-run) · [Install](#install) · [How it works](#how-it-works) · [Obsidian](#see-everything-in-obsidian) · [Safety](#safety) · [Docs](docs/installation.md)
+[Install](#install) · [Example](#a-short-example) · [See it run](#see-it-run) · [How it works](#how-it-works) · [Why not X](#why-not-x) · [When not to use it](#when-not-to-use-mozak) · [Obsidian](#see-everything-in-obsidian) · [Docs](docs/README.md)
 
 </div>
 
 ---
 
-## See it run
+## The problem
 
-<div align="center">
-<a href="https://github.com/pitfa19/mozak/releases/download/readme-assets/mozak-demo.mp4"><img src="https://github.com/pitfa19/mozak/releases/download/readme-assets/mozak-demo-preview-v2.webp" width="900" alt="76 second demo: you ask your agent in plain words, it drafts a plan and waits for your yes, runs the test, and Obsidian shows the roadmap move forward. Click for the full video with sound."></a>
-</div>
+Coding agents forget the plan between sessions, so you explain the project again. When several agents work at once, one can overwrite what another just wrote. And an agent can start building before you agreed on what to build.
 
-In 76 seconds: you ask your agent in plain words, it reads the project and asks one question, drafts a plan and waits for your yes in Obsidian, runs the test, and the roadmap moves forward on its own. Click it for the [full video with sound](https://github.com/pitfa19/mozak/releases/download/readme-assets/mozak-demo.mp4).
+mozak fixes this with plain files:
 
-## What it is
+- **Every agent reads the same plan.** `mozak.json` holds it and `mozak.md` is a readable copy. You never explain the project twice.
+- **Agents propose, you decide.** Agreeing on *what* to do and agreeing to *start building* are two separate yeses.
+- **Stale writes are refused.** An agent that writes from an old copy gets `stale-input` and must reread. Nothing is overwritten.
+- **Works without committing plan files.** For a public repo, plans stay in a folder in your notes and are never pushed.
+- **One view across all your repos.** The Obsidian plugin shows every project's plans and progress in one sidebar.
 
-**mozak gives every project one shared plan, stored as plain files inside the project.** It does two jobs:
-
-- **Agents understand your work.** Every agent reads the same plan at the start of a session, so you never explain the project twice. Agents propose changes, but nothing becomes the plan until you say yes.
-- **You orchestrate from Obsidian.** Every project's plan shows up in your vault with a live roadmap and progress, so all the parallel work is visible in one place. You approve the next step, and outcomes turn green as agents prove them with tests.
-
-Why you can trust it:
-
-- **It is just files.** `mozak.json` holds the plan, `mozak.md` is a readable copy. They sit next to your `README.md`, and git keeps the history. No cloud, no account, no background service.
-- **You stay in charge.** Agreeing on *what* to do and agreeing to *start building* are two separate yeses.
-- **Many agents, no mess.** An agent that writes from an out-of-date copy is refused instead of overwriting someone else's work.
-- **Repos and notes together.** A project can be a local folder, an Obsidian vault folder, or a GitHub repo you have not even cloned.
-
-It is for developers and researchers who already use agents such as Claude Code, Codex or jcode and want them to remember the plan.
+No cloud, no account, no background service. It is for developers and researchers who already use agents such as Claude Code, Codex or jcode, through the CLI or the MCP server.
 
 ## Install
 
-You need Git, npm and Node 24.11 or newer (Node 26 works).
+mozak is not on npm yet. Install it from source. You need Git, npm and Node 24.11 or newer (Node 26 works).
+
+<!-- TODO(owner): once @mozak/cli is published to npm, add the one-line install here, for example
+     `npm install -g @mozak/cli`, and move the source install below it under "From source".
+     It does not work today: the package does not exist on npm. -->
 
 ```bash
 git clone https://github.com/pitfa19/mozak.git && cd mozak
 npm ci --ignore-scripts && npm run build
 mkdir -p "$HOME/.local/share"
 node scripts/install.mjs --prefix "$(cd "$HOME/.local/share" && pwd -P)/mozak" --json
+"$HOME/.local/share/mozak/bin/mozak" --help
 ```
 
 The installer copies a self-contained build into that folder. It uses no `sudo`, makes no network calls and does not touch your shell profile. Add `--check` to preview first.
-
-```bash
-"$HOME/.local/share/mozak/bin/mozak" --help
-```
 
 To let your agent use mozak, link the installed skill into its skills folder, for example `ln -s "$HOME/.local/share/mozak/skills/mozak" ~/.claude/skills/mozak`, and add `mozak-mcp --config /path/to/mozak-inventory.json` as an MCP server.
 
@@ -67,9 +58,42 @@ mozak upgrade --vault ~/Documents/notes   # newest tagged release; the old insta
 mozak doctor --fix                        # checks the whole setup; fixes links, wrappers and plugin copies, prints the rest
 ```
 
-`mozak scopes` and the Obsidian sidebar tell you when a new release is out (`MOZAK_NO_UPDATE_CHECK=1` turns that off). Changes are listed in [CHANGELOG.md](CHANGELOG.md).
+Details, exit codes, recovery and known limits: [docs/installation.md](docs/installation.md). Changes are listed in [CHANGELOG.md](CHANGELOG.md).
 
-Details, exit codes, recovery and known limits: [docs/installation.md](docs/installation.md).
+## A short example
+
+Two agents read the same plan, then both propose at once. The first write lands. The second is refused because its copy is now old, so it cannot overwrite the first.
+
+```text
+$ mozak plan propose --scope my-app --request a.json   # agent A proposes
+status: ok
+committed: true
+(exit 0)
+
+$ mozak plan propose --scope my-app --request b.json   # agent B proposes from the same, now old, snapshot
+status: stale-input
+committed: false
+stale-input: snapshot changed; reread before submitting a new operation
+(exit 3)
+
+$ mozak plans --scope my-app   # what is in the plan now
+awaiting (1)
+  - Add dark mode  [dark-mode]
+      review: direction approval
+      outcome: The app has a dark theme
+```
+
+This is real output, shortened. Run `node scripts/readme-example.mjs` after the build to get it yourself, on a throwaway project in a temp folder. Agent B now rereads and proposes again. The plan still waits for your direction approval.
+
+Measured on synthetic plans (details in [the verification status](docs/installation.md#8-verification-status)): 3 agents wrote 10 observations each to one plan at the same time. 0 writes were lost. With the default check, 35 of 65 attempts were refused as stale and had to retry. With the experimental `concurrency.rebase` setting, 0 of 30 were.
+
+## See it run
+
+<div align="center">
+<a href="https://github.com/pitfa19/mozak/releases/download/readme-assets/mozak-demo.mp4"><img src="https://github.com/pitfa19/mozak/releases/download/readme-assets/mozak-demo-preview-v2.webp" width="900" alt="76 second demo: you ask your agent in plain words, it drafts a plan and waits for your yes, runs the test, and Obsidian shows the roadmap move forward. Click for the full video with sound."></a>
+</div>
+
+In 76 seconds: you ask your agent in plain words, it reads the project and asks one question, drafts a plan and waits for your yes in Obsidian, runs the test, and the roadmap moves forward. Click it for the [full video with sound](https://github.com/pitfa19/mozak/releases/download/readme-assets/mozak-demo.mp4).
 
 ## How it works
 
@@ -98,16 +122,40 @@ A project with `root` is a local folder. A project with `remote` is a GitHub rep
 
 **3. Agree on a plan.**
 
-1. **Propose.** An agent drafts a plan. It waits as *awaiting approval*.
+1. **Propose.** An agent drafts a plan with outcomes. It waits as *awaiting approval*.
 2. **Approve the direction.** You say yes to *what*. This starts planning, not coding.
 3. **Approve the build.** A spec is attached and you approve implementation separately.
-4. **Remember.** Decisions and evidence are saved into the project's files, so the next session starts where the last one stopped.
+4. **Prove it.** Agents record evidence against each outcome, such as a test run. An objective outcome turns green on recorded evidence. An outcome that needs your acceptance turns green only when you accept it.
+5. **Remember.** Decisions and evidence are saved in the project's files, so the next session starts where the last one stopped.
 
-**4. Let agents find their way.** `mozak scopes` lists every project with its plan counts. Agents get the same list from the MCP server, so they can navigate all your work without being told where anything is.
+**4. Let agents find their way.** `mozak scopes` lists every project with its plan counts. `mozak context --brief` gives an agent a short summary of every plan, and `--plan ID` the full state of one. Agents get the same reads from the MCP server.
+
+**5. Link plans (optional, owner only).** `mozak annotate` records that one plan needs, informs or supersedes another, and plan deadlines. `mozak graph` shows the links, `mozak ready` lists open plans whose needs are met, and `mozak plans --sort deadline` sorts by deadline. See [docs/annotations.md](docs/annotations.md).
+
+## Why not X?
+
+mozak is small and narrow. These tools are good, and often the better fit.
+
+| You might use | Pick it when | Pick mozak when |
+| --- | --- | --- |
+| `AGENTS.md` or `CLAUDE.md` alone | Standing instructions are enough and one agent works at a time. | You also want a plan with outcomes, owner approvals, evidence per outcome and refused stale writes. mozak reads `AGENTS.md` too. |
+| GitHub Issues or another tracker | A team needs assignees, notifications and discussion threads. | You want the plan in plain files that agents read offline, and nothing starts until you approve it. |
+| Backlog.md or Beads | You want a task board or issue graph for agents inside a git repo. | You want plans for public repos kept out of the repo, and one view across many repos and notes folders. |
+| spec-kit or OpenSpec | You want a spec-driven workflow with templates for writing specs. | You want two separate approvals (what, then build) and outcomes that turn green only on recorded evidence. mozak has no spec templates. |
+
+## When not to use mozak
+
+- **One-off edits.** A ten-line fix does not need a plan and two approvals. Just ask your agent.
+- **Windows or mobile.** mozak runs on Linux and macOS. The Obsidian plugin is desktop only.
+- **You need real authentication of approvals.** Approval follows a trusted-host convention. An agent host that lies can forge one.
+- **Plans on a network drive or a sync tool** that several machines write at once. Locks and crash safety assume a local disk.
+- **You want a one-line install today.** It needs Node 24.11+ and a build from source.
 
 ## See everything in Obsidian
 
 The Obsidian plugin in [`packages/obsidian`](packages/obsidian) shows every project from your inventory in the sidebar, notes and GitHub repos alike. Filter by **All**, **Open** or **Done**. Open plans show a small progress strip, one segment per outcome. Click a plan to open its section in the scope's `mozak.md`, which reads like a note: purpose, a roadmap of the outcomes with the current stop, a status table and the full plan text. The plugin never writes canonical state (`mozak.json`) and never changes a plan. It may regenerate a stale `mozak.md`, the same as `mozak render`.
+
+The plugin is not in the Obsidian community directory yet. Until it is, install it from your checkout:
 
 ```bash
 node scripts/install-obsidian-plugin.mjs /path/to/your/vault --build
@@ -115,7 +163,7 @@ node scripts/install-obsidian-plugin.mjs /path/to/your/vault --build
 
 Then turn on **mozak** under Settings, Community plugins. The plugin finds `mozak-inventory.json` by searching upward from the vault folder, or you can set its path in the plugin settings. Each GitHub project shows a globe or lock badge for a public or private repo.
 
-**Plugin disclosures (desktop-only, `isDesktopOnly: true`):** When your `mozak-inventory.json` lists scopes outside the current vault, the plugin reads their `mozak.json`, `mozak.md`, `README.md` and `AGENTS.md` files from those configured paths and watches them when **Auto-refresh** is enabled. It never scans folders not listed in your inventory and never modifies `mozak.json` (it may regenerate a stale `mozak.md` projection when there are no unmerged hand edits). For remote GitHub scopes (`"remote": "github:owner/repo"` without vault-hosted `"plans"`), clicking **Sync remote scopes** or enabling **Repo sync interval (seconds)** runs your local `git` (`git fetch` / `git pull --ff-only`) using your existing git login; set the sync interval to `0` to turn background git fetches off. See [`packages/obsidian/README.md`](packages/obsidian/README.md#disclosures-obsidian-community-plugin-policy) for the full disclosure list.
+**Plugin disclosures (desktop-only, `isDesktopOnly: true`):** When your `mozak-inventory.json` lists scopes outside the current vault, the plugin reads their `mozak.json`, `mozak.md`, `mozak.annotations.json`, `README.md` and `AGENTS.md` files from those configured paths and watches them when **Auto-refresh** is on. It never scans folders not listed in your inventory and never modifies `mozak.json` (it may regenerate a stale `mozak.md` projection when there are no unmerged hand edits). For remote GitHub scopes (`"remote": "github:owner/repo"` without vault-hosted `"plans"`), clicking **Sync remote scopes**, or the background sync every 60 seconds by default, runs your local `git` (`git fetch` / `git pull --ff-only`) with your existing git login. Set **Repo sync interval (seconds)** to `0` to turn background git fetches off. The sync also asks the public GitHub API, without a login and at most once a day per repo, whether each remote repo is public. The update notice only reads a cache file the CLI writes. The plugin never installs or updates itself, and has no telemetry. See [`packages/obsidian/README.md`](packages/obsidian/README.md#disclosures-obsidian-community-plugin-policy) for the full disclosure list.
 
 ## Under the hood
 
@@ -130,7 +178,9 @@ The agent writes plain `mozak.json` and `mozak.md` files in your project folder.
 | You want | Use |
 | --- | --- |
 | See every project and where it lives | `mozak scopes`, or the `mozak_scopes` MCP tool |
-| Read one project's plan | `mozak context`, `mozak plans`, `mozak check` |
+| A short summary of every plan, or the full state of one | `mozak context --brief`, `mozak context --plan ID` |
+| Read one project's plans and health | `mozak plans`, `mozak check` |
+| Plans whose needs are met, and the links between plans | `mozak ready`, `mozak graph` |
 | Refresh GitHub projects now | `mozak sync` |
 | Pull a notes repo under the plan locks, fast-forward only | `mozak sync --local` |
 | Clear a write lock left by another machine or a dead process (owner) | `mozak recover` |
@@ -138,6 +188,7 @@ The agent writes plain `mozak.json` and `mozak.md` files in your project folder.
 | Find hand edits of `mozak.json` in git history | `mozak check --history N` |
 | Let any MCP agent read and propose | `mozak-mcp --config mozak-inventory.json` |
 | Run the guided planning conversation | the installed skill at `PREFIX/skills/mozak/SKILL.md` |
+| Link plans or set deadlines (owner) | `mozak annotate` |
 | Rename a project (owner) | `mozak scope retitle` |
 | Move pre-0.4 `MOZAK.json` / `MOZAK.md` to lowercase (owner) | `mozak rename-files --all` |
 
@@ -161,16 +212,17 @@ Every command also appends one line to `.mozak-cache/usage/` next to the invento
 
 ## Platforms
 
-Linux and macOS, Node 24.11 or newer. CI runs Ubuntu and macOS on Node 24 and 26 on every push.
+Linux and macOS, Node 24.11 or newer. CI runs Ubuntu and macOS on Node 24 and 26.
 
 ## Contributing
 
 ```bash
 npm ci --ignore-scripts && npm run build
 npm test && npm run test:install
+node scripts/check-links.mjs
 ```
 
-Run the tests before opening a pull request. The full format and remote-scope details are in [docs/installation.md](docs/installation.md) and [SPEC.md](SPEC.md).
+Run the tests before opening a pull request. `npm test` includes the link check. All docs are listed in [docs/README.md](docs/README.md). The full format and remote-scope details are in [docs/installation.md](docs/installation.md).
 
 ## License
 
