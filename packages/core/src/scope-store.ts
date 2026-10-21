@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { accessSync, constants, lstatSync, mkdirSync, readFileSync, readdirSync, renameSync, rmdirSync, unlinkSync, writeFileSync } from "node:fs";
+import { accessSync, constants, lstatSync, mkdirSync, readFileSync, readdirSync, renameSync, rmdirSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { DomainError } from "./errors.ts";
 import { canonical, digest, hashBytes, validateScope, SCOPE_FORMAT, MAX_REQUEST_BYTES, MAX_SCOPE_BYTES, type FileToken, type ScopeState, type Receipt, type Specification } from "./understanding.ts";

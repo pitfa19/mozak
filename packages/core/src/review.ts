@@ -177,12 +177,6 @@ function requireClosed(value: unknown, path: string, required: string[], optiona
   return value;
 }
 
-function assertFinite(value: unknown, path: string): void {
-  if (typeof value === "number" && !Number.isFinite(value)) throw invalid(`${path} must be a finite number`);
-  if (Array.isArray(value)) value.forEach((item, i) => assertFinite(item, `${path}[${i}]`));
-  else if (isPlainObject(value)) for (const [k, v] of Object.entries(value)) assertFinite(v, `${path}.${k}`);
-}
-
 function nonEmpty(value: unknown, path: string): string {
   if (typeof value !== "string" || value.trim() === "") throw invalid(`${path} must be a nonempty string`);
   return value;

@@ -17,11 +17,11 @@ export interface MozakSettings {
 const DEFAULTS: MozakSettings = { inventoryPath: "", autoRefresh: true, remotePollSeconds: 60 };
 
 export default class MozakPlugin extends Plugin {
-  settings: MozakSettings = { ...DEFAULTS };
+  override settings: MozakSettings = { ...DEFAULTS };
   private stopWatch: (() => void) | null = null;
   private pollTimer: number | null = null;
 
-  async onload(): Promise<void> {
+  override async onload(): Promise<void> {
     this.settings = { ...DEFAULTS, ...(await this.loadData()) };
     this.registerView(SCOPES_VIEW_TYPE, (leaf) => new ScopesView(leaf, this));
     this.addRibbonIcon("brain-circuit", "Open mozak scopes", () => void this.activateScopes());
@@ -34,7 +34,7 @@ export default class MozakPlugin extends Plugin {
     });
   }
 
-  onunload(): void { this.stopAutoRefresh(); }
+  override onunload(): void { this.stopAutoRefresh(); }
 
   private stopAutoRefresh(): void {
     this.stopWatch?.();
@@ -174,7 +174,7 @@ class MozakSettingTab extends PluginSettingTab {
   private plugin: MozakPlugin;
   constructor(app: App, plugin: MozakPlugin) { super(app, plugin); this.plugin = plugin; }
 
-  display(): void {
+  override display(): void {
     const { containerEl } = this;
     containerEl.empty();
     const resolved = this.plugin.inventory();

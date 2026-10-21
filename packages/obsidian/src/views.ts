@@ -1,5 +1,5 @@
 import { ItemView, Notice, setIcon, type WorkspaceLeaf } from "obsidian";
-import { countRemote, planMatches, scopesModel, type PlanFilter, type PlanVM, type RefVM, type ScopeVM, type ScopesModel, type StripVM } from "./model.ts";
+import { countRemote, planMatches, scopesModel, type PlanFilter, type RefVM, type ScopeVM, type ScopesModel, type StripVM } from "./model.ts";
 import { loadScopesModel, describeError, syncRemoteScopes } from "./load.ts";
 import type MozakPlugin from "./main.ts";
 import { cachedUpdateNotice } from "@mozak/core";
@@ -57,9 +57,9 @@ export class ScopesView extends ItemView {
   constructor(leaf: WorkspaceLeaf, plugin: MozakPlugin) { super(leaf); this.plugin = plugin; }
   getViewType() { return SCOPES_VIEW_TYPE; }
   getDisplayText() { return "mozak scopes"; }
-  getIcon() { return "brain-circuit"; }
+  override getIcon() { return "brain-circuit"; }
 
-  async onOpen(): Promise<void> { this.refresh(); }
+  override async onOpen(): Promise<void> { this.refresh(); }
 
   refresh(): void {
     const choice = this.plugin.inventory();
