@@ -30,7 +30,7 @@ Request file, written as data. Envelope:
 { "operationId": "unique-id", "scopeId": "ID", "expected": { "revision": "...", "graphHash": "...", "bridge": { "exists": true, "sha256": "..." } }, "action": "ACTION", "payload": { } }
 ```
 
-`expected` is copied from the `snapshot` of a fresh `node {{MOZAK_CLI}} context --config INVENTORY --scope ID --json`.
+`expected` is copied from the `snapshot` of a fresh `node {{MOZAK_CLI}} context --config INVENTORY --scope ID --json`. Easier: `python3 {{MOZAK_SKILL}}/scripts/make_request.py ACTION PAYLOAD.json --config INVENTORY --scope ID` does that and prints the request path (see `references/payloads.md`). To read one plan, prefer `plans` or `review show`: full `context` can exceed 40 KB.
 
 | Command | Action |
 |---|---|
