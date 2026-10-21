@@ -6,13 +6,16 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { executeOperation } from "../../core/src/api.ts";
 import { loadInventory } from "../../core/src/scope-index.ts";
+import { selectContext } from "../../core/src/context-selection.ts";
+import { renderBridge } from "../../core/src/bridge.ts";
+import { hashBytes } from "../../core/src/understanding.ts";
 
 // Preapproved seams: executeOperation and built CLI/MCP. Fixtures are synthetic; no live inventory.
 const roots: string[] = [];
 after(() => roots.forEach(root => rmSync(root, { recursive: true, force: true })));
 const cliPath = fileURLToPath(new URL("../dist/index.js", import.meta.url));
 const content = { title: "Synthetic compact context", purpose: "Recover bounded work", outcomes: [{ id: "out", statement: "Synthetic check passes", acceptance: "objective", criterion: "Fixture passes" }], constraints: [], nonGoals: [], rationale: "Fixture only", questions: [], sources: [] };
-function fixture() {
+function fixture(title = content.title) {
   const root = mkdtempSync(join(process.env.TMPDIR!, "mozak-context-modes-")); roots.push(root);
   for (const name of ["README.md", "AGENTS.md"]) writeFileSync(join(root, name), "# Synthetic fixture\n");
   const config = join(root, "inventory.json");
@@ -25,7 +28,7 @@ function fixture() {
     const out = run(action === "approve-direction" || action === "pause" || action === "approve-implementation" ? "decide" : action, { request: { operationId: `op-${++serial}`, scopeId: "fixture", expected: run("context").data.snapshot, action, payload } }, actor);
     assert.equal(out.exitCode, 0, JSON.stringify(out)); return out;
   };
-  change("propose", { planId: "alpha", content });
+  change("propose", { planId: "alpha", content: { ...content, title } });
   return { root, config, inv, run, change };
 }
 // The counts-only usage log in .mozak-cache/usage is the one side file a read appends to; scope files must not change.
@@ -163,6 +166,97 @@ test("brief size does not grow with observation/evidence bodies or history; focu
   const focused = parity(w, { plan: "alpha" }, ["--plan", "alpha"]);
   assert.equal(focused.context.plans[0].observations.length, 4);
   assert.equal(focused.context.plans[0].observations[0].evidence[0].activity.description, marker);
+  assert.deepEqual(files(w.root), before);
+});
+
+test("brief bounds plan growth, prioritizes authorization and pending work, and counts omitted history", () => {
+  const w = fixture(); grant(w);
+  const context = structuredClone(w.run("context").data.context) as any;
+  const original = context.plans[0];
+  // Stress the pure presentation seam with synthetic history, not canonical writes.
+  context.plans = Array.from({ length: 80 }, (_, n) => ({ ...structuredClone(original), id: `history-${n.toString().padStart(3, "0")}`,
+    lifecycle: { state: "completed", completionId: `completion-${n}` },
+    handoff: { ...original.handoff, executionEligible: false, reasons: ["lifecycle-completed"] },
+    permittedNextAction: "none-completed" }));
+  context.plans.push({ ...structuredClone(original), id: "z-authorized" });
+  context.plans.push({ ...structuredClone(original), id: "z-completed-pending",
+    lifecycle: { state: "completed", completionId: "completion-pending" },
+    pending: { id: "pending-revision", reviewState: "awaiting" },
+    handoff: { ...original.handoff, executionEligible: false, reasons: ["lifecycle-completed"] },
+    permittedNextAction: "owner-review-direction" });
+  context.plans.push({ ...structuredClone(original), id: "z-completed-rejected",
+    lifecycle: { state: "completed", completionId: "completion-rejected" },
+    pending: { id: "rejected-revision", reviewState: "rejected" },
+    handoff: { ...original.handoff, executionEligible: false, reasons: ["lifecycle-completed"] },
+    permittedNextAction: "owner-reconsider" });
+  const result = { context: selectContext(context, true) } as any;
+  assert.ok(Buffer.byteLength(JSON.stringify(result, null, 2)) <= 6000);
+  assert.equal(result.context.plans[0].planId, "z-authorized");
+  assert.equal(result.context.plans[0].handoff.executionEligible, true);
+  assert.equal(result.context.summary.total, 83);
+  assert.equal(result.context.summary.authorization.executionEligible, 1);
+  assert.equal(result.context.plans[1].planId, "z-completed-pending", "pending work is not hidden in completed history");
+  assert.equal(result.context.plans[1].pending.reviewState, "awaiting");
+  assert.equal(result.context.plans[2].planId, "z-completed-rejected", "reconsideration is also active work");
+  assert.equal(result.context.summary.active.total, 3);
+  assert.equal(result.context.summary.history.total, 80);
+  assert.ok(result.context.summary.history.included <= 2);
+  assert.equal(result.context.summary.history.omitted, 80 - result.context.summary.history.included);
+  assert.match(result.context.followUp.plans, /mozak plans/);
+  assert.match(result.context.followUp.plan, /context.*--plan/);
+  assert.match(result.context.followUp.notice, /bounds/);
+  assert.deepEqual(selectContext(context, true), result.context, "deterministic admission and ordering");
+  context.plans.reverse();
+  assert.deepEqual(selectContext(context, true), result.context, "independent of storage order");
+});
+
+test("brief clips long UTF-8 titles explicitly without dropping execution authorization", () => {
+  const title = 'Synthetic 🧠 "\\n'.repeat(1000);
+  const w = fixture(title); grant(w);
+  const full = parity(w, { plan: "alpha" }, ["--plan", "alpha"]);
+  const before = files(w.root);
+  for (const flags of [["--brief"], ["--brief", "--plan", "alpha"]]) {
+    const compact = parity(w, { brief: true, ...(flags.length > 1 ? { plan: "alpha" } : {}) }, flags);
+    assert.ok(Buffer.byteLength(cli(w, flags).stdout) < 8000);
+    assert.equal(compact.context.plans.length, 1, "long titles must not displace actionable authorization");
+    const plan = compact.context.plans[0];
+    assert.equal(plan.handoff.executionEligible, true);
+    assert.equal(plan.handoff.authorizationId, full.context.plans[0].handoff.authorizationId);
+    assert.ok(Buffer.byteLength(plan.title) <= 163);
+    assert.equal(plan.titleOmittedBytes, Buffer.byteLength(title) - Buffer.byteLength(plan.title.slice(0, -1)));
+    assert.ok(plan.title.endsWith("…"));
+    assert.ok(!plan.title.includes("\uFFFD"));
+    assert.equal(full.context.plans[0].accepted.content.title, title);
+  }
+  assert.deepEqual(files(w.root), before);
+});
+
+test("brief reports omitted pending actions across many plans through core, CLI and MCP", () => {
+  const w = fixture();
+  const path = join(w.root, "mozak.json");
+  const state = JSON.parse(readFileSync(path, "utf8"));
+  const original = state.plans[0];
+  state.plans = Array.from({ length: 150 }, (_, n) => ({ ...structuredClone(original),
+    id: `pending-${n.toString().padStart(3, "0")}`, pending: { ...structuredClone(original.pending), id: `revision-${n}` } }));
+  const bytes = JSON.stringify(state);
+  writeFileSync(path, bytes);
+  writeFileSync(join(w.root, "mozak.md"), renderBridge(state, hashBytes(bytes)));
+  const before = files(w.root);
+  const data = parity(w, { brief: true }, ["--brief"]);
+  assert.equal(data.status, "ok");
+  assert.ok(Buffer.byteLength(cli(w, ["--brief"]).stdout) < 8000);
+  assert.equal(data.context.summary.active.total, 150);
+  assert.equal(data.context.summary.active.included, data.context.plans.length);
+  assert.equal(data.context.summary.active.omitted, 150 - data.context.plans.length);
+  assert.ok(data.context.summary.active.omitted > 0);
+  assert.deepEqual(data.context.summary.nextActions["owner-review-direction"], data.context.summary.active);
+  for (const plan of data.context.plans) {
+    assert.equal(plan.pending.reviewState, "awaiting");
+    assert.equal(plan.permittedNextAction, "owner-review-direction");
+    assert.equal(plan.handoff.executionEligible, false);
+  }
+  const focused = parity(w, { plan: "pending-149" }, ["--plan", "pending-149"]);
+  assert.equal(focused.context.plans[0].id, "pending-149");
   assert.deepEqual(files(w.root), before);
 });
 
