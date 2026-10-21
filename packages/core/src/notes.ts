@@ -1,5 +1,4 @@
-// Note-level helpers shared by locator resolution, cited-note staleness and the old format-1 stale report.
-// Salvaged from stale.ts so the format-1 code there can be deleted later without losing these.
+// Note-level helpers shared by locator resolution and cited-note staleness.
 // Everything here is read only and derives time from git: nothing is stored.
 
 import { execFileSync } from "node:child_process";
@@ -157,12 +156,6 @@ export function wikiLinks(text: string): WikiLink[] {
   }
   return out;
 }
-
-/** Wikilink note names outside code, deduplicated. */
-export function wikiNames(text: string): string[] {
-  return [...new Set(wikiLinks(text).map((l) => l.target))];
-}
-
 
 /** Commit times (unix seconds, ascending) of every commit that changed `file`. Empty without git history. */
 export function commitTimes(root: string, file: string): number[] {
