@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/assets/mozak-logo-light.png" width="520" alt="mozak logo: a brain with a gold, purple and green circuit, next to the word mozak and the line Use Obsidian as your IDE">
+<img src="docs/assets/mozak-hero-wide.png" width="100%" alt="mozak logo: a brain with a gold, purple and green circuit, next to the word mozak and the line Use Obsidian as your IDE">
 
 **Use Obsidian as your IDE.**
 
