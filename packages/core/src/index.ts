@@ -37,3 +37,4 @@ export * from "./local-sync.ts";
 export * from "./locators.ts";
 export * from "./similar.ts";
 export * from "./plans-index.ts";
+export * from "./tend.ts";
