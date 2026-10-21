@@ -17,7 +17,7 @@ export interface RefVM {
   other: string;
   /** Title of the other plan when it resolves, else the raw target. */
   label: string;
-  status: "resolved" | "dangling" | "unavailable";
+  status: "resolved" | "dangling" | "unavailable" | "pruned";
   evidence: string;
 }
 export interface PlanVM {

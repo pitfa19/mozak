@@ -9,7 +9,7 @@ import { executeOperation, loadInventory, MAX_REQUEST_BYTES, scopeForWorkingCopy
 import { runningVersion, upgrade } from "./upgrade.js";
 import { doctor, renderDoctor } from "./doctor.js";
 
-const OWNER_ROUTES = new Set(["decide", "init", "repair", "pull", "rename-files", "retitle", "annotate"]);
+const OWNER_ROUTES = new Set(["decide", "init", "repair", "pull", "rename-files", "retitle", "annotate", "recover", "prune"]);
 /** Read routes that may omit --scope: the scope is then found from the current folder's git origin. */
 const CWD_SCOPE_ROUTES = new Set(["context", "check", "review show", "plans"]);
 
@@ -34,15 +34,17 @@ const ROUTES: Record<string, Route> = {
   graph: { operation: "graph", flags: ["config", "scope", "all", "json"], requires: ["config"], requestFile: false },
   ready: { operation: "ready", flags: ["config", "scope", "all", "json"], requires: ["config"], requestFile: false },
   annotate: { operation: "annotate", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
+  recover: { operation: "recover", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
   "review show": { operation: "review", flags: ["config", "scope", "plan", "purpose", "outcome", "json"], requires: ["config", "plan"], requestFile: false },
   scopes: { operation: "scopes", flags: ["config", "json"], requires: ["config"], requestFile: false },
-  sync: { operation: "sync", flags: ["config", "scope", "json"], requires: ["config"], requestFile: false },
+  sync: { operation: "sync", flags: ["config", "scope", "local", "json"], requires: ["config"], requestFile: false },
   pull: { operation: "pull", flags: ["config", "scope", "into", "json"], requires: ["config", "scope"], requestFile: false },
-  check: { operation: "check", flags: ["config", "scope", "json"], requires: ["config"], requestFile: false },
+  check: { operation: "check", flags: ["config", "scope", "history", "json"], requires: ["config"], requestFile: false },
   operation: { operation: "operation", flags: ["config", "scope", "id", "json"], requires: ["config", "scope", "id"], requestFile: false },
   "plan propose": { operation: "propose", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
   "plan revise": { operation: "revise", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
   "plan complete": { operation: "complete", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
+  "plan prune": { operation: "prune", flags: ["config", "scope", "rejected", "request"], requires: ["config", "scope", "rejected", "request"], requestFile: true },
   observe: { operation: "observe", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
   "review decide": { operation: "decide", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
   "discussion save": { operation: "save-discussion", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
@@ -57,7 +59,7 @@ const ROUTES: Record<string, Route> = {
 };
 
 const ROUTE_NAMES = Object.keys(ROUTES);
-const BOOLEAN_FLAGS = new Set(["json", "include-rejected", "all", "write", "brief"]);
+const BOOLEAN_FLAGS = new Set(["json", "include-rejected", "all", "write", "brief", "rejected", "local"]);
 
 class UsageError extends Error {}
 
@@ -72,17 +74,20 @@ function usage(): string {
     "  mozak ready (--scope ID | --all) [--json]           (open plans whose needs are met, by deadline; blocked and superseded apart)",
     "  mozak annotate --scope ID --request FILE            (owner; refs and deadlines in mozak.annotations.json)",
     "  mozak scopes [--json]                                (read-only index of every scope: id, folder, title, plan counts)",
-    "  mozak sync [--scope ID] [--json]                     (force-refresh remote scopes; reads refresh them after 10 minutes)",
+    "  mozak sync [--scope ID | --local] [--json]           (force-refresh remote scopes; reads refresh them after 10 minutes)",
+    "                                                       (a local --scope or --local: fetch, then fast-forward the vault repo under the scope locks)",
     "  mozak pull --scope ID [--into PATH]                  (owner; clone the code; vault-plans scopes keep plans in the vault)",
     "  mozak review show [--scope ID] --plan ID [--purpose P] [--outcome ID] [--json]",
-    "  mozak check [--scope ID] [--json]",
+    "  mozak check [--scope ID] [--history N] [--json]       (--history: hand edits in the last N commits of mozak.json)",
     "  mozak operation --scope ID --id OP [--json]",
     "  mozak plan propose|revise|complete --scope ID --request FILE",
+    "  mozak plan prune --rejected --scope ID --request FILE (owner; remove the listed rejected plans, refs keep resolving)",
     "  mozak observe --scope ID --request FILE",
     "  mozak discussion save --scope ID --request FILE      (agent; advisory checkpoint only)",
     "  mozak spec attach --scope ID --request FILE          (agent; descriptor only, no approval)",
     "  mozak review decide --scope ID --request FILE        (owner)",
     "  mozak projection repair --scope ID --request FILE    (owner)",
+    "  mozak recover --scope ID --request FILE              (owner; remove a write lock from another host or a dead local pid)",
     "  mozak render (--scope ID | --all) [--json]           (regenerate stale mozak.md only; never mozak.json)",
     "  mozak rename-files (--scope ID | --all) [--json]     (owner; rename pre-0.4 MOZAK.json/MOZAK.md to lowercase)",
     "Maintenance (no --config needed):",
@@ -295,11 +300,13 @@ function renderScopesHuman(data: { coverage?: { selected: number; ok: number; fa
   return `${lines.join("\n")}\n`;
 }
 
-function renderSyncHuman(data: { remote?: RemoteInfoRow[]; issues?: { code: string; message: string }[] }): string {
+interface LocalSyncInfoRow { repo: string | null; scopes: string[]; status: string; from?: string; to?: string; error?: string }
+function renderSyncHuman(data: { remote?: RemoteInfoRow[]; local?: LocalSyncInfoRow[]; issues?: { code: string; message: string }[] }): string {
   const rows = data.remote ?? [];
-  if (rows.length === 0) return "no remote scopes in the inventory\n";
+  const local = (data.local ?? []).map((r) => `local ${r.repo ?? r.scopes.join(", ")}: ${r.status}${r.from && r.to && r.from !== r.to ? ` ${r.from.slice(0, 8)}..${r.to.slice(0, 8)}` : ""}${r.error ? ` (${r.error})` : ""}`);
+  if (rows.length === 0 && local.length === 0) return "no remote scopes in the inventory\n";
   const warn = (data.issues ?? []).filter((i) => i.code === "cache-not-ignored").map((i) => `warning: ${i.message}`);
-  return `${[...remoteLines(rows), ...warn].join("\n")}\n`;
+  return `${[...remoteLines(rows), ...local, ...warn].join("\n")}\n`;
 }
 
 function printEnvelope(output: OperationOutput, json: boolean, routeName: string): void {
@@ -430,7 +437,7 @@ function run(argv: string[]): number {
     }
     args = values.all ? { all: true } : { scope: values.scope };
   } else if (route.operation === "sync") {
-    args = values.scope !== undefined ? { scope: values.scope } : {};
+    args = { ...(values.scope !== undefined ? { scope: values.scope } : {}), ...(values.local ? { local: true } : {}) };
   } else if (route.operation === "render" || route.operation === "rename-files") {
     if ((values.scope === undefined) === (values.all === undefined)) {
       process.stderr.write(`${route.operation} needs exactly one of --scope or --all\n${usage()}\n`);
@@ -445,6 +452,12 @@ function run(argv: string[]): number {
     args = { scope: values.scope, ...(values.brief !== undefined ? { brief: values.brief } : {}), ...(values.plan !== undefined ? { plan: values.plan } : {}) };
   } else if (route.operation === "operation") {
     args = { scope: values.scope, id: values.id };
+  } else if (route.operation === "check") {
+    if (values.history !== undefined && !/^[0-9]+$/.test(String(values.history))) {
+      process.stderr.write("history must be an integer from 1 to 500\n");
+      return 2;
+    }
+    args = { scope: values.scope, ...(values.history !== undefined ? { history: Number(values.history) } : {}) };
   } else if (route.requestFile) {
     try {
       args = { scope: values.scope, request: readRequestFile(values.request as string) };

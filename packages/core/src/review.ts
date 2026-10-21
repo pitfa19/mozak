@@ -5,6 +5,7 @@
 import { randomUUID, createHash } from "node:crypto";
 import { checkQuestionInputs, discussionCurrent, saveDiscussion } from "./conversation.ts";
 import { DomainError } from "./errors.ts";
+import { prunedRecord } from "./prune.ts";
 import {
   canonical,
   discussionDigest,
@@ -897,6 +898,8 @@ export function applyMutation(
     case "propose": {
       const planId = p.planId as string;
       if (next.plans.some((x) => x.id === planId)) throw invalid(`plan "${planId}" already exists`);
+      // A pruned id stays reserved: refs to it resolve through its prune record.
+      if (prunedRecord(next, planId)) throw invalid(`plan id "${planId}" belonged to a pruned rejected plan; choose another id`);
       const content = checkContent(p.content);
       const distinctFromPlanIds = (p.distinctFromPlanIds as string[] | undefined) ?? [];
       for (const distinctId of distinctFromPlanIds) {

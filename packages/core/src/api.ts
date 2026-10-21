@@ -8,6 +8,7 @@ import { resolveScope, type ScopeEntry, type ScopeInventory } from "./scope-inde
 import {
   initScopeState,
   mutateScope,
+  pruneRejectedPlans,
   readScope,
   readScopeView,
   repairProjection,
@@ -32,6 +33,11 @@ import { annotationFindings, graphView, readyView, type Universe } from "./cross
 import { effectiveDeadline, planDeadline, today } from "./deadlines.ts";
 import { annotationsMode, ignoredScopeSettingsFile, loadSettings, rebaseEnabled, SETTINGS_FILE } from "./settings.ts";
 import type { ScopeState } from "./understanding.ts";
+import { inspectLock, recoverLock } from "./lock-recover.ts";
+import { handEditHistory, MAX_HISTORY } from "./history.ts";
+import { LOCAL_SYNC_OK, localEntries, syncLocal, type LocalSyncRow } from "./local-sync.ts";
+import { appendUsage, usageLine, usageLogEnabled } from "./usage.ts";
+import { dirname } from "node:path";
 
 /**
  * The scopes index's update notice: reads the cache only, and starts a background refresh when it is old.
@@ -75,10 +81,12 @@ export const OPERATIONS = [
   "annotate",
   "graph",
   "ready",
+  "recover",
+  "prune",
 ] as const;
 
 /** Owner-only: refused for every other actor before any file is touched. */
-const OWNER_ONLY = new Set(["decide", "init", "repair", "pull", "rename-files", "retitle", "annotate"]);
+const OWNER_ONLY = new Set(["decide", "init", "repair", "pull", "rename-files", "retitle", "annotate", "recover", "prune"]);
 /** Route name must equal request.action for these routes. */
 const ROUTE_ACTIONS = new Set(["propose", "revise", "observe", "complete", "save-discussion", "attach-spec"]);
 export const DECISION_ACTIONS = [
@@ -550,6 +558,34 @@ function annotateOp(inv: ScopeInventory, a: Record<string, unknown>, actor: Acto
   return { exitCode, data: { ...result, operation: "annotate" } };
 }
 
+/** Owner-only: remove one named write lock from another host or a dead local pid. Never touches mozak.json. */
+function recoverOp(inv: ScopeInventory, a: Record<string, unknown>): OperationOutput {
+  const o = closed(a, "recover arguments", ["scope", "request"]);
+  const entry = resolveScope(inv, nonEmpty(o.scope, "scope"));
+  const out = recoverLock(entry, o.request);
+  const issues: { code: string; message: string }[] = [];
+  let read: ScopeRead | null = null;
+  try { read = readScope(entry); issues.push(...read.issues.filter((i) => i.code === "lock-in-git" || i.code === "lock-not-ignored")); } catch { /* the lock is gone either way */ }
+  return {
+    exitCode: 0,
+    data: { status: out.status, committed: false, operation: "recover", requestId: (o.request as Record<string, unknown>).requestId, snapshot: read?.snapshot ?? null, projectionStatus: read?.projectionStatus ?? null, projectionUpdated: false, issues, recovered: out.recovered, reason: out.reason },
+  };
+}
+
+/** Lock finding for check: a stuck lock is reported with what recover needs; a lock held by a live local writer is informational. */
+function lockFinding(entry: ScopeEntry): { finding: Record<string, unknown> | null; info: Record<string, unknown> | null } {
+  let lock;
+  try { lock = inspectLock(entry.root); } catch (err) { if (!(err instanceof DomainError)) throw err; return { finding: { code: err.code, message: err.message }, info: null }; }
+  if (!lock.present) return { finding: null, info: null };
+  const shown = { token: lock.token, host: lock.host, pid: lock.pid, acquiredAt: lock.acquiredAt, verdict: lock.verdict, ...(lock.extraEntries.length ? { extraEntries: lock.extraEntries } : {}) };
+  if (lock.verdict === "live-local-pid") return { finding: null, info: { code: "write-lock-held", message: `pid ${lock.pid} on this host holds the write lock`, lock: shown } };
+  const how = lock.verdict === "other-host" ? `it names host ${lock.host}, so it arrived by sync; the owner may run mozak recover`
+    : lock.verdict === "dead-local-pid" ? `pid ${lock.pid} on this host is no longer running; the owner may run mozak recover`
+    : lock.verdict === "host-unknown" ? "it records no host (older mozak); remove it by hand after making sure no writer runs anywhere"
+    : "its metadata is unavailable; remove it by hand after making sure no writer runs anywhere";
+  return { finding: { code: "write-lock-stuck", message: `a write lock blocks writes: ${how}`, lock: shown }, info: null };
+}
+
 function plansOp(inv: ScopeInventory, a: Record<string, unknown>): OperationOutput {
   closed(a, "plans arguments", [], ["scope", "all", "includeRejected", "limit", "continuation", "sort"]);
   let selector: { scope: string | null; all: boolean };
@@ -745,7 +781,7 @@ function readOp(inv: ScopeInventory, operation: string, a: Record<string, unknow
     };
   }
 
-  const o = closed(a, `${operation} arguments`, operation === "operation" ? ["scope", "id"] : ["scope"], operation === "context" ? ["brief", "plan"] : []);
+  const o = closed(a, `${operation} arguments`, operation === "operation" ? ["scope", "id"] : ["scope"], operation === "context" ? ["brief", "plan"] : operation === "check" ? ["history"] : []);
   const scope = nonEmpty(o.scope, "scope");
   const entry = resolveScope(inv, scope);
 
@@ -804,6 +840,11 @@ function readOp(inv: ScopeInventory, operation: string, a: Record<string, unknow
   }
 
   // check: findings are reported, never repaired. Unavailable selections keep their error exit.
+  let history: number | undefined;
+  if (o.history !== undefined) {
+    if (typeof o.history !== "number" || !Number.isInteger(o.history) || o.history < 1 || o.history > MAX_HISTORY) throw invalid(`history must be an integer from 1 to ${MAX_HISTORY}`);
+    history = o.history;
+  }
   let read: ScopeRead;
   try {
     read = readScope(entry);
@@ -822,9 +863,15 @@ function readOp(inv: ScopeInventory, operation: string, a: Record<string, unknow
       },
     };
   }
-  const findings = [...read.issues, ...annotationCheck(inv, entry, read)];
+  const lock = lockFinding(entry);
+  const findings: object[] = [...read.issues, ...annotationCheck(inv, entry, read), ...(lock.finding ? [lock.finding] : [])];
+  // check --history N: hand edits in the last N commits of mozak.json. Local git objects only, no fetch.
+  const historyReport = history === undefined ? undefined : handEditHistory(entry.root, history);
+  if (historyReport) findings.push(...historyReport.findings);
   // Leftover temp files from an interrupted write are informational: the next write removes them.
-  const leftovers = leftoverTempFiles(entry.root).map((name) => ({ code: "leftover-temp-file", message: `${name} is left over from an interrupted write; the next write removes it` }));
+  const leftovers: object[] = leftoverTempFiles(entry.root).map((name) => ({ code: "leftover-temp-file", message: `${name} is left over from an interrupted write; the next write removes it` }));
+  if (lock.info) leftovers.push(lock.info);
+  if (historyReport && !historyReport.available) leftovers.push({ code: "history-unavailable", message: `check --history skipped: ${historyReport.reason ?? "unavailable"}` });
   return {
     exitCode: findings.length > 0 ? 3 : 0,
     data: {
@@ -835,6 +882,7 @@ function readOp(inv: ScopeInventory, operation: string, a: Record<string, unknow
       projectionStatus: read.projectionStatus,
       projectionUpdated: false,
       issues: [...findings, ...leftovers],
+      ...(historyReport ? { history: { scanned: historyReport.scanned, available: historyReport.available, handEdits: historyReport.findings.length } } : {}),
     },
   };
 }
@@ -858,6 +906,7 @@ function writeOp(inv: ScopeInventory, operation: string, a: Record<string, unkno
   if (operation === "init") result = initScopeState(entry, request);
   else if (operation === "repair") result = repairProjection(entry, request);
   else if (operation === "retitle") result = retitleScope(entry, request);
+  else if (operation === "prune") result = pruneRejectedPlans(entry, request);
   else result = mutateScope(entry, request, actor, { rebase: rebaseEnabled(inv, entry.id) });
   return { exitCode: resultExit(result), data: { ...result, operation } };
 }
@@ -885,7 +934,12 @@ function touchedRemotes(inv: ScopeInventory, operation: string, args: unknown): 
 function remoteOp(inv: ScopeInventory, operation: string, a: Record<string, unknown>): OperationOutput {
   const base = { committed: false, operation, snapshot: null, projectionStatus: null, projectionUpdated: false } as const;
   if (operation === "sync") {
-    const o = closed(a, "sync arguments", [], ["scope"]);
+    const o = closed(a, "sync arguments", [], ["scope", "local"]);
+    const local = strictBoolean(o.local, "local");
+    if (local && o.scope !== undefined) throw invalid("sync takes scope or local, not both");
+    // A local scope (no remote) syncs the git repo that holds it. --local syncs every local repo as well as remotes.
+    const named = o.scope === undefined ? undefined : inv.scopes.find((s) => s.id === nonEmpty(o.scope, "scope"));
+    if (named && !named.remote) return localSyncOutput(inv, [named], base);
     const targets = o.scope === undefined ? remoteEntries(inv) : [resolveRemoteTarget(inv, nonEmpty(o.scope, "scope"))];
     const remote = targets.map((e) => syncRemote(e, { force: true }));
     const stale = remote.filter((r) => r.stale).length;
@@ -894,9 +948,11 @@ function remoteOp(inv: ScopeInventory, operation: string, a: Record<string, unkn
     // Uses the 24-hour cached answer: the plugin syncs every minute and the unauthenticated API allows 60 calls an hour.
     // Every remote scope gets an answer for the sidebar label; only repo-mode scopes publish plans, so only they warn.
     const exposed = targets.filter((e) => scopeVisibility(e) === "public" && e.remote?.plansMode === "repo").map((e) => ({ code: "public-repo-plans", message: publicRepoPlansMessage(e), scope: e.id }));
+    const localRows = local ? syncLocal(localEntries(inv.scopes), inv.scopes) : [];
+    const localBad = localRows.filter((r) => !LOCAL_SYNC_OK.has(r.status));
     return {
-      exitCode: stale > 0 ? 6 : 0,
-      data: { status: stale > 0 ? "partial" : "ok", ...base, issues: [...remote.filter((r) => r.stale).map((r) => ({ code: "remote-stale", message: `${r.scope}: ${r.error ?? "stale"}`, scope: r.scope })), ...warnings, ...exposed], remote },
+      exitCode: stale > 0 || localBad.length > 0 ? 6 : 0,
+      data: { status: stale > 0 || localBad.length > 0 ? "partial" : "ok", ...base, issues: [...remote.filter((r) => r.stale).map((r) => ({ code: "remote-stale", message: `${r.scope}: ${r.error ?? "stale"}`, scope: r.scope })), ...warnings, ...exposed, ...localIssues(localRows)], remote, ...(local ? { local: localRows } : {}) },
     };
   }
   const o = closed(a, "pull arguments", ["scope"], ["into"]);
@@ -907,6 +963,19 @@ function remoteOp(inv: ScopeInventory, operation: string, a: Record<string, unkn
   }
   const pulled = pullRemote(entry, o.into === undefined ? undefined : nonEmpty(o.into, "into"));
   return { exitCode: 0, data: { status: "ok", ...base, issues: [], pull: pulled } };
+}
+
+function localIssues(rows: LocalSyncRow[]): { code: string; message: string; scope?: string }[] {
+  return rows.filter((r) => !LOCAL_SYNC_OK.has(r.status)).map((r) => ({ code: `local-sync-${r.status}`, message: `${r.repo ?? r.scopes.join(", ")}: ${r.error ?? r.status}`, scope: r.scopes[0] }));
+}
+
+/** `sync --scope LOCAL`: fast-forward the git repo that holds a local scope, under the locks of every scope in it. */
+function localSyncOutput(inv: ScopeInventory, targets: ScopeEntry[], base: Record<string, unknown>): OperationOutput {
+  const rows = syncLocal(targets, inv.scopes);
+  const bad = rows.filter((r) => !LOCAL_SYNC_OK.has(r.status));
+  const only = rows.length === 1 ? rows[0]! : null;
+  const exitCode = bad.length === 0 ? 0 : only?.status === "not-fast-forward" ? 3 : only?.status === "busy" ? 4 : only?.status === "not-in-git" || only?.status === "no-upstream" || only?.status === "detached" ? 2 : 6;
+  return { exitCode, data: { status: bad.length === 0 ? "ok" : only ? `local-sync-${only.status}` : "partial", ...base, issues: localIssues(rows), remote: [], local: rows } };
 }
 
 function resolveRemoteTarget(inv: ScopeInventory, id: string): ScopeEntry {
@@ -1009,8 +1078,18 @@ function renameFilesOp(inv: ScopeInventory, a: Record<string, unknown>): Operati
  * Single entry point for every operation. Expected domain failures come back as a structured
  * envelope with an exit code. Only unexpected, non-domain errors are rethrown. The caller's
  * transport supplies the actor. This function never reads it from the arguments.
+ * Each call appends one counts-only line to the usage log next to a file-loaded inventory (MOZAK_USAGE_LOG=0 turns it off).
  */
 export function executeOperation(inv: ScopeInventory, operation: string, args: unknown, actor: Actor = "agent"): OperationOutput {
+  const started = performance.now();
+  const output = runOperation(inv, operation, args, actor);
+  if (inv.path && usageLogEnabled()) {
+    try { appendUsage(dirname(inv.path), usageLine(operation, args, String(actor), output.data, output.exitCode, performance.now() - started)); } catch { /* never affects the result */ }
+  }
+  return output;
+}
+
+function runOperation(inv: ScopeInventory, operation: string, args: unknown, actor: Actor): OperationOutput {
   try {
     if (actor !== "agent" && actor !== "owner") throw invalid("actor must be agent or owner");
     if (LEGACY_OPERATIONS.has(operation)) {
@@ -1032,6 +1111,11 @@ export function executeOperation(inv: ScopeInventory, operation: string, args: u
       requireOwner(operation, actor);
       if (!isPlain(args)) throw invalid("arguments must be an object");
       return renameFilesOp(inv, args);
+    }
+    if (operation === "recover") {
+      requireOwner(operation, actor);
+      if (!isPlain(args)) throw invalid("arguments must be an object");
+      return recoverOp(inv, args);
     }
     if (operation === "annotate") {
       // Never routed through remoteWrite: annotations never commit or push. Repo-mode scopes are refused inside.

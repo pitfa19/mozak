@@ -229,7 +229,49 @@ mozak never steals a write lock because it is old. Follow this order:
 5. Run `context` and `check`, which only read. If the scope state exists, run `projection repair` against the current snapshot.
 6. If a bridge was edited by hand, it is kept as a conflict. Resolve it with the owner before writing again.
 
-There is no online force-unlock command.
+There is no force-unlock command. The owner route `mozak recover` removes one named lock only in two cases where no
+local writer can still own it:
+
+- the lock's `owner.json` names another host (`host` is recorded since S2). Such a lock can only have arrived by sync, for example through a `git add -A` in a vault.
+- it names this host and a pid that is no longer running.
+
+`check` reports a stuck lock as `write-lock-stuck` with its `token`, `host`, `pid` and `verdict`. The owner repeats those
+in a request file: `{ "requestId", "scopeId", "lock": { "token", "host", "pid" }, "ownerRef", "ownerMessageAt" }`, then runs
+`mozak recover --scope ID --request FILE`. It refuses a lock that changed, a lock with contents other than `owner.json`,
+a live local pid (`lock-owner-alive`), and a lock without a host from an older mozak (`lock-host-unknown`, remove that
+one by hand as above). It never touches `mozak.json`. Agents cannot run it, and the MCP server does not offer it.
+
+### Projection tolerance
+
+A `mozak.md` that differs from the current render only by CRLF line endings, trailing spaces or tabs, or blank lines at
+the end counts as current, not as a bridge conflict. The next write puts back the exact render. Any other difference,
+including leading or inner whitespace, is still a conflict.
+
+### Pruning rejected plans: `mozak plan prune --rejected`
+
+Owner route. The request lists the plan ids the owner saw: `{ "operationId", "scopeId", "expected", "planIds", "ownerRef", "ownerMessageAt" }`.
+Only plans that were never accepted and whose revision is rejected can be pruned. A plan another plan still references (a
+pending merge, a reasoning link) is refused with `prune-referenced`. The write is a normal CAS write and is never rebased.
+Its receipt `{ "action": "prune-rejected", "ids": [...] }` is the prune record: owner refs to a pruned id resolve as
+`pruned` (with the operation id), `check` reports `ref-target-pruned`, and the id cannot be proposed again. A 0.4.0
+client reads such a scope unchanged.
+
+### Hand edits: `mozak check --history N`
+
+Every mozak write sets a new `storage.revision` and records it in a receipt. `check --history N` walks the last N commits
+(1 to 500) that touched the scope's `mozak.json`, from local git objects only, and reports `hand-edit` for a commit that
+changed the file but kept the revision (with removed and added plan ids), and `hand-edit-revision` for a revision that no
+receipt records. Outside git it reports `history-unavailable` and skips the walk.
+
+### Syncing a vault: `mozak sync --scope ID` or `mozak sync --local`
+
+For a local scope inside a git repo, `sync` replaces a bare `git pull --rebase`, which bypasses the scope locks. Per repo
+it fetches the upstream of the current branch outside the locks, takes the write lock of every inventoried local and
+vault-plans scope in that repo in path order, runs `git merge --ff-only`, and releases. It never rebases, merges a
+diverged history or pushes. Row status: `fast-forwarded`, `up-to-date`, `ahead` (local commits to push), or a problem:
+`not-fast-forward` (exit 3, nothing changed), `busy` (exit 4, a scope lock is held), `fetch-failed`, `merge-failed`,
+`no-upstream`, `detached`, `not-in-git`. `--local` syncs every such repo and the remote scopes; plain `mozak sync` still
+syncs remote scopes only.
 
 ### Projection repair
 
@@ -309,6 +351,7 @@ Cache layout: `.mozak-cache/<id>/` (sparse git clone) and `.mozak-cache/<id>.met
 | Check | Status |
 | --- | --- |
 | S1c and gaps 2, 3, 7, 8 on `hermes/s1c-gaps` (2026-10-21, macOS, Node 26, synthetic temp scopes only) | `npm run build` passed. `TMPDIR=$HOME/.cache/mozak-test-tmp ALLOW_ANY_IDENTITY=1 npm test`: 537 passed, 0 failed, 0 skipped. With the default macOS `TMPDIR`: one run had 1 failure (V-race 9, the commit p95 under 300 ms timing check, under full-suite load), the file alone then passed (p95 248.5 ms), and a second full run gave 537 passed. S1c: a late supporting observation keeps an owner-accepted outcome `done`, a new challenge reopens it, and `plan complete` still refuses with `owner-review-required` until the owner accepts the exact current evidence. Gap 8: the regression test failed before the fix (`bridge-conflict` after a revise with reversed content keys) and passes after it. Gap 7: `concurrency.rebase` is read only from the `mozak-settings.json` next to the inventory, per scope over the top-level value. A scope-folder file is ignored and `check` reports `settings-scope-file-deprecated`. V-race 1 with the flag passed to the store: flag off 36 of 66 attempts wasted, flag on 0 of 30, 0 lost writes. Gaps 2 and 3: a failed MCP call starts with `reason` and `issues` before a long `unsavedRequest`. No refusal for a future `inspectedAt` exists in core: an observation with `inspectedAt` one day ahead commits, so there was no message to change. |
+| S2 store hygiene, `hermes/s2-hygiene` (2026-10-21, macOS, Node 26, synthetic temp scopes and local bare repos only) | `npm run build` passed. `TMPDIR=$HOME/.cache/mozak-test-tmp ALLOW_ANY_IDENTITY=1 npm test`: 554 passed, 0 failed, 0 skipped. New tests cover `recover` (other host, dead local pid, live pid refused, changed or extra lock contents refused, lock swapped during recovery restored), projection tolerance (CRLF, trailing whitespace, final newline; inner and leading whitespace stay conflicts), `plan prune --rejected` (receipt record, refs resolve as `pruned`, id reserved, referenced plans refused, never rebased), `check --history` (a hand prune that kept `storage.revision` and a foreign revision found; clean history gives nothing), offline reads (local and vault-plans reads write no cache metadata; a failed fetch is not retried by reads for 10 minutes), local `sync` (fast-forward under both scope locks, diverged history and a held lock change nothing, fetch failure and not-in-git reported) and the usage log (no request or plan text, `.gitignore` inside, aggregate refuses scope roots). V-race 8 passed. V-race 9 at suite size passed (p95 122 ms after the write-path change below, 233 ms before), and its killed holders' locks are now cleared by `recover` (dead local pid), 2 of 2. Scaled V-race 9 (`MOZAK_VRACE_KILL_OPS=1000`, think 1-2 s): 0 violations, 31 of 31 locks cleared by `recover`, but p95 337.7 ms (378.1 ms before the change), so the 300 ms target is still not met at that size. Commit cost bench: fsyncs are about 9 ms of a commit (3 file fsyncs near 3 ms each, folder fsyncs near 0 ms on APFS), so fsyncs were left as they are. Skipping the git ignore diagnostics in reads inside a write cut one commit from about 73 ms to about 39 ms in a git repo. One run of the suite under heavy machine load failed the V-race 9 timing (p95 334 ms); reruns passed. |
 | macOS default `TMPDIR` (2026-10-21, macOS, Node 26) | Passed: with `TMPDIR` set to the default `/var/folders/.../T/` (trailing slash, behind the `/var` symlink), `ALLOW_ANY_IDENTITY=1 npm test` gave 526 passed, 0 failed, 0 skipped. Before the fix 11 tests failed there. Cause: test removal guards compared paths against an unnormalized scratch base, and two product paths compared a symlinked path with a resolved one. Fixed in the plugin (`resolveOpenTarget` now also compares resolved paths, so a vault opened through a symlink opens plans inside Obsidian, with a regression test) and in `annotationsMode` (resolves `personalVaults`). The isolated `TMPDIR=$HOME/.cache/mozak-test-tmp` run also gave 526 passed. |
 | S4 owner annotations on `hermes/s4-annotations` (2026-10-21, macOS, Node 26, synthetic temp scopes only) | Passed: `npm run build`, then `TMPDIR=$HOME/.cache/mozak-test-tmp ALLOW_ANY_IDENTITY=1 npm test` gave 509 passed, 0 failed, 0 skipped. V-ref property over 16 seeded worlds: 130 refs, 88 resolved through a plan, 22 through `mergedPlanId`, 20 reported by `check`, 0 unaccounted. `mozak.md` byte-identical with and without the sidecar. The unchanged core from `main` (0.4.0, extracted with `git archive`) runs context, check, plans and propose on a scope with a sidecar and leaves it untouched. `scripts/verify-old-client-sidecar.sh` with the installed released CLI (reports 0.3.0): context, plans, check and propose exit 0 on such a scope, sidecar unchanged. `ready` exact on a synthetic chain with plan, outcome and `fromOutcome` needs and a supersede. Deadline rule on 30 synthetic multi-date sentences: 31 dates extracted, 30 correct, precision 0.968. Prune records are not consulted yet (no prune route exists). The backfill on real plans is not part of this check. |
 | S1b read-set rebase, `hermes/s1b-rebase` (2026-10-21, macOS, Node 26, synthetic scopes) | `npm run build` passed. `TMPDIR=$HOME/.cache/mozak-test-tmp ALLOW_ANY_IDENTITY=1 npm test`: 498 passed, 0 failed, 0 skipped. V-race 1 (A0 replay, 3 agents x 10 observes on 3 outcomes of one plan, think 20-50 ms): flag off 35 of 65 attempts wasted (53.8%), flag on 0 of 30 (0.0%), 0 lost writes both ways. Cases 2 to 6 and 8 pass as unit tests. V-race 7 (seeded generator, fast-check is not a dependency): 2000 random writes with stale snapshots, 645 rebased, 0 unsafe against an independent oracle, 0 with a different effect than the serial write, 1 conservative refusal. V-race 9 (8 writers, kill -9 each round, half of them while holding the lock): suite size passed with commit p95 241 ms. Scaled run of 1000 write attempts (not 10k), think 1-2 s: 0 violations, but p95 385 ms, so the 300 ms target is not met at that size; with think 250-500 ms over 302 attempts p95 was 404 ms. One commit costs about 45 ms (six fsyncs) and grows with the scope file. Locks left by killed holders block the round until offline removal (S2 `recover`). |

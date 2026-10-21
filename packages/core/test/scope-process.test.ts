@@ -5,6 +5,7 @@ import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, u
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { inspectLock, recoverLock } from "../src/lock-recover.ts";
 
 // Process-level acceptance for A11 to A15. Every writer is a real child process running the real
 // scope-store. The parent never imports store logic: it reads and writes state only through child
@@ -729,7 +730,7 @@ test("V-race 9: 8 writers with kill -9 and rebase on: commit p95 under 300 ms an
   const writers = 8;
   const entry = await raceWorld("kill9", true, Array.from({ length: writers }, (_, k) => `o${k + 1}`), Array.from({ length: writers }, (_, k) => `d${k + 1}`));
   const jobs = scratchJobs(entry.root);
-  let attempts = 0, commits = 0, stale = 0, busy = 0, rebasedTotal = 0, kills = 0, holderKills = 0, locksLeft = 0, renders = 0, round = 0;
+  let attempts = 0, commits = 0, stale = 0, busy = 0, rebasedTotal = 0, kills = 0, holderKills = 0, locksLeft = 0, locksRecovered = 0, renders = 0, round = 0;
   const violations: string[] = [];
   const latencies: number[] = [];
   let seed = 100;
@@ -768,8 +769,20 @@ test("V-race 9: 8 writers with kill -9 and rebase on: commit p95 under 300 ms an
     }
     victim.child.kill("SIGKILL"); kills++;
     const results = await Promise.all(running.map((r) => r.done));
-    // Offline recovery, only after every writer of this round has been joined.
-    if (existsSync(lockPath(entry.root))) { rmSync(lockPath(entry.root), { recursive: true, force: true }); locksLeft++; }
+    // Recovery only after every writer of this round has been joined. S2: the owner route `recover` clears a lock whose
+    // pid on this host is dead; a lock killed before its owner.json was written still needs offline removal.
+    if (existsSync(lockPath(entry.root))) {
+      locksLeft++;
+      const lock = inspectLock(entry.root);
+      if (lock.verdict === "dead-local-pid") {
+        const recovered = recoverLock(entry, { requestId: `vrace9-r${round}`, scopeId: entry.id, lock: { token: lock.token!, host: lock.host!, pid: lock.pid! }, ownerRef: "synthetic:owner-recover", ownerMessageAt: "2026-10-21T00:00:00.000Z" });
+        if (recovered.status !== "ok") violations.push(`round ${round}: recover ${recovered.status}`);
+        locksRecovered++;
+      } else {
+        if (lock.verdict === "live-local-pid" || lock.verdict === "other-host") violations.push(`round ${round}: lock left with verdict ${lock.verdict}`);
+        rmSync(lockPath(entry.root), { recursive: true, force: true });
+      }
+    }
     for (const r of results) {
       if (r.code === "signal-SIGKILL") continue;
       if (!r.ok) { violations.push(`round ${round}: writer error ${r.code} ${r.message}`); continue; }
@@ -807,7 +820,7 @@ test("V-race 9: 8 writers with kill -9 and rebase on: commit p95 under 300 ms an
     if (!checked.ok || checked.outcome.status !== "ok") violations.push(`round ${round}: check ${checked.code ?? checked.outcome.status} ${JSON.stringify(checked.outcome?.issues ?? [])}`);
   }
   const p95 = percentile(latencies, 95);
-  console.log(`V-race 9 (8 writers, think ${THINK_MIN}-${THINK_MAX} ms, rebase on): rounds ${round}, kill -9 ${kills} (${holderKills} while holding the lock), write attempts ${attempts} by joined writers, commits ${commits}, stale ${stale}, busy ${busy}, rebased ${rebasedTotal}, locks left by killed writers ${locksLeft}, renders ${renders}, commit p50 ${percentile(latencies, 50)} ms, p95 ${p95} ms, max ${percentile(latencies, 100)} ms, violations ${violations.length}`);
+  console.log(`V-race 9 (8 writers, think ${THINK_MIN}-${THINK_MAX} ms, rebase on): rounds ${round}, kill -9 ${kills} (${holderKills} while holding the lock), write attempts ${attempts} by joined writers, commits ${commits}, stale ${stale}, busy ${busy}, rebased ${rebasedTotal}, locks left by killed writers ${locksLeft} (${locksRecovered} cleared by recover), renders ${renders}, commit p50 ${percentile(latencies, 50)} ms, p95 ${p95} ms, max ${percentile(latencies, 100)} ms, violations ${violations.length}`);
   assert.deepEqual(violations, []);
   assert.ok(p95 < 300, `commit p95 ${p95} ms`);
 });

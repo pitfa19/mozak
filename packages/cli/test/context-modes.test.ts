@@ -28,7 +28,8 @@ function fixture() {
   change("propose", { planId: "alpha", content });
   return { root, config, inv, run, change };
 }
-const files = (root: string) => readdirSync(root).sort().map(name => [name, readFileSync(join(root, name))]);
+// The counts-only usage log in .mozak-cache/usage is the one side file a read appends to; scope files must not change.
+const files = (root: string) => readdirSync(root).filter(name => name !== ".mozak-cache").sort().map(name => [name, readFileSync(join(root, name))]);
 function decide(w: ReturnType<typeof fixture>, purpose: string) {
   const review = w.run("review", { plan: "alpha", purpose }).data.review as any;
   w.change(purpose, { planId: "alpha", revisionId: review.revisionId, reviewDigest: review.reviewDigest,
