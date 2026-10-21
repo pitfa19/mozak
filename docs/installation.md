@@ -7,7 +7,7 @@ This guide covers building mozak from source, the portable installer, exit codes
 | Area | Status |
 | --- | --- |
 | Fresh public GitHub clone, build, install and README walkthrough on macOS, Node 26.11.1 | Verified 2026-10-18 at `8337e04`: clean `git clone`, `npm ci --ignore-scripts`, build and install into a fresh prefix with an isolated `HOME` took about 8 seconds. Every README command then ran as written (section 8). |
-| Full test suite on macOS, Node 26.11.1 | Verified 2026-10-21 at `e1b665d` (0.4.1 content): 447 tests passed, 0 failed. Installer suite 69 passed, 1 skipped (case-collision test needs a case-sensitive filesystem). |
+| Full test suite on macOS, Node 26.11.1 | Verified 2026-10-22 at `9d8d0da` (0.4.5): 450 tests passed, 0 failed. Installer suite 73 passed, 1 skipped (case-collision test needs a case-sensitive filesystem). |
 | Source build and tests on Linux, Node 24.11.0 | Verified earlier at `c324d45`: 334 core tests and 69 installer tests passed. CI covers Linux on every push since. |
 | CI on Ubuntu and macOS, Node 24.11.0 and 26 | Passing on every push to `main` and every pull request, latest `81de182` (0.4.1). The release workflow for `v0.4.1` ran the tests again, attested the plugin assets and published the release. |
 | `mozak upgrade` on a real installation | Verified 2026-10-18 on macOS: 0.1.0 to 0.2.0 with `--source` (0.1.0 did not record it), five vaults got the 0.2.0 plugin, the old installation kept as `mozak.previous-0.1.0`, the checkout returned to `main`; the installed `mozak upgrade` then reported `up-to-date`. |

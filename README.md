@@ -167,7 +167,7 @@ Every scope command needs an explicit `--config`. Only the maintenance commands 
 
 ## What is tested and what is not
 
-**Tested.** 447 unit and integration tests plus 70 installer tests, run in CI on Ubuntu and macOS with Node 24.11 and 26 on every push to `main` and every pull request. They cover:
+**Tested.** 450 unit and integration tests plus 74 installer tests, run in CI on Ubuntu and macOS with Node 24.11 and 26 on every push to `main` and every pull request. They cover:
 
 - stale writes refused, including two real CLI processes writing at once
 - a write killed mid-way recovering without losing data
