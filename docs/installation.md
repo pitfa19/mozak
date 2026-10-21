@@ -350,6 +350,15 @@ Cache layout: `.mozak-cache/<id>/` (sparse git clone) and `.mozak-cache/<id>.met
 
 ## 8. Verification status
 
+S7a adapter correction on `hermes/eval-continuation` (macOS, Node 26.10.0):
+`npm run build` passed. `TMPDIR=$HOME/.hermes/cache/scratch ALLOW_ANY_IDENTITY=1 npm test`
+gave 593 passed, 0 failed, 0 skipped. `node --test eval/test/s7a.test.mjs` gave 9 passed.
+`node eval/verify.mjs` gave 7 of 7 checks. `node scripts/check-links.mjs` found 0 broken links.
+Regression tests cover final streaming usage instead of provisional output counts, disjoint token
+reconciliation, failed gold reads, and explicit root-instruction injection under restricted mode.
+These are harness checks, not a cold-start improvement claim. Private comparisons and datasets are
+not published here.
+
 | Check | Status |
 | --- | --- |
 | Code audit on `hermes/audit` (2026-10-21, macOS, Node 26.10.0, synthetic temp scopes only) | `npm run build` and `npm run lint` passed (typecheck with the five new compiler flags, 0 broken links). `TMPDIR=$HOME/.cache/mozak-test-tmp ALLOW_ANY_IDENTITY=1 npm test`: 577 passed, 0 failed, 0 skipped (608 before: 47 tests of deleted format-1 code removed, 4 of them moved, 12 added). `npm run test:install`: 69 passed, 0 failed, 1 skipped. `npm audit --omit=dev` and `npm audit`: 0 vulnerabilities. Non-blank source lines 10585 to 9927. Node 24, Linux and the proposed CI workflow were not run. See [audit-2026-10.md](audit-2026-10.md). |
