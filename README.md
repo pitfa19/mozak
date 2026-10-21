@@ -181,6 +181,9 @@ The agent writes plain `mozak.json` and `mozak.md` files in your project folder.
 | A short summary of every plan, or the full state of one | `mozak context --brief`, `mozak context --plan ID` |
 | Read one project's plans and health | `mozak plans`, `mozak check` |
 | Plans whose needs are met, and the links between plans | `mozak ready`, `mozak graph` |
+| Similar or duplicate plans across projects | `mozak similar --all` |
+| Where plan sources and evidence point, and cited notes that changed since | `mozak locators`, `mozak check` |
+| A `plans.md` with titles and states at each notes repo root (owner) | `mozak plans-md` |
 | Refresh GitHub projects now | `mozak sync` |
 | Pull a notes repo under the plan locks, fast-forward only | `mozak sync --local` |
 | Clear a write lock left by another machine or a dead process (owner) | `mozak recover` |
