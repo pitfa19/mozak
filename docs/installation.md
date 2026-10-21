@@ -286,3 +286,10 @@ Cache layout: `.mozak-cache/<id>/` (sparse git clone) and `.mozak-cache/<id>.met
 | Restoring a workspace from GitHub and a private vault | Built (`mozak doctor --fix`). Simulated 2026-10-18 on macOS with an isolated `HOME`: public clone at `v0.2.0`, build, install, plugin, a standard MCP setting, then `mozak doctor --fix` created both wrappers and both skill links and the only remaining failure was the synthetic scope with no `mozak.json` (fixed on `main`: clearer messages for that case). Owner run on a real fresh account or machine pending. |
 
 Record the actual results of any new check here before claiming it passed.
+
+### 0.4.0 submission preparation, 2026-10-21
+
+- macOS source build and 447 unit/regression tests passed with `GIT_CONFIG_GLOBAL=/dev/null` (the laptop's global hooks otherwise override a test fixture's rejecting Git hook). The installer suite also passed: 69 passed, 1 skipped, 0 failed.
+- The real bundled plugin is rebuilt by a regression test and contains no release-tags fetch, refresher script or spawned update process. Its update notice still reads the CLI-written cache. The CLI update checker is unchanged.
+- Source typechecks against Obsidian API definitions 1.5.7, 1.6.6, 1.7.2 and 1.8.7 passed. This is compile-time evidence only, not an app-runtime test. The plugin now conservatively declares `minAppVersion: 1.14.4`, matching the owner's currently used Obsidian installation. No clean-install runtime smoke test of this new bundle has been claimed.
+- Release assets are attached to a tag equal to the manifest version (`0.4.0`). The `v0.4.0` tag remains for the CLI updater. The release workflow refuses to reuse a numeric tag pointing at a different commit and checks out the requested tag for manual reruns.

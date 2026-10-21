@@ -1,4 +1,5 @@
 import { test } from "node:test";
+import { execFileSync } from "node:child_process";
 import assert from "node:assert/strict";
 import { mkdtempSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
@@ -233,6 +234,8 @@ test("Obsidian community plugin submission checklist: root manifest, source hygi
 
   // 1. Root manifest.json and packages/obsidian/manifest.json are identical and valid.
   assert.deepEqual(rootManifest, pkgManifest, "root manifest.json matches packages/obsidian/manifest.json");
+  const versions = JSON.parse(readRepo("versions.json"));
+  assert.equal(versions[rootManifest.version], rootManifest.minAppVersion, "versions.json maps this release to its minimum app version");
   assert.equal(rootManifest.id, "mozak");
   assert.equal(rootManifest.name, "mozak");
   assert.equal(rootManifest.version, rootPkg.version);
@@ -272,7 +275,21 @@ test("Obsidian community plugin submission checklist: root manifest, source hygi
 
   // 4. Release workflow attaches main.js, manifest.json, and styles.css on v*.*.* tags.
   const workflow = readRepo(".github/workflows/release.yml");
+  assert.ok(workflow.includes('RELEASE_TAG="${TAG_NAME#v}"'), "Obsidian release tag equals the manifest version, without v");
+  assert.ok(workflow.includes('--target "$TARGET_SHA"'), "the numeric release tag points at the tested checkout");
+  assert.ok(workflow.includes('Refusing to change existing release tag'), "a different commit cannot silently reuse a release tag");
   for (const asset of ["packages/obsidian/dist/plugin/main.js", "packages/obsidian/dist/plugin/manifest.json", "packages/obsidian/dist/plugin/styles.css"]) {
     assert.ok(workflow.includes(asset), `release workflow uploads ${asset}`);
   }
+});
+
+test("the plugin bundle has no update refresher: no GitHub tags fetch and no spawned process", () => {
+  // Builds the real bundle the release ships; the CLI keeps its update check, the plugin only reads the cache.
+  const root = new URL("../", import.meta.url);
+  execFileSync(process.execPath, ["scripts/build.mjs"], { cwd: root, stdio: "ignore" });
+  const bundle = readFileSync(new URL("dist/plugin/main.js", root), "utf8");
+  assert.ok(!bundle.includes("/tags?per_page"), "no release-tags fetch in main.js");
+  assert.ok(!bundle.includes("REFRESH_SCRIPT"), "no refresher script in main.js");
+  assert.ok(!/\.spawn\)\(|\bspawn\(/.test(bundle), "no spawn( in main.js");
+  assert.ok(bundle.includes("cachedUpdateNotice"), "the update notice still reads the cache");
 });
