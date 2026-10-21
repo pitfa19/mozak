@@ -2,6 +2,13 @@
 
 User-visible changes, newest first. Releases are git tags `vX.Y.Z` on `main`; `mozak upgrade` installs the newest one.
 
+## 0.4.3 (2026-10-21)
+
+### Changed
+
+- README: full-width hero banner, and the headline "Use Obsidian as your IDE" is replaced by "One approved plan per project, shared by your coding agents, visible in Obsidian." The Obsidian plugin is a read-only view, so the old line overclaimed.
+- npm package: README image and file links point to GitHub, so they work on npmjs.com.
+
 ## 0.4.2 (2026-10-21)
 
 ### Added

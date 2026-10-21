@@ -1,6 +1,6 @@
 {
   "name": "@mozak/cli",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
@@ -10,6 +10,6 @@
     "node": ">=24.11.0"
   },
   "dependencies": {
-    "@mozak/core": "0.4.2"
+    "@mozak/core": "0.4.3"
   }
 }

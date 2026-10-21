@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="docs/assets/mozak-hero-wide.png" width="100%" alt="mozak logo: a brain with a gold, purple and green circuit, next to the word mozak and the line Use Obsidian as your IDE">
+<img src="docs/assets/mozak-hero-wide.png" width="100%" alt="mozak logo: a brain with a gold, purple and green circuit, next to the word mozak">
 
-**Use Obsidian as your IDE.**
+**One approved plan per project, shared by your coding agents, visible in Obsidian.**
 
 You work in ideas and plans, not code. Several agents share one plan without overwriting each other, and you follow their progress from your notes.
 

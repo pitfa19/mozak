@@ -44,7 +44,14 @@ for (const [bin, entry] of [["mozak", "cli"], ["mozak-mcp", "mcp"]]) {
 // The skill ships as a template. `mozak doctor --fix` renders it with this package's absolute CLI path.
 cpSync(join(repo, "skills", "mozak"), join(out, "skills-template", "mozak"), { recursive: true });
 cpSync(join(repo, "LICENSE"), join(out, "LICENSE"));
-cpSync(join(repo, "README.md"), join(out, "README.md"));
+// npmjs.com renders the README without the repo, so relative image and file links would break there.
+const raw = "https://raw.githubusercontent.com/pitfa19/mozak/main/";
+const blob = "https://github.com/pitfa19/mozak/blob/main/";
+const readme = readFileSync(join(repo, "README.md"), "utf8")
+  .replace(/(src=")(?!https?:)([^"#]+)"/g, (_m, a, p) => `${a}${raw}${p}"`)
+  .replace(/\]\((?!https?:|#)([^)]+)\)/g, (_m, p) => `](${blob}${p})`)
+  .replace(/(href=")(?!https?:|#)([^"]+)"/g, (_m, a, p) => `${a}${blob}${p}"`);
+writeFileSync(join(out, "README.md"), readme);
 
 const pkg = {
   name: "mozak",
