@@ -47,3 +47,17 @@ this repo. Never commit private questions, gold paths or results.
 An arm beats A only if McNemar's exact test on paired items gives p < 0.05 and recall@5 rises by at least
 10 points, or tokens fall by at least 30% at non-inferior accuracy. If A is not beaten, mozak ships no
 search. The S7a cold-start experiment uses the Wilcoxon signed-rank test on 20 paired task medians.
+
+## S7a cold-start tools
+
+- `s7a/run-task.mjs`: runs one task with `claude -p` in a scratch copy of the vault. Tools are Read, Grep
+  and Glob only, `--restricted`, no MCP servers, hard timeout. It refuses a folder with `.git` and exits 3
+  when the CLI is not logged in.
+- `s7a/coldstart.mjs`: reads the stream-json transcript. Useful action = first Read (or Grep or Glob scoped
+  to a file) of a gold note, or a mozak write. Total tokens = full context of that turn plus its output.
+  Injected and tool-read tokens are reported apart. Runs that never reach gold are censored.
+- `s7a/compare.mjs`: per-task medians of 3 runs per arm, Wilcoxon signed-rank on the paired medians,
+  median reduction, and the D3 target (30% lower, p < 0.05).
+
+The task list, prompts, gold paths, transcripts and results are private and live in the owner's vault,
+outside this repo.
