@@ -20,6 +20,8 @@ export interface UsageLine {
   scope: string | null;
   exit: number; status: string; ms: number; bytes: number;
   committed?: boolean; rebased?: boolean;
+  /** Set when a locators call asked for private roots in full. */
+  includePrivate?: boolean;
 }
 
 /** Host name made safe for a file name. */
@@ -59,6 +61,7 @@ export function usageLine(operation: string, args: unknown, actor: string, data:
     v: 1, ts: now.toISOString(), host: usageHost(), actor, op: operation, scope, exit: exitCode,
     status: typeof data.status === "string" ? data.status : "unknown", ms: Math.max(0, Math.round(ms)), bytes,
     ...(data.committed === true ? { committed: true } : {}), ...(data.rebased ? { rebased: true } : {}),
+    ...(a.includePrivate === true ? { includePrivate: true } : {}),
   };
 }
 

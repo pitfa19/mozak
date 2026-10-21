@@ -9,7 +9,7 @@ import { executeOperation, loadInventory, MAX_REQUEST_BYTES, scopeForWorkingCopy
 import { runningVersion, upgrade } from "./upgrade.js";
 import { doctor, renderDoctor } from "./doctor.js";
 
-const OWNER_ROUTES = new Set(["decide", "init", "repair", "pull", "rename-files", "retitle", "annotate", "recover", "prune"]);
+const OWNER_ROUTES = new Set(["decide", "init", "repair", "pull", "rename-files", "retitle", "annotate", "recover", "prune", "plans-md"]);
 /** Read routes that may omit --scope: the scope is then found from the current folder's git origin. */
 const CWD_SCOPE_ROUTES = new Set(["context", "check", "review show", "plans"]);
 
@@ -33,6 +33,9 @@ const ROUTES: Record<string, Route> = {
   },
   graph: { operation: "graph", flags: ["config", "scope", "all", "json"], requires: ["config"], requestFile: false },
   ready: { operation: "ready", flags: ["config", "scope", "all", "json"], requires: ["config"], requestFile: false },
+  similar: { operation: "similar", flags: ["config", "scope", "all", "json"], requires: ["config"], requestFile: false },
+  locators: { operation: "locators", flags: ["config", "scope", "all", "plan", "include-private", "json"], requires: ["config"], requestFile: false },
+  "plans-md": { operation: "plans-md", flags: ["config", "print", "json"], requires: ["config"], requestFile: false },
   annotate: { operation: "annotate", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
   recover: { operation: "recover", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
   "review show": { operation: "review", flags: ["config", "scope", "plan", "purpose", "outcome", "json"], requires: ["config", "plan"], requestFile: false },
@@ -59,7 +62,7 @@ const ROUTES: Record<string, Route> = {
 };
 
 const ROUTE_NAMES = Object.keys(ROUTES);
-const BOOLEAN_FLAGS = new Set(["json", "include-rejected", "all", "write", "brief", "rejected", "local"]);
+const BOOLEAN_FLAGS = new Set(["json", "include-rejected", "all", "write", "brief", "rejected", "local", "print", "include-private"]);
 
 class UsageError extends Error {}
 
@@ -72,6 +75,10 @@ function usage(): string {
     "  mozak plans [--scope ID | --all] [--include-rejected] [--limit 1..100] [--sort deadline] [--continuation TOKEN] [--json]",
     "  mozak graph (--scope ID | --all) [--json]           (cross-plan refs from owner annotations, with resolution)",
     "  mozak ready (--scope ID | --all) [--json]           (open plans whose needs are met, by deadline; blocked and superseded apart)",
+    "  mozak similar (--scope ID | --all) [--json]         (similar plans: duplicate, overlap, supersedes-candidate; rejects moved to another scope)",
+    "  mozak locators (--scope ID | --all) [--plan ID] [--include-private] [--json]",
+    "                                                       (where each source and evidence locator points on this machine)",
+    "  mozak plans-md [--print] [--json]                    (owner; write plans.md with plan titles and states at each repo root; --print only shows it)",
     "  mozak annotate --scope ID --request FILE            (owner; refs and deadlines in mozak.annotations.json)",
     "  mozak scopes [--json]                                (read-only index of every scope: id, folder, title, plan counts)",
     "  mozak sync [--scope ID | --local] [--json]           (force-refresh remote scopes; reads refresh them after 10 minutes)",
@@ -310,6 +317,12 @@ function renderSyncHuman(data: { remote?: RemoteInfoRow[]; local?: LocalSyncInfo
 }
 
 function printEnvelope(output: OperationOutput, json: boolean, routeName: string): void {
+  // plans-md --print without --json shows the files themselves, each under a comment line naming its path.
+  if (!json && routeName === "plans-md" && Array.isArray(output.data.files) && output.data.files.every((f) => typeof (f as { content?: unknown }).content === "string")) {
+    const files = output.data.files as { path: string; content: string }[];
+    process.stdout.write(files.map((f) => `<!-- ${f.path} -->\n${f.content}`).join("\n"));
+    return;
+  }
   if (!json && routeName === "sync") {
     process.stdout.write(renderSyncHuman(output.data as Parameters<typeof renderSyncHuman>[0]));
     return;
@@ -430,12 +443,20 @@ function run(argv: string[]): number {
     }
   } else if (route.operation === "scopes") {
     args = {};
-  } else if (route.operation === "graph" || route.operation === "ready") {
+  } else if (route.operation === "graph" || route.operation === "ready" || route.operation === "similar") {
     if ((values.scope === undefined) === (values.all === undefined)) {
       process.stderr.write(`${route.operation} needs exactly one of --scope or --all\n${usage()}\n`);
       return 2;
     }
     args = values.all ? { all: true } : { scope: values.scope };
+  } else if (route.operation === "locators") {
+    if ((values.scope === undefined) === (values.all === undefined)) {
+      process.stderr.write(`locators needs exactly one of --scope or --all\n${usage()}\n`);
+      return 2;
+    }
+    args = { ...(values.all ? { all: true } : { scope: values.scope }), ...(values.plan !== undefined ? { plan: values.plan } : {}), ...(values["include-private"] ? { includePrivate: true } : {}) };
+  } else if (route.operation === "plans-md") {
+    args = values.print ? { print: true } : {};
   } else if (route.operation === "sync") {
     args = { ...(values.scope !== undefined ? { scope: values.scope } : {}), ...(values.local ? { local: true } : {}) };
   } else if (route.operation === "render" || route.operation === "rename-files") {
@@ -472,7 +493,7 @@ function run(argv: string[]): number {
 
   const actor = OWNER_ROUTES.has(route.operation) ? "owner" : "agent";
   const output = executeOperation(inventory, route.operation, args, actor);
-  printEnvelope(output, values.json === true || (routeName !== "plans" && routeName !== "scopes" && routeName !== "sync"), routeName);
+  printEnvelope(output, values.json === true || (routeName !== "plans" && routeName !== "scopes" && routeName !== "sync" && routeName !== "plans-md"), routeName);
   return output.exitCode;
 }
 

@@ -15,6 +15,7 @@ const READ_TOOLS: Record<string, { op: string; args: string[]; required: string[
   mozak_plans: { op: "plans", args: ["scope", "all", "includeRejected", "limit", "continuation", "sort"], required: [] },
   mozak_plan_graph: { op: "graph", args: ["scope", "all"], required: [] },
   mozak_ready: { op: "ready", args: ["scope", "all"], required: [] },
+  mozak_similar: { op: "similar", args: ["scope", "all"], required: [] },
   mozak_scopes: { op: "scopes", args: [], required: [] },
   mozak_sync: { op: "sync", args: ["scope"], required: [] },
   mozak_review_show: { op: "review", args: ["scope", "plan", "purpose", "outcome"], required: ["scope", "plan"] },

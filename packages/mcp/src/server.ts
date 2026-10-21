@@ -89,6 +89,13 @@ export const TOOLS: ToolDef[] = [
     [],
   ),
   tool(
+    "mozak_similar",
+    "similar",
+    "Similar plans pooled across one scope or every scope, labelled duplicate, overlap or supersedes-candidate, with templated siblings filtered out and rejects whose reason says moved to listed apart. Lexical rules only, no stored state. Read-only: merging, rejecting or linking stays an owner decision.",
+    { scope: SCOPE, all: { type: "boolean", description: "Every inventoried scope instead of one." } },
+    [],
+  ),
+  tool(
     "mozak_scopes",
     "scopes",
     "Index of every scope in the explicit inventory: id, folder, title, kind, plan counts and which entry documents exist. Use it first to find where things are. Returns no plan text or decisions, and failed scopes are listed with their error code.",

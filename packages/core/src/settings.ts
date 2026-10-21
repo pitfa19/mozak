@@ -4,12 +4,13 @@
 // { "format": "mozak.settings/v1",
 //   "annotations": { "personalVaults": ["../obsidian"] },
 //   "concurrency": { "rebase": false },
+//   "indexRoots": [ { "path": "../vault/personal", "private": true }, { "path": "../vault/research" } ],
 //   "scopes": { "anpit": { "annotations": false, "concurrency": { "rebase": true } } } }
 //
 // One file per installation, never inside a scope folder: a scope folder can be a public repo.
 //
-// Only the keys this version understands are validated. Keys reserved for later slices are accepted. Any other
-// key is reported by `check` as settings-unknown-key and has no effect.
+// Only the keys this version understands are validated. Any other key is reported by `check` as
+// settings-unknown-key and has no effect.
 
 import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { dirname, join, resolve, sep } from "node:path";
@@ -18,15 +19,18 @@ import type { ScopeEntry, ScopeInventory } from "./scope-index.ts";
 
 export const SETTINGS_FILE = "mozak-settings.json";
 export const SETTINGS_FORMAT = "mozak.settings/v1";
-const RESERVED_TOP = ["indexRoots"];
-const KNOWN_TOP = ["format", "annotations", "concurrency", "scopes"];
+const KNOWN_TOP = ["format", "annotations", "concurrency", "indexRoots", "scopes"];
 const KNOWN_SCOPE = ["annotations", "concurrency"];
 
 export interface ConcurrencySettings { rebase?: boolean }
+/** A folder that locator resolution searches. private: results carry path and title only, unless a call asks for more. */
+export interface IndexRoot { path: string; private: boolean }
 export interface Settings {
   path: string | null;
   personalVaults: string[] | null;
   concurrency: ConcurrencySettings;
+  /** null or absent: roots are derived from the inventory (locators.ts defaultIndexRoots). */
+  indexRoots?: IndexRoot[] | null;
   scopes: Record<string, { annotations?: boolean; concurrency?: ConcurrencySettings }>;
   issues: { code: string; message: string }[];
 }
@@ -37,7 +41,7 @@ function realOr(path: string): string { try { return realpathSync(path); } catch
 /** Read settings for an inventory. Absent file: defaults. Invalid file: throws settings-invalid. */
 export function loadSettings(inv: ScopeInventory): Settings {
   const inventoryPath = (inv as { path?: string }).path;
-  const empty: Settings = { path: null, personalVaults: null, concurrency: {}, scopes: {}, issues: [] };
+  const empty: Settings = { path: null, personalVaults: null, concurrency: {}, indexRoots: null, scopes: {}, issues: [] };
   if (!inventoryPath) return empty;
   const path = join(dirname(inventoryPath), SETTINGS_FILE);
   let text: string;
@@ -50,7 +54,7 @@ export function loadSettings(inv: ScopeInventory): Settings {
   if (raw.format !== SETTINGS_FORMAT) fail(`format must be "${SETTINGS_FORMAT}"`);
   const issues: Settings["issues"] = [];
   for (const key of Object.keys(raw)) {
-    if (!KNOWN_TOP.includes(key) && !RESERVED_TOP.includes(key)) issues.push({ code: "settings-unknown-key", message: `${SETTINGS_FILE}: unknown key "${key}" has no effect` });
+    if (!KNOWN_TOP.includes(key)) issues.push({ code: "settings-unknown-key", message: `${SETTINGS_FILE}: unknown key "${key}" has no effect` });
   }
   const concurrencyOf = (value: unknown, at: string): ConcurrencySettings => {
     if (!isPlain(value)) return fail(`"${at}" must be an object`);
@@ -69,13 +73,24 @@ export function loadSettings(inv: ScopeInventory): Settings {
       personalVaults = (a.personalVaults as string[]).map((p) => realOr(resolve(dirname(path), p)));
     }
   }
+  let indexRoots: IndexRoot[] | null = null;
+  if (raw.indexRoots !== undefined) {
+    if (!Array.isArray(raw.indexRoots)) fail(`"indexRoots" must be an array of { "path": ..., "private": true or false }`);
+    indexRoots = (raw.indexRoots as unknown[]).map((item, i) => {
+      if (!isPlain(item)) return fail(`indexRoots[${i}] must be an object`);
+      for (const key of Object.keys(item)) if (key !== "path" && key !== "private") issues.push({ code: "settings-unknown-key", message: `${SETTINGS_FILE}: unknown key "indexRoots[${i}].${key}" has no effect` });
+      if (typeof item.path !== "string" || !item.path.trim()) fail(`indexRoots[${i}].path must be a non-empty path`);
+      if (item.private !== undefined && typeof item.private !== "boolean") fail(`indexRoots[${i}].private must be true or false`);
+      return { path: realOr(resolve(dirname(path), item.path as string)), private: item.private === true };
+    });
+  }
   const scopes: Settings["scopes"] = {};
   if (raw.scopes !== undefined) {
     if (!isPlain(raw.scopes)) fail(`"scopes" must be an object keyed by scope id`);
     for (const [id, value] of Object.entries(raw.scopes as Record<string, unknown>)) {
       if (!isPlain(value)) fail(`scopes.${id} must be an object`);
       const v = value as Record<string, unknown>;
-      for (const key of Object.keys(v)) if (!KNOWN_SCOPE.includes(key) && !RESERVED_TOP.includes(key)) issues.push({ code: "settings-unknown-key", message: `${SETTINGS_FILE}: unknown key "scopes.${id}.${key}" has no effect` });
+      for (const key of Object.keys(v)) if (!KNOWN_SCOPE.includes(key)) issues.push({ code: "settings-unknown-key", message: `${SETTINGS_FILE}: unknown key "scopes.${id}.${key}" has no effect` });
       if (v.annotations !== undefined && typeof v.annotations !== "boolean") fail(`scopes.${id}.annotations must be true or false`);
       scopes[id] = {
         ...(v.annotations === undefined ? {} : { annotations: v.annotations as boolean }),
@@ -84,7 +99,7 @@ export function loadSettings(inv: ScopeInventory): Settings {
       if (!inv.scopes.some((s) => s.id === id)) issues.push({ code: "settings-unknown-scope", message: `${SETTINGS_FILE}: scope "${id}" is not in the inventory` });
     }
   }
-  return { path, personalVaults, concurrency, scopes, issues };
+  return { path, personalVaults, concurrency, indexRoots, scopes, issues };
 }
 
 /**

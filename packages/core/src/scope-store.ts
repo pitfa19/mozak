@@ -123,6 +123,10 @@ function isLegacyBridge(entry: ScopeEntry, read: ScopeRead): boolean {
 export function readScope(entry: ScopeEntry, options: StoreOptions = {}): ScopeRead {
   return readScopeWith(entry, options, true);
 }
+/** Read for whole-inventory reports (plans.md, similar, locators): same state and snapshot, no git ignore diagnostics. */
+export function readScopeQuiet(entry: ScopeEntry): ScopeRead {
+  return readScopeWith(entry, {}, false);
+}
 /**
  * Read inside a write: the same canonical state, snapshot and projection status, without the git ignore diagnostics.
  * A write never uses those issues, and each check spawns one to three git processes (most of a commit's cost in a vault).

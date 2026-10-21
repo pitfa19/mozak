@@ -38,6 +38,10 @@ import { handEditHistory, MAX_HISTORY } from "./history.ts";
 import { LOCAL_SYNC_OK, localEntries, syncLocal, type LocalSyncRow } from "./local-sync.ts";
 import { appendUsage, usageLine, usageLogEnabled } from "./usage.ts";
 import { dirname } from "node:path";
+import { citedNoteChanges, LocatorResolver, planCitations } from "./locators.ts";
+import { similarReport } from "./similar.ts";
+import { plansIndex } from "./plans-index.ts";
+import { readScopeQuiet } from "./scope-store.ts";
 
 /**
  * The scopes index's update notice: reads the cache only, and starts a background refresh when it is old.
@@ -83,6 +87,9 @@ export const OPERATIONS = [
   "ready",
   "recover",
   "prune",
+  "similar",
+  "locators",
+  "plans-md",
 ] as const;
 
 /** Owner-only: refused for every other actor before any file is touched. */
@@ -872,6 +879,13 @@ function readOp(inv: ScopeInventory, operation: string, a: Record<string, unknow
   const leftovers: object[] = leftoverTempFiles(entry.root).map((name) => ({ code: "leftover-temp-file", message: `${name} is left over from an interrupted write; the next write removes it` }));
   if (lock.info) leftovers.push(lock.info);
   if (historyReport && !historyReport.available) leftovers.push({ code: "history-unavailable", message: `check --history skipped: ${historyReport.reason ?? "unavailable"}` });
+  // Cited-note staleness: informational, like leftovers. A changed note does not mean the edit matters.
+  try {
+    for (const c of citedNoteChanges(inv, entry, read.state)) leftovers.push(c);
+  } catch (err) {
+    if (!(err instanceof DomainError)) throw err;
+    leftovers.push({ code: "cited-notes-unavailable", message: `cited-note staleness skipped: ${err.message}` });
+  }
   return {
     exitCode: findings.length > 0 ? 3 : 0,
     data: {
@@ -1074,6 +1088,92 @@ function renameFilesOp(inv: ScopeInventory, a: Record<string, unknown>): Operati
   };
 }
 
+/** Selected scopes for an all-or-one report route: read each one quietly, failures become coverage. Never fetches. */
+function reportScopes(inv: ScopeInventory, operation: string, o: Record<string, unknown>) {
+  const all = strictBoolean(o.all, "all");
+  if ((o.scope === undefined) === !all) throw invalid(`${operation} needs exactly one of scope or all`);
+  const entries = all ? inv.scopes : [resolveScope(inv, nonEmpty(o.scope, "scope"))];
+  const read: { entry: ScopeEntry; state: ScopeState }[] = [];
+  const coverage: ScopeBinding[] = [];
+  const issues: { code: string; message: string; scope?: string }[] = [];
+  for (const entry of entries) {
+    try {
+      const r = readScopeQuiet(entry);
+      read.push({ entry, state: r.state });
+      coverage.push({ scope: entry.id, status: "ok", revision: r.snapshot.revision, graphHash: r.snapshot.graphHash });
+    } catch (err) {
+      if (!(err instanceof DomainError)) throw err;
+      if (!all) throw err;
+      coverage.push({ scope: entry.id, status: "failed", code: err.code, message: err.message });
+      issues.push({ code: err.code, message: err.message, scope: entry.id });
+    }
+  }
+  const complete = coverage.every((c) => c.status === "ok");
+  return { read, issues, complete, coverage: { selected: entries.length, complete, scopes: coverage } };
+}
+
+/** similar: pooled report of similar plans (similar.ts). Read only, no stored state. */
+function similarOp(inv: ScopeInventory, a: Record<string, unknown>): OperationOutput {
+  const o = closed(a, "similar arguments", [], ["scope", "all"]);
+  const r = reportScopes(inv, "similar", o);
+  const report = similarReport(r.read.map((x) => ({ id: x.entry.id, state: x.state })));
+  return {
+    exitCode: r.complete ? 0 : 6,
+    data: { status: r.complete ? "ok" : "partial-coverage", committed: false, operation: "similar", snapshot: null, projectionStatus: null, projectionUpdated: false, issues: r.issues, coverage: r.coverage, similar: report },
+  };
+}
+
+/** locators: where each Source.locator and Evidence.locator points on this machine (locators.ts). Read only. */
+function locatorsOp(inv: ScopeInventory, a: Record<string, unknown>): OperationOutput {
+  const o = closed(a, "locators arguments", [], ["scope", "all", "plan", "includePrivate"]);
+  const includePrivate = strictBoolean(o.includePrivate, "includePrivate");
+  const plan = o.plan === undefined ? undefined : nonEmpty(o.plan, "plan");
+  const r = reportScopes(inv, "locators", o);
+  const resolver = new LocatorResolver(inv, { includePrivate });
+  const rows: Record<string, unknown>[] = [];
+  const counts: Record<string, number> = {};
+  for (const { entry, state } of r.read) {
+    for (const p of state.plans) {
+      if (plan !== undefined && p.id !== plan) continue;
+      for (const c of planCitations(p)) {
+        const res = resolver.resolve(entry, c.locator, c.anchor);
+        counts[res.status] = (counts[res.status] ?? 0) + 1;
+        rows.push({ scope: entry.id, planId: c.planId, field: c.field, id: c.id, locator: c.locator, anchor: c.anchor, ...res });
+      }
+    }
+  }
+  if (plan !== undefined && !r.read.some(({ state }) => state.plans.some((p) => p.id === plan))) throw new DomainError("plan-not-found", `no plan "${plan}" in the selected scopes`, 2);
+  return {
+    exitCode: r.complete ? 0 : 6,
+    data: {
+      status: r.complete ? "ok" : "partial-coverage", committed: false, operation: "locators", snapshot: null, projectionStatus: null, projectionUpdated: false,
+      issues: r.issues, coverage: r.coverage, includePrivate,
+      roots: resolver.roots.map((x) => ({ path: x.path, private: x.private, source: x.source })),
+      counts, locators: rows,
+    },
+  };
+}
+
+/** plans-md: one generated plans.md per repository (plans-index.ts). print returns the text; writing is owner-only. */
+function plansMdOp(inv: ScopeInventory, a: Record<string, unknown>, actor: Actor): OperationOutput {
+  const o = closed(a, "plans-md arguments", [], ["print"]);
+  const print = strictBoolean(o.print, "print");
+  if (!print) requireOwner("plans-md", actor);
+  const result = plansIndex(inv, { write: !print });
+  const conflicts = result.files.filter((f) => f.result === "conflict");
+  const failed = result.files.flatMap((f) => f.scopes.filter((s) => s.status === "failed").map((s) => ({ code: s.code ?? "scope-unavailable", message: `${s.id} could not be read; it is listed without plans`, scope: s.id })));
+  return {
+    exitCode: conflicts.length ? 3 : failed.length ? 6 : 0,
+    data: {
+      status: conflicts.length ? "conflict" : failed.length ? "partial-coverage" : "ok",
+      committed: false, operation: "plans-md", snapshot: null, projectionStatus: null, projectionUpdated: false,
+      issues: [...conflicts.map((f) => ({ code: "plans-md-conflict", message: `${f.path} exists and was not generated by mozak; it was left as it is` })), ...failed],
+      files: result.files.map((f) => ({ repo: f.repo, path: f.path, result: f.result, plans: f.plans, scopes: f.scopes, ...(print ? { content: f.content } : {}) })),
+      skipped: result.skipped,
+    },
+  };
+}
+
 /**
  * Single entry point for every operation. Expected domain failures come back as a structured
  * envelope with an exit code. Only unexpected, non-domain errors are rethrown. The caller's
@@ -1122,6 +1222,11 @@ function runOperation(inv: ScopeInventory, operation: string, args: unknown, act
       requireOwner(operation, actor);
       if (!isPlain(args)) throw invalid("arguments must be an object");
       return annotateOp(inv, args, actor);
+    }
+    // S6 reports: read the local copies only (never fetch). plans-md writes only plans.md files, owner only.
+    if (operation === "similar" || operation === "locators" || operation === "plans-md") {
+      if (!isPlain(args)) throw invalid("arguments must be an object");
+      return operation === "similar" ? similarOp(inv, args) : operation === "locators" ? locatorsOp(inv, args) : plansMdOp(inv, args, actor);
     }
     if (REMOTE_READ_OPS.has(operation)) {
       if (!isPlain(args)) throw invalid("arguments must be an object");
