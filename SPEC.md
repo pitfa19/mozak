@@ -1,5 +1,7 @@
 # mozak v1 spec
 
+> **Historical.** This is the original v1 design draft from 2026-10-11 (format 1). It does not describe current mozak: format 1 is retired, agents cannot edit plans directly, and mozak is not on npm as 1.0.0. For the current behaviour see [README.md](README.md) and [docs/installation.md](docs/installation.md).
+
 Status: draft, from the 24 grilling decisions of 2026-10-11. Not yet implemented.
 
 ## Purpose
