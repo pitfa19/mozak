@@ -2,7 +2,7 @@
 
 The name is always lowercase: **mozak** (Croatian for "brain"). Plan files are `mozak.json` and `mozak.md`.
 
-Headline: **Use Obsidian as your IDE.**
+Headline: **One approved plan per project, shared by your coding agents, visible in Obsidian.** (Until 0.4.2 it was "Use Obsidian as your IDE.", dropped because the Obsidian plugin is a read-only view, not an IDE.)
 
 ## Logo
 

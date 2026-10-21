@@ -7,7 +7,7 @@ import { createHash } from "node:crypto";
 import { chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, realpathSync, renameSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, dirname, join, resolve } from "node:path";
-import { cachedUpdateNotice, executeOperation, installedVersion, loadInventory } from "@mozak/core";
+import { cachedUpdateNotice, executeOperation, installedVersion, loadInventory, npmInstall } from "@mozak/core";
 
 export type CheckState = "ok" | "warn" | "fail";
 export interface Check { id: string; state: CheckState; message: string; fix?: string; fixed?: string }
@@ -19,7 +19,7 @@ const MAX_VAULT_DEPTH = 3;
 
 function nodeInRange(v: string): boolean {
   const p = v.replace(/^v/, "").split(".").map(Number);
-  for (let i = 0; i < 3; i++) if (p[i] !== NODE_MIN[i]) return (p[i] ?? 0) > NODE_MIN[i]!;
+  for (let i = 0; i < 3; i++) if (p[i] !== NODE_MIN[i]) return (p[i] ?? 0) > NODE_MIN[i];
   return true;
 }
 
@@ -47,7 +47,7 @@ function sameTarget(a: string, b: string): boolean {
 /** Every file the installation manifest names still has its recorded bytes and mode. */
 function verifyInstallation(prefix: string): string | null {
   let m: { files?: Array<{ path: string; sha256: string; executable: boolean }> };
-  try { m = JSON.parse(readFileSync(join(prefix, "installation.json"), "utf8")); } catch { return "installation.json is missing or unreadable"; }
+  try { m = JSON.parse(readFileSync(join(prefix, "installation.json"), "utf8")) as typeof m; } catch { return "installation.json is missing or unreadable"; }
   if (!Array.isArray(m.files)) return "installation.json has no file list";
   for (const f of m.files) {
     const p = join(prefix, f.path);
@@ -125,7 +125,7 @@ function mcpEntries(home: string): McpEntry[] {
 
 function configArg(args: string[]): string | null {
   const i = args.indexOf("--config");
-  return i >= 0 && args[i + 1] ? args[i + 1]! : null;
+  return i >= 0 && args[i + 1] ? args[i + 1] : null;
 }
 
 /** Vault folders (with .obsidian/plugins/mozak) at or under a folder, a few levels deep. */
@@ -146,6 +146,86 @@ function vaultsUnder(root: string): string[] {
   return out.sort();
 }
 
+/**
+ * Doctor for an npm install: npm owns the files and the `mozak` / `mozak-mcp` commands, so there is no manifest,
+ * no wrapper and no source checkout to check. npm runs no install scripts, so the skill ships as a template and
+ * `--fix` renders it once per version into ~/.local/share/mozak-npm/<version>/skills/mozak (absolute CLI path
+ * filled in, same as the portable installer), then links each agent's skills folder to that copy.
+ */
+function renderNpmSkill(npmRoot: string, version: string, home: string): string {
+  const target = join(home, ".local", "share", "mozak-npm", version, "skills", "mozak");
+  const template = join(npmRoot, "skills-template", "mozak");
+  const cli = join(npmRoot, "dist", "cli.js");
+  const quoted = "'" + cli.replaceAll("'", "'\"'\"'") + "'";
+  const walk = (rel: string) => {
+    for (const name of readdirSync(join(template, rel))) {
+      const r = rel ? join(rel, name) : name;
+      if (statSync(join(template, r)).isDirectory()) { walk(r); continue; }
+      const text = readFileSync(join(template, r), "utf8").replaceAll("{{MOZAK_CLI}}", quoted).replaceAll("{{MOZAK_SKILL}}", target);
+      if (/\{\{[A-Z_]+\}\}/u.test(text)) throw new Error(`skill template ${r} has unresolved placeholders`);
+      mkdirSync(dirname(join(target, r)), { recursive: true });
+      writeFileSync(join(target, r), text);
+    }
+  };
+  walk("");
+  return target;
+}
+
+function doctorNpm(
+  args: DoctorArgs, npm: { root: string; version: string }, home: string, env: NodeJS.ProcessEnv,
+  checks: Check[], add: (c: Check) => Check,
+): { exitCode: number; data: Record<string, unknown> } {
+  add({ id: "installation", state: "ok", message: `npm package at ${npm.root} is mozak ${npm.version}` });
+  for (const name of ["mozak", "mozak-mcp"]) {
+    const found = onPath(name, env);
+    add(found
+      ? { id: `path-${name}`, state: "ok", message: `${name} on PATH is ${found}` }
+      : { id: `path-${name}`, state: "fail", message: `${name} is not on PATH`, fix: "Add npm's global bin folder to PATH (npm prefix -g, then its bin folder), or reinstall: npm install -g mozak" });
+  }
+  const skillTarget = join(home, ".local", "share", "mozak-npm", npm.version, "skills", "mozak");
+  if (args.fix && !existsSync(join(skillTarget, "SKILL.md"))) renderNpmSkill(npm.root, npm.version, home);
+  for (const rel of SKILL_DIRS) {
+    const dir = join(home, rel);
+    if (!existsSync(dir)) continue;
+    const link = join(dir, "mozak");
+    const id = `skill-${rel.split("/")[0].slice(1)}`;
+    const linkFix = "mozak doctor --fix";
+    if (isLink(link) && sameTarget(link, skillTarget)) { add({ id, state: "ok", message: `${link} links to the skill for this npm package` }); continue; }
+    const c = add({ id, state: "warn", message: isLink(link) ? `${link} links to ${readlinkSync(link)}, not this npm package's skill` : existsSync(link) ? `${link} is an old copy, not a link to this npm package's skill` : `${dir} has no mozak skill`, fix: linkFix });
+    if (args.fix && existsSync(skillTarget)) {
+      let note = "";
+      if (isLink(link)) renameSync(link, freeName(`${link}.previous-link-${stamp()}`));
+      else if (existsSync(link)) { const backup = freeName(`${link}.backup-${stamp()}`); renameSync(link, backup); note = ` (old copy moved to ${backup})`; }
+      symlinkSync(skillTarget, link);
+      c.fixed = `linked ${link} -> ${skillTarget}${note}`;
+    }
+  }
+  if (args.config) {
+    try {
+      const inv = loadInventory(resolve(args.config));
+      const out = executeOperation(inv, "scopes", {}, "agent");
+      const rows = (out.data.scopes ?? []) as Array<{ id: string; status?: string; error?: unknown }>;
+      const failed = rows.filter((r) => r.status === "failed" || r.error);
+      add(failed.length === 0
+        ? { id: "inventory", state: "ok", message: `${args.config}: ${rows.length} scope(s), all readable` }
+        : { id: "inventory", state: "fail", message: `${args.config}: ${failed.length} scope(s) do not read: ${failed.map((r) => r.id).join(", ")}`, fix: `mozak check --config ${args.config} --scope ${failed[0].id}` });
+    } catch (err) {
+      add({ id: "inventory", state: "fail", message: `${args.config} does not load: ${err instanceof Error ? err.message : String(err)}`, fix: "Fix the JSON, or see docs/installation.md (Inventory)" });
+    }
+  } else {
+    add({ id: "inventory", state: "warn", message: "no inventory checked (pass --config FILE)", fix: "mozak doctor --config /path/to/mozak-inventory.json" });
+  }
+  const update = cachedUpdateNotice(npm.version, { env });
+  if (update) add({ id: "update", state: "warn", message: `mozak ${update.latest} is available (installed ${update.installed})`, fix: update.command });
+  const open = checks.filter((c) => !c.fixed);
+  const fails = open.filter((c) => c.state === "fail").length;
+  const warns = open.filter((c) => c.state === "warn").length;
+  return {
+    exitCode: fails > 0 ? 3 : 0,
+    data: { status: fails > 0 ? "fail" : warns > 0 ? "warn" : "ok", install: "npm", prefix: npm.root, version: npm.version, fixed: checks.filter((c) => c.fixed).length, checks },
+  };
+}
+
 export function doctor(args: DoctorArgs): { exitCode: number; data: Record<string, unknown> } {
   const env = args.env ?? process.env;
   const home = args.home ?? env.HOME ?? "";
@@ -158,6 +238,8 @@ export function doctor(args: DoctorArgs): { exitCode: number; data: Record<strin
     : { id: "node", state: "fail", message: `Node ${process.versions.node} is older than 24.11.0`, fix: "Install Node 24.11 or newer (https://nodejs.org)" });
 
   // 2. The installation.
+  const npm = args.prefix ? null : npmInstall();
+  if (npm) return doctorNpm(args, npm, home, env, checks, add);
   const here = args.prefix ? null : installedVersion();
   const prefix = args.prefix ? resolve(args.prefix) : here?.prefix ?? join(home, ".local", "share", "mozak");
   let version: string | null = null;
@@ -208,7 +290,7 @@ export function doctor(args: DoctorArgs): { exitCode: number; data: Record<strin
     const dir = join(home, rel);
     if (!existsSync(dir)) continue;
     const link = join(dir, "mozak");
-    const id = `skill-${rel.split("/")[0]!.slice(1)}`;
+    const id = `skill-${rel.split("/")[0].slice(1)}`;
     const linkFix = `ln -sfn ${skillTarget} ${link}`;
     let c: Check;
     if (isLink(link) && sameTarget(link, skillTarget)) { add({ id, state: "ok", message: `${link} links to this installation` }); continue; }
@@ -281,12 +363,12 @@ export function doctor(args: DoctorArgs): { exitCode: number; data: Record<strin
   //    checkout has this release's build, the same bytes.
   if (inventoryDir && version) {
     const built = source ? join(source, "packages", "obsidian", "dist", "plugin", "main.js") : null;
-    const builtVersion = built ? (() => { try { return JSON.parse(readFileSync(join(dirname(built), "manifest.json"), "utf8")).version as string; } catch { return null; } })() : null;
+    const builtVersion = built ? (() => { try { return (JSON.parse(readFileSync(join(dirname(built), "manifest.json"), "utf8")) as { version?: string }).version ?? null; } catch { return null; } })() : null;
     const buildUsable = built !== null && builtVersion === version && existsSync(built);
     for (const vault of vaultsUnder(inventoryDir)) {
       const target = join(vault, ".obsidian", "plugins", "mozak");
-      const copyVersion = (() => { try { return JSON.parse(readFileSync(join(target, "manifest.json"), "utf8")).version as string; } catch { return null; } })();
-      const current = copyVersion === version && (!buildUsable || sha256(join(target, "main.js")) === sha256(built!));
+      const copyVersion = (() => { try { return (JSON.parse(readFileSync(join(target, "manifest.json"), "utf8")) as { version?: string }).version ?? null; } catch { return null; } })();
+      const current = copyVersion === version && (!buildUsable || sha256(join(target, "main.js")) === sha256(built));
       const installCmd = source ? `node ${join(source, "scripts", "install-obsidian-plugin.mjs")} ${vault}` : `node <mozak checkout>/scripts/install-obsidian-plugin.mjs ${vault}`;
       if (current) { add({ id: `plugin:${vault}`, state: "ok", message: `${vault}: plugin ${copyVersion} matches the installation` }); continue; }
       const c = add({ id: `plugin:${vault}`, state: "warn", message: `${vault}: plugin ${copyVersion ?? "unknown"} is not this release's build (${version})`, fix: installCmd });

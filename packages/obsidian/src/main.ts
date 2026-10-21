@@ -1,5 +1,6 @@
-import { FileSystemAdapter, MarkdownView, Notice, Plugin, PluginSettingTab, Setting, TFile, type App, type WorkspaceLeaf } from "obsidian";
+import { FileSystemAdapter, MarkdownView, Notice, Plugin, PluginSettingTab, TFile, type App, type SettingDefinitionItem, type WorkspaceLeaf } from "obsidian";
 import { readFileSync } from "node:fs";
+import { shell } from "electron";
 import { BRIDGE_FILE } from "@mozak/core";
 import { chooseInventory } from "./discover.ts";
 import { realOrSelf, renderStaleProjections, syncRemoteScopes } from "./load.ts";
@@ -22,7 +23,7 @@ export default class MozakPlugin extends Plugin {
   private pollTimer: number | null = null;
 
   override async onload(): Promise<void> {
-    this.settings = { ...DEFAULTS, ...(await this.loadData()) };
+    this.settings = { ...DEFAULTS, ...((await this.loadData()) as Partial<MozakSettings> | null) };
     this.registerView(SCOPES_VIEW_TYPE, (leaf) => new ScopesView(leaf, this));
     this.addRibbonIcon("brain-circuit", "Open mozak scopes", () => void this.activateScopes());
     this.addCommand({ id: "open-scopes", name: "Open scopes", callback: () => void this.activateScopes() });
@@ -114,7 +115,7 @@ export default class MozakPlugin extends Plugin {
   /** Open the scope's mozak.md scrolled to this plan's heading. Plans are read there, not in a plugin pane. */
   async openPlan(scope: ScopeVM, plan: PlanVM): Promise<void> {
     if (plan.state === "rejected") {
-      new Notice("mozak: rejected plans are not shown in mozak.md. Their record remains in mozak.json.", 6000);
+      new Notice("Rejected plans are not shown in mozak.md. Their record remains in mozak.json.", 6000);
       return;
     }
     const file = `${scope.root}/${scope.bridgeFile ?? BRIDGE_FILE}`;
@@ -165,7 +166,6 @@ export default class MozakPlugin extends Plugin {
 
   private async openExternal(path: string): Promise<string> {
     // Desktop-only plugin, so Electron's shell is available.
-    const { shell } = require("electron") as { shell: { openPath(p: string): Promise<string> } };
     return shell.openPath(path);
   }
 }
@@ -174,34 +174,43 @@ class MozakSettingTab extends PluginSettingTab {
   private plugin: MozakPlugin;
   constructor(app: App, plugin: MozakPlugin) { super(app, plugin); this.plugin = plugin; }
 
-  override display(): void {
-    const { containerEl } = this;
-    containerEl.empty();
+  // Declarative settings (Obsidian 1.13+, minAppVersion is 1.14.4) so they show up in settings search.
+  // The default getControlValue/setControlValue read and write this.plugin.settings; setControlValue is
+  // overridden to persist through saveSettings, which also restarts auto-refresh.
+  override getSettingDefinitions(): SettingDefinitionItem[] {
     const resolved = this.plugin.inventory();
-    new Setting(containerEl)
-      .setName("Inventory path")
-      .setDesc(`Path to mozak-inventory.json. Leave empty to search upward from the vault folder. Currently: ${resolved.path ?? "not found"} (${resolved.source}).`)
-      .addText((t) =>
-        t.setPlaceholder("auto-discover").setValue(this.plugin.settings.inventoryPath).onChange(async (v) => {
-          this.plugin.settings.inventoryPath = v;
-          await this.plugin.saveSettings();
-        }),
-      );
-    new Setting(containerEl)
-      .setName("Auto-refresh")
-      .setDesc("Reload mozak views as soon as a plan changes on disk.")
-      .addToggle((t) => t.setValue(this.plugin.settings.autoRefresh).onChange(async (v) => {
-        this.plugin.settings.autoRefresh = v;
-        await this.plugin.saveSettings();
-      }));
-    new Setting(containerEl)
-      .setName("Repo sync interval (seconds)")
-      .setDesc("How often remote (repo) scopes are pulled so repo plan changes appear automatically. 0 turns it off. Minimum 15.")
-      .addText((t) => t.setValue(String(this.plugin.settings.remotePollSeconds)).onChange(async (v) => {
-        const n = Number(v);
-        if (!Number.isFinite(n) || n < 0) return;
-        this.plugin.settings.remotePollSeconds = n;
-        await this.plugin.saveSettings();
-      }));
+    return [
+      {
+        name: "Inventory path",
+        desc: `Path to mozak-inventory.json. Leave empty to search upward from the vault folder. Currently: ${resolved.path ?? "not found"} (${resolved.source}).`,
+        aliases: ["mozak-inventory.json"],
+        control: { type: "text", key: "inventoryPath", placeholder: "Search upward from the vault" },
+      },
+      {
+        name: "Auto-refresh",
+        desc: "Reload mozak views as soon as a plan changes on disk.",
+        control: { type: "toggle", key: "autoRefresh" },
+      },
+      {
+        name: "Repo sync interval (seconds)",
+        desc: "How often remote repository scopes are pulled so plan changes appear automatically. 0 turns it off. Minimum 15.",
+        control: {
+          type: "number",
+          key: "remotePollSeconds",
+          min: 0,
+          validate: (n) => (Number.isFinite(n) && n >= 0 ? undefined : "Enter 0 or a positive number of seconds."),
+        },
+      },
+    ];
+  }
+
+  override async setControlValue(key: string, value: unknown): Promise<void> {
+    const s = this.plugin.settings;
+    if (key === "inventoryPath" && typeof value === "string") s.inventoryPath = value;
+    else if (key === "autoRefresh" && typeof value === "boolean") s.autoRefresh = value;
+    else if (key === "remotePollSeconds" && typeof value === "number" && Number.isFinite(value) && value >= 0) s.remotePollSeconds = value;
+    else return;
+    await this.plugin.saveSettings();
+    if (key === "inventoryPath") this.update();
   }
 }

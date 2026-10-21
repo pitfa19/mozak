@@ -6,7 +6,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, readFileSync, realpathSync, renameSync, statSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { isAbsolute, join, resolve } from "node:path";
-import { compareVersions, highestRelease, installedVersion, parseVersion } from "@mozak/core";
+import { compareVersions, highestRelease, installedVersion, npmInstall, parseVersion } from "@mozak/core";
 
 export interface UpgradeArgs { prefix?: string; source?: string; vaults: string[]; check: boolean }
 export interface UpgradeResult { exitCode: number; data: Record<string, unknown> }
@@ -38,7 +38,7 @@ interface Installation { prefix: string; version: string; source: string | null 
 function readInstallation(prefix: string): Installation {
   const path = join(prefix, "installation.json");
   let m: { format?: unknown; version?: unknown; source?: unknown };
-  try { m = JSON.parse(readFileSync(path, "utf8")); } catch { throw new Refusal("installation-unavailable", `no readable mozak installation at ${prefix} (missing ${path})`); }
+  try { m = JSON.parse(readFileSync(path, "utf8")) as typeof m; } catch { throw new Refusal("installation-unavailable", `no readable mozak installation at ${prefix} (missing ${path})`); }
   if (m.format !== "mozak.installation/v1" || typeof m.version !== "string" || !parseVersion(m.version)) {
     throw new Refusal("installation-unavailable", `${path} is not a mozak installation manifest`);
   }
@@ -79,6 +79,8 @@ export function upgrade(args: UpgradeArgs): UpgradeResult {
       if (!isAbsolute(args.prefix)) throw new Refusal("invalid-input", "--prefix must be an absolute path");
       prefix = resolve(args.prefix);
     } else {
+      const npm = npmInstall();
+      if (npm) throw new Refusal("npm-install", `this mozak ${npm.version} was installed with npm; update it with: npm install -g mozak@latest`);
       const here = installedVersion();
       if (!here) throw new Refusal("installation-unavailable", "this mozak is not running from an installation; pass --prefix PATH");
       prefix = here.prefix;
@@ -130,8 +132,8 @@ export function upgrade(args: UpgradeArgs): UpgradeResult {
     const co = run(src.root, "git", ["checkout", "--quiet", "--detach", tag]);
     if (!co.ok) throw new Refusal("build-failed", `git checkout ${tag} failed: ${co.output}`);
     try {
-      const declared = JSON.parse(readFileSync(join(src.root, "package.json"), "utf8")).version;
-      if (declared !== latest) throw new Refusal("build-failed", `${tag} declares version ${declared}, not ${latest}`);
+      const declared = (JSON.parse(readFileSync(join(src.root, "package.json"), "utf8")) as { version?: unknown }).version;
+      if (declared !== latest) throw new Refusal("build-failed", `${tag} declares version ${String(declared)}, not ${latest}`);
       // The release's own `build` script builds everything, the Obsidian plugin included.
       // Dependencies are installed exactly from the release's lockfile; a release without one has none to install.
       const steps: Array<[string, string[]]> = [];
@@ -174,10 +176,12 @@ export function upgrade(args: UpgradeArgs): UpgradeResult {
   }
 }
 
-/** Version of the installation this code runs from, else of this CLI package. */
+/** Version of the installation this code runs from, else of the npm package, else of this CLI package. */
 export function runningVersion(): string {
   const inst = installedVersion();
   if (inst) return inst.version;
+  const npm = npmInstall();
+  if (npm) return npm.version;
   const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version: string };
   return pkg.version;
 }

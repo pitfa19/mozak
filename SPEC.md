@@ -1,8 +1,10 @@
 # mozak v1 spec
 
-> **Legacy format 1. Do not build against this file.** It records the early 2026-10-11 design. mozak now uses `mozak.json` (format `mozak.scope/v3`) with a generated `mozak.md`. Read the current contract in [docs/installation.md](docs/installation.md), [docs/implementation-package-1-plan-state-review.md](docs/implementation-package-1-plan-state-review.md), [docs/implementation-package-2-conversation-and-handoff.md](docs/implementation-package-2-conversation-and-handoff.md) and [docs/implementation-package-3-portable-workspace.md](docs/implementation-package-3-portable-workspace.md).
+> **Historical. Legacy format 1.** This is the original v1 design draft from 2026-10-11 (format 1). It does not describe current mozak: format 1 is retired, agents cannot edit plans directly, and mozak is not on npm as 1.0.0. For the current behaviour see [README.md](README.md) and [docs/installation.md](docs/installation.md).
 
-Status: historical draft from the 24 grilling decisions of 2026-10-11.
+Status: historical draft, from the 24 grilling decisions of 2026-10-11. Not the implemented current contract.
+
+Current contracts: [plan state](docs/implementation-package-1-plan-state-review.md), [conversation](docs/implementation-package-2-conversation-and-handoff.md), and [portable workspace](docs/implementation-package-3-portable-workspace.md).
 
 ## Purpose
 

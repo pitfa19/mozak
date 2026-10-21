@@ -1,7 +1,7 @@
 // S2 usage log and monthly aggregates. Synthetic temp dirs only; never writes to a real vault.
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { cleanup, world } from "./annotations-fixture.ts";
@@ -80,6 +80,15 @@ test("writeUsageAggregate writes <host>-<yyyy-mm>.json and refuses scope or inde
   assert.throws(() => writeUsageAggregate(join(w.entries.alpha.root, ".mozak-usage"), agg, [w.entries.alpha.root]), { code: "usage-target-refused" });
   assert.throws(() => writeUsageAggregate(w.base, agg, [w.entries.alpha.root]), { code: "usage-target-refused" }, "a folder that contains a scope is refused too");
   assert.throws(() => writeUsageAggregate(target, { ...agg, month: "2026-1" }, []), { code: "invalid-input" });
+});
+
+test("a not-yet-created aggregate below a symlinked scope is refused", () => {
+  const w = world();
+  const alias = join(w.base, "scope-alias");
+  symlinkSync(w.entries.alpha.root, alias, "dir");
+  const agg = aggregateUsage([], "synthetic", "2026-10");
+  assert.throws(() => writeUsageAggregate(join(alias, "new", ".mozak-usage"), agg, [w.entries.alpha.root]), { code: "usage-target-refused" });
+  assert.equal(existsSync(join(w.entries.alpha.root, "new")), false);
 });
 
 test("a torn last line is skipped when reading the log", () => {

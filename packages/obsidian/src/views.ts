@@ -84,7 +84,7 @@ export class ScopesView extends ItemView {
     button.addClass("is-busy");
     button.setAttr("disabled", "true");
     // Let the label paint before the synchronous core call blocks the UI thread.
-    setTimeout(() => {
+    window.setTimeout(() => {
       try {
         const result = syncAll(path);
         new Notice(`mozak: ${result.message}`, result.ok ? 4000 : 10000);

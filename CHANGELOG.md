@@ -4,7 +4,7 @@ User-visible changes, newest first. Releases are git tags `vX.Y.Z` on `main`; `m
 
 ## 0.5.0 (unreleased)
 
-Not tagged. The version in `package.json`, the package manifests and both plugin manifests is still 0.4.0. Bump it in the release commit. None of these changes are in 0.4.0.
+Not tagged. The version in `package.json`, the package manifests and both plugin manifests is still 0.4.4. Bump it only in an owner-authorized release commit. These additions are unreleased.
 
 ### Added
 
@@ -43,15 +43,50 @@ Not tagged. The version in `package.json`, the package manifests and both plugin
 
 ### Docs
 
-- README rewritten: the problem in plain words, a real example, a "why not X" table and a "when not to use mozak" list.
+- README retains the 0.4.4 limitations and adds commands for the unreleased features without claiming measured agent benefit.
 - `SPEC.md` is marked as legacy format 1. The README section "Reads and the network" says when a read can fetch, update a cache or push.
 - The plugin README now also discloses the public GitHub API visibility check, the parent-folder inventory lookup, the 60 second default sync, and that the update notice only reads a cache.
 - Removed the old generated demos with the uppercase name (`docs/assets/mozak-demo.*`, `docs/assets/mozak-agent-chat.*`) from the repo. Nothing linked to them.
 
-## 0.4.0 (unreleased, tag when publishing)
+## 0.4.4 (2026-10-21)
+
+### Fixed
+
+- Obsidian directory review: the source scan reported hundreds of "unsafe any" warnings because its TypeScript 6 tooling did not load Node's type definitions. `tsconfig.base.json` now declares `"types": ["node"]`. No code change: the plugin bundle and the CLI behave exactly as in 0.4.3.
+
+## 0.4.3 (2026-10-21)
 
 ### Changed
 
+- README: full-width hero banner, and the headline "Use Obsidian as your IDE" is replaced by "One approved plan per project, shared by your coding agents, visible in Obsidian." The Obsidian plugin is a read-only view, so the old line overclaimed.
+- npm package: README image and file links point to GitHub, so they work on npmjs.com.
+
+## 0.4.2 (2026-10-21)
+
+### Added
+
+- npm package `mozak` (`npm install -g mozak`): one bundled CLI and MCP server, no dependencies, no install scripts. Built with `npm run build:npm` into `npm-package/`. `mozak upgrade` tells npm users to run `npm install -g mozak@latest`, the update notice shows that command, and `mozak doctor --fix` renders the skill for the npm install and links it into the agent skills folders.
+
+### Changed
+
+- README: claims checked against code and tests. Overstated lines rewritten, a "What is tested and what is not" section added (including the small pilot that found no measured agent benefit yet), and the plugin's git sync disclosure now says it can commit and push a pending plan change left by an earlier failed write. SPEC.md is marked historical.
+- README previews re-encoded at 1280 px, full width, without the grey blocks in white areas.
+
+## 0.4.1 (2026-10-21)
+
+### Changed
+
+- Obsidian review fixes: plugin settings use the declarative settings API, so they appear in Obsidian's settings search. Plugin timers use `window.setTimeout` for popout windows. Electron is imported instead of required.
+- Release workflow attests build provenance for `main.js`, `manifest.json` and `styles.css` (`gh attestation verify`).
+- Lint cleanup across core, CLI and MCP: unused code and no-op type assertions removed, `JSON.parse` results typed. No behaviour change.
+
+## 0.4.0 (2026-10-21)
+
+### Changed
+
+- The Obsidian plugin conservatively requires Obsidian 1.14.4, the owner's current used version. Compatibility with older app runtimes is not claimed from type checks alone.
+- Plugin releases use exact-version tags (`0.4.0`) as Obsidian requires, alongside the CLI updater's `v0.4.0` tag at the same commit.
+- The plugin bundle excludes the CLI's unused background release-check process. Plugin network and update-cache disclosures now match the shipped code.
 - The name is written `mozak` everywhere: the Obsidian sidebar title, plugin name, messages, CLI help and docs.
 - Plan files are now `mozak.json` and `mozak.md`. Older scopes with `MOZAK.json` and `MOZAK.md` keep working unchanged: reads accept both names and writes keep the scope's existing names. New scopes get the lowercase names.
 

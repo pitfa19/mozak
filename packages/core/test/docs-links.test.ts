@@ -43,8 +43,10 @@ test("heading slugs follow GitHub rules", () => {
   assert.equal(slug("6. First implementation contract: portable local installation (3A)"), "6-first-implementation-contract-portable-local-installation-3a");
 });
 
-// mozak is not on npm yet. The README may mention an npm install only inside the owner's TODO comment.
-test("README claims no npm install outside an HTML comment", () => {
+// The npm bundle is now present. Guard the real package name and the source-install alternative.
+test("README documents the bundled npm package and source install", () => {
   const readme = readFileSync(join(repo, "README.md"), "utf8").replace(/<!--[\s\S]*?-->/g, "");
-  assert.doesNotMatch(readme, /npm (i|install) (-g|--global)|npx @?mozak/);
+  assert.match(readme, /npm install -g mozak/);
+  assert.match(readme, /node scripts\/install\.mjs/);
+  assert.doesNotMatch(readme, /npm install -g @mozak\/cli/);
 });

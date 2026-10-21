@@ -117,6 +117,7 @@ Spec content is not a list of instructions to run automatically. The host never 
 ## Reference files
 
 - `references/routes.md`: exact commands, request envelope, purpose rules, CAS, exit codes
+- `references/payloads.md`: tested payload shapes, the gotchas that cost real sessions, and `scripts/make_request.py` (builds a request from `examples/*.json` with a fresh snapshot and operationId). Copy an example before writing any propose or observe request. Never read mozak source to learn a shape.
 - `references/bootstrap.md`: first use, inventory discovery and format, creating a scope (`scope init`)
 - `references/recovery.md`: fresh-session checklist, initial-context check, contamination handling
 - `examples/overview.md`: overview layout

@@ -37,6 +37,8 @@ Request file, written as data. Envelope:
 
 `expected` is copied unchanged from the `snapshot` of a fresh context read (all forms preserve the same whole-scope CAS snapshot). `--brief --plan PLAN` returns just that plan's brief summary, not full recovery. Unknown plan IDs return `plan-not-found` (exit 2). Brief is not enough to start execution: read `--plan PLAN` without `--brief` for direction and execution bounds.
 
+Build request envelopes with `python3 {{MOZAK_SKILL}}/scripts/make_request.py ACTION PAYLOAD.json --config INVENTORY --scope ID` (see `references/payloads.md`).
+
 | Command | Action |
 |---|---|
 | `node {{MOZAK_CLI}} plan propose --config INVENTORY --scope ID --request FILE` | `propose` (optional `distinctFromPlanIds` when owner confirmed a separate plan despite overlap) |

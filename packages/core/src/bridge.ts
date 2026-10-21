@@ -33,7 +33,7 @@ export function stopLabel(stop: Pick<RoadmapStop, "id" | "statement">): string {
   const words = stop.id.replace(/[-_.]+/g, " ").trim();
   const base = /\p{L}{3,}/u.test(words) ? words : stop.statement;
   const label = mermaidLabel(base);
-  return label ? label[0]!.toLocaleUpperCase("en") + label.slice(1) : "Outcome";
+  return label ? label[0].toLocaleUpperCase("en") + label.slice(1) : "Outcome";
 }
 
 export type PlanDisplayState = "open" | "paused" | "awaiting" | "completed" | "rejected";

@@ -38,7 +38,7 @@ export function scopeForWorkingCopy(inv: ScopeInventory, cwd: string): ScopeEntr
   if (origin === null) throw new DomainError("scope-not-found", `no --scope given and ${cwd} is not a git clone with an origin. Pass --scope ID.`);
   const key = repoKey(origin);
   const matches = key === null ? [] : inv.scopes.filter((s) => s.remote !== undefined && repoKey(s.remote.spec) === key);
-  if (matches.length === 1) return matches[0]!;
+  if (matches.length === 1) return matches[0];
   if (matches.length > 1) throw new DomainError("scope-ambiguous", `origin ${origin} matches several scopes (${matches.map((m) => m.id).join(", ")}). Pass --scope ID.`);
   throw new DomainError("scope-not-found", `no scope in the inventory links ${origin}. Pass --scope ID, or add a remote entry for this repo.`);
 }

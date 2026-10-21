@@ -25,7 +25,7 @@ import { cacheIgnoreWarning, commitAndPush, pullRemote, remoteEntries, repoEntri
 import type { RemoteStatus } from "./remote-meta.ts";
 import { cachedVisibility, publicRepoPlansMessage, scopeVisibility } from "./visibility.ts";
 import { leftoverTempFiles } from "./durable.ts";
-import { cachedUpdateNotice, installedVersion, refreshUpdateCacheIfStale } from "./update.ts";
+import { cachedUpdateNotice, installedVersion, npmInstall, refreshUpdateCacheIfStale } from "./update.ts";
 import { canonical, digest } from "./understanding.ts";
 import { annotateScope } from "./scope-store.ts";
 import { readAnnotations, type AnnotationsDoc } from "./annotations.ts";
@@ -45,13 +45,13 @@ import { readScopeQuiet } from "./scope-store.ts";
 
 /**
  * The scopes index's update notice: reads the cache only, and starts a background refresh when it is old.
- * Only an installed mozak (one with installation.json) checks; a source checkout or test run never does.
+ * Only an installed mozak (a portable installation or the npm package) checks; a source checkout or test run never does.
  */
 function scopesUpdateIssue(): Record<string, unknown> | null {
-  const installed = installedVersion();
-  if (!installed) return null;
+  const version = installedVersion()?.version ?? npmInstall()?.version;
+  if (!version) return null;
   refreshUpdateCacheIfStale();
-  const n = cachedUpdateNotice(installed.version);
+  const n = cachedUpdateNotice(version);
   return n ? { code: "update-available", message: `mozak ${n.latest} is available (installed ${n.installed}). Run: ${n.command}`, installed: n.installed, latest: n.latest, command: n.command } : null;
 }
 
@@ -271,7 +271,7 @@ function decodeContinuation(text: unknown): Continuation {
   return {
     v: 2,
     inventory: nonEmpty(c.inventory, "continuation inventory"),
-    selector: { scope: selector.scope as string | null, all: selector.all },
+    selector: { scope: selector.scope, all: selector.all },
     includeRejected: c.includeRejected,
     limit: c.limit,
     binding: nonEmpty(c.binding, "continuation binding"),
@@ -1011,7 +1011,7 @@ function attachRemote(output: OperationOutput, statuses: RemoteStatus[]): Operat
   }
   const stale = statuses.filter((s) => s.stale);
   if (stale.length > 0 && Array.isArray(data.issues)) {
-    data.issues = [...data.issues, ...stale.map((s) => ({ code: "remote-stale", message: `${s.scope}: using cached copy, fetch failed (${s.error ?? "unknown"})`, scope: s.scope }))];
+    data.issues = [...(data.issues as unknown[]), ...stale.map((s) => ({ code: "remote-stale", message: `${s.scope}: using cached copy, fetch failed (${s.error ?? "unknown"})`, scope: s.scope }))];
   }
   return { ...output, data };
 }
@@ -1036,11 +1036,11 @@ function renderOp(inv: ScopeInventory, a: Record<string, unknown>): OperationOut
     }
   });
   const bad = rows.filter((r) => r.result === "conflict" || r.result === "failed").length;
-  const exitCode = bad === 0 ? 0 : all ? 6 : rows[0]!.exitCode;
+  const exitCode = bad === 0 ? 0 : all ? 6 : rows[0].exitCode;
   return {
     exitCode,
     data: {
-      status: bad === 0 ? "ok" : all ? "partial" : rows[0]!.result,
+      status: bad === 0 ? "ok" : all ? "partial" : rows[0].result,
       committed: false,
       operation: "render",
       snapshot: null,
@@ -1072,7 +1072,7 @@ function renameFilesOp(inv: ScopeInventory, a: Record<string, unknown>): Operati
     }
   });
   const bad = rows.filter((r) => r.result === "failed").length;
-  const exitCode = bad === 0 ? 0 : all ? 6 : rows[0]!.exitCode;
+  const exitCode = bad === 0 ? 0 : all ? 6 : rows[0].exitCode;
   return {
     exitCode,
     data: {
@@ -1238,7 +1238,7 @@ function runOperation(inv: ScopeInventory, operation: string, args: unknown, act
       const exposed = repoEntries(inv).filter((e) => cachedVisibility(e) === "public");
       const update = scopesUpdateIssue();
       if ((exposed.length === 0 && !update) || !Array.isArray(out.data.issues)) return out;
-      return { ...out, data: { ...out.data, issues: [...out.data.issues, ...exposed.map((e) => ({ code: "public-repo-plans", message: publicRepoPlansMessage(e), scope: e.id })), ...(update ? [update] : [])] } };
+      return { ...out, data: { ...out.data, issues: [...(out.data.issues as unknown[]), ...exposed.map((e) => ({ code: "public-repo-plans", message: publicRepoPlansMessage(e), scope: e.id })), ...(update ? [update] : [])] } };
     }
     const input = isPlain(args) ? args : {};
     // Only repo-mode remote scopes commit and push. Vault-plans scopes write like local scopes.

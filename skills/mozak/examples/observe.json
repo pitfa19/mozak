@@ -1,0 +1,32 @@
+{
+  "_doc": "mozak observe: record evidence for one outcome. The key is `observation` (singular). classification is observed | inferred | unverified; observed needs at least one evidence item. reasoningLinks is optional: link this observation to the outcome it supports or challenges. Build with scripts/make_request.py observe <this file>.",
+  "payload": {
+    "planId": "example-plan",
+    "observation": {
+      "id": "obs-1",
+      "classification": "observed",
+      "summary": "The portal shows the application as submitted on 2026-10-21.",
+      "evidence": [
+        {
+          "id": "ev-1",
+          "locator": "https://example.org/portal/applications/123",
+          "anchor": null,
+          "version": null,
+          "inspectedAt": "2026-10-21T12:00:00.000Z",
+          "activity": { "kind": "read", "description": "Opened the application status page." },
+          "result": { "verdict": "pass", "summary": "Status reads Submitted." },
+          "limitations": []
+        }
+      ]
+    },
+    "reasoningLinks": [
+      {
+        "id": "link-1",
+        "relation": "supports",
+        "from": { "planId": "example-plan", "revisionId": null, "kind": "observation", "id": "obs-1" },
+        "to": { "planId": "example-plan", "revisionId": "REPLACE-with-the-accepted-revisionId", "kind": "outcome", "id": "o1" },
+        "rationale": "The portal status is the acceptance criterion of o1."
+      }
+    ]
+  }
+}

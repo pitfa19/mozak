@@ -521,7 +521,7 @@ export function discussionDigest(value: Discussion): Digest {
 /** Pure lexical check. The store separately rejects symlinks and unsafe file types. */
 export function validateRelativePath(value: unknown): string {
   str(value, "path");
-  if (/^[\/\\]|^[A-Za-z]:|[\0\\*?\[\]{}]/.test(value) || value.split("/").some(part => part === ".." || part === "." || part === "")) fail("path must be an explicit scope-relative path without traversal or globs");
+  if (/^[/\\]|^[A-Za-z]:|[\0\\*?[\]{}]/.test(value) || value.split("/").some(part => part === ".." || part === "." || part === "")) fail("path must be an explicit scope-relative path without traversal or globs");
   return value;
 }
 export function validateBounds(value: unknown): Bounds {

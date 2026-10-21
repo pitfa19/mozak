@@ -264,7 +264,7 @@ export function handle(msg: unknown, rt: Runtime): Reply | null {
     const isNotification = isPlainObject(msg) && !hasOwn(msg, "id") && hasOwn(msg, "jsonrpc") && msg.jsonrpc === "2.0";
     return isNotification ? null : errorReply(envelope.id, envelope.code, envelope.message);
   }
-  const m = msg as unknown as Rpc;
+  const m = msg as Rpc;
   if (m.id === undefined) return null; // well-formed notification
   const reply = (result: unknown): Reply => ({ jsonrpc: "2.0", id: m.id, result });
   try {

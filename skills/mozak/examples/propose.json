@@ -1,0 +1,36 @@
+{
+  "_doc": "mozak plan propose. Copy, replace the values, keep every key (closed schema: no extra keys, none missing). Build the request with scripts/make_request.py propose <this file>.",
+  "payload": {
+    "planId": "example-plan",
+    "content": {
+      "title": "Apply to the Erasmus internship",
+      "purpose": "Get a summer internship abroad through Erasmus+ before the March deadline.",
+      "outcomes": [
+        {
+          "id": "o1",
+          "statement": "Application submitted on the university portal.",
+          "acceptance": "owner",
+          "criterion": "Fabijan confirms the portal shows the application as submitted."
+        }
+      ],
+      "constraints": [
+        { "id": "c1", "text": "Use the CV in paper-and-applications/cv/, do not invent experience." }
+      ],
+      "nonGoals": ["Finding housing"],
+      "rationale": "The call closes in March and the faculty pre-selection is in February.",
+      "questions": [
+        { "id": "q1", "text": "Which host labs are on the shortlist?" }
+      ],
+      "sources": [
+        {
+          "id": "s1",
+          "locator": "https://example.org/erasmus-call",
+          "anchor": null,
+          "observedAt": "2026-10-21T12:00:00.000Z",
+          "version": null,
+          "limitations": []
+        }
+      ]
+    }
+  }
+}

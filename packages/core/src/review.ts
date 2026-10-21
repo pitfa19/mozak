@@ -160,7 +160,7 @@ const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
-  const proto = Object.getPrototypeOf(value);
+  const proto: unknown = Object.getPrototypeOf(value);
   return proto === Object.prototype || proto === null;
 }
 
@@ -840,7 +840,7 @@ export function applyMutation(
   validateMutation(action, payload, actor);
   validateScope(state);
   if (!isUtcTimestamp(now)) throw invalid("now must be an RFC 3339 UTC timestamp");
-  const next = structuredClone(state) as ScopeState;
+  const next = structuredClone(state);
   const p = structuredClone(payload) as Record<string, unknown>;
   const ids: string[] = [];
   if (OWNER_ACTIONS.has(action)) {
@@ -875,7 +875,7 @@ export function applyMutation(
         if (plan.discussion.questions.some(q => q.status === "deferred") && bounds.limitations.length === 0) throw invalid("deferred questions require explicit specification limitations");
       } else if (p.discussionDigest !== null) throw stale("no discussion matches supplied digest");
       const spec: Specification = { id: randomUUID(), recordedAt: now, acceptedRevisionId: accepted.id, acceptedContentDigest: accepted.contentDigest,
-        path: file.path, sha256: file.sha256, byteLength: file.byteLength, discussionDigest: p.discussionDigest as string | null, bounds, boundsDigest: digest(bounds) };
+        path: file.path, sha256: file.sha256, byteLength: file.byteLength, discussionDigest: p.discussionDigest, bounds, boundsDigest: digest(bounds) };
       plan.specifications.push(spec); plan.downstreamSpec = spec.id; plan.updatedAt = now; ids.push(spec.id);
       break;
     }
@@ -1151,7 +1151,7 @@ export function applyMutation(
           evidenceIds: review.evidenceIds,
           evidenceDigest: review.evidenceDigest,
           result: "pass",
-        } as OutcomeEvidence);
+        });
       }
       const record: CompletionRecord = {
         id: randomUUID(),

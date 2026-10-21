@@ -8,9 +8,9 @@ This guide covers building mozak from source, the portable installer, exit codes
 | --- | --- |
 | S0b eval harness and synthetic fixture on `hermes/s0b-eval` (2026-10-21, macOS, Node 26, synthetic data only) | Passed: `npm run build`, then `TMPDIR=$HOME/.cache/mozak-test-tmp ALLOW_ANY_IDENTITY=1 npm test` gave 596 passed, 0 failed, 0 skipped (571 before plus 25 in `eval/test`). `node eval/verify.mjs`: 7 of 7 checks passed (fixture regenerates byte for byte, 50 notes, 3 scopes, 8 plans, 40 questions, 48 gold references, Croatian 23 of 50 notes and 15 of 40 questions, McNemar and Wilcoxon match published values, ripgrep and node backends identical). Arm A on the fixture: recall@5 0.8611 (any gold) and 0.8333 (all gold) on 36 answerable items, MRR@5 0.8611, abstain accuracy 0.80 (1 of 4 abstain items, 5 false abstains). Arm A without `plans.md` gave the same numbers (McNemar b 0, c 0, p 1). Arm Q not run: `qmd` is not installed. |
 | Fresh public GitHub clone, build, install and README walkthrough on macOS, Node 26.11.1 | Verified 2026-10-18 at `8337e04`: clean `git clone`, `npm ci --ignore-scripts`, build and install into a fresh prefix with an isolated `HOME` took about 8 seconds. Every README command then ran as written (section 8). |
-| Full test suite on macOS, Node 26.11.1 | Verified at `2bd8cfc` (0.2.0 plus tests): 437 tests passed, 0 failed, 0 skipped. Installer suite 69 passed, 1 skipped (case-collision test needs a case-sensitive filesystem). |
+| Full test suite on macOS, Node 26.11.1 | Verified 2026-10-21 at `e1b665d` (0.4.1 content): 447 tests passed, 0 failed. Installer suite 69 passed, 1 skipped (case-collision test needs a case-sensitive filesystem). |
 | Source build and tests on Linux, Node 24.11.0 | Verified earlier at `c324d45`: 334 core tests and 69 installer tests passed. CI covers Linux on every push since. |
-| CI on Ubuntu and macOS, Node 24 and 26 | Passing on every push, latest `2bd8cfc`. Release `v0.2.0` tagged at `e73179d` after CI passed. |
+| CI on Ubuntu and macOS, Node 24.11.0 and 26 | Passing on every push to `main` and every pull request, latest `81de182` (0.4.1). The release workflow for `v0.4.1` ran the tests again, attested the plugin assets and published the release. |
 | `mozak upgrade` on a real installation | Verified 2026-10-18 on macOS: 0.1.0 to 0.2.0 with `--source` (0.1.0 did not record it), five vaults got the 0.2.0 plugin, the old installation kept as `mozak.previous-0.1.0`, the checkout returned to `main`; the installed `mozak upgrade` then reported `up-to-date`. |
 | `mozak doctor` on a real setup | Verified 2026-10-18 on macOS: 16 checks ok (installation, PATH, two skill links, two MCP configs, 21 scopes readable, five vault plugins at 0.2.0) and one warning (no skill link in an existing `~/.codex/skills`). Fresh user account or machine: pending (owner). |
 
@@ -91,7 +91,7 @@ PREFIX/
 - The wrappers find the installed modules relative to themselves. They pass arguments and exit status through unchanged.
 - The installed skill has this PREFIX's exact paths written into its command examples. Moving the folder by hand is not a supported migration. Install again at the new prefix instead.
 - To make the skill available to an agent host, symlink the installed skill folder into the host's skills folder, for example `ln -s PREFIX/skills/mozak ~/.claude/skills/mozak`. Do not copy it: a copy keeps the old paths after an upgrade. The installer never does this step for you.
-- `installation.json` uses format `mozak.installation/v1` and version `0.1.0`. Its `contentDigest` covers the rendered bytes for this prefix. It is not a signed release identity.
+- `installation.json` uses format `mozak.installation/v1` and the installed package version (for example `0.4.1`). Its `contentDigest` covers the rendered bytes for this prefix. It is not a signed release identity.
 
 ### Smoke test after install
 
@@ -352,6 +352,8 @@ Cache layout: `.mozak-cache/<id>/` (sparse git clone) and `.mozak-cache/<id>.met
 
 ## 8. Verification status
 
+Integration with main 0.4.4, 2026-10-22, macOS and Node 26.10.0: `npm ci`, `npm run build`, `npm run lint`, `npm test` (600 passed, zero failed), `npm run test:install` (73 passed, one case-sensitive-filesystem skip), `npm run build:npm`, `node eval/verify.mjs` (seven checks) and `node scripts/readme-example.mjs` passed. The first integration run found three obsolete or missing documentation checks and an aggregate-path overlap failure below a symlinked ancestor. The documentation and obsolete pre-npm assertion were corrected. Aggregate path resolution now resolves existing ancestors before checking a not-yet-created child, with a new regression. A scratch npm pack/install with an isolated home completed a synthetic CLI lifecycle and an MCP context call. This is a local packaging check, not a published release, Linux result, independent code review or measured agent benefit. Rebase remains off by default. The existing plugin CJS `import.meta` warning remains. Main advanced to 0.4.5 during verification, so this paragraph applies only to the pinned 0.4.4 integration.
+
 S7a adapter correction on `hermes/eval-continuation` (macOS, Node 26.10.0):
 `npm run build` passed. `TMPDIR=$HOME/.hermes/cache/scratch ALLOW_ANY_IDENTITY=1 npm test`
 gave 593 passed, 0 failed, 0 skipped. `node --test eval/test/s7a.test.mjs` gave 9 passed.
@@ -390,3 +392,10 @@ unchanged. No additional model sessions were needed for this correction.
 | Restoring a workspace from GitHub and a private vault | Built (`mozak doctor --fix`). Simulated 2026-10-18 on macOS with an isolated `HOME`: public clone at `v0.2.0`, build, install, plugin, a standard MCP setting, then `mozak doctor --fix` created both wrappers and both skill links and the only remaining failure was the synthetic scope with no `mozak.json` (fixed on `main`: clearer messages for that case). Owner run on a real fresh account or machine pending. |
 
 Record the actual results of any new check here before claiming it passed.
+
+### 0.4.0 submission preparation, 2026-10-21
+
+- macOS source build and 447 unit/regression tests passed with `GIT_CONFIG_GLOBAL=/dev/null` (the laptop's global hooks otherwise override a test fixture's rejecting Git hook). The installer suite also passed: 69 passed, 1 skipped, 0 failed.
+- The real bundled plugin is rebuilt by a regression test and contains no release-tags fetch, refresher script or spawned update process. Its update notice still reads the CLI-written cache. The CLI update checker is unchanged.
+- Source typechecks against Obsidian API definitions 1.5.7, 1.6.6, 1.7.2 and 1.8.7 passed. This is compile-time evidence only, not an app-runtime test. The plugin now conservatively declares `minAppVersion: 1.14.4`, matching the owner's currently used Obsidian installation. No clean-install runtime smoke test of this new bundle has been claimed.
+- Release assets are attached to a tag equal to the manifest version (`0.4.0`). The `v0.4.0` tag remains for the CLI updater. The release workflow refuses to reuse a numeric tag pointing at a different commit and checks out the requested tag for manual reruns.

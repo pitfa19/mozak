@@ -5,7 +5,7 @@
 
 import { appendFileSync, existsSync, lstatSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { hostname } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { DomainError } from "./errors.ts";
 import { replaceFileDurable } from "./durable.ts";
 import { isWithin, realOrSelf } from "./paths.ts";
@@ -111,7 +111,13 @@ export function aggregateUsage(lines: UsageLine[], host: string, month: string):
   return agg;
 }
 
-const realish = (p: string): string => resolve(realOrSelf(p));
+/** Resolve the existing ancestor too, so a new child of a symlinked scope cannot bypass overlap checks. */
+function realish(p: string): string {
+  const absolute = resolve(p);
+  if (existsSync(absolute)) return resolve(realOrSelf(absolute));
+  const parent = dirname(absolute);
+  return parent === absolute ? absolute : join(realish(parent), basename(absolute));
+}
 
 /**
  * Write `<targetDir>/<host>-<yyyy-mm>.json`. The design puts it at the personal vault root in `.mozak-usage/`, outside
