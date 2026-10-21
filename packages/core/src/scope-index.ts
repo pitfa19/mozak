@@ -38,7 +38,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 
 function errorCode(err: unknown): string | undefined {
   if (typeof err === "object" && err !== null && "code" in err) {
-    return String((err as { code: unknown }).code);
+    return String(err.code);
   }
   return undefined;
 }

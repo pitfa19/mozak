@@ -1,5 +1,5 @@
 import { ItemView, Notice, setIcon, type WorkspaceLeaf } from "obsidian";
-import { countRemote, planMatches, scopesModel, type PlanFilter, type PlanVM, type ScopeVM, type ScopesModel, type StripVM } from "./model.ts";
+import { countRemote, planMatches, scopesModel, type PlanFilter, type ScopeVM, type ScopesModel, type StripVM } from "./model.ts";
 import { loadScopesModel, describeError, syncRemoteScopes } from "./load.ts";
 import type MozakPlugin from "./main.ts";
 import { cachedUpdateNotice } from "@mozak/core";
@@ -84,7 +84,7 @@ export class ScopesView extends ItemView {
     button.addClass("is-busy");
     button.setAttr("disabled", "true");
     // Let the label paint before the synchronous core call blocks the UI thread.
-    setTimeout(() => {
+    window.setTimeout(() => {
       try {
         const result = syncRemoteScopes(path);
         new Notice(`mozak: ${result.message}`, result.ok ? 4000 : 10000);

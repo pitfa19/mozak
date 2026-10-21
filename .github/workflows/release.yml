@@ -13,6 +13,9 @@ on:
 
 permissions:
   contents: write
+  # Signed build provenance for main.js, manifest.json and styles.css (verify with `gh attestation verify`).
+  id-token: write
+  attestations: write
 
 jobs:
   release:
@@ -50,6 +53,13 @@ jobs:
             test -s "packages/obsidian/dist/plugin/$f" || { echo "Missing plugin asset: $f" >&2; exit 1; }
           done
       - run: GIT_CONFIG_GLOBAL=/dev/null npm test
+      - name: Attest build provenance for Obsidian plugin assets
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            packages/obsidian/dist/plugin/main.js
+            packages/obsidian/dist/plugin/manifest.json
+            packages/obsidian/dist/plugin/styles.css
       - name: Publish GitHub Release with Obsidian plugin assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

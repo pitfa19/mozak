@@ -31,10 +31,10 @@ export function watchTargets(inventoryPath: string): WatchTarget[] {
 /** Starts watchers. Returns a stop function. Bursts of events collapse into one call after `debounceMs`. */
 export function startWatching(targets: WatchTarget[], onChange: () => void, debounceMs = 400): () => void {
   const watchers: FSWatcher[] = [];
-  let timer: ReturnType<typeof setTimeout> | null = null;
+  let timer: number | null = null;
   const fire = () => {
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(() => { timer = null; onChange(); }, debounceMs);
+    if (timer !== null) window.clearTimeout(timer);
+    timer = window.setTimeout(() => { timer = null; onChange(); }, debounceMs);
   };
   for (const t of targets) {
     try {
@@ -46,7 +46,7 @@ export function startWatching(targets: WatchTarget[], onChange: () => void, debo
     } catch { /* directory missing: skip */ }
   }
   return () => {
-    if (timer) clearTimeout(timer);
+    if (timer !== null) window.clearTimeout(timer);
     for (const w of watchers) { try { w.close(); } catch { /* already closed */ } }
   };
 }

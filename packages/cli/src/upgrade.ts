@@ -38,7 +38,7 @@ interface Installation { prefix: string; version: string; source: string | null 
 function readInstallation(prefix: string): Installation {
   const path = join(prefix, "installation.json");
   let m: { format?: unknown; version?: unknown; source?: unknown };
-  try { m = JSON.parse(readFileSync(path, "utf8")); } catch { throw new Refusal("installation-unavailable", `no readable mozak installation at ${prefix} (missing ${path})`); }
+  try { m = JSON.parse(readFileSync(path, "utf8")) as typeof m; } catch { throw new Refusal("installation-unavailable", `no readable mozak installation at ${prefix} (missing ${path})`); }
   if (m.format !== "mozak.installation/v1" || typeof m.version !== "string" || !parseVersion(m.version)) {
     throw new Refusal("installation-unavailable", `${path} is not a mozak installation manifest`);
   }
@@ -130,8 +130,8 @@ export function upgrade(args: UpgradeArgs): UpgradeResult {
     const co = run(src.root, "git", ["checkout", "--quiet", "--detach", tag]);
     if (!co.ok) throw new Refusal("build-failed", `git checkout ${tag} failed: ${co.output}`);
     try {
-      const declared = JSON.parse(readFileSync(join(src.root, "package.json"), "utf8")).version;
-      if (declared !== latest) throw new Refusal("build-failed", `${tag} declares version ${declared}, not ${latest}`);
+      const declared = (JSON.parse(readFileSync(join(src.root, "package.json"), "utf8")) as { version?: unknown }).version;
+      if (declared !== latest) throw new Refusal("build-failed", `${tag} declares version ${String(declared)}, not ${latest}`);
       // The release's own `build` script builds everything, the Obsidian plugin included.
       // Dependencies are installed exactly from the release's lockfile; a release without one has none to install.
       const steps: Array<[string, string[]]> = [];

@@ -64,7 +64,8 @@ export function renderStaleProjections(inventoryPath: string): { ok: boolean; re
   const rows = (out.data.scopes ?? []) as { scope: string; result: string }[];
   const rendered = rows.filter((r) => r.result === "rendered").length;
   const bad = rows.filter((r) => r.result === "conflict" || r.result === "failed");
-  if (out.exitCode !== 0 && bad.length === 0) return { ok: false, rendered, message: `Projection refresh failed (${String(out.data.status ?? "unknown")}).` };
+  const status = typeof out.data.status === "string" ? out.data.status : "unknown";
+  if (out.exitCode !== 0 && bad.length === 0) return { ok: false, rendered, message: `Projection refresh failed (${status}).` };
   if (bad.length === 0) return { ok: true, rendered, message: rendered ? `Regenerated ${rendered} mozak.md file${rendered === 1 ? "" : "s"}.` : "Local mozak.md projections are current. Remote scopes are skipped." };
   return { ok: false, rendered, message: `mozak.md not regenerated for ${bad.map((r) => `${r.scope} (${r.result === "conflict" ? "unrecognized content preserved for owner review" : "render failed, inspect mozak render output"})`).join(", ")}.` };
 }

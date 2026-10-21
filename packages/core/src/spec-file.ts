@@ -55,7 +55,7 @@ export function readSpecification(root: string, relativePath: string, hooks: Spe
   const parts = safeRelativeParts(relativePath);
   const rootStat = rootDirectory(root);
   const chain = walkDirectories(root, rootStat, parts);
-  const filePath = join(chain.at(-1)!.path, parts[parts.length - 1]!);
+  const filePath = join(chain.at(-1)!.path, parts[parts.length - 1]);
   const pathStat = regularFileStat(filePath);
 
   const read = readBounded(filePath, pathStat, hooks);
@@ -111,7 +111,7 @@ function safeRelativeParts(value: unknown): string[] {
     if (part === "") throw invalid("specification path has an empty segment");
     if (part === "." || part === "..") throw invalid("specification path must not traverse");
   }
-  const name = parts[parts.length - 1]!;
+  const name = parts[parts.length - 1];
   const ext = SPECIFICATION_EXTENSIONS.find(e => name.endsWith(e) && name.length > e.length);
   if (!ext) throw invalid("specification must be a .md or .markdown file");
   return parts;

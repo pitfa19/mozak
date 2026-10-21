@@ -39,7 +39,7 @@ export function parseVersion(v: string): [number, number, number] | null {
 export function compareVersions(a: string, b: string): number {
   const x = parseVersion(a), y = parseVersion(b);
   if (!x || !y) throw new Error(`not a release version: ${x ? b : a}`);
-  for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i]! < y[i]! ? -1 : 1;
+  for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] < y[i] ? -1 : 1;
   return 0;
 }
 

@@ -19,7 +19,7 @@ const MAX_VAULT_DEPTH = 3;
 
 function nodeInRange(v: string): boolean {
   const p = v.replace(/^v/, "").split(".").map(Number);
-  for (let i = 0; i < 3; i++) if (p[i] !== NODE_MIN[i]) return (p[i] ?? 0) > NODE_MIN[i]!;
+  for (let i = 0; i < 3; i++) if (p[i] !== NODE_MIN[i]) return (p[i] ?? 0) > NODE_MIN[i];
   return true;
 }
 
@@ -47,7 +47,7 @@ function sameTarget(a: string, b: string): boolean {
 /** Every file the installation manifest names still has its recorded bytes and mode. */
 function verifyInstallation(prefix: string): string | null {
   let m: { files?: Array<{ path: string; sha256: string; executable: boolean }> };
-  try { m = JSON.parse(readFileSync(join(prefix, "installation.json"), "utf8")); } catch { return "installation.json is missing or unreadable"; }
+  try { m = JSON.parse(readFileSync(join(prefix, "installation.json"), "utf8")) as typeof m; } catch { return "installation.json is missing or unreadable"; }
   if (!Array.isArray(m.files)) return "installation.json has no file list";
   for (const f of m.files) {
     const p = join(prefix, f.path);
@@ -125,7 +125,7 @@ function mcpEntries(home: string): McpEntry[] {
 
 function configArg(args: string[]): string | null {
   const i = args.indexOf("--config");
-  return i >= 0 && args[i + 1] ? args[i + 1]! : null;
+  return i >= 0 && args[i + 1] ? args[i + 1] : null;
 }
 
 /** Vault folders (with .obsidian/plugins/mozak) at or under a folder, a few levels deep. */
@@ -208,7 +208,7 @@ export function doctor(args: DoctorArgs): { exitCode: number; data: Record<strin
     const dir = join(home, rel);
     if (!existsSync(dir)) continue;
     const link = join(dir, "mozak");
-    const id = `skill-${rel.split("/")[0]!.slice(1)}`;
+    const id = `skill-${rel.split("/")[0].slice(1)}`;
     const linkFix = `ln -sfn ${skillTarget} ${link}`;
     let c: Check;
     if (isLink(link) && sameTarget(link, skillTarget)) { add({ id, state: "ok", message: `${link} links to this installation` }); continue; }
@@ -281,12 +281,12 @@ export function doctor(args: DoctorArgs): { exitCode: number; data: Record<strin
   //    checkout has this release's build, the same bytes.
   if (inventoryDir && version) {
     const built = source ? join(source, "packages", "obsidian", "dist", "plugin", "main.js") : null;
-    const builtVersion = built ? (() => { try { return JSON.parse(readFileSync(join(dirname(built), "manifest.json"), "utf8")).version as string; } catch { return null; } })() : null;
+    const builtVersion = built ? (() => { try { return (JSON.parse(readFileSync(join(dirname(built), "manifest.json"), "utf8")) as { version?: string }).version ?? null; } catch { return null; } })() : null;
     const buildUsable = built !== null && builtVersion === version && existsSync(built);
     for (const vault of vaultsUnder(inventoryDir)) {
       const target = join(vault, ".obsidian", "plugins", "mozak");
-      const copyVersion = (() => { try { return JSON.parse(readFileSync(join(target, "manifest.json"), "utf8")).version as string; } catch { return null; } })();
-      const current = copyVersion === version && (!buildUsable || sha256(join(target, "main.js")) === sha256(built!));
+      const copyVersion = (() => { try { return (JSON.parse(readFileSync(join(target, "manifest.json"), "utf8")) as { version?: string }).version ?? null; } catch { return null; } })();
+      const current = copyVersion === version && (!buildUsable || sha256(join(target, "main.js")) === sha256(built));
       const installCmd = source ? `node ${join(source, "scripts", "install-obsidian-plugin.mjs")} ${vault}` : `node <mozak checkout>/scripts/install-obsidian-plugin.mjs ${vault}`;
       if (current) { add({ id: `plugin:${vault}`, state: "ok", message: `${vault}: plugin ${copyVersion} matches the installation` }); continue; }
       const c = add({ id: `plugin:${vault}`, state: "warn", message: `${vault}: plugin ${copyVersion ?? "unknown"} is not this release's build (${version})`, fix: installCmd });

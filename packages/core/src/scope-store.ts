@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { accessSync, constants, lstatSync, mkdirSync, readFileSync, readdirSync, renameSync, rmdirSync, unlinkSync, writeFileSync } from "node:fs";
+import { accessSync, constants, lstatSync, mkdirSync, readFileSync, readdirSync, renameSync, rmdirSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { DomainError } from "./errors.ts";
 import { canonical, digest, hashBytes, validateScope, SCOPE_FORMAT, MAX_REQUEST_BYTES, MAX_SCOPE_BYTES, type FileToken, type ScopeState, type Receipt, type Specification } from "./understanding.ts";
@@ -154,7 +154,7 @@ export interface ScopeViewRead extends ScopeRead { environment: ReviewEnvironmen
 export function readScopeView(entry: ScopeEntry, candidatePlanId?: string, options: StoreOptions = {}): ScopeViewRead {
   for (let attempt = 0; attempt < 3; attempt++) {
     const before = readScope(entry);
-    const specifications: NonNullable<ReviewEnvironment["specifications"]> = Object.create(null);
+    const specifications = Object.create(null) as NonNullable<ReviewEnvironment["specifications"]>;
     const issues: ScopeIssue[] = [];
     for (const plan of before.state.plans) {
       const grant = plan.implementationAuthorizations.find(a => a.id === plan.implementationAuthorization);
@@ -197,7 +197,7 @@ function acquire(root: string, options: StoreOptions): () => void {
     }
     if (Date.now() >= deadline) {
       let known = false;
-      try { const owner = JSON.parse(readFileSync(ownerPath, "utf8")); known = typeof owner.token === "string" && Number.isInteger(owner.pid); } catch { /* diagnostic only */ }
+      try { const owner = JSON.parse(readFileSync(ownerPath, "utf8")) as { token?: unknown; pid?: unknown }; known = typeof owner.token === "string" && Number.isInteger(owner.pid); } catch { /* diagnostic only */ }
       throw new DomainError(known ? "busy" : "recovery-required", known ? "scope lock is held; age and timeout do not prove owner death" : "lock metadata unavailable; wait or establish offline quiescence before recovery", 4);
     }
     sleep(10);
@@ -207,7 +207,7 @@ function acquire(root: string, options: StoreOptions): () => void {
   writeFileDurable(ownerPath, canonical({ token: ownerToken, pid: process.pid, processStartHint: new Date(Date.now() - process.uptime() * 1000).toISOString(), acquiredAt: new Date().toISOString() }));
   fsyncDir(lock);
   return () => {
-    const owner = JSON.parse(readFileSync(ownerPath, "utf8"));
+    const owner = JSON.parse(readFileSync(ownerPath, "utf8")) as { token?: unknown };
     if (owner.token !== ownerToken || readdirSync(lock).some(n => n !== "owner.json")) throw new DomainError("lock-ownership-conflict", "lock ownership changed or unexpected contents found; not removing it", 4);
     unlinkSync(ownerPath);
     rmdirSync(lock); // No work belonging to the old transaction follows this removal.
@@ -317,14 +317,14 @@ export function mutateScope(entry: ScopeEntry, input: unknown, actor: "agent" | 
     match(read, snapshot);
     if (read.projectionStatus !== "current" && !isLegacyBridge(entry, read)) throw new DomainError(read.projectionStatus, "projection requires explicit repair or conflict resolution before new writes", 3);
     const now = new Date().toISOString();
-    const environment: ReviewEnvironment = { storageUsable: true, specifications: Object.create(null) };
+    const environment: ReviewEnvironment = { storageUsable: true, specifications: Object.create(null) as NonNullable<ReviewEnvironment["specifications"]> };
     const payload = r.payload as Record<string, unknown>;
     if (r.action === "attach-spec") environment.attachment = inspectSpecification(entry.root, payload.path as string);
     if (r.action === "approve-implementation") {
       const plan = read.state.plans.find(p => p.id === payload.planId);
       const spec = plan?.specifications.find(s => s.id === payload.specificationId && s.id === plan.downstreamSpec);
       if (!spec || !plan) throw new DomainError("stale-reference", "implementation approval must name the current candidate", 3);
-      environment.specifications![specificationKey(plan.id, spec.id)] = inspectPinned(entry, spec);
+      environment.specifications[specificationKey(plan.id, spec.id)] = inspectPinned(entry, spec);
     }
     options.onPhase?.("after-spec-inspection");
     const next = applyMutation(read.state, r.action as MutationAction, r.payload, actor, now, environment);
@@ -381,7 +381,7 @@ export function retitleScope(entry: ScopeEntry, input: unknown, options: StoreOp
     const result = { action: "retitle", ids: [entry.id] };
     state.storage = { revision: randomUUID(), updatedAt: now, previousBridge: read.snapshot.bridge! };
     Object.defineProperty(state.receipts, operationId, { value: { requestDigest: digest(input), storageRevision: state.storage.revision, recordedAt: now, result }, enumerable: true, writable: true, configurable: true });
-    tx.result = result as Receipt["result"];
+    tx.result = result;
     return publishGraph(entry, state, read.snapshot.bridge!, tx, options);
   });
 }

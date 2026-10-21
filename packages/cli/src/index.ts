@@ -156,7 +156,7 @@ function parseCommand(argv: string[]): Parsed {
   } else {
     throw new UsageError(`unknown route "${argv.slice(0, 2).join(" ")}"`);
   }
-  const route = ROUTES[routeName as string] as Route;
+  const route = ROUTES[routeName];
 
   assertNoDuplicates(rest);
   // Every route accepts --json. Each result is already a JSON envelope, so the flag is a uniform no-op.
@@ -189,7 +189,7 @@ function parseCommand(argv: string[]): Parsed {
     const hasAll = values.all !== undefined;
     if (hasScope && hasAll) throw new UsageError(`plans needs at most one of --scope or --all, or --continuation alone`);
   }
-  return { route, routeName: routeName as string, values };
+  return { route, routeName, values };
 }
 
 /**
@@ -294,11 +294,11 @@ function renderSyncHuman(data: { remote?: RemoteInfoRow[]; issues?: { code: stri
 
 function printEnvelope(output: OperationOutput, json: boolean, routeName: string): void {
   if (!json && routeName === "sync") {
-    process.stdout.write(renderSyncHuman(output.data as Parameters<typeof renderSyncHuman>[0]));
+    process.stdout.write(renderSyncHuman(output.data));
     return;
   }
   if (!json && routeName === "scopes") {
-    process.stdout.write(renderScopesHuman(output.data as Parameters<typeof renderScopesHuman>[0]));
+    process.stdout.write(renderScopesHuman(output.data));
     return;
   }
   if (json || routeName !== "plans") {
