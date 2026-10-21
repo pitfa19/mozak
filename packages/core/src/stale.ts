@@ -1,70 +1,10 @@
-import { execFileSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
-import { basename, join, relative, sep } from "node:path";
+// Format-1 stale report (scope-level, from mozak.md links). The note index, wikilinks and touched() it uses live in
+// notes.ts, so this file can be deleted with the rest of the format-1 code without losing them.
+import { readFileSync } from "node:fs";
+import { basename, sep } from "node:path";
 import { buildGraph, type LocalConfig } from "./graph.ts";
 import { scopeFile, isBridgeFileName } from "./scope-files.ts";
-
-/** When something was last changed, derived from git. Nothing is stored, so there is no timestamp to forget to update. */
-export interface Touched {
-  /** Unix seconds, or null when nothing is known. */
-  epoch: number | null;
-  /** commit: last commit. uncommitted: working tree is newer than the last commit. none: no git history. */
-  source: "commit" | "uncommitted" | "none";
-}
-
-const NONE: Touched = { epoch: null, source: "none" };
-const SKIP = new Set([".git", "node_modules", ".obsidian", "dist", "target"]);
-
-function git(root: string, args: string[]): string | null {
-  try {
-    return execFileSync("git", ["-C", root, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
-  } catch {
-    return null; // not a repo, or git is missing
-  }
-}
-
-export function gitRoot(dir: string): string | null {
-  const out = git(dir, ["rev-parse", "--show-toplevel"]);
-  return out ? realpathSync(out.trim()) : null;
-}
-
-/** Paths with uncommitted changes (modified or untracked), relative to the repo root. */
-function dirtyPaths(root: string): string[] {
-  const out = git(root, ["status", "--porcelain=v1", "-z", "--untracked-files=all"]);
-  if (!out) return [];
-  const parts = out.split("\0").filter(Boolean);
-  const paths: string[] = [];
-  for (let i = 0; i < parts.length; i++) {
-    const entry = parts[i];
-    paths.push(entry.slice(3));
-    if (entry[0] === "R" || entry[0] === "C") i++; // renames carry the old path as the next field
-  }
-  return paths;
-}
-
-/** Last change to a file or directory. A directory counts any file inside it. */
-export function touched(target: string): Touched {
-  if (!existsSync(target)) return NONE;
-  const real = realpathSync(target);
-  const root = gitRoot(statSync(real).isDirectory() ? real : join(real, ".."));
-  if (!root) return NONE;
-  const rel = relative(root, real) || ".";
-  const logged = git(root, ["log", "-1", "--format=%ct", "--", rel]);
-  const committed = logged && logged.trim() ? Number(logged.trim()) : null;
-  let dirty: number | null = null;
-  for (const p of dirtyPaths(root)) {
-    if (rel !== "." && p !== rel && !p.startsWith(rel + sep) && !p.startsWith(rel + "/")) continue;
-    try {
-      const m = Math.floor(statSync(join(root, p)).mtimeMs / 1000);
-      if (dirty === null || m > dirty) dirty = m;
-    } catch {
-      /* deleted file, no mtime to read */
-    }
-  }
-  if (dirty !== null && (committed === null || dirty > committed)) return { epoch: dirty, source: "uncommitted" };
-  return committed !== null ? { epoch: committed, source: "commit" } : NONE;
-}
-
+import { gitRoot, mdFiles, NO_TOUCH as NONE, touched, wikiNames, type Touched } from "./notes.ts";
 export interface Upstream {
   id: string;
   /** How the scope relates to it, from this scope's point of view. */
@@ -100,28 +40,6 @@ export interface StaleOptions {
   /** Only compare each scope's mozak.md, not every file in the scope. Quieter for busy code repos. */
   planOnly?: boolean;
   now?: number;
-}
-
-function mdFiles(dir: string, out: string[] = []): string[] {
-  let entries;
-  try {
-    entries = readdirSync(dir, { withFileTypes: true });
-  } catch {
-    return out;
-  }
-  for (const e of entries) {
-    if (SKIP.has(e.name) || e.name.startsWith(".")) continue;
-    const p = join(dir, e.name);
-    if (e.isDirectory()) mdFiles(p, out);
-    else if (e.name.endsWith(".md")) out.push(p);
-  }
-  return out;
-}
-
-function wikiNames(text: string): string[] {
-  const names = new Set<string>();
-  for (const m of text.matchAll(/\[\[([^\]|#\n]+)/g)) names.add(m[1].trim());
-  return [...names];
 }
 
 /** For each scope (or one), say what changed after it was last touched. Read only. */

@@ -4,6 +4,8 @@ export * from "./check.ts";
 export * from "./graph.ts";
 export * from "./translate.ts";
 export * from "./stale.ts";
+export * from "./notes.ts";
+export * from "./fold.ts";
 export { auditProject, mozakTemplate } from "./init.ts";
 export { hashText, readSnapshot, EMPTY_HASH } from "./write.ts";
 
@@ -32,3 +34,6 @@ export * from "./lock-recover.ts";
 export * from "./prune.ts";
 export * from "./history.ts";
 export * from "./local-sync.ts";
+export * from "./locators.ts";
+export * from "./similar.ts";
+export * from "./plans-index.ts";
