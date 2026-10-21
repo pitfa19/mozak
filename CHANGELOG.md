@@ -2,6 +2,12 @@
 
 User-visible changes, newest first. Releases are git tags `vX.Y.Z` on `main`; `mozak upgrade` installs the newest one.
 
+## 0.4.4 (2026-10-21)
+
+### Fixed
+
+- Obsidian directory review: the source scan reported hundreds of "unsafe any" warnings because its TypeScript 6 tooling did not load Node's type definitions. `tsconfig.base.json` now declares `"types": ["node"]`. No code change: the plugin bundle and the CLI behave exactly as in 0.4.3.
+
 ## 0.4.3 (2026-10-21)
 
 ### Changed
