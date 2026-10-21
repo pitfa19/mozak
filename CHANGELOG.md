@@ -2,6 +2,14 @@
 
 User-visible changes, newest first. Releases are git tags `vX.Y.Z` on `main`; `mozak upgrade` installs the newest one.
 
+## 0.4.5 (2026-10-22)
+
+### Added
+
+- Official MCP Registry metadata: `server.json` (name `io.github.pitfa19/mozak`) and the matching `mcpName` field in the npm package, so mozak can be listed in the registry that MCP clients search.
+- `mozak-mcp` accepts `--config=FILE` as well as `--config FILE`, the form MCP registries pass. Duplicates across both forms are still refused.
+- README: one-line setup for Claude Code and Codex. Claude Code was checked calling the MCP server from the npm package.
+
 ## 0.4.4 (2026-10-21)
 
 ### Fixed

@@ -33,7 +33,8 @@ export interface Graph {
   problems: string[];
 }
 
-const SKIP = new Set([".git", "node_modules", ".obsidian", "dist", "target"]);
+// Every dot folder (.git, the Obsidian config folder, ...) is skipped by the walk below as well.
+const SKIP = new Set(["node_modules", "dist", "target"]);
 
 export function loadConfig(path: string): LocalConfig {
   const raw = JSON.parse(readFileSync(path, "utf8")) as Partial<LocalConfig>;

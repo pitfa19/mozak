@@ -13,7 +13,8 @@ export interface Touched {
 }
 
 const NONE: Touched = { epoch: null, source: "none" };
-const SKIP = new Set([".git", "node_modules", ".obsidian", "dist", "target"]);
+// Every dot folder (.git, the Obsidian config folder, ...) is skipped by the walk below as well.
+const SKIP = new Set(["node_modules", "dist", "target"]);
 
 function git(root: string, args: string[]): string | null {
   try {

@@ -1,0 +1,37 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.pitfa19/mozak",
+  "title": "mozak",
+  "description": "One owner-approved plan per project, shared by coding agents as plain files, with an Obsidian view.",
+  "repository": {
+    "url": "https://github.com/pitfa19/mozak",
+    "source": "github"
+  },
+  "websiteUrl": "https://github.com/pitfa19/mozak#readme",
+  "version": "0.0.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "mozak",
+      "version": "0.0.0",
+      "runtimeHint": "npx",
+      "runtimeArguments": [
+        { "type": "positional", "value": "-y" },
+        { "type": "named", "name": "--package", "value": "mozak" }
+      ],
+      "transport": { "type": "stdio" },
+      "packageArguments": [
+        { "type": "positional", "value": "mozak-mcp" },
+        {
+          "type": "named",
+          "name": "--config",
+          "description": "Absolute path to your mozak-inventory.json, the file that lists the projects mozak may read.",
+          "isRequired": true,
+          "format": "filepath",
+          "valueHint": "inventory_path"
+        }
+      ]
+    }
+  ]
+}

@@ -7,7 +7,7 @@ import { createHash } from "node:crypto";
 import { chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, realpathSync, renameSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, dirname, join, resolve } from "node:path";
-import { cachedUpdateNotice, executeOperation, installedVersion, loadInventory, npmInstall } from "@mozak/core";
+import { cachedUpdateNotice, executeOperation, installedVersion, loadInventory, npmInstall, vaultPluginDir } from "@mozak/core";
 
 export type CheckState = "ok" | "warn" | "fail";
 export interface Check { id: string; state: CheckState; message: string; fix?: string; fixed?: string }
@@ -128,11 +128,12 @@ function configArg(args: string[]): string | null {
   return i >= 0 && args[i + 1] ? args[i + 1] : null;
 }
 
-/** Vault folders (with .obsidian/plugins/mozak) at or under a folder, a few levels deep. */
+/** Vault folders (whose config folder holds plugins/mozak) at or under a folder, a few levels deep. */
 function vaultsUnder(root: string): string[] {
   const out: string[] = [];
   const walk = (dir: string, depth: number) => {
-    if (existsSync(join(dir, ".obsidian", "plugins", "mozak", "main.js"))) out.push(dir);
+    const plugin = vaultPluginDir(dir);
+    if (plugin && existsSync(join(plugin, "main.js"))) out.push(dir);
     if (depth >= MAX_VAULT_DEPTH) return;
     let names: string[] = [];
     try { names = readdirSync(dir); } catch { return; }
@@ -366,7 +367,8 @@ export function doctor(args: DoctorArgs): { exitCode: number; data: Record<strin
     const builtVersion = built ? (() => { try { return (JSON.parse(readFileSync(join(dirname(built), "manifest.json"), "utf8")) as { version?: string }).version ?? null; } catch { return null; } })() : null;
     const buildUsable = built !== null && builtVersion === version && existsSync(built);
     for (const vault of vaultsUnder(inventoryDir)) {
-      const target = join(vault, ".obsidian", "plugins", "mozak");
+      const target = vaultPluginDir(vault);
+      if (!target) continue;
       const copyVersion = (() => { try { return (JSON.parse(readFileSync(join(target, "manifest.json"), "utf8")) as { version?: string }).version ?? null; } catch { return null; } })();
       const current = copyVersion === version && (!buildUsable || sha256(join(target, "main.js")) === sha256(built));
       const installCmd = source ? `node ${join(source, "scripts", "install-obsidian-plugin.mjs")} ${vault}` : `node <mozak checkout>/scripts/install-obsidian-plugin.mjs ${vault}`;

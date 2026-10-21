@@ -309,6 +309,23 @@ test("startup refuses a missing, duplicate, unknown or env-only config", async (
 
   const missing = await runOnce(["--config", join(f.dir, "absent.json")]);
   assert.notEqual(missing.code, 0);
+
+  const emptyEq = await runOnce(["--config="]);
+  assert.notEqual(emptyEq.code, 0, "--config= with no file is refused");
+  assert.match(emptyEq.stderr, /--config requires a FILE/);
+
+  const dupMixed = await runOnce([`--config=${f.configPath}`, "--config", f.configPath]);
+  assert.notEqual(dupMixed.code, 0, "mixing both forms still counts as two configs");
+  assert.match(dupMixed.stderr, /only once/);
+});
+
+test("the stdio server starts with --config=FILE, the form MCP registries pass", async () => {
+  const f = fixture();
+  const s = new Server([`--config=${f.configPath}`]);
+  const init = await s.call("initialize", { protocolVersion: "2024-11-05" });
+  assert.equal(init.result.serverInfo.name, "mozak");
+  const list = await s.call("tools/list");
+  assert.deepEqual(list.result.tools.map((t: { name: string }) => t.name).sort(), ADVERTISED);
 });
 
 test("the stdio server advertises only the permitted tools", async () => {

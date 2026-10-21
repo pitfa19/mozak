@@ -13,17 +13,24 @@ function fatal(message: string): never {
   process.exit(2);
 }
 
-/** Exactly one `--config FILE`. Duplicates, unknown flags and a missing value are refused. */
+/** Exactly one `--config FILE` (or `--config=FILE`, the form MCP registries use). Duplicates, unknown flags and a missing value are refused. */
 export function parseArgs(argv: string[]): { configPath: string } {
   let configPath: string | undefined;
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
-    if (arg !== "--config") fatal(`unknown argument "${arg}"`);
+    let value: string | undefined;
+    if (arg.startsWith("--config=")) {
+      value = arg.slice("--config=".length);
+      if (value === "") fatal("--config requires a FILE");
+    } else if (arg === "--config") {
+      value = argv[i + 1];
+      if (value === undefined || value.startsWith("--")) fatal("--config requires a FILE");
+      i++;
+    } else {
+      fatal(`unknown argument "${arg}"`);
+    }
     if (configPath !== undefined) fatal("--config may be given only once");
-    const value = argv[i + 1];
-    if (value === undefined || value.startsWith("--")) fatal("--config requires a FILE");
     configPath = resolve(value);
-    i++;
   }
   if (configPath === undefined) fatal("--config FILE is required");
   return { configPath };
