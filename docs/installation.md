@@ -229,7 +229,49 @@ mozak never steals a write lock because it is old. Follow this order:
 5. Run `context` and `check`, which only read. If the scope state exists, run `projection repair` against the current snapshot.
 6. If a bridge was edited by hand, it is kept as a conflict. Resolve it with the owner before writing again.
 
-There is no online force-unlock command.
+There is no force-unlock command. The owner route `mozak recover` removes one named lock only in two cases where no
+local writer can still own it:
+
+- the lock's `owner.json` names another host (`host` is recorded since S2). Such a lock can only have arrived by sync, for example through a `git add -A` in a vault.
+- it names this host and a pid that is no longer running.
+
+`check` reports a stuck lock as `write-lock-stuck` with its `token`, `host`, `pid` and `verdict`. The owner repeats those
+in a request file: `{ "requestId", "scopeId", "lock": { "token", "host", "pid" }, "ownerRef", "ownerMessageAt" }`, then runs
+`mozak recover --scope ID --request FILE`. It refuses a lock that changed, a lock with contents other than `owner.json`,
+a live local pid (`lock-owner-alive`), and a lock without a host from an older mozak (`lock-host-unknown`, remove that
+one by hand as above). It never touches `mozak.json`. Agents cannot run it, and the MCP server does not offer it.
+
+### Projection tolerance
+
+A `mozak.md` that differs from the current render only by CRLF line endings, trailing spaces or tabs, or blank lines at
+the end counts as current, not as a bridge conflict. The next write puts back the exact render. Any other difference,
+including leading or inner whitespace, is still a conflict.
+
+### Pruning rejected plans: `mozak plan prune --rejected`
+
+Owner route. The request lists the plan ids the owner saw: `{ "operationId", "scopeId", "expected", "planIds", "ownerRef", "ownerMessageAt" }`.
+Only plans that were never accepted and whose revision is rejected can be pruned. A plan another plan still references (a
+pending merge, a reasoning link) is refused with `prune-referenced`. The write is a normal CAS write and is never rebased.
+Its receipt `{ "action": "prune-rejected", "ids": [...] }` is the prune record: owner refs to a pruned id resolve as
+`pruned` (with the operation id), `check` reports `ref-target-pruned`, and the id cannot be proposed again. A 0.4.0
+client reads such a scope unchanged.
+
+### Hand edits: `mozak check --history N`
+
+Every mozak write sets a new `storage.revision` and records it in a receipt. `check --history N` walks the last N commits
+(1 to 500) that touched the scope's `mozak.json`, from local git objects only, and reports `hand-edit` for a commit that
+changed the file but kept the revision (with removed and added plan ids), and `hand-edit-revision` for a revision that no
+receipt records. Outside git it reports `history-unavailable` and skips the walk.
+
+### Syncing a vault: `mozak sync --scope ID` or `mozak sync --local`
+
+For a local scope inside a git repo, `sync` replaces a bare `git pull --rebase`, which bypasses the scope locks. Per repo
+it fetches the upstream of the current branch outside the locks, takes the write lock of every inventoried local and
+vault-plans scope in that repo in path order, runs `git merge --ff-only`, and releases. It never rebases, merges a
+diverged history or pushes. Row status: `fast-forwarded`, `up-to-date`, `ahead` (local commits to push), or a problem:
+`not-fast-forward` (exit 3, nothing changed), `busy` (exit 4, a scope lock is held), `fetch-failed`, `merge-failed`,
+`no-upstream`, `detached`, `not-in-git`. `--local` syncs every such repo and the remote scopes; plain `mozak sync` still
+syncs remote scopes only.
 
 ### Projection repair
 

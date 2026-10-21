@@ -132,6 +132,10 @@ The agent writes plain `mozak.json` and `mozak.md` files in your project folder.
 | See every project and where it lives | `mozak scopes`, or the `mozak_scopes` MCP tool |
 | Read one project's plan | `mozak context`, `mozak plans`, `mozak check` |
 | Refresh GitHub projects now | `mozak sync` |
+| Pull a notes repo under the plan locks, fast-forward only | `mozak sync --local` |
+| Clear a write lock left by another machine or a dead process (owner) | `mozak recover` |
+| Remove rejected plans, keeping refs resolvable (owner) | `mozak plan prune --rejected` |
+| Find hand edits of `mozak.json` in git history | `mozak check --history N` |
 | Let any MCP agent read and propose | `mozak-mcp --config mozak-inventory.json` |
 | Run the guided planning conversation | the installed skill at `PREFIX/skills/mozak/SKILL.md` |
 | Rename a project (owner) | `mozak scope retitle` |
@@ -142,6 +146,10 @@ Every command needs an explicit `--config`. mozak never falls back to a global s
 ## Reads and the network
 
 Local and vault-plans scopes are read from disk. A GitHub scope whose plans live in the repo is different: `scopes`, `plans`, `context` and `check` may run `git fetch` when its cache is more than 10 minutes old, and they update its cache metadata. If that scope has an unpushed local plan commit, a read can push it. `mozak scopes` may also check GitHub release tags in the background. Set `MOZAK_NO_UPDATE_CHECK=1` to turn that check off.
+
+When such a fetch fails (for example offline), reads use the cached copy, mark it `stale` with `remoteFreshness: "offline"`, and do not try the network again for 10 minutes. `mozak sync` always tries. Each status row says `fetched`, `cached`, `offline` or `local` (vault-plans scopes).
+
+Every command also appends one line to `.mozak-cache/usage/` next to the inventory: the command, scope id, exit code, status code, time and output size. It never holds request text, plan text or plan ids. The folder ignores itself in git. Set `MOZAK_USAGE_LOG=0` to turn it off.
 
 ## Safety
 
