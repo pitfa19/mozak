@@ -23,18 +23,18 @@ import { cacheIgnoreWarning, commitAndPush, pullRemote, remoteEntries, repoEntri
 import type { RemoteStatus } from "./remote-meta.ts";
 import { cachedVisibility, publicRepoPlansMessage, scopeVisibility } from "./visibility.ts";
 import { leftoverTempFiles } from "./durable.ts";
-import { cachedUpdateNotice, installedVersion, refreshUpdateCacheIfStale } from "./update.ts";
+import { cachedUpdateNotice, installedVersion, npmInstall, refreshUpdateCacheIfStale } from "./update.ts";
 import { canonical, digest } from "./understanding.ts";
 
 /**
  * The scopes index's update notice: reads the cache only, and starts a background refresh when it is old.
- * Only an installed mozak (one with installation.json) checks; a source checkout or test run never does.
+ * Only an installed mozak (a portable installation or the npm package) checks; a source checkout or test run never does.
  */
 function scopesUpdateIssue(): Record<string, unknown> | null {
-  const installed = installedVersion();
-  if (!installed) return null;
+  const version = installedVersion()?.version ?? npmInstall()?.version;
+  if (!version) return null;
   refreshUpdateCacheIfStale();
-  const n = cachedUpdateNotice(installed.version);
+  const n = cachedUpdateNotice(version);
   return n ? { code: "update-available", message: `mozak ${n.latest} is available (installed ${n.installed}). Run: ${n.command}`, installed: n.installed, latest: n.latest, command: n.command } : null;
 }
 

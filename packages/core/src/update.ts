@@ -86,7 +86,7 @@ export function cachedUpdateNotice(installed: string, opts: { env?: NodeJS.Proce
   if (updateCheckDisabled(env) || !parseVersion(installed)) return null;
   const cache = readUpdateCache(opts.path ?? updateCachePath(env));
   if (!cache?.latest || compareVersions(cache.latest, installed) <= 0) return null;
-  return { installed, latest: cache.latest, command: "mozak upgrade" };
+  return { installed, latest: cache.latest, command: upgradeCommand() };
 }
 
 // Script run by the detached refresher. Plain JavaScript with fetch, so it needs nothing but node.
@@ -168,6 +168,30 @@ export function refreshUpdateCacheIfStale(opts: { env?: NodeJS.ProcessEnv; path?
 }
 
 export interface InstalledInfo { prefix: string; version: string; source: string | null }
+
+/** Marker the npm build writes next to the bundled CLI: `{ format: "mozak.npm/v1", version }`. */
+export const NPM_MARKER = "mozak-npm.json";
+export interface NpmInstallInfo { root: string; version: string }
+
+/**
+ * The npm package this code runs from: the npm build bundles everything into PACKAGE/dist/*.js next to
+ * PACKAGE/dist/mozak-npm.json. Null for a source checkout, a portable installation or the plugin bundle.
+ */
+export function npmInstall(moduleUrl: string | undefined = import.meta.url): NpmInstallInfo | null {
+  try {
+    if (!moduleUrl?.startsWith("file:")) return null;
+    const m = JSON.parse(readFileSync(new URL(NPM_MARKER, moduleUrl), "utf8")) as { format?: unknown; version?: unknown };
+    if (m.format !== "mozak.npm/v1" || typeof m.version !== "string" || !parseVersion(m.version)) return null;
+    return { root: fileURLToPath(new URL("../", moduleUrl)).replace(/\/$/, ""), version: m.version };
+  } catch {
+    return null;
+  }
+}
+
+/** The command that updates the mozak this code runs from. */
+export function upgradeCommand(): string {
+  return npmInstall() ? "npm install -g mozak@latest" : "mozak upgrade";
+}
 
 /**
  * The installation this code runs from: PREFIX/node_modules/@mozak/core/dist/*.js sits four levels under PREFIX,

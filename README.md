@@ -43,31 +43,36 @@ It is for developers and researchers who already use coding agents and want them
 
 ## Install
 
-You need Git, npm and Node 24.11 or newer (Node 26 works).
+You need Node 24.11 or newer (Node 26 works) and Git. Linux and macOS.
+
+```bash
+npm install -g mozak
+mozak doctor --fix      # links the mozak skill into ~/.claude/skills, ~/.jcode/skills or ~/.codex/skills if they exist
+```
+
+The npm package bundles the CLI and the MCP server in one package with no dependencies and no install scripts. To let any MCP agent use mozak, add `mozak-mcp --config /path/to/mozak-inventory.json` as an MCP server. Update with `npm install -g mozak@latest`.
+
+`mozak scopes` and the Obsidian sidebar tell you when a new release is out (`MOZAK_NO_UPDATE_CHECK=1` turns that off). Changes are listed in [CHANGELOG.md](CHANGELOG.md).
+
+<details>
+<summary>Install from source instead (portable install, no npm registry)</summary>
 
 ```bash
 git clone https://github.com/pitfa19/mozak.git && cd mozak
 npm ci --ignore-scripts && npm run build
 mkdir -p "$HOME/.local/share"
 node scripts/install.mjs --prefix "$(cd "$HOME/.local/share" && pwd -P)/mozak" --json
-```
-
-The installer copies a self-contained build into that folder. It uses no `sudo`, makes no network calls and does not touch your shell profile. Add `--check` to preview first.
-
-```bash
 "$HOME/.local/share/mozak/bin/mozak" --help
 ```
 
-To let your agent use mozak, link the installed skill into its skills folder, for example `ln -s "$HOME/.local/share/mozak/skills/mozak" ~/.claude/skills/mozak`, and add `mozak-mcp --config /path/to/mozak-inventory.json` as an MCP server.
-
-Two commands keep it working:
+The installer copies a self-contained build into that folder. It uses no `sudo`, makes no network calls and does not touch your shell profile. Add `--check` to preview first. Two commands keep a source install working:
 
 ```bash
 mozak upgrade --vault ~/Documents/notes   # newest tagged release; the old install is kept, plugin updated in that vault
 mozak doctor --fix                        # checks the whole setup; fixes links, wrappers and plugin copies, prints the rest
 ```
 
-`mozak scopes` and the Obsidian sidebar tell you when a new release is out (`MOZAK_NO_UPDATE_CHECK=1` turns that off). Changes are listed in [CHANGELOG.md](CHANGELOG.md).
+</details>
 
 Details, exit codes, recovery and known limits: [docs/installation.md](docs/installation.md).
 
@@ -109,11 +114,13 @@ A project with `root` is a local folder. A project with `remote` is a GitHub rep
 
 The Obsidian plugin in [`packages/obsidian`](packages/obsidian) shows every project from your inventory in the sidebar, notes and GitHub repos alike. Filter by **All**, **Open** or **Done**. Open plans show a small progress strip, one segment per outcome. Click a plan to open its section in the scope's `mozak.md`, which reads like a note: purpose, a roadmap of the outcomes with the current stop, a status table and the full plan text. The sidebar is for reading and navigating. You approve plans in your agent chat, not in Obsidian. The plugin never approves or changes a plan. It may regenerate a stale `mozak.md`, the same as `mozak render`.
 
+Install it from Obsidian: **Settings, Community plugins, Browse**, search for **mozak**, then Install and Enable ([directory page](https://community.obsidian.md/plugins/mozak)). From a source checkout you can also run:
+
 ```bash
 node scripts/install-obsidian-plugin.mjs /path/to/your/vault --build
 ```
 
-Then turn on **mozak** under Settings, Community plugins. The plugin finds `mozak-inventory.json` by searching upward from the vault folder, or you can set its path in the plugin settings. Each GitHub project shows a globe or lock badge for a public or private repo.
+The plugin finds `mozak-inventory.json` by searching upward from the vault folder, or you can set its path in the plugin settings. Each GitHub project shows a globe or lock badge for a public or private repo.
 
 **Plugin disclosures (desktop-only, `isDesktopOnly: true`):** When your `mozak-inventory.json` lists scopes outside the current vault, the plugin reads their `mozak.json`, `mozak.md`, `README.md` and `AGENTS.md` files from those configured paths and watches them when **Auto-refresh** is enabled. It never scans folders not listed in your inventory and never approves or changes a plan (it may regenerate a stale `mozak.md` projection when there are no unmerged hand edits). For remote GitHub scopes (`"remote": "github:owner/repo"` without vault-hosted `"plans"`), clicking **Sync remote scopes** or enabling **Repo sync interval (seconds)** runs your local `git` with your existing git login on the hidden `.mozak-cache` copy: `git fetch`, then a reset of that copy to the fetched commit. If an earlier mozak write left a plan commit unpushed (for example after a network failure), the sync first commits and pushes that pending `mozak.json` / `mozak.md` change. Set the sync interval to `0` to turn background git activity off. The sync also asks the public GitHub API, without a login and at most once a day per repo, whether each remote repo is public. The update notice only reads a cache file the CLI writes. The plugin never installs or updates itself, and has no telemetry. See [`packages/obsidian/README.md`](packages/obsidian/README.md#disclosures-obsidian-community-plugin-policy) for the full disclosure list.
 

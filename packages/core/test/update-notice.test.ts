@@ -5,8 +5,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import {
-  cachedUpdateNotice, compareVersions, highestRelease, installedVersion, parseVersion, readUpdateCache,
-  refreshUpdateCacheIfStale, setUpdateChecker, updateCachePath, UPDATE_FAILURE_TTL_MS, UPDATE_TTL_MS,
+  cachedUpdateNotice, compareVersions, highestRelease, installedVersion, npmInstall, parseVersion, readUpdateCache,
+  refreshUpdateCacheIfStale, setUpdateChecker, updateCachePath, upgradeCommand, UPDATE_FAILURE_TTL_MS, UPDATE_TTL_MS,
 } from "../src/update.ts";
 
 const scratch = () => mkdtempSync(join(process.env.JCODE_SCRATCH_DIR || tmpdir(), "mozak-update-"));
@@ -118,4 +118,20 @@ test("installedVersion reads PREFIX/installation.json from an installed module p
   assert.equal(installedVersion(), null, "the source tree has no installation.json");
   assert.equal(installedVersion(undefined), null);
   void readFileSync;
+});
+
+test("npmInstall reads PACKAGE/dist/mozak-npm.json next to the bundled module, and is null elsewhere", () => {
+  const root = scratch();
+  const dist = join(root, "dist");
+  mkdirSync(dist, { recursive: true });
+  const url = pathToFileURL(join(dist, "cli.js")).href;
+  assert.equal(npmInstall(url), null, "no marker: not an npm install");
+  writeFileSync(join(dist, "mozak-npm.json"), JSON.stringify({ format: "other", version: "0.4.1" }));
+  assert.equal(npmInstall(url), null, "wrong format");
+  writeFileSync(join(dist, "mozak-npm.json"), JSON.stringify({ format: "mozak.npm/v1", version: "../x" }));
+  assert.equal(npmInstall(url), null, "version must be a release version");
+  writeFileSync(join(dist, "mozak-npm.json"), JSON.stringify({ format: "mozak.npm/v1", version: "0.4.1" }));
+  assert.deepEqual(npmInstall(url), { root, version: "0.4.1" });
+  assert.equal(npmInstall(), null, "the source tree is not an npm install");
+  assert.equal(upgradeCommand(), "mozak upgrade", "source and portable installs keep mozak upgrade");
 });
