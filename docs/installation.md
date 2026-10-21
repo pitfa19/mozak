@@ -352,6 +352,15 @@ Cache layout: `.mozak-cache/<id>/` (sparse git clone) and `.mozak-cache/<id>.met
 
 ## 8. Verification status
 
+S7a adapter correction on `hermes/eval-continuation` (macOS, Node 26.10.0):
+`npm run build` passed. `TMPDIR=$HOME/.hermes/cache/scratch ALLOW_ANY_IDENTITY=1 npm test`
+gave 593 passed, 0 failed, 0 skipped. `node --test eval/test/s7a.test.mjs` gave 9 passed.
+`node eval/verify.mjs` gave 7 of 7 checks. `node scripts/check-links.mjs` found 0 broken links.
+Regression tests cover final streaming usage instead of provisional output counts, disjoint token
+reconciliation, failed gold reads, and explicit root-instruction injection under restricted mode.
+These are harness checks, not a cold-start improvement claim. Private comparisons and datasets are
+not published here.
+
 | Check | Status |
 | --- | --- |
 | Brief admission budget (2026-10-21, macOS, Node 26.10.0) | `npm run build` and `npm run lint` passed (85 Markdown files, 59 relative links, 0 broken). Full suite with isolated `TMPDIR` and `ALLOW_ANY_IDENTITY=1`: 593 passed, 0 failed, 0 skipped. Nine context-mode tests include regressions for 80 completed-history rows plus actionable work, 150 pending plans through core/CLI/MCP, and long UTF-8/escaped titles. The three new regressions were observed failing before their fixes. A read-only real vault-plans measurement gave full context 293730 bytes and brief 5367 bytes (previous brief 7784), preserving snapshot, issues and included handoffs/actions; both active plans remained visible, with two of six completed plans shown and four counted as omitted. Existing plugin CJS `import.meta` build warning remains. No live installation or canonical plan files changed. The budget does not cap outer diagnostics or arbitrary scope identifiers. |

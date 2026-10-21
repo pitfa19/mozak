@@ -50,12 +50,24 @@ search. The S7a cold-start experiment uses the Wilcoxon signed-rank test on 20 p
 
 ## S7a cold-start tools
 
-- `s7a/run-task.mjs`: runs one task with `claude -p` in a scratch copy of the vault. Tools are Read, Grep
-  and Glob only, `--restricted`, no MCP servers, hard timeout. It refuses a folder with `.git` and exits 3
-  when the CLI is not logged in.
-- `s7a/coldstart.mjs`: reads the stream-json transcript. Useful action = first Read (or Grep or Glob scoped
-  to a file) of a gold note, or a mozak write. Total tokens = full context of that turn plus its output.
-  Injected and tool-read tokens are reported apart. Runs that never reach gold are censored.
+- `s7a/run-task.mjs`: runs one task with the subscription-authenticated `claude -p` in a scratch copy.
+  Tools are Read, Grep and Glob only, `--restricted`, no MCP servers, no hooks or auto-memory, no bypass,
+  a 15-turn cap and a hard timeout. It refuses a folder with `.git` and exits 3 without a first-party
+  `claude.ai` login. API-key and provider-routing environment variables are removed from the child.
+  Each process has a new explicit session UUID and no session persistence. Root `AGENTS.md` is injected
+  explicitly with `--append-system-prompt-file`: restricted mode does not load the `CLAUDE.md` import.
+  Account-side extra-usage settings still need separate owner verification; login alone does not prove them.
+- `s7a/coldstart.mjs`: reads stream-json with partial messages enabled. It merges cumulative final
+  `message_delta` usage by message id rather than summing provisional assistant block counts. It reconciles
+  input, cache creation, cache read and output totals against the terminal result, without adding both.
+  The runner writes raw stream, stderr and metric files and exits 4 for incomplete or unreconciled runs.
+  Useful action = first Read (or Grep or Glob scoped to a file) of a gold note, or a mozak write. Explicit
+  failed tool results do not count. Total tokens = full context of that turn plus its final output.
+  Injected tokens are included, not added again. `toolReadTokens` is a context-growth estimate after
+  subtracting earlier output, not an exact tokenizer measurement of tool bodies: wrappers and other
+  context overhead can contribute. Cached input is included once through its disjoint usage categories.
+  `runTokens` separately sums every request's context and output as a quota proxy. Runs that never reach
+  gold are censored, not successful. A capped/error run is invalid even if it reached gold.
 - `s7a/compare.mjs`: per-task medians of 3 runs per arm, Wilcoxon signed-rank on the paired medians,
   median reduction, and the D3 target (30% lower, p < 0.05).
 

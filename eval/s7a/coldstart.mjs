@@ -25,16 +25,33 @@ function ctxOf(u = {}) {
 export function assistantTurns(events) {
   const turns = [];
   const byId = new Map();
-  for (const e of events) {
-    if (e.type !== 'assistant' || !e.message) continue;
-    const id = e.message.id ?? `anon-${turns.length}`;
+  let streamingId = null;
+  const get = (id) => {
     let t = byId.get(id);
     if (!t) { t = { id, content: [], usage: {} }; byId.set(id, t); turns.push(t); }
-    t.content.push(...(e.message.content ?? []));
-    const u = e.message.usage ?? {};
+    return t;
+  };
+  const mergeUsage = (t, u = {}) => {
     for (const k of ['input_tokens', 'cache_creation_input_tokens', 'cache_read_input_tokens', 'output_tokens']) {
       t.usage[k] = Math.max(t.usage[k] ?? 0, u[k] ?? 0);
     }
+  };
+  for (const e of events) {
+    if (e.parent_tool_use_id) continue;
+    if (e.type === 'stream_event') {
+      const s = e.event ?? {};
+      if (s.type === 'message_start') {
+        streamingId = s.message?.id ?? null;
+        if (streamingId) mergeUsage(get(streamingId), s.message?.usage);
+      } else if (s.type === 'message_delta' && streamingId) {
+        mergeUsage(get(streamingId), s.usage);
+      } else if (s.type === 'message_stop') streamingId = null;
+      continue;
+    }
+    if (e.type !== 'assistant' || !e.message) continue;
+    const t = get(e.message.id ?? `anon-${turns.length}`);
+    t.content.push(...(e.message.content ?? []));
+    mergeUsage(t, e.message.usage);
   }
   return turns;
 }
@@ -69,13 +86,15 @@ export function coldStart(events, gold, root) {
   const result = events.find((e) => e.type === 'result') ?? null;
   if (turns.length === 0) return { turns: 0, reached: false, error: result?.result ?? 'no assistant turns' };
   const injected = ctxOf(turns[0].usage);
+  const failedToolIds = new Set(events.flatMap((e) => e.type === 'user' && Array.isArray(e.message?.content) ? e.message.content
+    .filter((c) => c.type === 'tool_result' && c.is_error).map((c) => c.tool_use_id) : []));
   let outBefore = 0;
   const priorToolIds = new Set();
   let toolCallsBefore = 0;
   for (let k = 0; k < turns.length; k++) {
     const t = turns[k];
     const uses = t.content.filter((c) => c.type === 'tool_use');
-    const useful = uses.find((u) => isUseful(u, goldAbs, root));
+    const useful = uses.find((u) => !failedToolIds.has(u.id) && isUseful(u, goldAbs, root));
     if (useful) {
       const ctx = ctxOf(t.usage);
       return {
@@ -104,6 +123,21 @@ export function coldStart(events, gold, root) {
     turns: turns.length,
     censored: true,
   };
+}
+
+// Reconcile disjoint token categories against the terminal result, never add both.
+export function validateUsage(events) {
+  const turns = assistantTurns(events);
+  const usage = events.findLast((e) => e.type === 'result')?.usage;
+  const categories = {};
+  let valid = turns.length > 0 && !!usage;
+  for (const k of ['input_tokens', 'cache_creation_input_tokens', 'cache_read_input_tokens', 'output_tokens']) {
+    const observed = turns.reduce((s, t) => s + (t.usage[k] ?? 0), 0);
+    const reported = usage?.[k];
+    categories[k] = { observed, reported: reported ?? null };
+    if (!Number.isFinite(reported) || observed !== reported) valid = false;
+  }
+  return { valid, categories };
 }
 
 // Sum of all tokens in the run (quota proxy): every turn's full context plus output.

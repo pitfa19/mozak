@@ -8,15 +8,20 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { parseStreamJson, coldStart, runTokens } from './coldstart.mjs';
+import { parseStreamJson, coldStart, runTokens, validateUsage } from './coldstart.mjs';
 
-export function claudeArgs(prompt, { model } = {}) {
+export function claudeArgs(prompt, { model, instructionsFile, sessionId = randomUUID() } = {}) {
   const a = ['-p', prompt, '--output-format', 'stream-json', '--verbose',
+    '--include-partial-messages', '--session-id', sessionId, '--max-turns', '15',
+    '--disable-slash-commands', '--no-chrome',
+    '--settings', '{"autoMemoryEnabled":false,"disableAllHooks":true}',
     '--tools', 'Read,Grep,Glob', '--allowedTools', 'Read,Grep,Glob',
     '--disallowedTools', 'Bash,Edit,Write,NotebookEdit,WebFetch,WebSearch,Task',
     '--restricted', '--strict-mcp-config', '--permission-mode', 'dontAsk', '--no-session-persistence'];
   if (model) a.push('--model', model);
+  if (instructionsFile) a.push('--append-system-prompt-file', instructionsFile);
   return a;
 }
 
@@ -26,7 +31,7 @@ export function authStatus(claude) {
 }
 
 function main() {
-  const a = { claude: '/Users/pitfa19/.local/bin/claude', timeoutS: 300 };
+  const a = { claude: 'claude', timeoutS: 300 };
   const argv = process.argv.slice(2);
   for (let i = 0; i < argv.length; i++) {
     const v = () => argv[++i];
@@ -42,20 +47,38 @@ function main() {
   if (!a.copy || !a.prompt || !a.gold || !a.out) { console.error('missing --copy, --prompt-file, --gold-file or --out'); process.exit(2); }
   if (fs.existsSync(path.join(a.copy, '.git'))) { console.error('refusing: --copy has a .git folder; use a scratch copy, not the vault'); process.exit(2); }
   const auth = authStatus(a.claude);
-  if (!auth.loggedIn) {
-    console.error(`blocked: claude CLI not logged in (authMethod ${auth.authMethod ?? 'unknown'})`);
+  if (!auth.loggedIn || auth.authMethod !== 'claude.ai' || auth.apiProvider !== 'firstParty') {
+    console.error(`blocked: requires first-party claude.ai subscription login (authMethod ${auth.authMethod ?? 'unknown'})`);
     process.exit(3);
   }
   const prompt = fs.readFileSync(a.prompt, 'utf8');
   const gold = JSON.parse(fs.readFileSync(a.gold, 'utf8'));
+  const sessionId = randomUUID();
+  const instructionsFile = path.join(a.copy, 'AGENTS.md');
+  if (!fs.existsSync(instructionsFile)) throw new Error('snapshot must contain root AGENTS.md');
+  const args = claudeArgs(prompt, { ...a, sessionId, instructionsFile });
+  const env = { ...process.env };
+  for (const key of Object.keys(env)) {
+    if (key.startsWith('ANTHROPIC_') || key.startsWith('CLAUDE_CODE_USE_') || key === 'CLAUDE_CODE_OAUTH_TOKEN') delete env[key];
+  }
   const started = Date.now();
-  const r = spawnSync(a.claude, claudeArgs(prompt, a), { cwd: a.copy, encoding: 'utf8', timeout: a.timeoutS * 1000, killSignal: 'SIGKILL', maxBuffer: 256 * 1024 * 1024 });
+  const r = spawnSync(a.claude, args, { cwd: a.copy, env, encoding: 'utf8', timeout: a.timeoutS * 1000, killSignal: 'SIGKILL', maxBuffer: 256 * 1024 * 1024 });
   fs.mkdirSync(path.dirname(a.out), { recursive: true });
   fs.writeFileSync(`${a.out}.stream.jsonl`, r.stdout ?? '');
   const events = parseStreamJson(r.stdout ?? '');
-  const metric = { ...coldStart(events, gold, a.copy), runTokens: runTokens(events), exit: r.status, signal: r.signal, timedOut: r.signal === 'SIGKILL', wallMs: Date.now() - started };
+  fs.writeFileSync(`${a.out}.stderr.txt`, r.stderr ?? '');
+  const init = events.find((e) => e.type === 'system' && e.subtype === 'init');
+  const result = events.findLast((e) => e.type === 'result');
+  const accounting = validateUsage(events);
+  const valid = accounting.valid && r.status === 0 && result?.is_error === false && init?.session_id === sessionId;
+  const metric = { ...coldStart(events, gold, a.copy), valid, accounting, sessionId, pid: r.pid,
+    model: init?.model, apiKeySource: init?.apiKeySource, tools: init?.tools,
+    resultSubtype: result?.subtype, permissionDenials: result?.permission_denials?.length ?? 0,
+    authMethod: auth.authMethod, subscriptionType: auth.subscriptionType,
+    runTokens: runTokens(events), exit: r.status, signal: r.signal, timedOut: r.signal === 'SIGKILL', wallMs: Date.now() - started };
   fs.writeFileSync(`${a.out}.metric.json`, `${JSON.stringify(metric, null, 2)}\n`);
   console.log(JSON.stringify(metric));
+  if (!valid) process.exitCode = 4;
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();
