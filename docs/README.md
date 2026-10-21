@@ -19,6 +19,7 @@ Start with the [README](../README.md). This page lists every doc in the repo and
 | --- | --- |
 | [release-notes-draft.md](release-notes-draft.md) | DRAFT release notes for the next version. Not published. |
 | [obsidian-submission-checklist.md](obsidian-submission-checklist.md) | Each Obsidian community directory requirement, its status in this repo, and what the owner must do to submit. |
+| [audit-2026-10.md](audit-2026-10.md) | Code audit of October 2026: removed format-1 code, shared helpers, error messages, compiler flags, dependencies and licenses, open risks. |
 
 ## Design specs for features that shipped
 

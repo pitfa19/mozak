@@ -28,7 +28,8 @@ Not tagged. The version in `package.json`, the package manifests and both plugin
 - A late supporting observation no longer drops an owner-accepted outcome from `done` to `evidence` in the roadmap, `mozak.md` and `needs` checks. Only a new challenge reopens it. `plan complete` still needs an owner acceptance bound to the exact current evidence.
 - Local and vault-plans scope reads never fetch. Remote reads mark `remoteFreshness` and skip the network for 10 minutes after a failed fetch.
 - A `mozak.md` that differs only by CRLF line endings or trailing whitespace counts as current.
-- Removed the dead format-1 modules from `@mozak/core` (`parse`, `check`, `graph`, `stale`, `translate`, `init`, `write`, `plan`) and their exports. No CLI, MCP or plugin route used them. Format-1 routes still refuse with `unsupported-legacy-operation`.
+- Removed the dead format-1 modules from `@mozak/core` (`parse`, `check`, `graph`, `stale`, `translate`, `init`, `write`, `plan`) and their exports. No CLI, MCP or plugin route used them. Format-1 routes still refuse with `unsupported-legacy-operation`. See [docs/audit-2026-10.md](docs/audit-2026-10.md).
+- Eleven common error messages now end with the next step (for example `stale-input`, `scope-not-found`, `plan-not-found`, `operation-conflict`). Codes and exit codes are unchanged.
 
 ### Fixed
 
