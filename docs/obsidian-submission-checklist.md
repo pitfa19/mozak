@@ -36,7 +36,7 @@ Status key: **Met** means checked in this repo. **Owner** means only the owner c
 | 14 | No `innerHTML`, `outerHTML` or `insertAdjacentHTML`. | Met | Checked by the test. |
 | 15 | No needless console logging. | Met | No `console.log`, `debug` or `info` (test). |
 | 16 | No default hotkeys. | Met | Test. |
-| 17 | Sentence case in UI text, no "settings" in settings headings. | Met | "Open mozak scopes", "Inventory path", "Auto-refresh", "Repo sync interval (seconds)", "Sync remote scopes". The settings tab has no heading. |
+| 17 | Sentence case in UI text, no "settings" in settings headings. | Met | "Open mozak scopes", "Inventory path", "Auto-refresh", "Repo sync interval (seconds)", "Sync vaults and repos". The settings tab has no heading. |
 | 18 | Clean up resources on unload, and do not detach leaves in `onunload`. | Met | `onunload` stops the file watchers and clears the sync interval. Leftover leaves of the retired plan view are closed on layout ready, not on unload. |
 | 19 | No hardcoded inline styles. | Met | No `.style` assignments in `src`. Styling is in `styles.css`. |
 

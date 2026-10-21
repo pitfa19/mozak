@@ -2,7 +2,7 @@
 // (the same functions behind `mozak scopes` and `mozak plans`). Reading never writes. The single write path,
 // renderStaleProjections, regenerates mozak.md through core and never touches mozak.json.
 import { lstatSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { DomainError, executeOperation, loadInventory, readAnnotations, readRemoteMeta, readScope, resolveScope, reviewRows, SCOPE_FILE_NAMES } from "@mozak/core";
 import { remoteVM, scopesModel, type ScopeLoad, type ScopesModel } from "./model.ts";
 
@@ -80,6 +80,44 @@ export function syncRemoteScopes(inventoryPath: string): { ok: boolean; message:
   const stale = remote.filter((r) => r.stale);
   if (stale.length === 0) return { ok: true, message: `Synced ${remote.length} remote scope${remote.length === 1 ? "" : "s"}.` };
   return { ok: false, message: `${stale.length} of ${remote.length} could not sync (using cached copy): ${stale.map((r) => `${r.scope}: ${r.error ?? "failed"}`).join("; ")}` };
+}
+
+interface LocalRow { repo: string | null; scopes: string[]; status: string; error?: string }
+const LOCAL_OK = new Set(["fast-forwarded", "up-to-date", "ahead"]);
+
+/**
+ * The sync button: refresh remote scopes and fast-forward every git repo (vault) that holds a local scope, through
+ * core (the same code as `mozak sync --local`). Core takes the scope locks, merges only with --ff-only and never pushes,
+ * so a diverged vault is reported, not touched. Returns a one line summary.
+ */
+export function syncAll(inventoryPath: string): { ok: boolean; message: string } {
+  const inv = loadInventory(inventoryPath);
+  const out = executeOperation(inv, "sync", { local: true }, "agent");
+  return { ok: out.exitCode === 0, message: syncSummary((out.data.remote ?? []) as { scope: string; stale: boolean; error?: string }[], (out.data.local ?? []) as LocalRow[]) };
+}
+
+/** One line for a sync notice. Pure, exported for tests. */
+export function syncSummary(remote: { scope: string; stale: boolean; error?: string }[], local: LocalRow[]): string {
+  const parts: string[] = [];
+  const name = (r: LocalRow) => (r.repo ? basename(r.repo) : r.scopes.join(", "));
+  if (local.length > 0) {
+    const pulled = local.filter((r) => r.status === "fast-forwarded").length;
+    const ahead = local.filter((r) => r.status === "ahead");
+    const okCount = local.filter((r) => LOCAL_OK.has(r.status)).length;
+    let s = `${okCount} of ${local.length} vault${local.length === 1 ? "" : "s"} synced`;
+    if (pulled) s += ` (${pulled} pulled)`;
+    if (ahead.length) s += `, ${ahead.map(name).join(", ")} ha${ahead.length === 1 ? "s" : "ve"} unpushed commits`;
+    parts.push(s);
+    const bad = local.filter((r) => !LOCAL_OK.has(r.status));
+    if (bad.length) parts.push(`not synced: ${bad.map((r) => `${name(r)}: ${r.status === "not-fast-forward" ? "local and remote diverged, pull by hand" : r.error ?? r.status}`).join("; ")}`);
+  }
+  if (remote.length > 0) {
+    const stale = remote.filter((r) => r.stale);
+    parts.push(stale.length === 0
+      ? `${remote.length} remote scope${remote.length === 1 ? "" : "s"} synced`
+      : `${stale.length} of ${remote.length} remote scopes could not sync (using cached copy): ${stale.map((r) => `${r.scope}: ${r.error ?? "failed"}`).join("; ")}`);
+  }
+  return parts.length ? `${parts.join(". ")}.` : "Nothing to sync.";
 }
 
 /** Resolve symlinks for vault-membership checks. Shared with core. */

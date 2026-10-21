@@ -1,6 +1,6 @@
 import { ItemView, Notice, setIcon, type WorkspaceLeaf } from "obsidian";
 import { countRemote, planMatches, scopesModel, type PlanFilter, type RefVM, type ScopeVM, type ScopesModel, type StripVM } from "./model.ts";
-import { loadScopesModel, describeError, syncRemoteScopes } from "./load.ts";
+import { loadScopesModel, describeError, syncAll } from "./load.ts";
 import type MozakPlugin from "./main.ts";
 import { cachedUpdateNotice } from "@mozak/core";
 
@@ -86,7 +86,7 @@ export class ScopesView extends ItemView {
     // Let the label paint before the synchronous core call blocks the UI thread.
     setTimeout(() => {
       try {
-        const result = syncRemoteScopes(path);
+        const result = syncAll(path);
         new Notice(`mozak: ${result.message}`, result.ok ? 4000 : 10000);
       } catch (err) {
         const d = describeError(err);
@@ -105,9 +105,9 @@ export class ScopesView extends ItemView {
     setIcon(el(title, "span", `mozak-title-icon icon-${this.filter}`), this.getIcon());
     el(title, "span", undefined, "mozak");
     const tools = el(head, "div", "mozak-tools");
-    if (this.model && countRemote(this.model.scopes).remote > 0) {
+    if (this.model && this.model.scopes.length > 0) {
       const sync = el(tools, "button", "clickable-icon mozak-sync");
-      sync.setAttr("aria-label", "Sync remote scopes");
+      sync.setAttr("aria-label", "Sync vaults and repos");
       setIcon(sync, "cloud-download");
       sync.addEventListener("click", () => this.syncRemote(sync));
     }
