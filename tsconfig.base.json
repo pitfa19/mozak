@@ -8,6 +8,7 @@
     "composite": true,
     "skipLibCheck": true,
     "rewriteRelativeImportExtensions": true,
-    "erasableSyntaxOnly": true
+    "erasableSyntaxOnly": true,
+    "types": ["node"]
   }
 }
