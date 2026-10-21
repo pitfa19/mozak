@@ -68,6 +68,15 @@ const pkg = {
   repository: { type: "git", url: "git+https://github.com/pitfa19/mozak.git" },
   bugs: { url: "https://github.com/pitfa19/mozak/issues" },
   keywords: ["obsidian", "mcp", "ai-agents", "coding-agents", "claude-code", "codex", "planning", "agents-md"],
+  // Ownership marker the official MCP Registry checks against server.json's name.
+  mcpName: "io.github.pitfa19/mozak",
 };
 writeFileSync(join(out, "package.json"), `${JSON.stringify(pkg, null, 2)}\n`);
+
+// server.json for the MCP Registry, stamped with this version so the listing always points at a published package.
+const server = JSON.parse(readFileSync(join(repo, "server.json"), "utf8"));
+if (server.name !== pkg.mcpName) throw new Error(`server.json name ${server.name} must equal mcpName ${pkg.mcpName}`);
+server.version = version;
+for (const p of server.packages) p.version = version;
+writeFileSync(join(out, "server.json"), `${JSON.stringify(server, null, 2)}\n`);
 console.log(`built ${out} (mozak ${version})`);

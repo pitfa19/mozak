@@ -30,6 +30,11 @@ const stripUpdateRefresh = {
 };
 
 await build({
+  // Reproducible bytes: the Obsidian directory rebuilds from the repo root and compares main.js with the
+  // release asset. A fixed working directory and no path comments make the output independent of where
+  // the build is started from (repo root, this package, or the test that rebuilds the bundle).
+  absWorkingDir: join(root, "..", ".."),
+  legalComments: "none",
   entryPoints: [join(root, "src", "main.ts")],
   outfile: join(out, "main.js"),
   bundle: true,

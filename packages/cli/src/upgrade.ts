@@ -6,7 +6,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, readFileSync, realpathSync, renameSync, statSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { isAbsolute, join, resolve } from "node:path";
-import { compareVersions, highestRelease, installedVersion, npmInstall, parseVersion } from "@mozak/core";
+import { compareVersions, highestRelease, installedVersion, npmInstall, parseVersion, vaultConfigDir } from "@mozak/core";
 
 export interface UpgradeArgs { prefix?: string; source?: string; vaults: string[]; check: boolean }
 export interface UpgradeResult { exitCode: number; data: Record<string, unknown> }
@@ -100,7 +100,7 @@ export function upgrade(args: UpgradeArgs): UpgradeResult {
     // Vaults are named, never guessed, and checked before anything changes.
     const vaults = args.vaults.map((v) => resolve(v));
     for (const v of vaults) {
-      if (!existsSync(v) || !statSync(v).isDirectory() || !existsSync(join(v, ".obsidian"))) throw new Refusal("invalid-input", `${v} is not an Obsidian vault (no .obsidian folder)`);
+      if (!existsSync(v) || !statSync(v).isDirectory() || !vaultConfigDir(v)) throw new Refusal("invalid-input", `${v} is not an Obsidian vault (no Obsidian config folder)`);
     }
 
     // 2. The newest release tag.

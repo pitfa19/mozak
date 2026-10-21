@@ -39,7 +39,7 @@ Why you can trust it:
 - **Many agents, no mess.** A write made through mozak from an out-of-date copy is refused instead of overwriting someone else's work.
 - **Repos and notes together.** A project can be a local folder, an Obsidian vault folder, or a GitHub repo you have not even cloned.
 
-It is for developers and researchers who already use coding agents and want them to share one plan. It works with any agent that can load a skill or an MCP server. So far it is tested with jcode and the MCP server.
+It is for developers and researchers who already use coding agents and want them to share one plan. It works with any agent that can load a skill or an MCP server. Checked so far: jcode (skill and MCP) and Claude Code (MCP).
 
 ## Install
 
@@ -50,7 +50,18 @@ npm install -g mozak
 mozak doctor --fix      # links the mozak skill into ~/.claude/skills, ~/.jcode/skills or ~/.codex/skills if they exist
 ```
 
-The npm package bundles the CLI and the MCP server in one package with no dependencies and no install scripts. To let any MCP agent use mozak, add `mozak-mcp --config /path/to/mozak-inventory.json` as an MCP server. Update with `npm install -g mozak@latest`.
+The npm package bundles the CLI and the MCP server in one package with no dependencies and no install scripts. Update with `npm install -g mozak@latest`.
+
+Connect your agent to the MCP server (use your own inventory path):
+
+```bash
+# Claude Code
+claude mcp add mozak -- mozak-mcp --config "$HOME/notes/mozak-inventory.json"
+# Codex
+codex mcp add mozak -- mozak-mcp --config "$HOME/notes/mozak-inventory.json"
+```
+
+Any other MCP client: command `mozak-mcp`, arguments `--config /path/to/mozak-inventory.json`.
 
 `mozak scopes` and the Obsidian sidebar tell you when a new release is out (`MOZAK_NO_UPDATE_CHECK=1` turns that off). Changes are listed in [CHANGELOG.md](CHANGELOG.md).
 
@@ -176,7 +187,7 @@ The Obsidian plugin passed Obsidian's automated community review. Its build and 
 **Not proven yet.**
 
 - **A benefit for agents.** A small pilot (5 proxy tasks, 10 agent sessions) compared agents with and without mozak and found no significant difference in token use: one group did 16% worse, the other 6% better. A larger evaluation is planned. Until then, treat mozak as a way to keep one approved plan and see it in Obsidian, not as a proven speed-up.
-- **Agent hosts.** Only jcode has been checked loading the skill. Claude Code and Codex have not been verified yet.
+- **Agent hosts.** Checked: jcode loading the skill and the MCP server, and Claude Code 2.1 calling the MCP server from the npm package. Codex and other MCP clients have not been verified yet.
 - **The plugin inside Obsidian.** Its view model is unit-tested and it has been tried by hand, but there are no automated tests running inside the Obsidian app.
 - **Real GitHub.** Tests use local bare repos. Real GitHub was checked by hand.
 - **Unsupported setups.** Windows, network filesystems and diverged remote branches.

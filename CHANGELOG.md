@@ -4,7 +4,7 @@ User-visible changes, newest first. Releases are git tags `vX.Y.Z` on `main`; `m
 
 ## 0.5.0 (unreleased)
 
-Not tagged. The version in `package.json`, the package manifests and both plugin manifests is still 0.4.4. Bump it only in an owner-authorized release commit. These additions are unreleased.
+Not tagged. The version in `package.json`, the package manifests and both plugin manifests is still 0.4.5. Bump it only in an owner-authorized release commit. These additions are unreleased.
 
 ### Added
 
@@ -47,6 +47,19 @@ Not tagged. The version in `package.json`, the package manifests and both plugin
 - `SPEC.md` is marked as legacy format 1. The README section "Reads and the network" says when a read can fetch, update a cache or push.
 - The plugin README now also discloses the public GitHub API visibility check, the parent-folder inventory lookup, the 60 second default sync, and that the update notice only reads a cache.
 - Removed the old generated demos with the uppercase name (`docs/assets/mozak-demo.*`, `docs/assets/mozak-agent-chat.*`) from the repo. Nothing linked to them.
+
+## 0.4.5 (2026-10-22)
+
+### Added
+
+- Official MCP Registry metadata: `server.json` (name `io.github.pitfa19/mozak`) and the matching `mcpName` field in the npm package, so mozak can be listed in the registry that MCP clients search.
+- `mozak-mcp` accepts `--config=FILE` as well as `--config FILE`, the form MCP registries pass. Duplicates across both forms are still refused.
+- README: one-line setup for Claude Code and Codex. Claude Code was checked calling the MCP server from the npm package.
+
+### Fixed
+
+- The CLI, `doctor`, `upgrade` and the plugin installer find a vault's config folder even when it was renamed, instead of assuming the default name. This clears the Obsidian directory scan's `hardcoded-config-path` warnings (0 findings now).
+- The plugin build is byte-reproducible (`absWorkingDir`, `legalComments`), so a clean build from the tag matches the released `main.js`.
 
 ## 0.4.4 (2026-10-21)
 
