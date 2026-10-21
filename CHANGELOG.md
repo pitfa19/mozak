@@ -10,6 +10,11 @@ User-visible changes, newest first. Releases are git tags `vX.Y.Z` on `main`; `m
 - `mozak-mcp` accepts `--config=FILE` as well as `--config FILE`, the form MCP registries pass. Duplicates across both forms are still refused.
 - README: one-line setup for Claude Code and Codex. Claude Code was checked calling the MCP server from the npm package.
 
+### Fixed
+
+- The CLI, `doctor`, `upgrade` and the plugin installer find a vault's config folder even when it was renamed, instead of assuming the default name. This clears the Obsidian directory scan's `hardcoded-config-path` warnings (0 findings now).
+- The plugin build is byte-reproducible (`absWorkingDir`, `legalComments`), so a clean build from the tag matches the released `main.js`.
+
 ## 0.4.4 (2026-10-21)
 
 ### Fixed
