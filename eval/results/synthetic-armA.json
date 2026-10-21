@@ -1,0 +1,839 @@
+{
+  "harness": "mozak-s0b-eval-v1",
+  "backend": "node",
+  "notes": 50,
+  "plansMd": true,
+  "arms": {
+    "A": {
+      "status": "run",
+      "items": 40,
+      "answerable": 36,
+      "abstainItems": 4,
+      "recallAt5Any": 0.8611,
+      "recallAt5All": 0.8333,
+      "mrrAt5": 0.8611,
+      "abstainAccuracy": 0.8,
+      "abstainRecall": 0.25,
+      "falseAbstain": 5,
+      "itemAccuracy": 0.775,
+      "byType": {
+        "abstain": {
+          "items": 4,
+          "answerable": 0,
+          "abstainItems": 4,
+          "recallAt5Any": null,
+          "recallAt5All": null,
+          "mrrAt5": null,
+          "abstainAccuracy": 0.25,
+          "abstainRecall": 0.25,
+          "falseAbstain": 0,
+          "itemAccuracy": 0.25
+        },
+        "cross-plan": {
+          "items": 3,
+          "answerable": 3,
+          "abstainItems": 0,
+          "recallAt5Any": 0.6667,
+          "recallAt5All": 0.3333,
+          "mrrAt5": 0.6667,
+          "abstainAccuracy": 0.6667,
+          "abstainRecall": null,
+          "falseAbstain": 1,
+          "itemAccuracy": 0.3333
+        },
+        "multi-hop": {
+          "items": 6,
+          "answerable": 6,
+          "abstainItems": 0,
+          "recallAt5Any": 0.5,
+          "recallAt5All": 0.5,
+          "mrrAt5": 0.5,
+          "abstainAccuracy": 0.5,
+          "abstainRecall": null,
+          "falseAbstain": 3,
+          "itemAccuracy": 0.5
+        },
+        "single": {
+          "items": 23,
+          "answerable": 23,
+          "abstainItems": 0,
+          "recallAt5Any": 1,
+          "recallAt5All": 1,
+          "mrrAt5": 1,
+          "abstainAccuracy": 1,
+          "abstainRecall": null,
+          "falseAbstain": 0,
+          "itemAccuracy": 1
+        },
+        "where": {
+          "items": 4,
+          "answerable": 4,
+          "abstainItems": 0,
+          "recallAt5Any": 0.75,
+          "recallAt5All": 0.75,
+          "mrrAt5": 0.75,
+          "abstainAccuracy": 0.75,
+          "abstainRecall": null,
+          "falseAbstain": 1,
+          "itemAccuracy": 0.75
+        }
+      },
+      "byLang": {
+        "en": {
+          "items": 21,
+          "answerable": 19,
+          "abstainItems": 2,
+          "recallAt5Any": 0.7895,
+          "recallAt5All": 0.7368,
+          "mrrAt5": 0.7895,
+          "abstainAccuracy": 0.7143,
+          "abstainRecall": 0,
+          "falseAbstain": 4,
+          "itemAccuracy": 0.6667
+        },
+        "hr": {
+          "items": 19,
+          "answerable": 17,
+          "abstainItems": 2,
+          "recallAt5Any": 0.9412,
+          "recallAt5All": 0.9412,
+          "mrrAt5": 0.9412,
+          "abstainAccuracy": 0.8947,
+          "abstainRecall": 0.5,
+          "falseAbstain": 1,
+          "itemAccuracy": 0.8947
+        }
+      }
+    },
+    "A-noplans": {
+      "status": "run",
+      "items": 40,
+      "answerable": 36,
+      "abstainItems": 4,
+      "recallAt5Any": 0.8611,
+      "recallAt5All": 0.8333,
+      "mrrAt5": 0.8611,
+      "abstainAccuracy": 0.8,
+      "abstainRecall": 0.25,
+      "falseAbstain": 5,
+      "itemAccuracy": 0.775
+    },
+    "Q": {
+      "status": "not-run",
+      "reason": "qmd not installed"
+    }
+  },
+  "paired": {
+    "A vs A-noplans": {
+      "b": 0,
+      "c": 0,
+      "n": 0,
+      "p": 1
+    }
+  },
+  "perItem": [
+    {
+      "id": "q01",
+      "correct": true,
+      "abstained": false,
+      "rr": 1,
+      "top": [
+        "bikeshop/decisions/brake-supplier.md",
+        "bikeshop/meetings/2026-02-12-weekly.md",
+        "bikeshop/plans/parts-supplier-switch.md",
+        "bikeshop/people/sam-okafor.md",
+        "bikeshop/howto/tubeless-setup.md"
+      ],
+      "terms": [
+        "suppli",
+        "bike",
+        "shop",
+        "use",
+        "brake",
+        "pads"
+      ]
+    },
+    {
+      "id": "q02",
+      "correct": true,
+      "abstained": false,
+      "rr": 1,
+      "top": [
+        "bikeshop/decisions/pricing-2026.md",
+        "bikeshop/plans/winter-storage.md",
+        "teza/literatura/low-cost-sensors.md",
+        "teza/metode/sensor-build.md"
+      ],
+      "terms": [
+        "basic",
+        "tune",
+        "cost"
+      ]
+    },
+    {
+      "id": "q03",
+      "correct": true,
+      "abstained": false,
+      "rr": 1,
+      "top": [
+        "bikeshop/lease.md",
+        "bikeshop/people/tomislav-kranjcevic.md",
+        "bikeshop/decisions/brake-supplier.md",
+        "bikeshop/people/sam-okafor.md",
+        "teza/plans/field-campaign.md"
+      ],
+      "terms": [
+        "shop",
+        "lease",
+        "end"
+      ]
+    },
+    {
+      "id": "q04",
+      "correct": true,
+      "abstained": false,
+      "rr": 1,
+      "top": [
+        "bikeshop/howto/tubeless-setup.md",
+        "bikeshop/inventory/tubes-and-tires.md",
+        "bikeshop/log/2026-03-18-flood.md",
+        "bikeshop/customers/repeat-customers.md",
+        "bikeshop/decisions/brake-supplier.md"
+      ],
+      "terms": [
+        "sealan",
+        "goes",
+        "mounta",
+        "bike",
+        "tire",
+        "tubele",
+        "setup"
+      ]
+    },
+    {
+      "id": "q05",
+      "correct": true,
+      "abstained": false,
+      "rr": 1,
+      "top": [
+        "bikeshop/log/2026-03-18-flood.md",
+        "bikeshop/plans/winter-storage.md",
+        "bikeshop/inventory/tubes-and-tires.md"
+      ],
+      "terms": [
+        "tires",
+        "ruined",
+        "baseme",
+        "flood"
+      ]
+    },
+    {
+      "id": "q06",
+      "correct": true,
+      "abstained": false,
+      "rr": 1,
+      "top": [
+        "bikeshop/howto/hydraulic-bleed.md",
+        "bikeshop/howto/tubeless-setup.md",
+        "teza/metode/sensor-build.md"
+      ],
+      "terms": [
+        "fluid",
+        "shiman",
+        "brakes",
+        "use"
+      ]
+    },
+    {
+      "id": "q07",
+      "correct": true,
+      "abstained": false,
+      "rr": 1,
+      "top": [
+        "bikeshop/log/2026-08-02-inspection.md"
+      ],
+      "terms": [
+        "next",
+        "fire",
+        "inspec",
+        "due"
+      ]
+    },
+    {
+      "id": "q08",
+      "correct": true,
+      "abstained": false,
+      "rr": 1,
+      "top": [
+        "bikeshop/inventory/tubes-and-tires.md"
+      ],
+      "terms": [
+        "minimu",
+        "stock",
+        "700x28",
+        "inner",
+        "tubes"
+      ]
+    },
+    {
+      "id": "q09",
+      "correct": true,
+      "abstained": false,
+      "rr": 1,
+      "top": [
+        "bikeshop/plans/winter-storage.md",
+        "bikeshop/decisions/pricing-2026.md",
+        "teza/literatura/low-cost-sensors.md",
+        "teza/metode/sensor-build.md",
+        "bikeshop/customers/repeat-customers.md"
+      ],
+      "terms": [
+        "winter",
+        "bike",
+        "storag",
+        "cost"
+      ]
+    },
+    {
+      "id": "q10",
+      "correct": true,
+      "abstained": false,
+      "rr": 1,
+      "top": [
+        "teza/metode/sensor-build.md",
+        "teza/literatura/low-cost-sensors.md",
+        "teza/budget.md",
+        "teza/literatura/turbidity-review.md",
+        "teza/people/jonas-berg.md"
+      ],
+      "terms": [
+        "wavele",
+        "infrar",
+        "led",
+        "turbid",
+        "sensor"
+      ]
+    },
+    {
+      "id": "q11",
+      "correct": true,
+      "abstained": false,
+      "rr": 1,
+      "top": [
+        "teza/budget.md",
+        "teza/metode/sensor-build.md",
+        "teza/literatura/low-cost-sensors.md",
+        "bikeshop/decisions/brake-supplier.md",
+        "bikeshop/plans/parts-supplier-switch.md"
+      ],
+      "terms": [
+        "facult",
+        "grant",
+        "give",
+        "sensor",
+        "parts"
+      ]
+    },
+    {
+      "id": "q12",
+      "correct": true,
+      "abstained": false,
+      "rr": 1,
+      "top": [
+        "teza/people/jonas-berg.md",
+        "bikeshop/meetings/2026-02-12-weekly.md",
+        "teza/literatura/low-cost-sensors.md",
+        "teza/literatura/turbidity-review.md",
+        "teza/plans/field-campaign.md"
+      ],
+      "terms": [
+        "shares",
+        "turbid",
+        "datase",
+        "fyris",
+        "river"
+      ]
+    },
+    {
+      "id": "q13",
+      "correct": true,
+      "abstained": false,
+      "rr": 1,
+      "top": [
+        "vrt/odluke/pumpa.md",
+        "vrt/plans/navodnjavanje.md",
+        "vrt/sastanci/2026-03-04-sastanak.md",
+        "vrt/dnevnik/2026-05-10.md",
+        "vrt/dnevnik/2026-07-21.md"
+      ],
+      "terms": [
+        "kostal",
+        "nova",
+        "pumpa",
+        "vrt"
+      ]
+    },
+    {
+      "id": "q14",
+      "correct": true,
+      "abstained": false,
+      "rr": 1,
+      "top": [
+        "vrt/odluke/clanarina.md",
+        "vrt/sastanci/2026-04-15-sastanak.md",
+        "vrt/ljudi/ivana-horvat.md",
+        "vrt/ljudi/marko-duric.md",
+        "vrt/ljudi/zeljka-babic.md"
+      ],
+      "terms": [
+        "godisn",
+        "clanar",
+        "vrtu"
+      ]
+    },
+    {
+      "id": "q15",
+      "correct": true,
+      "abstained": false,
+      "rr": 1,
+      "top": [
+        "vrt/dnevnik/2026-05-10.md",
+        "vrt/inventar/sjeme.md",
+        "vrt/plans/sjemenska-banka.md"
+      ],
+      "terms": [
+        "sadnic",
+        "rajcic",
+        "osteti",
+        "kasni",
+        "mraz"
+      ]
+    },
+    {
+      "id": "q16",
+      "correct": true,
+      "abstained": false,
+      "rr": 1,
+      "top": [
+        "vrt/inventar/alati.md"
+      ],
+      "terms": [
+        "drzi",
+        "kljuc",
+        "supe",
+        "alatom"
+      ]
+    },
+    {
+      "id": "q17",
+      "correct": true,
+      "abstained": false,
+      "rr": 1,
+      "top": [
+        "vrt/karta-gredica.md",
+        "vrt/plans/navodnjavanje.md",
+        "vrt/sastanci/2026-04-15-sastanak.md",
+        "vrt/sastanci/2026-06-02-sastanak.md"
+      ],
+      "terms": [
+        "raste",
+        "gredic"
+      ]
+    },
+    {
+      "id": "q18",
+      "correct": true,
+      "abstained": false,
+      "rr": 1,
+      "top": [
+        "teza/mjerenja/2026-04-03-savica.md",
+        "teza/mjerenja/2026-04-17-jarun.md"
+      ],
+      "terms": [
+        "izmjer",
+        "mutnoc",
+        "savici"
+      ]
+    },
+    {
+      "id": "q19",
+      "correct": true,
+      "abstained": false,
+      "rr": 1,
+      "top": [
+        "teza/metode/kalibracija.md",
+        "teza/mjerenja/2026-04-03-savica.md",
+        "teza/plans/pisanje-poglavlja.md"
+      ],
+      "terms": [
+        "standa",
+        "kalibr",
+        "senzor",
+        "mutnoc"
+      ]
+    },
+    {
+      "id": "q20",
+      "correct": true,
+      "abstained": false,
+      "rr": 1,
+      "top": [
+        "teza/rokovi.md",
+        "teza/sastanci/2026-06-24-mentorica.md",
+        "vrt/plans/navodnjavanje.md",
+        "teza/ljudi/ana-kovacevic.md",
+        "teza/plans/pisanje-poglavlja.md"
+      ],
+      "terms": [
+        "rok",
+        "predaj",
+        "teze"
+      ]
+    },
+    {
+      "id": "q21",
+      "correct": true,
+      "abstained": false,
+      "rr": 1,
+      "top": [
+        "teza/ljudi/ana-kovacevic.md",
+        "teza/sastanci/2026-06-24-mentorica.md",
+        "teza/sastanci/2026-03-11-mentorica.md",
+        "teza/plans/pisanje-poglavlja.md",
+        "teza/rokovi.md"
+      ],
+      "terms": [
+        "mentor",
+        "teze"
+      ]
+    },
+    {
+      "id": "q22",
+      "correct": true,
+      "abstained": false,
+      "rr": 1,
+      "top": [
+        "vrt/dnevnik/2026-07-21.md",
+        "vrt/plans/navodnjavanje.md",
+        "teza/mjerenja/2026-04-17-jarun.md",
+        "vrt/dnevnik/2026-05-10.md",
+        "vrt/financije/donacije-2026.md"
+      ],
+      "terms": [
+        "vode",
+        "vrt",
+        "potros",
+        "srpnju"
+      ]
+    },
+    {
+      "id": "q23",
+      "correct": true,
+      "abstained": false,
+      "rr": 1,
+      "top": [
+        "vrt/financije/donacije-2026.md",
+        "vrt/plans/kompostiste.md"
+      ],
+      "terms": [
+        "pekara",
+        "klas",
+        "donira"
+      ]
+    },
+    {
+      "id": "q24",
+      "correct": false,
+      "abstained": true,
+      "rr": 0,
+      "top": [],
+      "terms": [
+        "profes",
+        "person",
+        "leads",
+        "drip",
+        "irriga",
+        "plan"
+      ]
+    },
+    {
+      "id": "q25",
+      "correct": false,
+      "abstained": true,
+      "rr": 0,
+      "top": [],
+      "terms": [
+        "vlasni",
+        "zgrade",
+        "kojoj",
+        "servis",
+        "bicika",
+        "istjec",
+        "najam"
+      ]
+    },
+    {
+      "id": "q26",
+      "correct": false,
+      "abstained": true,
+      "rr": 0,
+      "top": [],
+      "terms": [
+        "days",
+        "person",
+        "buildi",
+        "bookin",
+        "page",
+        "work"
+      ]
+    },
+    {
+      "id": "q27",
+      "correct": true,
+      "abstained": false,
+      "rr": 1,
+      "top": [
+        "vrt/plans/navodnjavanje.md",
+        "vrt/odluke/pumpa.md",
+        "vrt/plans/sjemenska-banka.md",
+        "vrt/sastanci/2026-06-02-sastanak.md",
+        "vrt/sastanci/2026-03-04-sastanak.md"
+      ],
+      "terms": [
+        "kosta",
+        "pumpa",
+        "kojoj",
+        "ovisi",
+        "plan",
+        "navodn",
+        "postav"
+      ]
+    },
+    {
+      "id": "q28",
+      "correct": true,
+      "abstained": false,
+      "rr": 1,
+      "top": [
+        "teza/plans/field-campaign.md",
+        "bikeshop/meetings/2026-02-12-weekly.md",
+        "bikeshop/people/sam-okafor.md",
+        "bikeshop/people/tomislav-kranjcevic.md",
+        "teza/plans/pisanje-poglavlja.md"
+      ],
+      "terms": [
+        "owns",
+        "shop",
+        "rents",
+        "cargo",
+        "bike",
+        "field",
+        "campai"
+      ]
+    },
+    {
+      "id": "q29",
+      "correct": true,
+      "abstained": false,
+      "rr": 1,
+      "top": [
+        "teza/sastanci/2026-03-11-mentorica.md",
+        "teza/ljudi/ana-kovacevic.md",
+        "teza/sastanci/2026-06-24-mentorica.md",
+        "vrt/odluke/pumpa.md",
+        "vrt/plans/sjemenska-banka.md"
+      ],
+      "terms": [
+        "mentor",
+        "trazil",
+        "prvom",
+        "sastan",
+        "fakult"
+      ]
+    },
+    {
+      "id": "q30",
+      "correct": false,
+      "abstained": true,
+      "rr": 0,
+      "top": [],
+      "terms": [
+        "plan",
+        "must",
+        "finish",
+        "calibr",
+        "chapte",
+        "writte"
+      ]
+    },
+    {
+      "id": "q31",
+      "correct": true,
+      "abstained": false,
+      "rr": 1,
+      "top": [
+        "vrt/plans/sjemenska-banka.md",
+        "vrt/financije/donacije-2026.md",
+        "vrt/sastanci/2026-06-02-sastanak.md",
+        "vrt/plans/kompostiste.md",
+        "vrt/plans/navodnjavanje.md"
+      ],
+      "terms": [
+        "planu",
+        "ovisi",
+        "sjemen",
+        "banka",
+        "plan",
+        "zavrse"
+      ]
+    },
+    {
+      "id": "q32",
+      "correct": false,
+      "abstained": false,
+      "rr": 1,
+      "top": [
+        "bikeshop/plans/winter-storage.md",
+        "bikeshop/decisions/pricing-2026.md",
+        "bikeshop/people/sam-okafor.md"
+      ],
+      "terms": [
+        "must",
+        "fixed",
+        "winter",
+        "storag",
+        "servic",
+        "start"
+      ]
+    },
+    {
+      "id": "q33",
+      "correct": false,
+      "abstained": true,
+      "rr": 0,
+      "top": [],
+      "terms": [
+        "map",
+        "garden",
+        "beds"
+      ]
+    },
+    {
+      "id": "q34",
+      "correct": true,
+      "abstained": false,
+      "rr": 1,
+      "top": [
+        "vrt/pravila-vrta.md",
+        "vrt/ljudi/ivana-horvat.md",
+        "vrt/ljudi/marko-duric.md"
+      ],
+      "terms": [
+        "zapisa",
+        "pravil",
+        "ponasa",
+        "vrtu"
+      ]
+    },
+    {
+      "id": "q35",
+      "correct": true,
+      "abstained": false,
+      "rr": 1,
+      "top": [
+        "bikeshop/howto/hydraulic-bleed.md",
+        "bikeshop/people/sam-okafor.md"
+      ],
+      "terms": [
+        "explai",
+        "bleed",
+        "hydrau",
+        "brakes"
+      ]
+    },
+    {
+      "id": "q36",
+      "correct": true,
+      "abstained": false,
+      "rr": 1,
+      "top": [
+        "teza/mjerenja/2026-04-17-jarun.md",
+        "teza/mjerenja/2026-04-03-savica.md",
+        "teza/plans/field-campaign.md"
+      ],
+      "terms": [
+        "biljes",
+        "mjeren",
+        "jarunu"
+      ]
+    },
+    {
+      "id": "q37",
+      "correct": false,
+      "abstained": false,
+      "rr": null,
+      "top": [
+        "bikeshop/decisions/brake-supplier.md",
+        "bikeshop/lease.md",
+        "bikeshop/people/sam-okafor.md",
+        "bikeshop/people/tomislav-kranjcevic.md",
+        "teza/plans/field-campaign.md"
+      ],
+      "terms": [
+        "passwo",
+        "bike",
+        "shop"
+      ]
+    },
+    {
+      "id": "q38",
+      "correct": false,
+      "abstained": false,
+      "rr": null,
+      "top": [
+        "vrt/inventar/alati.md",
+        "vrt/karta-gredica.md",
+        "teza/plans/pisanje-poglavlja.md",
+        "vrt/dnevnik/2026-05-10.md",
+        "vrt/dnevnik/2026-07-21.md"
+      ],
+      "terms": [
+        "pcelin",
+        "kosnic",
+        "ima",
+        "vrt"
+      ]
+    },
+    {
+      "id": "q39",
+      "correct": false,
+      "abstained": false,
+      "rr": null,
+      "top": [
+        "teza/literatura/low-cost-sensors.md",
+        "teza/literatura/turbidity-review.md",
+        "teza/people/jonas-berg.md",
+        "teza/plans/field-campaign.md",
+        "teza/sastanci/2026-03-11-mentorica.md"
+      ],
+      "terms": [
+        "journa",
+        "accept",
+        "turbid",
+        "paper"
+      ]
+    },
+    {
+      "id": "q40",
+      "correct": true,
+      "abstained": true,
+      "rr": null,
+      "top": [],
+      "terms": [
+        "naprav",
+        "stakle",
+        "vrtu"
+      ]
+    }
+  ]
+}
