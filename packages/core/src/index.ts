@@ -1,6 +1,7 @@
 // Read-only note helpers and text folding.
 export * from "./notes.ts";
 export * from "./fold.ts";
+export * from "./paths.ts";
 
 // Supported v3 understanding model, conversation and guarded public operations.
 export * from "./errors.ts";

@@ -4,7 +4,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, realpathSync, statSync } from "node:fs";
 import { basename, dirname, join, relative, sep } from "node:path";
-import { foldText } from "./fold.ts";
+import { foldKey } from "./fold.ts";
 
 /** When something was last changed, derived from git. Nothing is stored, so there is no timestamp to forget to update. */
 export interface Touched {
@@ -89,7 +89,7 @@ export function mdFiles(dir: string, out: string[] = []): string[] {
 }
 
 /** Note name key: the basename without .md, lowercased and folded, as Obsidian matches names case-insensitively. */
-export const noteKey = (name: string) => foldText(name.replace(/\.md$/i, "")).toLowerCase().trim();
+export const noteKey = (name: string) => foldKey(name.replace(/\.md$/i, "")).trim();
 
 /** Lowercase folded note name -> every path with that name, in sorted path order. */
 export type NoteIndex = Map<string, string[]>;

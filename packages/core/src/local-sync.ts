@@ -4,9 +4,8 @@
 // stops and reports it, so the owner decides. Nothing here pushes.
 
 import { execFileSync } from "node:child_process";
-import { realpathSync } from "node:fs";
-import { relative, isAbsolute } from "node:path";
 import { DomainError } from "./errors.ts";
+import { isWithin, realOrSelf } from "./paths.ts";
 import { withScopeLocks, type StoreOptions } from "./scope-store.ts";
 import type { ScopeEntry } from "./scope-index.ts";
 
@@ -27,8 +26,6 @@ function git(cwd: string, args: string[], timeout = 20_000): string {
   }
 }
 function tryGit(cwd: string, args: string[]): string | null { try { return git(cwd, args); } catch { return null; } }
-function real(path: string): string { try { return realpathSync(path); } catch { return path; } }
-const inside = (root: string, dir: string) => { const r = relative(dir, root); return r === "" || (!r.startsWith("..") && !isAbsolute(r)); };
 
 /** Scopes whose plan files live in a local folder: local scopes and vault-plans scopes. Repo-mode remotes have their own sync. */
 export function localEntries(scopes: ScopeEntry[]): ScopeEntry[] {
@@ -46,12 +43,12 @@ export function syncLocal(targets: ScopeEntry[], all: ScopeEntry[], options: Sto
   for (const entry of localEntries(targets)) {
     const top = tryGit(entry.root, ["rev-parse", "--show-toplevel"]);
     if (!top) { rows.push({ repo: null, scopes: [entry.id], locked: [], status: "not-in-git" }); continue; }
-    const key = real(top);
+    const key = realOrSelf(top);
     repos.set(key, [...(repos.get(key) ?? []), entry]);
   }
   for (const [top, selected] of repos) {
     const scopes = selected.map((e) => e.id).sort();
-    const lockRoots = candidates.filter((e) => inside(real(e.root), top));
+    const lockRoots = candidates.filter((e) => isWithin(realOrSelf(e.root), top));
     const locked = lockRoots.map((e) => e.id).sort();
     const row = (status: LocalSyncStatus, extra: Partial<LocalSyncRow> = {}): LocalSyncRow => ({ repo: top, scopes, locked, status, ...extra });
     const branch = tryGit(top, ["symbolic-ref", "--short", "-q", "HEAD"]);

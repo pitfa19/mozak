@@ -6,11 +6,12 @@
 // root for a scope that is itself a repo root (a company vault is not searched by default).
 // A private root returns path and title only, unless the call sets includePrivate (the usage log records that).
 
-import { closeSync, existsSync, openSync, readSync, realpathSync, statSync } from "node:fs";
+import { closeSync, existsSync, openSync, readSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { foldKey } from "./fold.ts";
 import { commitTimes, dirtyPaths, findRepoRoot, noteIndex, noteKey, touched, wikiLinks, type NoteIndex } from "./notes.ts";
+import { realOrSelf } from "./paths.ts";
 import type { ScopeEntry, ScopeInventory } from "./scope-index.ts";
 import { scopeFileName } from "./scope-files.ts";
 import { loadSettings, type IndexRoot } from "./settings.ts";
@@ -55,7 +56,6 @@ const GIT_RE = /^git:/i;
 const EXT_RE = /\.[A-Za-z0-9]{1,8}$/;
 const READ_LIMIT = 64 * 1024;
 
-function realOr(p: string): string { try { return realpathSync(p); } catch { return p; } }
 const inside = (path: string, dir: string) => path === dir || path.startsWith(dir.endsWith(sep) ? dir : dir + sep);
 
 /** Default roots: see the header comment. Deterministic, file-system only. */
@@ -63,7 +63,7 @@ export function defaultIndexRoots(inv: ScopeInventory): LocatorRoot[] {
   const out = new Map<string, LocatorRoot>();
   for (const entry of inv.scopes) {
     if (entry.remote && entry.remote.plansMode === "repo") continue;
-    const root = realOr(entry.root);
+    const root = realOrSelf(entry.root);
     const repo = findRepoRoot(root);
     if (!repo || repo === root) continue;
     const top = relative(repo, root).split(sep)[0];
@@ -158,7 +158,7 @@ export class LocatorResolver {
     if (!raw) return { kind: "text", status: "not-checked" };
     if (URL_RE.test(raw)) return { kind: "url", status: "external" };
     if (GIT_RE.test(raw)) return { kind: "git", status: "external" };
-    const scopeRoot = realOr(entry.root);
+    const scopeRoot = realOrSelf(entry.root);
     const link = raw.includes("[[") ? wikiLinks(raw)[0] : undefined;
     if (link) return this.resolveNote(scopeRoot, link.target, link.anchor ?? anchor);
 
@@ -173,7 +173,7 @@ export class LocatorResolver {
     if (!pathLike) return { kind: "text", status: "not-checked" };
 
     for (const candidate of this.candidates(entry, scopeRoot, path)) {
-      if (existsSync(candidate)) return this.found(realOr(candidate), anchorUsed, scopeRoot, "path");
+      if (existsSync(candidate)) return this.found(realOrSelf(candidate), anchorUsed, scopeRoot, "path");
     }
     // A bare note name with .md may be a note anywhere in the roots, as Obsidian would find it.
     if (!path.includes("/") && /\.md$/i.test(path)) {
@@ -204,10 +204,10 @@ export class LocatorResolver {
       hits = hits.filter((p) => foldKey(p).endsWith(suffix));
     }
     if (hits.length === 0) return { kind: "wikilink", status: "missing" };
-    const local = hits.filter((p) => inside(realOr(p), scopeRoot));
+    const local = hits.filter((p) => inside(realOrSelf(p), scopeRoot));
     const pick = hits.length === 1 ? hits[0] : local.length === 1 ? local[0] : null;
-    if (!pick) return { kind: "wikilink", status: "ambiguous", candidates: hits.map((p) => realOr(p)).filter((p) => this.includePrivate || !this.rootOf(p)?.private).sort() };
-    return this.found(realOr(pick), anchor, scopeRoot, "wikilink");
+    if (!pick) return { kind: "wikilink", status: "ambiguous", candidates: hits.map((p) => realOrSelf(p)).filter((p) => this.includePrivate || !this.rootOf(p)?.private).sort() };
+    return this.found(realOrSelf(pick), anchor, scopeRoot, "wikilink");
   }
 }
 
@@ -317,7 +317,7 @@ export function citedNoteChanges(inv: ScopeInventory, entry: ScopeEntry, state: 
     }
   }
   if (latest.size === 0) return [];
-  const graph = join(realOr(entry.root), scopeFileName(entry.root, "graph"));
+  const graph = join(realOrSelf(entry.root), scopeFileName(entry.root, "graph"));
   const ownRepo = findRepoRoot(entry.root);
   const recorded = ownRepo ? commitTimes(ownRepo, graph) : [];
   /** When a citation landed: the first mozak.json commit at or after citedAt, else citedAt itself. */
