@@ -2,7 +2,7 @@
 
 User-visible changes, newest first. Releases are git tags `vX.Y.Z` on `main`; `mozak upgrade` installs the newest one.
 
-## Unreleased
+## 0.4.1 (2026-10-21)
 
 ### Changed
 
