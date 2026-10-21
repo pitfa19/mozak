@@ -233,7 +233,7 @@ export function loadInventory(configPath: string): ScopeInventory {
 export function resolveScope(inv: ScopeInventory, id: string): ScopeEntry {
   const matches = inv.scopes.filter((scope) => scope.id === id);
   if (matches.length === 0) {
-    throw new DomainError("scope-not-found", `no scope "${id}" in the inventory`);
+    throw new DomainError("scope-not-found", `no scope "${id}" in the inventory; run mozak scopes (MCP mozak_scopes) to list the scope ids`);
   }
   const entry = matches[0];
   if (matches.length > 1 || entry === undefined) {

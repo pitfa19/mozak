@@ -3,11 +3,12 @@
 // bodies, prompts, plan text or ids of plans. The monthly aggregate is counts only, one file per host and month.
 // Logging never changes an operation's result: every failure here is swallowed.
 
-import { appendFileSync, existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, lstatSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { hostname } from "node:os";
-import { dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { DomainError } from "./errors.ts";
 import { replaceFileDurable } from "./durable.ts";
+import { isWithin, realOrSelf } from "./paths.ts";
 import { CACHE_DIR } from "./remote-meta.ts";
 
 export const USAGE_DIR = "usage";
@@ -110,8 +111,7 @@ export function aggregateUsage(lines: UsageLine[], host: string, month: string):
   return agg;
 }
 
-function realish(p: string): string { try { return realpathSync(p); } catch { return resolve(p); } }
-const within = (child: string, parent: string) => { const r = relative(parent, child); return r === "" || (!r.startsWith("..") && !isAbsolute(r)); };
+const realish = (p: string): string => resolve(realOrSelf(p));
 
 /**
  * Write `<targetDir>/<host>-<yyyy-mm>.json`. The design puts it at the personal vault root in `.mozak-usage/`, outside
@@ -122,7 +122,7 @@ export function writeUsageAggregate(targetDir: string, agg: UsageAggregate, forb
   const dir = realish(targetDir);
   for (const root of forbiddenRoots) {
     const r = realish(root);
-    if (within(dir, r) || within(r, dir)) throw new DomainError("usage-target-refused", `aggregates must live outside every scope and index root; ${targetDir} overlaps ${root}`, 2);
+    if (isWithin(dir, r) || isWithin(r, dir)) throw new DomainError("usage-target-refused", `aggregates must live outside every scope and index root; ${targetDir} overlaps ${root}`, 2);
   }
   mkdirSync(dir, { recursive: true });
   const st = lstatSync(dir);

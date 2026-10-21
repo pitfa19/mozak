@@ -3,12 +3,13 @@
 // leaks plan text into it. A repository only lists its own scopes, so a company vault's file never names a personal
 // plan and the other way round. Rejected drafts are left out. Read-only except for the plans.md files themselves.
 
-import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { mdText, planDisplayState, type PlanDisplayState } from "./bridge.ts";
 import { replaceFileDurable } from "./durable.ts";
 import { DomainError } from "./errors.ts";
 import { findRepoRoot } from "./notes.ts";
+import { realOrSelf } from "./paths.ts";
 import type { ScopeInventory } from "./scope-index.ts";
 import { readScopeQuiet } from "./scope-store.ts";
 import type { ScopeState } from "./understanding.ts";
@@ -42,8 +43,6 @@ export interface PlansIndexSkip { scope: string; reason: "repo-mode-remote" | "n
 
 export interface PlansIndexResult { files: PlansIndexFile[]; skipped: PlansIndexSkip[] }
 
-const realOr = (p: string) => { try { return realpathSync(p); } catch { return p; } };
-
 /** The text of one repository's plans.md. Pure. Scopes sorted by folder, plans by state then title then id. */
 export function renderPlansIndex(scopes: { id: string; folder: string; state: ScopeState | null }[]): string {
   const lines = [PLANS_INDEX_MARKER, "", "# Plans", "", "Titles and states of the mozak plans in this repository. Each scope's mozak.md has the detail."];
@@ -71,7 +70,7 @@ export function plansIndex(inv: ScopeInventory, opts: { write: boolean }): Plans
     if (entry.remote && entry.remote.plansMode === "repo") { skipped.push({ scope: entry.id, reason: "repo-mode-remote" }); continue; }
     const repo = findRepoRoot(entry.root);
     if (!repo) { skipped.push({ scope: entry.id, reason: "not-in-git-repo" }); continue; }
-    const folder = relative(repo, realOr(entry.root)).split(sep).join("/") || ".";
+    const folder = relative(repo, realOrSelf(entry.root)).split(sep).join("/") || ".";
     let state: ScopeState | null = null;
     let code: string | undefined;
     try { state = readScopeQuiet(entry).state; }

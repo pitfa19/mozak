@@ -12,6 +12,9 @@
   "scripts": {
     "build": "tsc -b && npm run build:plugin",
     "build:plugin": "node packages/obsidian/scripts/build.mjs",
+    "typecheck": "tsc -b",
+    "lint": "npm run typecheck && node scripts/check-links.mjs",
+    "loc": "node scripts/count-loc.mjs",
     "test": "node --test --experimental-strip-types packages/core/test/*.test.ts packages/cli/test/*.test.ts packages/mcp/test/*.test.ts packages/obsidian/test/*.test.ts eval/test/*.test.mjs",
     "test:eval": "node --test eval/test/*.test.mjs",
     "verify:eval": "node eval/verify.mjs",

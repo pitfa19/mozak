@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { accessSync, constants, lstatSync, mkdirSync, readFileSync, readdirSync, renameSync, rmdirSync, unlinkSync, writeFileSync } from "node:fs";
+import { accessSync, constants, lstatSync, mkdirSync, readFileSync, readdirSync, renameSync, rmdirSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { DomainError } from "./errors.ts";
 import { canonical, digest, hashBytes, validateScope, SCOPE_FORMAT, MAX_REQUEST_BYTES, MAX_SCOPE_BYTES, type FileToken, type ScopeState, type Receipt, type Specification } from "./understanding.ts";
@@ -57,7 +57,7 @@ function expected(v: unknown): ScopeSnapshot {
   return o as unknown as ScopeSnapshot;
 }
 function bounded(v: unknown): void {
-  if (Buffer.byteLength(canonical(v)) > MAX_REQUEST_BYTES) throw new DomainError("capacity-exceeded", "request exceeds 1 MiB");
+  if (Buffer.byteLength(canonical(v)) > MAX_REQUEST_BYTES) throw new DomainError("capacity-exceeded", "request exceeds 1 MiB; split it into smaller operations");
 }
 function file(path: string, max = MAX_SCOPE_BYTES): { token: FileToken; bytes: string | null; validUtf8: boolean } {
   try {
@@ -80,9 +80,9 @@ function pathExists(path: string): boolean {
 const same = (a: FileToken, b: FileToken) => a.exists === b.exists && a.sha256 === b.sha256;
 function decode(bytes: string, entry: ScopeEntry): ScopeState {
   let raw: unknown;
-  try { raw = JSON.parse(bytes); } catch { throw new DomainError("invalid-json", "mozak.json is not valid JSON"); }
+  try { raw = JSON.parse(bytes); } catch { throw new DomainError("invalid-json", "mozak.json is not valid JSON; restore it from git or fix the syntax by hand, then run mozak check"); }
   const state = validateScope(raw);
-  if (state.scope.id !== entry.id) throw new DomainError("scope-mismatch", "inventory identity does not match mozak.json");
+  if (state.scope.id !== entry.id) throw new DomainError("scope-mismatch", `inventory id "${entry.id}" does not match scope.id "${state.scope.id}" in mozak.json; fix the inventory entry or its root`);
   return state;
 }
 /**
@@ -138,7 +138,7 @@ function readScopeWith(entry: ScopeEntry, options: StoreOptions, diagnostics: bo
   assertScopeFiles(entry.root);
   for (let attempt = 0; attempt < 3; attempt++) {
     const a = file(scopeFile(entry.root, "graph"));
-    if (a.bytes === null) throw new DomainError("scope-uninitialized", entry.remote ? `not a scope: ${entry.remote.spec}@${entry.remote.ref} has no mozak.json at its root` : `no mozak.json for ${entry.id}`);
+    if (a.bytes === null) throw new DomainError("scope-uninitialized", entry.remote ? `not a scope: ${entry.remote.spec}@${entry.remote.ref} has no mozak.json at its root` : `no mozak.json for ${entry.id}; check its root in the inventory, or ask the owner to run mozak scope init`);
     let bridge: ReturnType<typeof file> | null = null;
     let bridgeIssue: ScopeIssue | null = null;
     try { bridge = file(scopeFile(entry.root, "bridge"), MAX_SCOPE_BYTES * 2); }
@@ -166,7 +166,7 @@ function readScopeWith(entry: ScopeEntry, options: StoreOptions, diagnostics: bo
     }
     return { state, snapshot: { revision: state.storage.revision, graphHash: a.token.sha256!, bridge: bridge?.token ?? null }, projectionStatus, issues };
   }
-  throw new DomainError("busy", "canonical state changed during three read attempts", 4);
+  throw new DomainError("busy", "canonical state changed during three read attempts; another writer is active, retry in a few seconds", 4);
 }
 
 /** Trusted IO results never come from mutation payloads or canonical metadata. */
@@ -213,7 +213,7 @@ export function readScopeView(entry: ScopeEntry, candidatePlanId?: string, optio
     if (!lockFree) issues.push({ code: "storage-busy", message: "Scope lock is present or unavailable; execution eligibility is withheld, not reclaimed by age" });
     return { ...after, issues: [...after.issues, ...issues], environment: { storageUsable: after.projectionStatus === "current" && lockFree, specifications } };
   }
-  throw new DomainError("busy", "canonical/projection state changed during three specification read attempts", 4);
+  throw new DomainError("busy", "canonical/projection state changed during three specification read attempts; another writer is active, retry in a few seconds", 4);
 }
 
 function acquire(root: string, options: StoreOptions): () => void {
@@ -315,7 +315,7 @@ function publishGraph(entry: ScopeEntry, state: ScopeState, previousGraph: FileT
   state.storage.previousBridge = previousBridge;
   validateScope(state);
   const bytes = canonical(state);
-  if (Buffer.byteLength(bytes) > MAX_SCOPE_BYTES) throw new DomainError("capacity-exceeded", "canonical state would exceed 4 MiB");
+  if (Buffer.byteLength(bytes) > MAX_SCOPE_BYTES) throw new DomainError("capacity-exceeded", "canonical state would exceed 4 MiB; ask the owner to prune rejected plans or move finished plans to another scope");
   const graphPath = scopeFile(entry.root, "graph");
   const bridgePath = scopeFile(entry.root, "bridge");
   const recheck = (graph: FileToken) => {
@@ -337,13 +337,13 @@ function publishGraph(entry: ScopeEntry, state: ScopeState, previousGraph: FileT
 function receipt(read: ScopeRead, operationId: string, requestDigest: string, tx: Transaction, entry: ScopeEntry): OperationResult | null {
   if (!own(read.state.receipts, operationId)) return null;
   const record = read.state.receipts[operationId];
-  if (record.requestDigest !== requestDigest) throw new DomainError("operation-conflict", "operation ID was already used with different input", 3);
+  if (record.requestDigest !== requestDigest) throw new DomainError("operation-conflict", "operation ID was already used with different input; use a new operationId for a changed request, or read the committed result with mozak operation --id", 3);
   tx.committed = true; tx.result = record.result;
   return { ...outcome(entry, tx, "replayed"), replayed: true };
 }
 function match(read: ScopeRead, snapshot: ScopeSnapshot, bridge = true): void {
-  if (bridge && (!read.snapshot.bridge || !snapshot.bridge)) throw new DomainError("bridge-unavailable", "a trustworthy bridge snapshot is required before writing", 3);
-  if (read.snapshot.revision !== snapshot.revision || read.snapshot.graphHash !== snapshot.graphHash || (bridge && !same(read.snapshot.bridge!, snapshot.bridge!))) throw new DomainError("stale-input", "snapshot changed; reread before submitting a new operation", 3);
+  if (bridge && (!read.snapshot.bridge || !snapshot.bridge)) throw new DomainError("bridge-unavailable", "a trustworthy bridge snapshot is required before writing; run mozak check to see why, and ask the owner to run mozak projection repair", 3);
+  if (read.snapshot.revision !== snapshot.revision || read.snapshot.graphHash !== snapshot.graphHash || (bridge && !same(read.snapshot.bridge!, snapshot.bridge!))) throw new DomainError("stale-input", "snapshot changed; reread before submitting a new operation: take the new snapshot from context as expected and use a new operationId", 3);
 }
 function identity(entry: ScopeEntry, input: Record<string, unknown>): void {
   if (text(input.scopeId, "scopeId") !== entry.id) throw new DomainError("scope-mismatch", "request scope differs from selected scope");
@@ -569,7 +569,7 @@ export function annotateScope(entry: ScopeEntry, input: unknown, lookup: ScopeLo
     const base = { operationId: request.operationId, snapshot: read.snapshot, projectionStatus: read.projectionStatus, projectionUpdated: false, issues: [] as ScopeIssue[] };
     if (side.doc && own(side.doc.receipts, request.operationId)) {
       const prior = side.doc.receipts[request.operationId]!;
-      if (prior.requestDigest !== requestDigest) throw new DomainError("operation-conflict", "operation ID was already used with different input", 3);
+      if (prior.requestDigest !== requestDigest) throw new DomainError("operation-conflict", "operation ID was already used with different input; use a new operationId for a changed request, or read the committed result with mozak operation --id", 3);
       tx.committed = true; tx.result = prior.result; token = side.token;
       return { ...base, status: "replayed", committed: true, replayed: true, result: prior.result };
     }

@@ -7,7 +7,7 @@ type Context = ReturnType<typeof contextView>;
 export function selectContext(context: Context, brief: boolean, planId?: string) {
   const plans = planId === undefined ? context.plans : context.plans.filter(plan => plan.id === planId);
   if (planId !== undefined && plans.length === 0) {
-    throw new DomainError("plan-not-found", `no plan "${planId}" in scope "${context.scopeId}"`, 2);
+    throw new DomainError("plan-not-found", `no plan "${planId}" in scope "${context.scopeId}"; run mozak plans (MCP mozak_plans) to list the plan ids`, 2);
   }
   const selected = planId === undefined ? context : {
     ...context, plans, implementationAuthorized: plans.some(plan => plan.implementationAuthorized),

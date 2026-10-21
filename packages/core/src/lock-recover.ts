@@ -85,7 +85,7 @@ function text(v: unknown, name: string): string {
 }
 
 export function validateRecoverRequest(input: unknown): RecoverRequest {
-  if (Buffer.byteLength(canonical(input)) > MAX_REQUEST_BYTES) throw new DomainError("capacity-exceeded", "request exceeds 1 MiB");
+  if (Buffer.byteLength(canonical(input)) > MAX_REQUEST_BYTES) throw new DomainError("capacity-exceeded", "request exceeds 1 MiB; send only the fields recover needs");
   const r = exact(input, ["requestId", "scopeId", "lock", "ownerRef", "ownerMessageAt"], "recover request");
   text(r.requestId, "requestId"); text(r.scopeId, "scopeId"); text(r.ownerRef, "ownerRef"); text(r.ownerMessageAt, "ownerMessageAt");
   const lock = exact(r.lock, ["token", "host", "pid"], "lock");

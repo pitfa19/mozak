@@ -205,8 +205,6 @@ export function validateArguments(def: ToolDef, args: unknown): Record<string, u
   return args;
 }
 
-const ok = (text: string): ToolResult => ({ content: [{ type: "text", text }] });
-
 /**
  * Text of a failed tool call. It leads with a one-line `reason` and the `issues`, then the rest of the structured
  * result (for example a large `unsavedRequest`), so a host that truncates tool output still shows why.

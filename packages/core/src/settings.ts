@@ -12,9 +12,10 @@
 // Only the keys this version understands are validated. Any other key is reported by `check` as
 // settings-unknown-key and has no effect.
 
-import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve, sep } from "node:path";
 import { DomainError } from "./errors.ts";
+import { realOrSelf } from "./paths.ts";
 import type { ScopeEntry, ScopeInventory } from "./scope-index.ts";
 
 export const SETTINGS_FILE = "mozak-settings.json";
@@ -36,7 +37,6 @@ export interface Settings {
 }
 
 const isPlain = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
-function realOr(path: string): string { try { return realpathSync(path); } catch { return path; } }
 
 /** Read settings for an inventory. Absent file: defaults. Invalid file: throws settings-invalid. */
 export function loadSettings(inv: ScopeInventory): Settings {
@@ -70,7 +70,7 @@ export function loadSettings(inv: ScopeInventory): Settings {
     for (const key of Object.keys(a)) if (key !== "personalVaults") issues.push({ code: "settings-unknown-key", message: `${SETTINGS_FILE}: unknown key "annotations.${key}" has no effect` });
     if (a.personalVaults !== undefined) {
       if (!Array.isArray(a.personalVaults) || a.personalVaults.some((p) => typeof p !== "string" || !p.trim())) fail(`"annotations.personalVaults" must be an array of paths`);
-      personalVaults = (a.personalVaults as string[]).map((p) => realOr(resolve(dirname(path), p)));
+      personalVaults = (a.personalVaults as string[]).map((p) => realOrSelf(resolve(dirname(path), p)));
     }
   }
   let indexRoots: IndexRoot[] | null = null;
@@ -81,7 +81,7 @@ export function loadSettings(inv: ScopeInventory): Settings {
       for (const key of Object.keys(item)) if (key !== "path" && key !== "private") issues.push({ code: "settings-unknown-key", message: `${SETTINGS_FILE}: unknown key "indexRoots[${i}].${key}" has no effect` });
       if (typeof item.path !== "string" || !item.path.trim()) fail(`indexRoots[${i}].path must be a non-empty path`);
       if (item.private !== undefined && typeof item.private !== "boolean") fail(`indexRoots[${i}].private must be true or false`);
-      return { path: realOr(resolve(dirname(path), item.path as string)), private: item.private === true };
+      return { path: realOrSelf(resolve(dirname(path), item.path as string)), private: item.private === true };
     });
   }
   const scopes: Settings["scopes"] = {};
@@ -119,7 +119,7 @@ export function ignoredScopeSettingsFile(inv: ScopeInventory, entry: ScopeEntry)
   const local = join(entry.root, SETTINGS_FILE);
   if (!existsSync(local)) return null;
   const inventoryPath = (inv as { path?: string }).path;
-  if (inventoryPath && realOr(join(dirname(inventoryPath), SETTINGS_FILE)) === realOr(local)) return null;
+  if (inventoryPath && realOrSelf(join(dirname(inventoryPath), SETTINGS_FILE)) === realOrSelf(local)) return null;
   return local;
 }
 
@@ -135,8 +135,8 @@ export function annotationsMode(settings: Settings, entry: ScopeEntry): Annotati
   const explicit = settings.scopes[entry.id]?.annotations;
   if (explicit !== undefined) return explicit ? { enabled: true, source: "setting" } : { enabled: false, source: "setting" };
   if (settings.personalVaults) {
-    const root = realOr(entry.root);
-    const inside = settings.personalVaults.map(realOr).some((v) => root === v || root.startsWith(v.endsWith(sep) ? v : v + sep));
+    const root = realOrSelf(entry.root);
+    const inside = settings.personalVaults.map(realOrSelf).some((v) => root === v || root.startsWith(v.endsWith(sep) ? v : v + sep));
     return inside ? { enabled: true, source: "default" } : { enabled: false, source: "default" };
   }
   return { enabled: true, source: "default" };
