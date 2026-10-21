@@ -183,3 +183,15 @@ test("tend core is pure: no file system, process, network or model calls", () =>
   assert.match(src, /^import type \{ UsageAggregate \} from "\.\/usage\.ts";$/m, "type-only import");
   for (const word of ["fetch(", "process.", "Date.now(", "new Date()", "Math.random", "require("]) assert.equal(src.includes(word), false, word);
 });
+
+test("the mozak-tend skill is a proposal and names only refusal codes that core returns", () => {
+  const skill = readFileSync(new URL("../../../skills/mozak-tend/SKILL.md", import.meta.url), "utf8");
+  const front = skill.split("---")[1] ?? "";
+  assert.match(front, /^name: mozak-tend$/m);
+  assert.match(front, /^status: proposal$/m);
+  const src = readFileSync(new URL("../src/tend.ts", import.meta.url), "utf8");
+  const codes = [...skill.matchAll(/`((?:surface|size|reproposal|owner|patch|too|tend)-[a-z-]+)`/g)].map((m) => m[1]!).filter((c) => c !== "tend-report");
+  assert.ok(codes.length >= 8);
+  for (const c of new Set(codes)) assert.ok(src.includes(`"${c}"`), `skill names unknown code ${c}`);
+  assert.equal(/\u2014/.test(skill), false, "no em dashes");
+});
