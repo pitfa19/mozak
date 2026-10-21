@@ -199,6 +199,22 @@ export function validateArguments(def: ToolDef, args: unknown): Record<string, u
 }
 
 const ok = (text: string): ToolResult => ({ content: [{ type: "text", text }] });
+
+/**
+ * Text of a failed tool call. It leads with a one-line `reason` and the `issues`, then the rest of the structured
+ * result (for example a large `unsavedRequest`), so a host that truncates tool output still shows why.
+ */
+export function errorText(data: unknown): string {
+  if (!isPlainObject(data)) return JSON.stringify(data, null, 2);
+  const issues = Array.isArray(data.issues) ? data.issues : [];
+  const first = issues.find(isPlainObject);
+  const line = (v: unknown) => String(v).replace(/\s+/g, " ").trim();
+  const reason = typeof data.reason === "string" ? data.reason : first
+    ? `${line(first.code)}: ${line(first.message)}${issues.length > 1 ? ` (and ${issues.length - 1} more)` : ""}`
+    : line(data.status ?? "error");
+  const { issues: _issues, reason: _reason, ...rest } = data;
+  return JSON.stringify({ reason, issues, ...rest }, null, 2);
+}
 const fail = (text: string): ToolResult => ({ content: [{ type: "text", text }], isError: true });
 
 interface Rpc {
@@ -279,7 +295,7 @@ export function handle(msg: unknown, rt: Runtime): Reply | null {
         try {
           const { exitCode, data } = rt.execute(rt.inventory, def.op, args, "agent");
           // Full structured result is kept. A nonzero exit is an error, but never replaces committed state with a generic message.
-          const result: ToolResult = { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+          const result: ToolResult = { content: [{ type: "text", text: exitCode === 0 ? JSON.stringify(data, null, 2) : errorText(data) }] };
           if (exitCode !== 0) result.isError = true;
           return reply(result);
         } catch (e) {

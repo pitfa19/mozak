@@ -35,6 +35,7 @@ interface Job {
   pauseAt?: string;
   pauseMs?: number | null;
   lockTimeoutMs?: number;
+  rebase?: boolean;
   append?: AppendJob;
   race?: RaceJob;
   setup?: SetupJob;
@@ -61,6 +62,7 @@ function announceAndBlock(phase: string): void {
 
 const options: StoreOptions = {
   lockTimeoutMs: job.lockTimeoutMs,
+  rebase: job.rebase === true,
   onPhase(phase: string) {
     if (!paused && job.pauseAt === phase) {
       paused = true;

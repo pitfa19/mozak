@@ -14,8 +14,8 @@ const roots: string[] = [];
 export function cleanup() { for (const r of roots.splice(0)) rmSync(r, { recursive: true, force: true }); }
 
 export interface PlanSpec { title?: string; purpose?: string; rationale?: string; outcomes?: { id: string; statement?: string; criterion?: string }[]; constraints?: string[] }
-// Keys in sorted order on purpose: pendingChangedFields lists changed fields in the request's key order, while a
-// re-read state has sorted keys, so unsorted content makes a revised accepted plan render differently after reread.
+// Keys in sorted order. Any order works: pendingChangedFields lists changed fields in schema order
+// (revise-key-order.test.ts).
 export const content = (id: string, spec: PlanSpec = {}) => ({
   constraints: (spec.constraints ?? []).map((text, i) => ({ id: `c${i + 1}`, text })),
   nonGoals: [],
