@@ -153,6 +153,7 @@ The agent writes plain `mozak.json` and `mozak.md` files in your project folder.
 | Let any MCP agent read and propose | `mozak-mcp --config mozak-inventory.json` |
 | Run the guided planning conversation | the installed skill at `PREFIX/skills/mozak/SKILL.md` |
 | Rename a project (owner) | `mozak scope retitle` |
+| Delete plans so they no longer exist (owner) | `mozak plan delete` |
 | Move pre-0.4 `MOZAK.json` / `MOZAK.md` to lowercase (owner) | `mozak rename-files --all` |
 
 Every scope command needs an explicit `--config`. Only the maintenance commands (`upgrade`, `doctor`) run without one.

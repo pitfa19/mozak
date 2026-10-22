@@ -5,6 +5,7 @@
 import { randomUUID, createHash } from "node:crypto";
 import { checkQuestionInputs, discussionCurrent, saveDiscussion } from "./conversation.ts";
 import { DomainError } from "./errors.ts";
+import { isDeletedPlanId } from "./delete.ts";
 import {
   canonical,
   discussionDigest,
@@ -861,6 +862,7 @@ export function applyMutation(
     case "propose": {
       const planId = p.planId as string;
       if (next.plans.some((x) => x.id === planId)) throw invalid(`plan "${planId}" already exists`);
+      if (isDeletedPlanId(next, planId)) throw invalid(`plan "${planId}" was deleted from this scope; choose a new plan id`);
       const content = checkContent(p.content);
       const distinctFromPlanIds = (p.distinctFromPlanIds as string[] | undefined) ?? [];
       for (const distinctId of distinctFromPlanIds) {

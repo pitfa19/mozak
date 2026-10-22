@@ -9,7 +9,7 @@ import { executeOperation, loadInventory, MAX_REQUEST_BYTES, scopeForWorkingCopy
 import { runningVersion, upgrade } from "./upgrade.js";
 import { doctor, renderDoctor } from "./doctor.js";
 
-const OWNER_ROUTES = new Set(["decide", "init", "repair", "pull", "rename-files", "retitle"]);
+const OWNER_ROUTES = new Set(["decide", "init", "repair", "pull", "rename-files", "retitle", "delete"]);
 /** Read routes that may omit --scope: the scope is then found from the current folder's git origin. */
 const CWD_SCOPE_ROUTES = new Set(["context", "check", "review show", "plans"]);
 
@@ -40,6 +40,7 @@ const ROUTES: Record<string, Route> = {
   "plan propose": { operation: "propose", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
   "plan revise": { operation: "revise", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
   "plan complete": { operation: "complete", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
+  "plan delete": { operation: "delete", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
   observe: { operation: "observe", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
   "review decide": { operation: "decide", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
   "discussion save": { operation: "save-discussion", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
@@ -72,6 +73,7 @@ function usage(): string {
     "  mozak check [--scope ID] [--json]",
     "  mozak operation --scope ID --id OP [--json]",
     "  mozak plan propose|revise|complete --scope ID --request FILE",
+    "  mozak plan delete --scope ID --request FILE         (owner; remove plans so they no longer exist; receipt keeps the record)",
     "  mozak observe --scope ID --request FILE",
     "  mozak discussion save --scope ID --request FILE      (agent; advisory checkpoint only)",
     "  mozak spec attach --scope ID --request FILE          (agent; descriptor only, no approval)",

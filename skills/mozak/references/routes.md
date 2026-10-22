@@ -57,6 +57,21 @@ Payload for every decision: `planId`, `revisionId`, `reviewDigest`, `ownerRef`, 
 - Action values: `approve-direction`, `pause`, `resume`, `approve-implementation`, `revoke-implementation`, `reject-pending`, `reconsider`, `accept-outcome`.
 - `approve-implementation` also needs `specificationId`. `revoke-implementation` needs `authorizationId`.
 
+### Deleting plans (owner)
+
+`node {{MOZAK_CLI}} plan delete --config INVENTORY --scope ID --request FILE`
+
+Removes plans so they no longer exist in `mozak.json` or `mozak.md`. Use it only when the owner asks, in their own message, to delete named plans. Request (not the mutation envelope):
+
+```json
+{ "operationId": "unique-id", "scopeId": "ID", "expected": { "...": "fresh snapshot" }, "planIds": ["plan-a"], "reason": "why", "ownerRef": "owner message provenance", "ownerMessageAt": "2026-01-01T00:00:00.000Z" }
+```
+
+- Optional `"allowCompleted": true` is needed to delete a completed plan. Never add it unless the owner says the completed plan should go too.
+- Refused with `delete-referenced` while another plan still points at it (a pending merge or a reasoning link). Delete both together or merge instead.
+- The receipt `{ "action": "delete-plans", "ids": [...] }` stays in `mozak.json` as the record, and the deleted id cannot be proposed again.
+- Prefer a merge when two plans in one scope overlap: approval folds the source into the target and removes it. Use delete for a plan superseded by one in another scope, or a plan the owner no longer wants.
+
 ### Provenance (`ownerRef`, `ownerMessageAt`)
 
 - Preferred: a genuine owner message ID from the host.

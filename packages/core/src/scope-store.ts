@@ -7,6 +7,7 @@ import { applyMutation, validateMutation, specificationKey, type MutationAction,
 import { assertScopeFiles, type ScopeEntry } from "./scope-index.ts";
 import { isGraphPath, scopeFile, scopeFileName, GRAPH_FILE, BRIDGE_FILE, LEGACY_GRAPH_FILE, LEGACY_BRIDGE_FILE } from "./scope-files.ts";
 import { inspectSpecification } from "./spec-file.ts";
+import { DELETE_ACTION, withoutPlans } from "./delete.ts";
 import { renderBridge, renderBridgeLegacy } from "./bridge.ts";
 import { removeLeftoverTempFiles, replaceFileDurable, writeFileDurable, fsyncDir } from "./durable.ts";
 
@@ -26,10 +27,12 @@ export interface StoreOptions { lockTimeoutMs?: number; onPhase?: (phase: string
 const absent = (): FileToken => ({ exists: false, sha256: null });
 const sleep = (ms: number) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 const own = (o: object, k: string) => Object.prototype.hasOwnProperty.call(o, k);
-function object(v: unknown, keys: string[], name: string): Record<string, unknown> {
+function object(v: unknown, keys: string[], name: string, optional: string[] = []): Record<string, unknown> {
   if (!v || typeof v !== "object" || Array.isArray(v)) throw new DomainError("invalid-input", `${name} must be an object`);
   const o = v as Record<string, unknown>;
-  if (Object.keys(o).some(k => !keys.includes(k)) || keys.some(k => !own(o, k))) throw new DomainError("invalid-input", `${name} requires exactly ${keys.join(", ")}`);
+  if (Object.keys(o).some(k => !keys.includes(k) && !optional.includes(k)) || keys.some(k => !own(o, k))) {
+    throw new DomainError("invalid-input", `${name} requires exactly ${keys.join(", ")}${optional.length ? ` (optional: ${optional.join(", ")})` : ""}`);
+  }
   return o;
 }
 function text(v: unknown, name: string): string {
@@ -379,6 +382,36 @@ export function retitleScope(entry: ScopeEntry, input: unknown, options: StoreOp
     const state = structuredClone(read.state);
     state.scope.title = title;
     const result = { action: "retitle", ids: [entry.id] };
+    state.storage = { revision: randomUUID(), updatedAt: now, previousBridge: read.snapshot.bridge! };
+    Object.defineProperty(state.receipts, operationId, { value: { requestDigest: digest(input), storageRevision: state.storage.revision, recordedAt: now, result }, enumerable: true, writable: true, configurable: true });
+    tx.result = result;
+    return publishGraph(entry, state, read.snapshot.bridge!, tx, options);
+  });
+}
+/**
+ * Owner-only: delete plans from the scope so they no longer exist. The receipt `{ action: "delete-plans", ids }` is
+ * the record. Same transaction, snapshot check and replay rules as every other write.
+ */
+export function deletePlans(entry: ScopeEntry, input: unknown, options: StoreOptions = {}): OperationResult {
+  bounded(input);
+  const r = object(input, ["operationId", "scopeId", "expected", "planIds", "reason", "ownerRef", "ownerMessageAt"], "delete request", ["allowCompleted"]);
+  identity(entry, r); const operationId = text(r.operationId, "operationId"); const snapshot = expected(r.expected);
+  text(r.reason, "reason"); text(r.ownerRef, "ownerRef"); text(r.ownerMessageAt, "ownerMessageAt");
+  if (!Array.isArray(r.planIds) || r.planIds.length === 0 || r.planIds.length > 100 || r.planIds.some((id) => typeof id !== "string" || !id.trim())) {
+    throw new DomainError("invalid-input", "planIds must list 1 to 100 plan ids");
+  }
+  if (r.allowCompleted !== undefined && typeof r.allowCompleted !== "boolean") throw new DomainError("invalid-input", "allowCompleted must be a boolean");
+  const planIds = [...(r.planIds as string[])].sort();
+  const tx: Transaction = { operationId, committed: false, projectionUpdated: false, temporary: [] };
+  return transaction(entry, options, tx, () => {
+    const read = readScope(entry);
+    const replay = receipt(read, operationId, digest(input), tx, entry);
+    if (replay) return replay;
+    match(read, snapshot);
+    if (read.projectionStatus !== "current" && !isLegacyBridge(entry, read)) throw new DomainError(read.projectionStatus, "projection requires explicit repair or conflict resolution before new writes", 3);
+    const state = withoutPlans(read.state, planIds, r.allowCompleted === true);
+    const now = new Date().toISOString();
+    const result = { action: DELETE_ACTION, ids: planIds };
     state.storage = { revision: randomUUID(), updatedAt: now, previousBridge: read.snapshot.bridge! };
     Object.defineProperty(state.receipts, operationId, { value: { requestDigest: digest(input), storageRevision: state.storage.revision, recordedAt: now, result }, enumerable: true, writable: true, configurable: true });
     tx.result = result;

@@ -2,6 +2,12 @@
 
 User-visible changes, newest first. Releases are git tags `vX.Y.Z` on `main`; `mozak upgrade` installs the newest one.
 
+## Unreleased
+
+### Added
+
+- `mozak plan delete` (owner only): removes named plans from a scope so they no longer exist in `mozak.json` or `mozak.md`. Snapshot-checked and replay-safe like every write. The receipt `{ action: "delete-plans", ids }` is kept as the record, and a deleted id cannot be proposed again. Completed plans need `allowCompleted: true`. Plans still referenced by another plan (a pending merge, a reasoning link) are refused until both are deleted together or merged.
+
 ## 0.4.5 (2026-10-22)
 
 ### Added
