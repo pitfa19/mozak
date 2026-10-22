@@ -1,5 +1,5 @@
 import { ItemView, Notice, setIcon, type WorkspaceLeaf } from "obsidian";
-import { countRemote, planMatches, scopesModel, type PlanFilter, type ScopeVM, type ScopesModel, type StripVM } from "./model.ts";
+import { countRemote, flagBadge, planMatches, scopesModel, type PlanFilter, type ScopeVM, type ScopesModel, type StripVM } from "./model.ts";
 import { loadScopesModel, describeError, syncRemoteScopes } from "./load.ts";
 import type MozakPlugin from "./main.ts";
 import { cachedUpdateNotice } from "@mozak/core";
@@ -247,6 +247,9 @@ export class ScopesView extends ItemView {
       } else if (plan.state === "open" && plan.strip) {
         renderStrip(p, plan.strip);
       }
+      // Review flags (a pending revision, an outcome to accept) would otherwise be invisible on an open row.
+      const badge = plan.state === "open" || plan.state === "paused" ? flagBadge(plan.flags) : null;
+      if (badge) el(p, "span", "mozak-mini state-awaiting is-flag", badge.text).setAttr("aria-label", badge.tip);
       p.addEventListener("click", () => void this.plugin.openPlan(scope, plan));
     }
   }

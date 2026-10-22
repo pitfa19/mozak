@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { applyMutation, executeOperation, initScopeState, loadInventory, mutateScope, readScope, renderBridge, renderBridgeLegacy, reviewShow } from "@mozak/core";
 import { chooseInventory, discoverInventory } from "../src/discover.ts";
-import { countRemote, countsSummary, headingLine, planMatches, remoteVM, resolveOpenTarget, scopesModel, scopeViewModel, stripVM } from "../src/model.ts";
+import { countRemote, countsSummary, flagBadge, headingLine, planMatches, remoteVM, resolveOpenTarget, scopesModel, scopeViewModel, stripVM } from "../src/model.ts";
 import { loadScopesModel, renderStaleProjections } from "../src/load.ts";
 
 test("planMatches: all shows every state, open groups in-play states, completed is exact", () => {
@@ -165,6 +165,41 @@ test("plan row carries a strip and the exact mozak.md heading; the heading line 
   assert.notEqual(line, null);
   assert.equal(md.split("\n")[line!], plan.heading);
   assert.equal(headingLine("# nothing here\n", plan.heading), null);
+});
+
+test("an open plan with a pending revision keeps its strip and is flagged in the sidebar", () => {
+  const { inventory, entry } = roadWorld();
+  let m = loadScopesModel(inventory);
+  assert.deepEqual(m.scopes[0]!.plans[0]!.flags, [], "no flag before a revision exists");
+  const accepted = readScope(entry).state.plans[0]!.accepted!;
+  const content = { ...roadContent, title: "Road [one] revised" };
+  mutateScope(entry, { operationId: "op-revise", scopeId: "road", expected: readScope(entry).snapshot, action: "revise", payload: { planId: "road-plan", pendingRevisionId: null, acceptedRevisionId: accepted.id, content } }, "agent");
+  m = loadScopesModel(inventory);
+  const plan = m.scopes[0]!.plans[0]!;
+  assert.equal(plan.state, "open");
+  assert.equal(plan.strip?.total, 2, "progress still counts the accepted outcomes");
+  assert.deepEqual(plan.flags, ["revision awaiting approval"]);
+});
+
+test("flagBadge: nothing when no flags, revision leads, the rest are counted and listed in the tip", () => {
+  assert.equal(flagBadge([]), null);
+  assert.deepEqual(flagBadge(["revision awaiting approval"]), { text: "new revision", tip: "revision awaiting approval" });
+  // The real hermes-vnext-launch case: outcome rows arrive first from core, a pending revision too.
+  const { entry } = roadWorld();
+  const plan = readScope(entry).state.plans[0]!;
+  const rows = [{ planId: plan.id, rowKind: "outcome" }, { planId: plan.id, rowKind: "outcome" }, { planId: plan.id, rowKind: "pending" }, { planId: "other", rowKind: "pending" }];
+  const vm = scopeViewModel({ id: "road", root: entry.root, entryFiles: [], state: readScope(entry).state, awaitingRows: rows });
+  assert.deepEqual(vm.plans[0]!.flags, ["revision awaiting approval", "outcome awaiting acceptance"]);
+  assert.deepEqual(flagBadge(vm.plans[0]!.flags), { text: "new revision +1", tip: "revision awaiting approval\noutcome awaiting acceptance" });
+});
+
+test("the sidebar renders plan flags on open plan rows, next to the strip", () => {
+  const views = readFileSync(new URL("../src/views.ts", import.meta.url), "utf8");
+  const row = views.slice(views.indexOf("mozak-plan-row"), views.indexOf("p.addEventListener(\"click\""));
+  assert.match(row, /plan\.flags/, "plan rows must render plan.flags");
+  assert.match(row, /mozak-mini[^\n]*is-flag/, "flags use the mini badge style");
+  const css = readFileSync(new URL("../styles.css", import.meta.url), "utf8");
+  assert.match(css, /\.mozak-mini\.is-flag/);
 });
 
 test("awaiting plans have no strip", () => {

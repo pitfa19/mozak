@@ -88,6 +88,7 @@ const ROW_FLAG: Record<string, string> = {
   implementation: "implementation awaiting approval",
   outcome: "outcome awaiting acceptance",
 };
+const FLAG_ORDER = [ROW_FLAG.pending, ROW_FLAG.implementation, ROW_FLAG.outcome, "review needed"];
 const STATE_ORDER: Record<PlanStateKey, number> = { awaiting: 0, open: 1, paused: 2, completed: 3, rejected: 4 };
 
 export function stripVM(state: ScopeState, plan: Plan): StripVM | null {
@@ -130,6 +131,8 @@ export function planViewModel(
     if (flag && !flags.includes(flag)) flags.push(flag);
   }
   if (reviewNeeded) flags.push("review needed");
+  // A pending revision changes what the plan is, so it leads the sidebar badge.
+  flags.sort((a, b) => FLAG_ORDER.indexOf(a) - FLAG_ORDER.indexOf(b));
 
   let reason: string | null = null;
   const life = plan.lifecycle;
@@ -213,6 +216,25 @@ export function countsSummary(c: ScopeCounts): string {
   if (c.awaiting) parts.push(`${c.awaiting} awaiting`);
   if (c.completed) parts.push(`${c.completed} completed`);
   return parts.length ? parts.join(", ") : "no plans";
+}
+
+const FLAG_SHORT: Record<string, string> = {
+  "revision awaiting approval": "new revision",
+  "implementation awaiting approval": "approve impl.",
+  "outcome awaiting acceptance": "accept outcome",
+  "review needed": "review",
+};
+
+/**
+ * One compact badge for a plan row's review flags, so a narrow sidebar row keeps its title and strip.
+ * The first flag names the badge (a pending revision comes first), "+N" counts the rest, and the tip lists them all.
+ * Null when the plan needs nothing from the owner.
+ */
+export function flagBadge(flags: string[]): { text: string; tip: string } | null {
+  if (!flags.length) return null;
+  const first = flags[0]!;
+  const more = flags.length > 1 ? ` +${flags.length - 1}` : "";
+  return { text: (FLAG_SHORT[first] ?? first) + more, tip: flags.join("\n") };
 }
 
 export type PlanFilter = "all" | "open" | "completed";

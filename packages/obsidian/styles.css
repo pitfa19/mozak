@@ -105,6 +105,7 @@
 .mozak-plan-row.row-completed .mozak-plan-title { color: var(--text-faint); }
 .mozak-mini { flex: none; font-size: 10px; padding: 0 5px; border-radius: 4px; text-transform: lowercase; color: var(--text-muted); background: var(--background-modifier-border); }
 .mozak-mini.state-awaiting { color: var(--mozak-purple); background: color-mix(in srgb, var(--mozak-purple) 16%, transparent); }
+.mozak-mini.is-flag { white-space: nowrap; }
 .mozak-noplans { padding: 2px 6px; color: var(--text-faint); }
 
 /* ---------- Progress strip: one segment per outcome, display only ---------- */
