@@ -14,7 +14,7 @@ node {{MOZAK_CLI}} <route> --config INVENTORY --scope ID --request <printed path
 | propose | `mozak plan propose` | planId, content (+ optional distinctFromPlanIds) | `examples/propose.json` |
 | revise | `mozak plan revise` | planId, pendingRevisionId, acceptedRevisionId, content (+ optional mergeFromPlanId) | content as in propose |
 | observe | `mozak observe` | planId, observation (+ optional reasoningLinks) | `examples/observe.json` |
-| attach-spec | `mozak spec attach` | planId, acceptedRevisionId, path, bounds, discussionDigest | |
+| attach-spec | `mozak spec attach` | planId, acceptedRevisionId, path, bounds{summary, limitations, allowedPaths, outcomeChecks[{outcomeId, criterion}], excludedActions}, discussionDigest | `examples/attach-spec.json` |
 | complete | `mozak plan complete` | planId, revisionId (+ optional limitations) | |
 
 `content` keys: title, purpose, outcomes[{id, statement, acceptance: objective|owner, criterion}], constraints[{id, text}], nonGoals[strings], rationale, questions[{id, text}], sources[{id, locator, anchor, observedAt, version, limitations}].

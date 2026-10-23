@@ -1,0 +1,18 @@
+{
+  "_doc": "mozak spec attach: attach the spec file to a plan whose direction the owner approved. Copy, replace the values, keep every key (closed schema). Build with scripts/make_request.py attach-spec <this file>. acceptedRevisionId = the plan's accepted revision (`plans --json`: groups.open.rows[].revisionId). path is relative to the scope root, no ./ prefix. bounds needs all five keys. outcomeChecks items are {outcomeId, criterion}. Attaching grants nothing: implementation approval is a separate owner decision.",
+  "payload": {
+    "planId": "example-plan",
+    "acceptedRevisionId": "REPLACE-with-the-accepted-revisionId",
+    "path": "SPEC.md",
+    "bounds": {
+      "summary": "Only the Erasmus application documents in this folder.",
+      "limitations": ["Drafts only, Fabijan submits."],
+      "allowedPaths": ["applications/erasmus"],
+      "outcomeChecks": [
+        { "outcomeId": "o1", "criterion": "Fabijan confirms the portal shows the application as submitted." }
+      ],
+      "excludedActions": ["Submitting the application", "Owner decisions by agent"]
+    },
+    "discussionDigest": null
+  }
+}
