@@ -500,7 +500,8 @@ function run(argv: string[]): number {
     args = { scope: values.scope, id: values.id };
   } else if (route.operation === "plan-show") {
     const out = planShow(inventory, { scope: values.scope, plan: values.plan });
-    process.stdout.write(values.json === true ? `${JSON.stringify(out.data, null, 2)}\n` : renderPlanShow(out.data));
+    // Compact JSON on purpose: this read exists to stay small (about 3 KB even with 20 outcomes).
+    process.stdout.write(values.json === true ? `${JSON.stringify(out.data)}\n` : renderPlanShow(out.data));
     return out.exitCode;
   } else if (route.operation === "observe" && values.payload !== undefined) {
     const others = Object.keys(values).filter((k) => values[k] !== undefined && !["config", "scope", "payload", "json", "dry-run"].includes(k));

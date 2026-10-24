@@ -299,7 +299,7 @@ export function planShow(inv: ScopeInventory, raw: unknown): OperationOutput {
       return {
         id: out.id, acceptance: out.acceptance, status: outcomeStatus(read.state, plan, out.id),
         supports: links.filter((l) => l.relation === "supports").length, challenges: links.filter((l) => l.relation === "challenges").length,
-        ownerAccepted: accepted, statement: out.statement.length > 160 ? `${out.statement.slice(0, 159)}…` : out.statement,
+        ownerAccepted: accepted,
       };
     });
     const show = {
