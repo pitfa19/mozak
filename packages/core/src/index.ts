@@ -19,6 +19,7 @@ export * from "./delete.ts";
 export * from "./roadmap.ts";
 export { mdText, stopLabel, completedPlanLine, planHeading, planDisplayState, progressStrip, type PlanDisplayState } from "./bridge.ts";
 export * from "./api.ts";
+export * from "./assist.ts";
 export * from "./remote-meta.ts";
 export * from "./remote.ts";
 export * from "./visibility.ts";

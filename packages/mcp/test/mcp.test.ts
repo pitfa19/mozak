@@ -18,6 +18,7 @@ const READ_TOOLS: Record<string, { op: string; args: string[]; required: string[
   mozak_review_show: { op: "review", args: ["scope", "plan", "purpose", "outcome"], required: ["scope", "plan"] },
   mozak_check: { op: "check", args: ["scope"], required: ["scope"] },
   mozak_operation: { op: "operation", args: ["scope", "id"], required: ["scope", "id"] },
+  mozak_plan_show: { op: "plan-show", args: ["scope", "plan"], required: ["scope", "plan"] },
 };
 const MUTATION_TOOLS: Record<string, { op: string }> = {
   mozak_propose: { op: "propose" },

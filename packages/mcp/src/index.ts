@@ -6,7 +6,7 @@ import { resolve } from "node:path";
 import { executeOperation, loadInventory, MAX_REQUEST_BYTES } from "@mozak/core";
 import { handle, type Runtime } from "./server.ts";
 
-const USAGE = "usage: mozak-mcp --config FILE";
+const USAGE = "usage: mozak-mcp --config FILE [--owner-decisions]";
 
 function fatal(message: string): never {
   process.stderr.write(`mozak-mcp: ${message}\n${USAGE}\n`);
@@ -14,11 +14,17 @@ function fatal(message: string): never {
 }
 
 /** Exactly one `--config FILE` (or `--config=FILE`, the form MCP registries use). Duplicates, unknown flags and a missing value are refused. */
-export function parseArgs(argv: string[]): { configPath: string } {
+export function parseArgs(argv: string[]): { configPath: string; ownerDecisions: boolean } {
   let configPath: string | undefined;
+  let ownerDecisions = false;
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     let value: string | undefined;
+    if (arg === "--owner-decisions") {
+      if (ownerDecisions) fatal("--owner-decisions may be given only once");
+      ownerDecisions = true;
+      continue;
+    }
     if (arg.startsWith("--config=")) {
       value = arg.slice("--config=".length);
       if (value === "") fatal("--config requires a FILE");
@@ -33,7 +39,7 @@ export function parseArgs(argv: string[]): { configPath: string } {
     configPath = resolve(value);
   }
   if (configPath === undefined) fatal("--config FILE is required");
-  return { configPath };
+  return { configPath, ownerDecisions };
 }
 
 const strictUtf8 = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
@@ -81,10 +87,10 @@ export function readLines(onLine: (line: Buffer) => void, onOversized: () => voi
 }
 
 function main(): void {
-  const { configPath } = parseArgs(process.argv.slice(2));
+  const { configPath, ownerDecisions } = parseArgs(process.argv.slice(2));
   let runtime: Runtime;
   try {
-    runtime = { inventory: loadInventory(configPath), execute: executeOperation };
+    runtime = { inventory: loadInventory(configPath), execute: executeOperation, ownerDecisions };
   } catch (e) {
     fatal(`cannot load inventory ${configPath}: ${(e as Error).message}`);
   }

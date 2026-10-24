@@ -5,13 +5,23 @@
 
 import { closeSync, fstatSync, openSync, readSync } from "node:fs";
 import { parseArgs } from "node:util";
-import { executeOperation, loadInventory, MAX_REQUEST_BYTES, scopeForWorkingCopy, DomainError, type OperationOutput } from "@mozak/core";
+import { decideWithFlags, deleteWithFlags, observeWithFlags, planShow, executeOperation, loadInventory, MAX_REQUEST_BYTES, scopeForWorkingCopy, DomainError, type OperationOutput } from "@mozak/core";
 import { runningVersion, upgrade } from "./upgrade.js";
 import { doctor, renderDoctor } from "./doctor.js";
 
 const OWNER_ROUTES = new Set(["decide", "init", "repair", "pull", "rename-files", "retitle", "delete"]);
 /** Read routes that may omit --scope: the scope is then found from the current folder's git origin. */
-const CWD_SCOPE_ROUTES = new Set(["context", "check", "review show", "plans"]);
+const CWD_SCOPE_ROUTES = new Set(["context", "check", "review show", "plans", "plan show"]);
+
+/** Flag forms that replace hand-written request files. Owner provenance is always explicit. */
+const DECIDE_FLAGS = ["plan", "purpose", "outcome", "spec", "owner-ref", "owner-message-at", "reason", "dry-run"] as const;
+const DELETE_FLAGS = ["plans", "owner-ref", "owner-message-at", "reason", "allow-completed", "dry-run"] as const;
+const OBSERVE_FLAGS = ["plan", "outcome", "summary", "locator", "verdict", "activity", "activity-kind", "relation", "classification", "anchor", "version", "limitation", "dry-run"] as const;
+const FLAG_REQUIRED: Record<string, readonly string[]> = {
+  decide: ["plan", "purpose", "owner-ref", "owner-message-at", "reason"],
+  delete: ["plans", "owner-ref", "owner-message-at", "reason"],
+  observe: ["plan", "summary"],
+};
 
 type Route = {
   operation: string;
@@ -40,9 +50,10 @@ const ROUTES: Record<string, Route> = {
   "plan propose": { operation: "propose", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
   "plan revise": { operation: "revise", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
   "plan complete": { operation: "complete", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
-  "plan delete": { operation: "delete", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
-  observe: { operation: "observe", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
-  "review decide": { operation: "decide", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
+  "plan delete": { operation: "delete", flags: ["config", "scope", "request", ...DELETE_FLAGS], requires: ["config", "scope"], requestFile: true },
+  "plan show": { operation: "plan-show", flags: ["config", "scope", "plan", "json"], requires: ["config", "plan"], requestFile: false },
+  observe: { operation: "observe", flags: ["config", "scope", "request", ...OBSERVE_FLAGS], requires: ["config", "scope"], requestFile: true },
+  "review decide": { operation: "decide", flags: ["config", "scope", "request", ...DECIDE_FLAGS], requires: ["config", "scope"], requestFile: true },
   "discussion save": { operation: "save-discussion", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
   "spec attach": { operation: "attach-spec", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
   "projection repair": { operation: "repair", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
@@ -55,7 +66,7 @@ const ROUTES: Record<string, Route> = {
 };
 
 const ROUTE_NAMES = Object.keys(ROUTES);
-const BOOLEAN_FLAGS = new Set(["json", "include-rejected", "all", "write", "brief"]);
+const BOOLEAN_FLAGS = new Set(["json", "include-rejected", "all", "write", "brief", "dry-run", "allow-completed"]);
 
 class UsageError extends Error {}
 
@@ -72,12 +83,17 @@ function usage(): string {
     "  mozak review show [--scope ID] --plan ID [--purpose P] [--outcome ID] [--json]",
     "  mozak check [--scope ID] [--json]",
     "  mozak operation --scope ID --id OP [--json]",
+    "  mozak plan show [--scope ID] --plan ID [--json]      (compact: lifecycle, eligibility, grants, outcomes, spec, next action)",
     "  mozak plan propose|revise|complete --scope ID --request FILE",
-    "  mozak plan delete --scope ID --request FILE         (owner; remove plans so they no longer exist; receipt keeps the record)",
-    "  mozak observe --scope ID --request FILE",
+    "  mozak plan delete --scope ID --plans A,B --owner-ref REF --owner-message-at ISO --reason TEXT [--allow-completed] [--dry-run] [--json]",
+    "                                                       (owner; or --request FILE; receipt keeps the record)",
+    "  mozak observe --scope ID --plan ID --summary TEXT --locator WHERE [--outcome ID] [--verdict pass|fail|not-assessed]",
+    "        [--activity TEXT] [--activity-kind read|run] [--relation supports|challenges] [--classification observed|inferred|unverified]",
+    "        [--anchor A] [--version V] [--limitation TEXT] [--dry-run] [--json]      (or --request FILE)",
     "  mozak discussion save --scope ID --request FILE      (agent; advisory checkpoint only)",
     "  mozak spec attach --scope ID --request FILE          (agent; descriptor only, no approval)",
-    "  mozak review decide --scope ID --request FILE        (owner)",
+    "  mozak review decide --scope ID --plan ID --purpose P [--outcome ID] [--spec SPEC] --owner-ref REF",
+    "        --owner-message-at ISO --reason TEXT [--dry-run] [--json]   (owner; reads the fresh subject itself; or --request FILE)",
     "  mozak projection repair --scope ID --request FILE    (owner)",
     "  mozak render (--scope ID | --all) [--json]           (regenerate stale mozak.md only; never mozak.json)",
     "  mozak rename-files (--scope ID | --all) [--json]     (owner; rename pre-0.4 MOZAK.json/MOZAK.md to lowercase)",
@@ -294,6 +310,57 @@ function renderSyncHuman(data: { remote?: RemoteInfoRow[]; issues?: { code: stri
   return `${[...remoteLines(rows), ...warn].join("\n")}\n`;
 }
 
+function flagForm(inventory: ReturnType<typeof loadInventory>, operation: string, v: Record<string, string | boolean | undefined>) {
+  const opt = (k: string) => (v[k] === undefined ? {} : { [camel(k)]: v[k] });
+  if (operation === "decide") {
+    return decideWithFlags(inventory, { scope: v.scope, plan: v.plan, purpose: v.purpose, ownerRef: v["owner-ref"], ownerMessageAt: v["owner-message-at"], reason: v.reason, ...opt("outcome"), ...opt("spec"), ...(v["dry-run"] ? { dryRun: true } : {}) });
+  }
+  if (operation === "delete") {
+    const plans = String(v.plans).split(",").map((s) => s.trim()).filter(Boolean);
+    return deleteWithFlags(inventory, { scope: v.scope, plans, ownerRef: v["owner-ref"], ownerMessageAt: v["owner-message-at"], reason: v.reason, ...(v["allow-completed"] ? { allowCompleted: true } : {}), ...(v["dry-run"] ? { dryRun: true } : {}) });
+  }
+  return observeWithFlags(inventory, {
+    scope: v.scope, plan: v.plan, summary: v.summary,
+    ...opt("outcome"), ...opt("locator"), ...opt("verdict"), ...opt("activity"), ...opt("activity-kind"), ...opt("relation"), ...opt("classification"), ...opt("anchor"), ...opt("version"),
+    ...(v.limitation !== undefined ? { limitations: [v.limitation] } : {}), ...(v["dry-run"] ? { dryRun: true } : {}),
+  });
+}
+const camel = (k: string) => k.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
+
+/** Short human summary of a flag-form write. --json prints the full envelope instead. */
+function renderFlagResult(d: Record<string, any>, configPath: string): string {
+  const lines: string[] = [`status: ${d.status}${d.committed ? " (committed)" : ""}${d.attempts > 1 ? `, attempts ${d.attempts}` : ""}`];
+  if (d.subject) lines.push(`subject: ${d.subject.question}`, `  revision ${d.subject.revisionId}${d.subject.outcomeId ? `, outcome ${d.subject.outcomeId}` : ""}${d.subject.specificationId ? `, spec ${d.subject.specificationId}` : ""}`);
+  if (d.subject?.approvalAvailable === false) lines.push(`  approval not available: ${(d.subject.approvalReasons ?? []).join(", ")}`);
+  if (d.operationId) lines.push(`operationId: ${d.operationId}`);
+  if (d.observationId) lines.push(`observationId: ${d.observationId}`);
+  if (d.status === "dry-run") lines.push("dry run: nothing written. Rerun without --dry-run to submit (or --json to see the request).");
+  for (const i of d.issues ?? []) lines.push(`issue ${i.code}: ${i.message}`);
+  for (const w of d.warnings ?? []) {
+    lines.push(`warning ${w.code}: ${w.message}`);
+    if (w.command) lines.push(`  next: ${String(w.command).replace("INVENTORY", configPath)}`);
+  }
+  return `${lines.join("\n")}\n`;
+}
+
+function renderPlanShow(d: Record<string, any>): string {
+  if (d.status !== "ok") return `${JSON.stringify(d, null, 2)}\n`;
+  const p = d.plan;
+  const lines = [
+    `${p.title ?? p.planId}  [${p.planId}]`,
+    `lifecycle: ${p.lifecycle}   accepted: ${p.accepted?.id ?? "none"}   pending: ${p.pending ? `${p.pending.id} (${p.pending.reviewState})` : "none"}`,
+    `executionEligible: ${p.executionEligible}${p.reasons.length ? `  reasons: ${p.reasons.join(", ")}` : ""}`,
+    `implementationAuthorized: ${p.implementationAuthorized}${p.authorizationId ? ` (${p.authorizationId})` : ""}   authorizations: ${p.authorizations.length}`,
+    `spec: ${p.specification ? `${p.specification.path} [${p.specification.id}, ${p.specification.health}${p.specification.candidate ? ", candidate" : ""}]` : "none"}`,
+    "outcomes:",
+    ...p.outcomes.map((o: any) => `  ${o.id} [${o.acceptance}] ${o.status}  supports ${o.supports}, challenges ${o.challenges}${o.acceptance === "owner" ? `, owner accepted: ${o.ownerAccepted ? "yes" : "no"}` : ""}`),
+    `observations: ${p.observations}   discussion: ${p.discussionStatus}${p.reviewIssues.length ? `   review issues: ${p.reviewIssues.map((i: any) => `${i.code}:${i.outcomeId}`).join(", ")}` : ""}`,
+    `next: ${p.permittedNextAction}`,
+  ];
+  for (const i of d.issues ?? []) lines.push(`issue ${i.code}: ${i.message}`);
+  return `${lines.join("\n")}\n`;
+}
+
 function printEnvelope(output: OperationOutput, json: boolean, routeName: string): void {
   if (!json && routeName === "sync") {
     process.stdout.write(renderSyncHuman(output.data));
@@ -430,7 +497,27 @@ function run(argv: string[]): number {
     args = { scope: values.scope, ...(values.brief !== undefined ? { brief: values.brief } : {}), ...(values.plan !== undefined ? { plan: values.plan } : {}) };
   } else if (route.operation === "operation") {
     args = { scope: values.scope, id: values.id };
+  } else if (route.operation === "plan-show") {
+    const out = planShow(inventory, { scope: values.scope, plan: values.plan });
+    process.stdout.write(values.json === true ? `${JSON.stringify(out.data, null, 2)}\n` : renderPlanShow(out.data));
+    return out.exitCode;
+  } else if (route.requestFile && values.request === undefined && FLAG_REQUIRED[route.operation]) {
+    for (const flag of FLAG_REQUIRED[route.operation]) {
+      if (values[flag] === undefined) {
+        process.stderr.write(`missing --${flag} (or pass --request FILE)\n${usage()}\n`);
+        return 2;
+      }
+    }
+    const out = flagForm(inventory, route.operation, values);
+    const text = values.json === true ? `${JSON.stringify(out.data, null, 2)}\n` : renderFlagResult(out.data, configPath);
+    process.stdout.write(text);
+    return out.exitCode;
   } else if (route.requestFile) {
+    const flagged = Object.keys(values).filter((k) => values[k] !== undefined && !["config", "scope", "request", "json"].includes(k));
+    if (flagged.length) {
+      process.stderr.write(`--request cannot be combined with --${flagged[0]}\n`);
+      return 2;
+    }
     try {
       args = { scope: values.scope, request: readRequestFile(values.request as string) };
     } catch (err) {

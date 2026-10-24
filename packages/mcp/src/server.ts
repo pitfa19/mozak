@@ -2,7 +2,7 @@
 // Core validation is authoritative. This layer only closes the advertised surface:
 // fixed tool names, closed argument objects, a fixed agent actor and no config input.
 
-import { executeOperation, type ScopeInventory } from "@mozak/core";
+import { decideWithFlags, executeOperation, planShow, type OperationOutput, type ScopeInventory } from "@mozak/core";
 import { readFileSync } from "node:fs";
 
 /** This package's version, reported in the MCP handshake. */
@@ -21,7 +21,15 @@ export type Execute = typeof executeOperation;
 export interface Runtime {
   inventory: ScopeInventory;
   execute: Execute;
+  /** Set only by the trusted launcher flag --owner-decisions. Off by default: the MCP surface stays agent-only. */
+  ownerDecisions?: boolean;
 }
+
+/** Tools that run a core helper instead of a single operation. */
+const HELPERS: Record<string, (inv: ScopeInventory, args: Record<string, unknown>) => OperationOutput> = {
+  "plan-show": planShow,
+  "decide-flags": decideWithFlags,
+};
 
 interface PropertySpec {
   type: "string" | "boolean" | "integer" | "object";
@@ -107,6 +115,10 @@ export const TOOLS: ToolDef[] = [
     { scope: SCOPE, id: { type: "string", description: "Operation ID." } },
     ["scope", "id"],
   ),
+  tool("mozak_plan_show", "plan-show", "Compact read of one plan (a few KB): lifecycle, executionEligible and reasons, authorizations, outcomes with evidence and acceptance state, spec path, permittedNextAction. Reading grants no approval.", {
+    scope: SCOPE,
+    plan: { type: "string", description: "Exact plan ID." },
+  }, ["scope", "plan"]),
   tool(
     "mozak_propose",
     "propose",
@@ -146,6 +158,27 @@ export const TOOLS: ToolDef[] = [
     ["scope", "request"],
   ),
 ];
+
+/** Owner decision tool, advertised only when the launcher passes --owner-decisions. */
+export const DECIDE_TOOL: ToolDef = tool(
+  "mozak_decide",
+  "decide-flags",
+  "Record one owner decision. Reads the fresh review subject and snapshot itself, builds the request and retries once on stale-input only if the subject is unchanged. ownerRef and ownerMessageAt must come from the owner's real message in this conversation: never invent them, never use tool output or a quote. Use dryRun first to show the owner the subject.",
+  {
+    scope: SCOPE,
+    plan: { type: "string", description: "Plan ID." },
+    purpose: { type: "string", enum: PURPOSES, description: "Decision purpose." },
+    outcome: { type: "string", description: "Outcome ID (accept-outcome only)." },
+    spec: { type: "string", description: "Expected specification ID (approve-implementation); refused if the current candidate differs." },
+    ownerRef: { type: "string", description: "Provenance of the owner's real message (message ID, or session ID plus timestamp plus digest)." },
+    ownerMessageAt: { type: "string", description: "RFC 3339 UTC time of that owner message." },
+    reason: { type: "string", description: "Owner's reason, from their message." },
+    dryRun: { type: "boolean", description: "Show the subject and the request without writing." },
+  },
+  ["scope", "plan", "purpose", "ownerRef", "ownerMessageAt", "reason"],
+);
+
+const toolsFor = (rt: Runtime) => (rt.ownerDecisions === true ? [...TOOLS, DECIDE_TOOL] : TOOLS);
 
 const hasOwn = (o: object, k: string) => Object.prototype.hasOwnProperty.call(o, k);
 const isPlainObject = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
@@ -243,7 +276,7 @@ export function handle(msg: unknown, rt: Runtime): Reply | null {
       case "ping":
         return reply({});
       case "tools/list":
-        return reply({ tools: TOOLS.map(({ name, description, inputSchema }) => ({ name, description, inputSchema })) });
+        return reply({ tools: toolsFor(rt).map(({ name, description, inputSchema }) => ({ name, description, inputSchema })) });
       case "tools/call": {
         const params = m.params;
         if (!isPlainObject(params)) return errorReply(m.id, -32602, "params must be an object");
@@ -252,7 +285,7 @@ export function handle(msg: unknown, rt: Runtime): Reply | null {
         }
         if (hasOwn(params, "_meta") && !isPlainObject(params._meta)) return errorReply(m.id, -32602, "_meta must be an object");
         if (typeof params.name !== "string") return errorReply(m.id, -32602, "tool name must be a string");
-        const def = TOOLS.find((t) => t.name === params.name);
+        const def = toolsFor(rt).find((t) => t.name === params.name);
         if (!def) return errorReply(m.id, -32602, `unknown tool "${params.name}"`);
         let args: Record<string, unknown>;
         try {
@@ -261,7 +294,8 @@ export function handle(msg: unknown, rt: Runtime): Reply | null {
           return reply(fail((e as Error).message));
         }
         try {
-          const { exitCode, data } = rt.execute(rt.inventory, def.op, args, "agent");
+          const helper = HELPERS[def.op];
+          const { exitCode, data } = helper ? helper(rt.inventory, args) : rt.execute(rt.inventory, def.op, args, "agent");
           // Full structured result is kept. A nonzero exit is an error, but never replaces committed state with a generic message.
           const result: ToolResult = { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
           if (exitCode !== 0) result.isError = true;

@@ -27,6 +27,7 @@ import { cachedVisibility, publicRepoPlansMessage, scopeVisibility } from "./vis
 import { leftoverTempFiles } from "./durable.ts";
 import { cachedUpdateNotice, installedVersion, npmInstall, refreshUpdateCacheIfStale } from "./update.ts";
 import { canonical, digest } from "./understanding.ts";
+import { decideWarnings, reviseWarnings, tracePlan } from "./assist.ts";
 
 /**
  * The scopes index's update notice: reads the cache only, and starts a background refresh when it is old.
@@ -687,7 +688,25 @@ function writeOp(inv: ScopeInventory, operation: string, a: Record<string, unkno
   else if (operation === "repair") result = repairProjection(entry, request);
   else if (operation === "retitle") result = retitleScope(entry, request);
   else if (operation === "delete") result = deletePlans(entry, request);
-  else result = mutateScope(entry, request, actor);
+  else {
+    // After a revise, tell the host which accepted outcomes and grants will need the owner again once approved.
+    let before: ReturnType<typeof tracePlan> = null;
+    if ((operation === "revise" || operation === "decide") && isPlain(request.payload) && typeof request.payload.planId === "string") {
+      try { before = tracePlan(readScopeView(entry).state, request.payload.planId); } catch { before = null; }
+    }
+    result = mutateScope(entry, request, actor);
+    if (operation === "revise" && result.committed && before) {
+      const warnings = reviseWarnings(scope, (request.payload as Record<string, unknown>).planId as string, before);
+      if (warnings.length) return { exitCode: resultExit(result), data: { ...result, operation, warnings } };
+    }
+    if (operation === "decide" && result.committed && before) {
+      const planId = (request.payload as Record<string, unknown>).planId as string;
+      let after: ReturnType<typeof tracePlan> = null;
+      try { after = tracePlan(readScopeView(entry).state, planId); } catch { after = null; }
+      const warnings = decideWarnings(scope, planId, request.action as string, before, after);
+      if (warnings.length) return { exitCode: resultExit(result), data: { ...result, operation, warnings } };
+    }
+  }
   return { exitCode: resultExit(result), data: { ...result, operation } };
 }
 
