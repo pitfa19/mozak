@@ -5,7 +5,7 @@
 
 import { closeSync, fstatSync, openSync, readSync } from "node:fs";
 import { parseArgs } from "node:util";
-import { decideWithFlags, deleteWithFlags, observeWithFlags, planShow, executeOperation, loadInventory, MAX_REQUEST_BYTES, scopeForWorkingCopy, DomainError, type OperationOutput } from "@mozak/core";
+import { decideWithFlags, deleteWithFlags, observePayload, observeWithFlags, planShow, executeOperation, loadInventory, MAX_REQUEST_BYTES, scopeForWorkingCopy, DomainError, type OperationOutput } from "@mozak/core";
 import { runningVersion, upgrade } from "./upgrade.js";
 import { doctor, renderDoctor } from "./doctor.js";
 
@@ -16,7 +16,7 @@ const CWD_SCOPE_ROUTES = new Set(["context", "check", "review show", "plans", "p
 /** Flag forms that replace hand-written request files. Owner provenance is always explicit. */
 const DECIDE_FLAGS = ["plan", "purpose", "outcome", "spec", "owner-ref", "owner-message-at", "reason", "dry-run"] as const;
 const DELETE_FLAGS = ["plans", "owner-ref", "owner-message-at", "reason", "allow-completed", "dry-run"] as const;
-const OBSERVE_FLAGS = ["plan", "outcome", "summary", "locator", "verdict", "activity", "activity-kind", "relation", "classification", "anchor", "version", "limitation", "dry-run"] as const;
+const OBSERVE_FLAGS = ["payload", "plan", "outcome", "summary", "locator", "verdict", "activity", "activity-kind", "relation", "classification", "anchor", "version", "limitation", "dry-run"] as const;
 const FLAG_REQUIRED: Record<string, readonly string[]> = {
   decide: ["plan", "purpose", "owner-ref", "owner-message-at", "reason"],
   delete: ["plans", "owner-ref", "owner-message-at", "reason"],
@@ -89,7 +89,8 @@ function usage(): string {
     "                                                       (owner; or --request FILE; receipt keeps the record)",
     "  mozak observe --scope ID --plan ID --summary TEXT --locator WHERE [--outcome ID] [--verdict pass|fail|not-assessed]",
     "        [--activity TEXT] [--activity-kind read|run] [--relation supports|challenges] [--classification observed|inferred|unverified]",
-    "        [--anchor A] [--version V] [--limitation TEXT] [--dry-run] [--json]      (or --request FILE)",
+    "        [--anchor A] [--version V] [--limitation TEXT] [--dry-run] [--json]",
+    "  mozak observe --scope ID --payload FILE [--dry-run]   (payload of examples/observe.json; fresh snapshot, retries stale-input; or --request FILE)",
     "  mozak discussion save --scope ID --request FILE      (agent; advisory checkpoint only)",
     "  mozak spec attach --scope ID --request FILE          (agent; descriptor only, no approval)",
     "  mozak review decide --scope ID --plan ID --purpose P [--outcome ID] [--spec SPEC] --owner-ref REF",
@@ -500,6 +501,20 @@ function run(argv: string[]): number {
   } else if (route.operation === "plan-show") {
     const out = planShow(inventory, { scope: values.scope, plan: values.plan });
     process.stdout.write(values.json === true ? `${JSON.stringify(out.data, null, 2)}\n` : renderPlanShow(out.data));
+    return out.exitCode;
+  } else if (route.operation === "observe" && values.payload !== undefined) {
+    const others = Object.keys(values).filter((k) => values[k] !== undefined && !["config", "scope", "payload", "json", "dry-run"].includes(k));
+    if (others.length) {
+      process.stderr.write(`--payload cannot be combined with --${others[0]}\n`);
+      return 2;
+    }
+    let payload: unknown;
+    try { payload = readRequestFile(values.payload as string); } catch (err) {
+      process.stderr.write(`${err instanceof Error ? err.message : String(err)}\n`);
+      return 2;
+    }
+    const out = observePayload(inventory, values.scope as string, payload, values["dry-run"] === true);
+    process.stdout.write(values.json === true ? `${JSON.stringify(out.data, null, 2)}\n` : renderFlagResult(out.data, configPath));
     return out.exitCode;
   } else if (route.requestFile && values.request === undefined && FLAG_REQUIRED[route.operation]) {
     for (const flag of FLAG_REQUIRED[route.operation]) {

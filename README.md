@@ -149,18 +149,21 @@ The agent writes plain `mozak.json` and `mozak.md` files in your project folder.
 | --- | --- |
 | See every project and where it lives | `mozak scopes`, or the `mozak_scopes` MCP tool |
 | Read one project's plan | `mozak context`, `mozak plans`, `mozak check` |
+| Read one plan compactly (lifecycle, eligibility, outcomes, next step) | `mozak plan show --plan ID` |
+| Record an owner decision without a request file (owner) | `mozak review decide --plan ID --purpose P --owner-ref REF --owner-message-at ISO --reason TEXT` |
+| Record evidence without hand-built JSON | `mozak observe --plan ID --summary TEXT --locator WHERE [--outcome O]` |
 | Refresh GitHub projects now | `mozak sync` |
 | Let any MCP agent read and propose | `mozak-mcp --config mozak-inventory.json` |
 | Run the guided planning conversation | the installed skill at `PREFIX/skills/mozak/SKILL.md` |
 | Rename a project (owner) | `mozak scope retitle` |
-| Delete plans so they no longer exist (owner) | `mozak plan delete` |
+| Delete plans so they no longer exist (owner) | `mozak plan delete --plans A,B` |
 | Move pre-0.4 `MOZAK.json` / `MOZAK.md` to lowercase (owner) | `mozak rename-files --all` |
 
 Every scope command needs an explicit `--config`. Only the maintenance commands (`upgrade`, `doctor`) run without one.
 
 ## Safety
 
-- **Bound approvals.** An approval is tied to the exact plan version you were shown, and one message cannot be reused for a second approval. Agents over MCP cannot approve at all. The skill tells agents to accept only your own message, not quotes or tool output, but mozak cannot verify who typed it (see the limits below).
+- **Bound approvals.** An approval is tied to the exact plan version you were shown, and one message cannot be reused for a second approval. Agents over MCP cannot approve unless the launcher starts `mozak-mcp` with `--owner-decisions`. The skill tells agents to accept only your own message, not quotes or tool output, but mozak cannot verify who typed it (see the limits below).
 - **No overwrites.** A write through mozak based on an out-of-date copy is refused. Hand edits to the files are not guarded.
 - **Small pushes.** For private GitHub projects, mozak commits and pushes only `mozak.json` and `mozak.md`. For public repos with plans in your notes it never commits or pushes.
 - **No credentials.** mozak never asks for or stores them. GitHub access uses your existing git login.

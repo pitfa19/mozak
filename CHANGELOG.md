@@ -6,6 +6,15 @@ User-visible changes, newest first. Releases are git tags `vX.Y.Z` on `main`; `m
 
 ### Added
 
+- Flag forms, so agents need no request file for owner decisions, deletes or evidence:
+  - `mozak review decide --scope ID --plan PLAN --purpose P [--outcome O] [--spec SPEC] --owner-ref REF --owner-message-at ISO --reason TEXT [--dry-run]` reads the fresh review subject and snapshot, builds the request with a new operationId and submits as owner. On stale-input it retries once only when the subject is unchanged, else `subject-changed`. Owner provenance stays explicit.
+  - `mozak plan delete --scope ID --plans a,b --owner-ref REF --owner-message-at ISO --reason TEXT [--allow-completed] [--dry-run]`.
+  - `mozak observe --scope ID --plan PLAN --summary TEXT --locator WHERE [--outcome O] [--verdict pass|fail|not-assessed] [--activity TEXT] ...` builds one observation with evidence and an outcome link, up to 3 attempts on stale-input. `observe --payload FILE` takes the `payload` of `examples/observe.json` with the same retries (replaces the hand-installed `mozak-observe` script).
+  - The `--request FILE` forms keep working and cannot be mixed with the flags. Human summary by default, `--json` for the full envelope.
+- `mozak plan show --plan PLAN` (and the `mozak_plan_show` MCP tool): one plan in about 1 KB with lifecycle, executionEligible and reasons, authorizations, outcomes with evidence and acceptance state, spec path and next action.
+- Warnings: `plan revise` and `review decide` return `warnings` with the exact next command when accepted outcomes need re-linking and owner re-acceptance after a revision, and when a direction approval leaves implementation approval still needed ("this message covers 1 approval").
+- `mozak-mcp --owner-decisions` adds a `mozak_decide` tool with the same safety rules as the CLI flag form. Without the flag the MCP surface stays agent-only.
+- `context --brief` and `context --plan` (from `hermes/context-brief`), with a bounded brief that lists actionable plans first and counts omitted ones (from `hermes/brief-budget`).
 - `mozak plan delete` (owner only): removes named plans from a scope so they no longer exist in `mozak.json` or `mozak.md`. Snapshot-checked and replay-safe like every write. The receipt `{ action: "delete-plans", ids }` is kept as the record, and a deleted id cannot be proposed again. Completed plans need `allowCompleted: true`. Plans still referenced by another plan (a pending merge, a reasoning link) are refused until both are deleted together or merged.
 
 ## 0.4.5 (2026-10-22)

@@ -12,21 +12,27 @@ Run `node {{MOZAK_CLI}} --help` at session start. If a route is missing, stop.
 
 | Command | Use |
 |---|---|
-| `node {{MOZAK_CLI}} context --config INVENTORY --scope ID --brief --json` | Session-start overview: plan IDs, titles, lifecycle, revision IDs, pending review state, handoff blockers, next action, full CAS `snapshot`; no content/evidence/history/bounds |
+| `node {{MOZAK_CLI}} plan show --config INVENTORY --scope ID --plan PLAN [--json]` | One plan in about 1 KB: lifecycle, `executionEligible` + reasons, authorizations, outcomes (status, supports, challenges, owner accepted), spec path and health, `permittedNextAction` |
+| `node {{MOZAK_CLI}} context --config INVENTORY --scope ID --brief --json` | Session-start overview: plan IDs, titles, lifecycle, review state, blockers, next action, CAS `snapshot`; no bodies |
 | `node {{MOZAK_CLI}} context --config INVENTORY --scope ID --plan PLAN --json` | Exact plan's full recovery context and bounds; use before work and after stale conflicts |
 | `node {{MOZAK_CLI}} context --config INVENTORY --scope ID --json` | Backward-compatible full context for all plans, including history |
 | `node {{MOZAK_CLI}} plans --config INVENTORY --scope ID --json` | Plan list |
 | `node {{MOZAK_CLI}} review show --config INVENTORY --scope ID --plan PLAN [--purpose P] [--outcome ID] --json` | Review subject for one decision |
 | `node {{MOZAK_CLI}} check --config INVENTORY --scope ID --json` | Findings. Never repairs. |
 
-`review show` purposes:
-- Pending direction: `--purpose` may be omitted (defaults to `approve-direction`).
-- Accepted-only plan: `--purpose` is required, or the call returns `invalid-payload`.
-- Values: `approve-direction`, `reject-pending`, `reconsider`, `pause`, `resume`, `approve-implementation`, `revoke-implementation`, `accept-outcome` (needs `--outcome`).
+Purposes (`review show`, `review decide`): `approve-direction` (default for a pending direction), `reject-pending`, `reconsider`, `pause`, `resume`, `approve-implementation`, `revoke-implementation`, `accept-outcome` (needs `--outcome`).
 
 ## Agent writes (advisory, grant nothing)
 
-Request file, written as data. Envelope:
+Observe with flags (fresh snapshot, generated ids, up to 3 attempts on stale-input):
+
+```
+node {{MOZAK_CLI}} observe --config INVENTORY --scope ID --plan PLAN --summary TEXT --locator WHERE [--outcome O] [--verdict pass|fail|not-assessed] [--activity TEXT] [--activity-kind read|run] [--relation supports|challenges] [--classification observed|inferred|unverified] [--anchor A] [--version V] [--limitation TEXT] [--dry-run]
+```
+
+`--outcome` links to the accepted revision. Before direction approval it is refused: record without it. `--verdict fail` defaults to `--relation challenges`. Several evidence items: `observe --scope ID --payload FILE` with the `payload` of `examples/observe.json` (same fresh snapshot and retries).
+
+Other writes use a request file, written as data. Envelope:
 
 ```json
 { "operationId": "unique-id", "scopeId": "ID", "expected": { "revision": "...", "graphHash": "...", "bridge": { "exists": true, "sha256": "..." } }, "action": "ACTION", "payload": { } }
@@ -37,7 +43,7 @@ Request file, written as data. Envelope:
 | Command | Action |
 |---|---|
 | `node {{MOZAK_CLI}} plan propose --config INVENTORY --scope ID --request FILE` | `propose` (optional `distinctFromPlanIds` when owner confirmed a separate plan despite overlap) |
-| `node {{MOZAK_CLI}} plan revise --config INVENTORY --scope ID --request FILE` | `revise` (optional `mergeFromPlanId` to fold a duplicate non-completed plan into `planId` on `approve-direction`) |
+| `node {{MOZAK_CLI}} plan revise --config INVENTORY --scope ID --request FILE` | `revise` (optional `mergeFromPlanId`). Output `warnings` list outcomes and grants that need the owner again after approval |
 | `node {{MOZAK_CLI}} discussion save --config INVENTORY --scope ID --request FILE` | `save-discussion` |
 | `node {{MOZAK_CLI}} spec attach --config INVENTORY --scope ID --request FILE` | `attach-spec` |
 | `node {{MOZAK_CLI}} plan complete --config INVENTORY --scope ID --request FILE` | `complete` |
@@ -52,24 +58,21 @@ Request file, written as data. Envelope:
 
 ## Owner decisions
 
-`node {{MOZAK_CLI}} review decide --config INVENTORY --scope ID --request FILE`
+```
+node {{MOZAK_CLI}} review decide --config INVENTORY --scope ID --plan PLAN --purpose P [--outcome O] [--spec SPEC] --owner-ref REF --owner-message-at ISO --reason TEXT [--dry-run] [--json]
+```
 
-Payload for every decision: `planId`, `revisionId`, `reviewDigest`, `ownerRef`, `ownerMessageAt`, `reason`.
-- `revisionId` and `reviewDigest` come from `review show` for the same purpose, read just before the decision.
-- Action values: `approve-direction`, `pause`, `resume`, `approve-implementation`, `revoke-implementation`, `reject-pending`, `reconsider`, `accept-outcome`.
-- `approve-implementation` also needs `specificationId`. `revoke-implementation` needs `authorizationId`.
+Reads the fresh `review show` subject and snapshot, builds the request (new `operationId`, `revisionId`, `reviewDigest`, `specificationId`/`authorizationId`/`outcomeId` as the purpose needs) and submits as owner. On stale-input it rereads once and retries only if the subject is unchanged, else `subject-changed` (exit 3). `--spec` refuses if the current candidate differs. Prints a short summary, plus `warning` lines with the exact next command. `--json` gives the full envelope.
+
+Request-file form still works: `--request FILE` with payload `planId, revisionId, reviewDigest, ownerRef, ownerMessageAt, reason` (+ `specificationId`, `authorizationId` or `outcomeId`). It cannot be mixed with the flags.
 
 ### Deleting plans (owner)
 
-`node {{MOZAK_CLI}} plan delete --config INVENTORY --scope ID --request FILE`
+`node {{MOZAK_CLI}} plan delete --config INVENTORY --scope ID --plans A,B --owner-ref REF --owner-message-at ISO --reason TEXT [--allow-completed] [--dry-run]`
 
-Removes plans so they no longer exist in `mozak.json` or `mozak.md`. Use it only when the owner asks, in their own message, to delete named plans. Request (not the mutation envelope):
+Removes plans so they no longer exist in `mozak.json` or `mozak.md`. Use it only when the owner asks, in their own message, to delete named plans. `--request FILE` (`operationId, scopeId, expected, planIds, reason, ownerRef, ownerMessageAt`) still works.
 
-```json
-{ "operationId": "unique-id", "scopeId": "ID", "expected": { "...": "fresh snapshot" }, "planIds": ["plan-a"], "reason": "why", "ownerRef": "owner message provenance", "ownerMessageAt": "2026-01-01T00:00:00.000Z" }
-```
-
-- Optional `"allowCompleted": true` is needed to delete a completed plan. Never add it unless the owner says the completed plan should go too.
+- `--allow-completed` is needed to delete a completed plan. Never add it unless the owner says the completed plan should go too.
 - Refused with `delete-referenced` while another plan still points at it (a pending merge or a reasoning link). Delete both together or merge instead.
 - The receipt `{ "action": "delete-plans", "ids": [...] }` stays in `mozak.json` as the record, and the deleted id cannot be proposed again.
 - Prefer a merge when two plans in one scope overlap: approval folds the source into the target and removes it. Use delete for a plan superseded by one in another scope, or a plan the owner no longer wants.
@@ -85,13 +88,9 @@ Removes plans so they no longer exist in `mozak.json` or `mozak.md`. Use it only
 
 An unambiguous pause instruction stops host work first. The host may then persist it using the current pause subject, with the real provenance. The provenance record states that the instruction preceded this generated review. This covers stopping only. It never covers approval, resume, or broadening.
 
-## Review digest and CAS: what can be reused
+## Review digest and CAS
 
-Receipt replay runs before the CAS check. An identical retry returns the committed result. A same-operation ID with different input is refused with `operation-conflict` (exit 3).
-
-After `stale-input` (exit 3), reread with `node {{MOZAK_CLI}} context --config INVENTORY --scope ID --plan PLAN --json` and decide:
-- Same subject: scope, plan, purpose, relevant revision and content digest, specification and bounds digest, and authorization identity all match, and `reviewDigest` and `revisionId` match the displayed subject. The owner's still-unconsumed confirmation for that exact subject may be reused with a fresh `expected` block and a new `operationId`. Storage revision and projection bytes are not part of the subject.
-- Changed subject or purpose: redisplay and get fresh owner confirmation. Never retarget with an old "yes".
+The flag forms apply these rules. An identical retry replays its receipt. A reused `operationId` with different input is `operation-conflict` (exit 3). After `stale-input`, an unchanged subject (scope, plan, purpose, revision and content digest, spec and bounds digest, authorization, `reviewDigest`) may reuse the unconsumed owner confirmation with a fresh `expected` and new `operationId`. A changed subject needs redisplay and a fresh "yes".
 
 ## Plan completion
 

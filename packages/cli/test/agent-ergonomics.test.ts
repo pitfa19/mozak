@@ -195,3 +195,16 @@ test("built CLI help lists the flag forms", () => {
   assert.match(out, /plan delete --scope ID --plans A,B/);
   assert.match(out, /observe --scope ID --plan ID --summary TEXT --locator WHERE/);
 });
+
+test("observe --payload takes an examples/observe.json shaped file, builds the envelope and commits", () => {
+  const w = fixture();
+  const file = join(w.root, "payload.json");
+  writeFileSync(file, JSON.stringify({ _doc: "synthetic", payload: { planId: "alpha", observation: { id: "obs-p", classification: "observed", summary: "Fixture read",
+    evidence: [{ id: "ev-p", locator: "fixture://p", anchor: null, version: null, inspectedAt: "2026-10-12T10:00:00.000Z", activity: { kind: "read", description: "Read" }, result: { verdict: "pass", summary: "ok" }, limitations: [] }] } } }));
+  const out = w.cli("observe", "--scope", "fx", "--payload", file);
+  assert.equal(out.code, 0, out.out + out.err);
+  assert.match(out.out, /status: ok \(committed\)/);
+  assert.equal(plan(w).observations[0].id, "obs-p");
+  const mixed = w.cli("observe", "--scope", "fx", "--payload", file, "--plan", "alpha");
+  assert.equal(mixed.code, 2);
+});

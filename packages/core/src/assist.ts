@@ -317,3 +317,26 @@ export function planShow(inv: ScopeInventory, raw: unknown): OperationOutput {
     return { exitCode: 0, data: { status: "ok", committed: false, operation: "plan-show", snapshot: ctx.data.snapshot, projectionStatus: ctx.data.projectionStatus, projectionUpdated: false, issues: ctx.data.issues, plan: show } };
   });
 }
+
+/**
+ * Observe from a payload object (the `payload` of examples/observe.json, or that whole file): fresh snapshot and
+ * new operationId per attempt, up to 3 attempts on stale-input. Replaces hand-built envelopes and the mini's
+ * mozak-observe script.
+ */
+export function observePayload(inv: ScopeInventory, scope: string, raw: unknown, dryRun = false): OperationOutput {
+  return guard(() => {
+    str(scope, "scope");
+    const obj = (typeof raw === "object" && raw !== null && !Array.isArray(raw)) ? raw as Data : null;
+    if (!obj) return fail("invalid-input", "payload file must hold a JSON object");
+    const payload = obj.payload !== undefined && typeof obj.payload === "object" ? obj.payload as Data : obj;
+    for (let attempts = 1; ; attempts++) {
+      const ctx = executeOperation(inv, "context", { scope, brief: true }, "agent");
+      if (ctx.exitCode !== 0) return ctx;
+      const request = { operationId: `observe-${randomUUID()}`, scopeId: scope, expected: ctx.data.snapshot, action: "observe", payload };
+      if (dryRun) return { exitCode: 0, data: { status: "dry-run", committed: false, operation: "observe", snapshot: ctx.data.snapshot, projectionStatus: null, projectionUpdated: false, issues: [], request } };
+      const out = executeOperation(inv, "observe", { scope, request }, "agent");
+      if (out.data.status === "stale-input" && attempts < 3) continue;
+      return { exitCode: out.exitCode, data: { ...out.data, operationId: request.operationId, attempts } };
+    }
+  });
+}
