@@ -5,7 +5,7 @@
 
 import { closeSync, fstatSync, openSync, readSync } from "node:fs";
 import { parseArgs } from "node:util";
-import { decideWithFlags, deleteWithFlags, observePayload, observeWithFlags, planShow, executeOperation, loadInventory, MAX_REQUEST_BYTES, scopeForWorkingCopy, DomainError, type OperationOutput } from "@mozak/core";
+import { decideWithFlags, deleteWithFlags, observePayload, observeWithFlags, planShow, executeOperation, loadInventory, MAX_REQUEST_BYTES, scopeForWorkingCopy, gitCommitScope, DomainError, type OperationOutput } from "@mozak/core";
 import { runningVersion, upgrade } from "./upgrade.js";
 import { doctor, renderDoctor } from "./doctor.js";
 
@@ -66,7 +66,7 @@ const ROUTES: Record<string, Route> = {
 };
 
 const ROUTE_NAMES = Object.keys(ROUTES);
-const BOOLEAN_FLAGS = new Set(["json", "include-rejected", "all", "write", "brief", "dry-run", "allow-completed"]);
+const BOOLEAN_FLAGS = new Set(["json", "include-rejected", "all", "write", "brief", "dry-run", "allow-completed", "commit"]);
 
 class UsageError extends Error {}
 
@@ -102,6 +102,9 @@ function usage(): string {
     "  mozak --version",
     "  mozak upgrade [--check] [--vault PATH ...] [--source PATH] [--prefix PATH]   (owner; newest tagged release)",
     "  mozak doctor [--fix] [--config FILE] [--json]        (check the setup; --fix only links, wrappers, plugin copies)",
+    "Writes (every --request/flag write route) accept --commit: commit the scope's mozak.json and mozak.md in the",
+    "  containing git repo, then pull --rebase and push when it has an upstream (never forces; stops on conflict).",
+    "  Without it a local scope's status says \"written ... not committed to git\". Repo-mode remote scopes always push.",
     "Exit: 0 success, 2 invalid or unavailable, 3 stale/conflict/owner-review, 4 busy/recovery,",
     "      5 committed with unfinished projection or cleanup, 6 partial all-scope coverage.",
     "Config: FILE is the explicit inventory JSON. There is no default path and no directory scan.",
@@ -179,7 +182,7 @@ function parseCommand(argv: string[]): Parsed {
 
   assertNoDuplicates(rest);
   // Every route accepts --json. Each result is already a JSON envelope, so the flag is a uniform no-op.
-  const allowed = [...new Set(["config", "json", ...route.flags])];
+  const allowed = [...new Set(["config", "json", ...route.flags, ...(route.requestFile ? ["commit"] : [])])];
   const options: Record<string, { type: "string" | "boolean"; multiple: false }> = {};
   for (const flag of allowed) {
     options[flag] = { type: BOOLEAN_FLAGS.has(flag) ? "boolean" : "string", multiple: false };
@@ -328,9 +331,31 @@ function flagForm(inventory: ReturnType<typeof loadInventory>, operation: string
 }
 const camel = (k: string) => k.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
 
+/**
+ * "committed" in the envelope means the scope transaction reached mozak.json and mozak.md on disk.
+ * Git is a separate step: repo-mode remote scopes commit and push on their own (remotePush), and
+ * local or vault-plans scopes are only committed to git with --commit. Say which one happened.
+ */
+function committedLabel(d: Record<string, any>): string {
+  if (d.remotePush) return d.remotePush.pushed ? "written, committed and pushed" : "written and committed to git";
+  if (d.git) return d.git.committed || d.git.pushed ? `written, ${d.git.message}` : `written, ${d.git.message.replace(/^written, /, "")}`;
+  return "written to mozak.json and mozak.md, not committed to git; add --commit to commit and push";
+}
+
+/** After a successful write with --commit, commit the scope files in their git repo and push. */
+function withGitCommit(out: OperationOutput, scope: unknown, inventory: ReturnType<typeof loadInventory>, operation: string, enabled: boolean): OperationOutput {
+  const d = out.data as Record<string, any>;
+  if (!enabled || !d.committed || d.remotePush || d.status === "dry-run") return out;
+  const entry = inventory.scopes.find((e) => e.id === scope);
+  if (!entry) return out;
+  const git = gitCommitScope(entry.root, `mozak: ${operation} ${entry.id}`);
+  const issues = git.error ? [...(d.issues ?? []), { code: `git-${git.error}`, message: git.message }] : d.issues;
+  return { exitCode: git.error && out.exitCode === 0 ? 5 : out.exitCode, data: { ...d, git, ...(issues ? { issues } : {}) } };
+}
+
 /** Short human summary of a flag-form write. --json prints the full envelope instead. */
 function renderFlagResult(d: Record<string, any>, configPath: string): string {
-  const lines: string[] = [`status: ${d.status}${d.committed ? " (committed)" : ""}${d.attempts > 1 ? `, attempts ${d.attempts}` : ""}`];
+  const lines: string[] = [`status: ${d.status}${d.committed ? ` (${committedLabel(d)})` : ""}${d.attempts > 1 ? `, attempts ${d.attempts}` : ""}`];
   if (d.subject) lines.push(`subject: ${d.subject.question}`, `  revision ${d.subject.revisionId}${d.subject.outcomeId ? `, outcome ${d.subject.outcomeId}` : ""}${d.subject.specificationId ? `, spec ${d.subject.specificationId}` : ""}`);
   if (d.subject?.approvalAvailable === false) lines.push(`  approval not available: ${(d.subject.approvalReasons ?? []).join(", ")}`);
   if (d.operationId) lines.push(`operationId: ${d.operationId}`);
@@ -504,7 +529,7 @@ function run(argv: string[]): number {
     process.stdout.write(values.json === true ? `${JSON.stringify(out.data)}\n` : renderPlanShow(out.data));
     return out.exitCode;
   } else if (route.operation === "observe" && values.payload !== undefined) {
-    const others = Object.keys(values).filter((k) => values[k] !== undefined && !["config", "scope", "payload", "json", "dry-run"].includes(k));
+    const others = Object.keys(values).filter((k) => values[k] !== undefined && !["config", "scope", "payload", "json", "dry-run", "commit"].includes(k));
     if (others.length) {
       process.stderr.write(`--payload cannot be combined with --${others[0]}\n`);
       return 2;
@@ -514,7 +539,7 @@ function run(argv: string[]): number {
       process.stderr.write(`${err instanceof Error ? err.message : String(err)}\n`);
       return 2;
     }
-    const out = observePayload(inventory, values.scope as string, payload, values["dry-run"] === true);
+    const out = withGitCommit(observePayload(inventory, values.scope as string, payload, values["dry-run"] === true), values.scope, inventory, "observe", values.commit === true);
     process.stdout.write(values.json === true ? `${JSON.stringify(out.data, null, 2)}\n` : renderFlagResult(out.data, configPath));
     return out.exitCode;
   } else if (route.requestFile && values.request === undefined && FLAG_REQUIRED[route.operation]) {
@@ -524,12 +549,12 @@ function run(argv: string[]): number {
         return 2;
       }
     }
-    const out = flagForm(inventory, route.operation, values);
+    const out = withGitCommit(flagForm(inventory, route.operation, values), values.scope, inventory, route.operation, values.commit === true);
     const text = values.json === true ? `${JSON.stringify(out.data, null, 2)}\n` : renderFlagResult(out.data, configPath);
     process.stdout.write(text);
     return out.exitCode;
   } else if (route.requestFile) {
-    const flagged = Object.keys(values).filter((k) => values[k] !== undefined && !["config", "scope", "request", "json"].includes(k));
+    const flagged = Object.keys(values).filter((k) => values[k] !== undefined && !["config", "scope", "request", "json", "commit"].includes(k));
     if (flagged.length) {
       process.stderr.write(`--request cannot be combined with --${flagged[0]}\n`);
       return 2;
@@ -546,7 +571,11 @@ function run(argv: string[]): number {
   }
 
   const actor = OWNER_ROUTES.has(route.operation) ? "owner" : "agent";
-  const output = executeOperation(inventory, route.operation, args, actor);
+  const raw = executeOperation(inventory, route.operation, args, actor);
+  const output = route.requestFile ? withGitCommit(raw, values.scope, inventory, route.operation, values.commit === true) : raw;
+  if (route.requestFile && (output.data as Record<string, any>).committed && !values.commit && !(output.data as Record<string, any>).remotePush) {
+    process.stderr.write(`note: ${committedLabel(output.data as Record<string, any>)}\n`);
+  }
   printEnvelope(output, values.json === true || (routeName !== "plans" && routeName !== "scopes" && routeName !== "sync"), routeName);
   return output.exitCode;
 }

@@ -27,3 +27,4 @@ export * from "./working-copy.ts";
 export * from "./durable.ts";
 export * from "./update.ts";
 export * from "./vault-config.ts";
+export * from "./git-commit.ts";

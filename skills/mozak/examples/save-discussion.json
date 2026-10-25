@@ -1,0 +1,34 @@
+{
+  "_doc": "mozak discussion save: advisory clarification checkpoint for one plan. Grants no authority. Send EVERY existing question each time (questions cannot be dropped), plus new ones with id null. acceptedRevisionId and pendingRevisionId must equal the plan's current ones (null when none): read them with `mozak plan show --plan PLAN --json`. stage is clarifying | ready-for-spec (ready-for-spec needs no open questions). status is open | answered | deferred. A new open question has answers []. Settling a question appends an answer: basis owner needs ownerRef + ownerMessageAt (UTC) and may have evidence []; basis inspection needs at least one evidence item and null owner fields. reopenReason is null except when moving a settled question back to open. Build with scripts/make_request.py save-discussion <this file>, then `mozak discussion save --request FILE`.",
+  "payload": {
+    "planId": "example-plan",
+    "acceptedRevisionId": "REPLACE-with-the-accepted-revisionId-or-null",
+    "pendingRevisionId": null,
+    "summary": "Scope is the Croatian portal only. Deadline question still open.",
+    "stage": "clarifying",
+    "questions": [
+      {
+        "id": null,
+        "text": "Does the application need a signed recommendation letter?",
+        "status": "open",
+        "answers": [],
+        "reopenReason": null
+      },
+      {
+        "id": null,
+        "text": "Which portal is in scope?",
+        "status": "answered",
+        "answers": [
+          {
+            "summary": "Only the Croatian national portal.",
+            "basis": "owner",
+            "ownerRef": "discord:message-1234",
+            "ownerMessageAt": "2026-10-21T12:00:00.000Z",
+            "evidence": []
+          }
+        ],
+        "reopenReason": null
+      }
+    ]
+  }
+}

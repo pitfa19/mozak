@@ -5,6 +5,8 @@ User-visible changes, newest first. Releases are git tags `vX.Y.Z` on `main`; `m
 ## Unreleased
 
 ### Added
+- `--commit` on every write route: commits the scope's mozak.json and mozak.md in the containing git repo, then `pull --rebase` and push when there is an upstream. Never forces, stops on conflict (exit 5). Local write output now says "written ... not committed to git" instead of a bare "(committed)".
+- `examples/save-discussion.json`, and the save-discussion payload and `executionEligible` explained in `references/payloads.md`.
 
 - Flag forms, so agents need no request file for owner decisions, deletes or evidence:
   - `mozak review decide --scope ID --plan PLAN --purpose P [--outcome O] [--spec SPEC] --owner-ref REF --owner-message-at ISO --reason TEXT [--dry-run]` reads the fresh review subject and snapshot, builds the request with a new operationId and submits as owner. On stale-input it retries once only when the subject is unchanged, else `subject-changed`. Owner provenance stays explicit.

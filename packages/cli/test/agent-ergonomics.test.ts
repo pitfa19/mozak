@@ -54,7 +54,7 @@ test("review decide with flags: dry-run writes nothing, then commits without a r
   assert.deepEqual(bytes(w.root), before, "dry run changed nothing");
   const human = w.cli("review", "decide", "--scope", "fx", "--plan", "alpha", "--purpose", "approve-direction", ...OWNER);
   assert.equal(human.code, 0, human.out);
-  assert.match(human.out, /status: ok \(committed\)/);
+  assert.match(human.out, /status: ok \(written to mozak.json and mozak.md, not committed to git; add --commit to commit and push\)/);
   assert.match(human.out, /subject: Approve the proposed direction for plan alpha\?/);
   assert.ok(plan(w).accepted, "direction accepted");
 });
@@ -203,7 +203,7 @@ test("observe --payload takes an examples/observe.json shaped file, builds the e
     evidence: [{ id: "ev-p", locator: "fixture://p", anchor: null, version: null, inspectedAt: "2026-10-12T10:00:00.000Z", activity: { kind: "read", description: "Read" }, result: { verdict: "pass", summary: "ok" }, limitations: [] }] } } }));
   const out = w.cli("observe", "--scope", "fx", "--payload", file);
   assert.equal(out.code, 0, out.out + out.err);
-  assert.match(out.out, /status: ok \(committed\)/);
+  assert.match(out.out, /status: ok \(written to mozak.json and mozak.md, not committed to git; add --commit to commit and push\)/);
   assert.equal(plan(w).observations[0].id, "obs-p");
   const mixed = w.cli("observe", "--scope", "fx", "--payload", file, "--plan", "alpha");
   assert.equal(mixed.code, 2);
