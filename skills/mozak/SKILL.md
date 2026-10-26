@@ -99,6 +99,7 @@ The decide command applies these rules itself. With a request file: an unchanged
 
 - `plan complete` (full command: `node {{MOZAK_CLI}} plan complete --config INVENTORY --scope ID --request FILE`, `action: "complete"`, payload `{ planId, revisionId }`) is not a plain state change. Core requires the accepted revision, an open lifecycle, no awaiting pending revision, and for every outcome: observed supporting evidence, plus a bound owner acceptance when the outcome requires owner acceptance or has challenges.
 - Do not say a plan will complete because it is open. Run the package 1 outcome checks first, and report any outcome with no evidence or an unresolved challenge.
+- "Complete" or "finish a plan" from the owner means the plan should end up completed, not only that evidence is recorded. Record the evidence, then in the same reply show each outcome still needing acceptance (`review show --purpose accept-outcome --outcome ID`) and ask the owner to accept them. Say plainly that the plan stays at 0 of N outcomes accepted, and unchanged in Obsidian, until they are accepted and `plan complete` runs.
 
 ## Fresh-session recovery
 

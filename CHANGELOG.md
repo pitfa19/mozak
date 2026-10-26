@@ -4,6 +4,12 @@ User-visible changes, newest first. Releases are git tags `vX.Y.Z` on `main`; `m
 
 ## Unreleased
 
+### Fixed
+- Tests no longer read the developer's global git config: `npm test` and `npm run test:install` preload `scripts/test-git-isolation.mjs` (private `GIT_CONFIG_GLOBAL`). A global `core.hooksPath` pre-push guard made 20 remote and vault tests fail.
+
+### Changed
+- Skill: when the owner asks to complete or finish a plan, record evidence and in the same reply ask for the outstanding outcome acceptances, saying the plan stays at 0 of N until they are accepted.
+
 ### Added
 - `--commit` on every write route: commits the scope's mozak.json and mozak.md in the containing git repo, then `pull --rebase` and push when there is an upstream. Never forces, stops on conflict (exit 5). Local write output now says "written ... not committed to git" instead of a bare "(committed)".
 - `examples/save-discussion.json`, and the save-discussion payload and `executionEligible` explained in `references/payloads.md`.

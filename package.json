@@ -13,8 +13,8 @@
     "build": "tsc -b && npm run build:plugin",
     "build:plugin": "node packages/obsidian/scripts/build.mjs",
     "build:npm": "node scripts/build-npm.mjs",
-    "test": "node --test --experimental-strip-types packages/core/test/*.test.ts packages/cli/test/*.test.ts packages/mcp/test/*.test.ts packages/obsidian/test/*.test.ts",
-    "test:install": "node --test scripts/test-install.mjs"
+    "test": "node --import ./scripts/test-git-isolation.mjs --test --experimental-strip-types packages/core/test/*.test.ts packages/cli/test/*.test.ts packages/mcp/test/*.test.ts packages/obsidian/test/*.test.ts",
+    "test:install": "node --import ./scripts/test-git-isolation.mjs --test scripts/test-install.mjs"
   },
   "devDependencies": {
     "typescript": "^5.6.0",

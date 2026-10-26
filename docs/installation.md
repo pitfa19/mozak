@@ -308,3 +308,7 @@ Record the actual results of any new check here before claiming it passed.
 - The real bundled plugin is rebuilt by a regression test and contains no release-tags fetch, refresher script or spawned update process. Its update notice still reads the CLI-written cache. The CLI update checker is unchanged.
 - Source typechecks against Obsidian API definitions 1.5.7, 1.6.6, 1.7.2 and 1.8.7 passed. This is compile-time evidence only, not an app-runtime test. The plugin now conservatively declares `minAppVersion: 1.14.4`, matching the owner's currently used Obsidian installation. No clean-install runtime smoke test of this new bundle has been claimed.
 - Release assets are attached to a tag equal to the manifest version (`0.4.0`). The `v0.4.0` tag remains for the CLI updater. The release workflow refuses to reuse a numeric tag pointing at a different commit and checks out the requested tag for manual reruns.
+
+### Test git isolation, 2026-10-26
+
+- `npm test` and `npm run test:install` now preload `scripts/test-git-isolation.mjs`, which points `GIT_CONFIG_GLOBAL` at a fresh temp file. On the laptop with a global `core.hooksPath` pre-push guard: before, 458 of 478 passed (20 remote and vault tests refused by the guard); after, 479 of 479 passed (with the new `git-isolation` regression test) and the installer suite 73 passed, 1 skipped, 0 failed. The regression test fails when run without the preload.

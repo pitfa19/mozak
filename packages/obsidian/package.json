@@ -7,7 +7,7 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "typecheck": "tsc -b",
-    "test": "node --test --experimental-strip-types test/*.test.ts"
+    "test": "node --import ../../scripts/test-git-isolation.mjs --test --experimental-strip-types test/*.test.ts"
   },
   "dependencies": {
     "@mozak/core": "0.4.5"
