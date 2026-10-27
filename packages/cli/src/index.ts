@@ -72,7 +72,7 @@ class UsageError extends Error {}
 
 function usage(): string {
   return [
-    "usage: mozak <route> --config FILE [flags]",
+    "usage: mozak [--config FILE] <route> [--config FILE] [flags]",
     "  mozak scope init --scope ID --request FILE          (owner)",
     "  mozak scope retitle --scope ID --request FILE       (owner; change the scope's display title)",
     "  mozak context [--scope ID] [--brief] [--plan ID] [--json]",
@@ -440,6 +440,15 @@ function maintenance(name: "upgrade" | "doctor", argv: string[]): number {
 }
 
 function run(argv: string[]): number {
+  // Move only a leading config option behind the complete route. Leave validation,
+  // including duplicate and missing values, to the normal route parser.
+  if (argv[0] === "--config" || argv[0]?.startsWith("--config=")) {
+    const count = argv[0] === "--config" ? 2 : 1;
+    const prefix = argv.slice(0, count);
+    const remaining = argv.slice(count);
+    const routeLength = ROUTE_NAMES.includes(remaining.slice(0, 2).join(" ")) ? 2 : 1;
+    argv = [...remaining.slice(0, routeLength), ...prefix, ...remaining.slice(routeLength)];
+  }
   if (argv[0] === "--version" || argv[0] === "-v") {
     if (argv.length > 1) { process.stderr.write("--version takes no arguments\n"); return 2; }
     process.stdout.write(`${runningVersion()}\n`);

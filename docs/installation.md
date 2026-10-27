@@ -302,6 +302,10 @@ Cache layout: `.mozak-cache/<id>/` (sparse git clone) and `.mozak-cache/<id>.met
 
 Record the actual results of any new check here before claiming it passed.
 
+### CLI config placement, 2026-10-27
+
+- macOS, Node 26.11.1: `npm run build` passed with the existing plugin `import.meta` warnings. `npm test` passed 481 tests, 0 failed or skipped. Synthetic CLI subprocess tests cover leading `--config FILE` and `--config=FILE` for one- and two-word routes, parity with the existing placement, and duplicate and unknown flag rejection. The installed CLI was not updated or tested for this change.
+
 ### 0.4.0 submission preparation, 2026-10-21
 
 - macOS source build and 447 unit/regression tests passed with `GIT_CONFIG_GLOBAL=/dev/null` (the laptop's global hooks otherwise override a test fixture's rejecting Git hook). The installer suite also passed: 69 passed, 1 skipped, 0 failed.

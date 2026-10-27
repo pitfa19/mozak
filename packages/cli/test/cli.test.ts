@@ -94,6 +94,29 @@ async function initScope(config: string, scopeRoot: string, id = "sample"): Prom
 
 // ---------- argument grammar ----------
 
+test("config before a one- or two-word route matches config after the route", async () => {
+  const f = fixture();
+  await initScope(f.config, f.scopeRoot);
+  for (const route of [["context"], ["review", "show"]]) {
+    const flags = route.length === 1 ? ["--scope", "sample", "--json"] : ["--scope", "sample", "--plan", "missing", "--json"];
+    const normal = await run([...route, "--config", f.config, ...flags]);
+    const leading = await run(["--config", f.config, ...route, ...flags]);
+    const equals = await run([`--config=${f.config}`, ...route, ...flags]);
+    assert.deepEqual(leading, normal);
+    assert.deepEqual(equals, normal);
+  }
+});
+
+test("leading config still rejects duplicate and unknown flags", async () => {
+  const f = fixture();
+  const duplicate = await run(["--config", f.config, "context", "--config", f.config]);
+  assert.equal(duplicate.code, 2);
+  assert.match(duplicate.err, /duplicate flag --config/);
+  const unknown = await run(["--config", f.config, "context", "--bogus"]);
+  assert.equal(unknown.code, 2);
+  assert.match(unknown.err, /bogus/);
+});
+
 test("an unknown route exits 2 with usage", async () => {
   const f = fixture();
   const r = await run(["frobnicate", "--config", f.config]);
