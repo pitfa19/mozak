@@ -4,6 +4,13 @@ User-visible changes, newest first. Releases are git tags `vX.Y.Z` on `main`; `m
 
 ## Unreleased
 
+## 0.4.6 (2026-10-28)
+
+### Internal
+- The Obsidian sidebar now uses core's plan display state, so mozak.md and the sidebar can no longer disagree on whether a plan is open, paused, awaiting, completed or rejected.
+- One shared nonempty-string check in core replaces five copies. Error codes and messages are unchanged.
+- New tests pin parse warning line numbers (LF and CRLF), frontmatter checks, review stale-reference messages and continuation tokens with an empty field. Mutation score for `parse.ts` went from 55% to 78%.
+
 ### Fixed
 - Tests no longer read the developer's global git config: `npm test` and `npm run test:install` preload `scripts/test-git-isolation.mjs` (private `GIT_CONFIG_GLOBAL`). A global `core.hooksPath` pre-push guard made 20 remote and vault tests fail.
 

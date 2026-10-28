@@ -1,8 +1,8 @@
 // Pure view models. Turns core ScopeState plus review rows into plain data for the UI. No IO.
 // Plans are read in mozak.md, so the sidebar only needs identity, state, progress and a heading to jump to.
-import { completedPlanLine, isBridgeFileName, planHeading, planRoadmap, type Plan, type ScopeState } from "@mozak/core";
+import { completedPlanLine, isBridgeFileName, planDisplayState, planHeading, planRoadmap, type Plan, type PlanDisplayState, type ScopeState } from "@mozak/core";
 
-export type PlanStateKey = "completed" | "open" | "paused" | "awaiting" | "rejected";
+export type PlanStateKey = PlanDisplayState;
 export type StopKey = "done" | "evidence" | "current" | "todo";
 
 /** One sidebar segment per outcome, in roadmap order. */
@@ -106,12 +106,8 @@ export function headingLine(markdown: string, heading: string): number | null {
   return i < 0 ? null : i;
 }
 
-export function planState(plan: Plan): PlanStateKey {
-  if (plan.lifecycle.state === "completed") return "completed";
-  if (plan.lifecycle.state === "paused") return "paused";
-  if (plan.accepted) return "open";
-  return plan.pending?.reviewState === "rejected" ? "rejected" : "awaiting";
-}
+/** The sidebar uses the same state rule as mozak.md. */
+export const planState: (plan: Plan) => PlanStateKey = planDisplayState;
 
 export function planViewModel(
   scopeId: string,

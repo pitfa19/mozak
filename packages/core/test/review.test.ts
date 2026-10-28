@@ -748,3 +748,16 @@ test("revise with mergeFromPlanId and approve-direction folds observations, reas
   // Outcome o2 is already satisfied by the folded observation and link from internships-b!
   assert.doesNotThrow(() => applyMutation(s, "complete", { planId: "internships-a", revisionId: promotedRev }, "agent", LATER));
 });
+
+test("review purposes that need a proposal in a given review state refuse with a stale reference naming it", () => {
+  const staleWith = (message) => (e) => e instanceof DomainError && e.code === "stale-reference" && e.exitCode === 3 && e.message === message;
+  const accepted = acceptedState();
+  assert.throws(() => reviewShow(accepted, "p1", "approve-direction"), staleWith('plan "p1" has no awaiting proposal'));
+  assert.throws(() => reviewShow(accepted, "p1", "reject-pending"), staleWith('plan "p1" has no awaiting proposal'));
+  assert.throws(() => reviewShow(accepted, "p1", "reconsider"), staleWith('plan "p1" has no rejected proposal'));
+  const awaiting = proposed();
+  assert.throws(() => reviewShow(awaiting, "p1", "reconsider"), staleWith('plan "p1" has no rejected proposal'));
+  const rejected = decide(awaiting, "p1", "reject-pending");
+  assert.throws(() => reviewShow(rejected, "p1", "approve-direction"), staleWith('plan "p1" has no awaiting proposal'));
+  assert.equal(reviewShow(rejected, "p1", "reconsider").revisionId, rejected.plans[0].pending.id);
+});

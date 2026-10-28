@@ -3,6 +3,7 @@
 // scope-store.ts and review rules in review.ts. The actor comes only from the caller, never from data.
 
 import { DomainError } from "./errors.ts";
+import { nonEmptyString as nonEmpty } from "./validate.ts";
 import { existsSync } from "node:fs";
 import { resolveScope, type ScopeEntry, type ScopeInventory } from "./scope-index.ts";
 import {
@@ -129,11 +130,6 @@ function closed(value: unknown, name: string, required: readonly string[], optio
   for (const key of required) {
     if (!Object.prototype.hasOwnProperty.call(value, key)) throw invalid(`missing "${key}" in ${name}`);
   }
-  return value;
-}
-
-function nonEmpty(value: unknown, name: string): string {
-  if (typeof value !== "string" || value.trim() === "") throw invalid(`${name} must be a nonempty string`);
   return value;
 }
 

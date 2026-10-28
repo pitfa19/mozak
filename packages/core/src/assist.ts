@@ -9,6 +9,7 @@ import { resolveScope, type ScopeInventory } from "./scope-index.ts";
 import { readScopeView } from "./scope-store.ts";
 import { outcomeStatus, contextView } from "./review.ts";
 import { DomainError } from "./errors.ts";
+import { nonEmptyString as str } from "./validate.ts";
 import type { Plan, ScopeState } from "./understanding.ts";
 
 type Data = Record<string, any>;
@@ -17,10 +18,6 @@ const fail = (code: string, message: string, exitCode = 2): OperationOutput => (
   exitCode,
   data: { status: code, committed: false, snapshot: null, projectionStatus: null, projectionUpdated: false, issues: [{ code, message }] },
 });
-const str = (v: unknown, name: string): string => {
-  if (typeof v !== "string" || !v.trim()) throw new DomainError("invalid-input", `${name} must be a nonempty string`, 2);
-  return v;
-};
 const optStr = (v: unknown, name: string): string | undefined => (v === undefined ? undefined : str(v, name));
 function guard(fn: () => OperationOutput): OperationOutput {
   try { return fn(); } catch (err) {

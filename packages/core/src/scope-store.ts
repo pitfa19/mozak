@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { accessSync, constants, lstatSync, mkdirSync, readFileSync, readdirSync, renameSync, rmdirSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { DomainError } from "./errors.ts";
+import { nonEmptyString as text } from "./validate.ts";
 import { canonical, digest, hashBytes, validateScope, SCOPE_FORMAT, MAX_REQUEST_BYTES, MAX_SCOPE_BYTES, type FileToken, type ScopeState, type Receipt, type Specification } from "./understanding.ts";
 import { applyMutation, validateMutation, specificationKey, type MutationAction, type ReviewEnvironment } from "./review.ts";
 import { assertScopeFiles, type ScopeEntry } from "./scope-index.ts";
@@ -34,10 +35,6 @@ function object(v: unknown, keys: string[], name: string, optional: string[] = [
     throw new DomainError("invalid-input", `${name} requires exactly ${keys.join(", ")}${optional.length ? ` (optional: ${optional.join(", ")})` : ""}`);
   }
   return o;
-}
-function text(v: unknown, name: string): string {
-  if (typeof v !== "string" || !v.trim()) throw new DomainError("invalid-input", `${name} must be a nonempty string`);
-  return v;
 }
 function token(v: unknown): FileToken {
   const o = object(v, ["exists", "sha256"], "file snapshot");
