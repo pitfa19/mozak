@@ -5,9 +5,9 @@ import { mkdtempSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from
 import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { applyMutation, executeOperation, initScopeState, loadInventory, mutateScope, readScope, renderBridge, renderBridgeLegacy, reviewShow } from "@mozak/core";
+import { applyMutation, executeOperation, initScopeState, loadInventory, mutateScope, planDisplayState, readScope, renderBridge, renderBridgeLegacy, reviewShow } from "@mozak/core";
 import { chooseInventory, discoverInventory } from "../src/discover.ts";
-import { countRemote, countsSummary, headingLine, planMatches, remoteVM, resolveOpenTarget, scopesModel, scopeViewModel, stripVM } from "../src/model.ts";
+import { countRemote, countsSummary, headingLine, planMatches, planState, remoteVM, resolveOpenTarget, scopesModel, scopeViewModel, stripVM } from "../src/model.ts";
 import { loadScopesModel, renderStaleProjections } from "../src/load.ts";
 
 test("planMatches: all shows every state, open groups in-play states, completed is exact", () => {
@@ -16,6 +16,10 @@ test("planMatches: all shows every state, open groups in-play states, completed 
   assert.deepEqual(pick("all"), [...states]);
   assert.deepEqual(pick("open"), ["open", "awaiting", "paused"]);
   assert.deepEqual(pick("completed"), ["completed"]);
+});
+
+test("sidebar plan state is core's display state, one rule for mozak.md and the sidebar", () => {
+  assert.equal(planState, planDisplayState);
 });
 
 test("countsSummary omits zero parts", () => {

@@ -5,6 +5,7 @@
 import { randomUUID, createHash } from "node:crypto";
 import { checkQuestionInputs, discussionCurrent, saveDiscussion } from "./conversation.ts";
 import { DomainError } from "./errors.ts";
+import { nonEmptyString } from "./validate.ts";
 import { isDeletedPlanId } from "./delete.ts";
 import {
   canonical,
@@ -176,10 +177,7 @@ function requireClosed(value: unknown, path: string, required: string[], optiona
   return value;
 }
 
-function nonEmpty(value: unknown, path: string): string {
-  if (typeof value !== "string" || value.trim() === "") throw invalid(`${path} must be a nonempty string`);
-  return value;
-}
+const nonEmpty = (value: unknown, path: string): string => nonEmptyString(value, path, "invalid-payload");
 
 function checkContent(value: unknown): PlanContent {
   try {
@@ -317,15 +315,12 @@ function acceptedOf(plan: Plan): AcceptedRevision {
   return plan.accepted;
 }
 
-function awaitingOf(plan: Plan): PendingRevision {
-  if (!plan.pending || plan.pending.reviewState !== "awaiting") throw stale(`plan "${plan.id}" has no awaiting proposal`);
+function proposalIn(plan: Plan, reviewState: "awaiting" | "rejected"): PendingRevision {
+  if (!plan.pending || plan.pending.reviewState !== reviewState) throw stale(`plan "${plan.id}" has no ${reviewState} proposal`);
   return plan.pending;
 }
-
-function rejectedOf(plan: Plan): PendingRevision {
-  if (!plan.pending || plan.pending.reviewState !== "rejected") throw stale(`plan "${plan.id}" has no rejected proposal`);
-  return plan.pending;
-}
+const awaitingOf = (plan: Plan) => proposalIn(plan, "awaiting");
+const rejectedOf = (plan: Plan) => proposalIn(plan, "rejected");
 
 /** Evidence-backed corrections retire prior reports, even when the new result is a failure. */
 function isPassingObserved(o: Observation): boolean {

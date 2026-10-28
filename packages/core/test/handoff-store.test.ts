@@ -199,3 +199,15 @@ test("B13: old continuation version is refused, including structurally valid pri
   const bad = executeOperation(w.inv, "plans", { continuation: Buffer.from(JSON.stringify(parsed)).toString("base64url") });
   assert.equal(bad.exitCode, 2); assert.equal(bad.data.status, "invalid-input");
 });
+
+test("continuation token with an empty field is invalid input naming the field", () => {
+  const w = world();
+  for (let i = 0; i < 6; i++) w.change("propose", { planId: `pending-${i}`, content });
+  const token = (executeOperation(w.inv, "plans", { scope: "scope" }).data.groups as any).awaiting.continuation;
+  const parsed = JSON.parse(Buffer.from(token, "base64url").toString("utf8"));
+  parsed.after = "  ";
+  const bad = executeOperation(w.inv, "plans", { continuation: Buffer.from(JSON.stringify(parsed)).toString("base64url") });
+  assert.equal(bad.exitCode, 2);
+  assert.equal(bad.data.status, "invalid-input");
+  assert.deepEqual((bad.data as any).issues, [{ code: "invalid-input", message: "continuation after must be a nonempty string" }]);
+});
