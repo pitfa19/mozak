@@ -236,15 +236,15 @@ export function observeWithFlags(inv: ScopeInventory, raw: unknown): OperationOu
     const o = closedArgs(raw, ["scope", "plan", "summary", "locator", "verdict", "activity", "activityKind", "outcome", "relation", "classification", "anchor", "version", "limitations", "dryRun"], "observe");
     const scope = str(o.scope, "scope"), plan = str(o.plan, "plan"), summary = str(o.summary, "summary");
     const classification = (o.classification ?? "observed") as string;
-    if (!["observed", "inferred", "unverified"].includes(classification)) return fail("invalid-input", "classification must be observed, inferred or unverified");
+    if (!["observed", "inferred", "unverified"].includes(classification)) return fail("invalid-input", `invalid classification "${classification}": allowed values are observed, inferred, unverified`);
     const verdict = (o.verdict ?? "pass") as string;
-    if (!["pass", "fail", "not-assessed"].includes(verdict)) return fail("invalid-input", "verdict must be pass, fail or not-assessed");
+    if (!["pass", "fail", "not-assessed"].includes(verdict)) return fail("invalid-input", `invalid verdict "${verdict}": allowed values are pass, fail, not-assessed`);
     const kind = (o.activityKind ?? "read") as string;
-    if (!["read", "run"].includes(kind)) return fail("invalid-input", "activity kind must be read or run");
+    if (!["read", "run"].includes(kind)) return fail("invalid-input", `invalid activity-kind "${kind}": allowed values are read, run`);
     const locator = optStr(o.locator, "locator");
     if (classification === "observed" && locator === undefined) return fail("invalid-input", "an observed claim needs evidence: pass --locator (and --activity)");
     const relation = (o.relation ?? (verdict === "fail" ? "challenges" : "supports")) as string;
-    if (!["supports", "challenges"].includes(relation)) return fail("invalid-input", "relation must be supports or challenges");
+    if (!["supports", "challenges"].includes(relation)) return fail("invalid-input", `invalid relation "${relation}": allowed values are supports, challenges`);
     const outcome = optStr(o.outcome, "outcome");
     const limitations = o.limitations === undefined ? [] : (Array.isArray(o.limitations) ? o.limitations.map((l: unknown) => str(l, "limitations[]")) : [str(o.limitations, "limitations")]);
     for (let attempts = 1; ; attempts++) {

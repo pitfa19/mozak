@@ -255,3 +255,11 @@ test("implementation and pending review rows sort by UTC instant across mixed pr
     assert.deepEqual(key.slice(0, 3), [row.scopeId, row.planId, row.rowKind]);
   }
 });
+
+test("attach-spec computes an omitted discussionDigest and still refuses a stale supplied one", () => {
+  let s = save(accepted(), [question("answered", [answer()])], "ready-for-spec");
+  const { discussionDigest: _omit, ...rest } = attachPayload(s);
+  assert.throws(() => mutate(s, "attach-spec", { ...rest, discussionDigest: "0".repeat(64) }, attachmentEnv));
+  const out = mutate(s, "attach-spec", rest, attachmentEnv);
+  assert.equal(plan(out).specifications.at(-1).discussionDigest, discussionDigest(plan(s).discussion));
+});
