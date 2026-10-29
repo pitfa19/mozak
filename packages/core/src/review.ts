@@ -431,10 +431,10 @@ export function outcomeStatus(state: ScopeState, plan: Plan, outcomeId: string):
   return "done";
 }
 
-/** Fields that differ between accepted and awaiting pending content, in schema key order. */
+/** Display-only changed fields, in canonical key order, with merge metadata last. */
 export function pendingChangedFields(plan: Plan): string[] {
   if (plan.pending?.reviewState !== "awaiting") return [];
-  const fields = plan.accepted ? changedKeys(plan.accepted.content, plan.pending.content) : [];
+  const fields = plan.accepted ? changedKeys(plan.accepted.content, plan.pending.content).sort() : [];
   if (plan.pending.mergeFromPlanId !== undefined) fields.push("mergeFromPlanId");
   return fields;
 }

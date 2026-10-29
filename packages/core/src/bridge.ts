@@ -173,6 +173,17 @@ export function renderBridge(state: ScopeState, graphHash: string, graphName: st
   return `---\nformat: 3\nid: ${JSON.stringify(state.scope.id)}\nkind: ${state.scope.kind}\ngraph_sha256: ${graphHash}\n---\n${body}`;
 }
 
+// Through 0.4.6, changed fields followed the input object's key order.
+// Recognise only permutations of those fixed display tokens. Counts, merge metadata,
+// all surrounding bytes and the graph hash must still match today's exact render.
+const deltaField = "(?:title|purpose|outcomes(?: [0-9]+ → [0-9]+)?|constraints|non-goals|rationale|questions|sources)";
+const unorderedDelta = new RegExp(`^(> Revision awaiting approval: changes )(${deltaField}(?:, ${deltaField})*)((?:, merges [^\\n]*)?\\. The roadmap below is the accepted version\\.)$`, "gm");
+export function isPendingOrderRender(state: ScopeState, graphHash: string, bytes: string, graphName: string = GRAPH_FILE): boolean {
+  const ordered = bytes.replace(unorderedDelta, (_line, prefix: string, fields: string, suffix: string) =>
+    prefix + fields.split(", ").sort().join(", ") + suffix);
+  return ordered === renderBridge(state, graphHash, graphName);
+}
+
 /** Exact collapsed line, shared with sidebar navigation so completed plans remain reachable. */
 export function completedPlanLine(plan: Plan): string {
   const life = plan.lifecycle;

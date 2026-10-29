@@ -27,6 +27,67 @@ const OWNER_MSG = "2026-10-12T08:00:00.000Z";
 const content = { title: "Road", purpose: "Walk", outcomes: [{ id: "first-stop", statement: "First", acceptance: "objective", criterion: "c" }], constraints: [], nonGoals: [], rationale: "r", questions: [], sources: [] };
 const sha = (p: string) => createHash("sha256").update(readFileSync(p)).digest("hex");
 
+function revisedWorld() {
+  const w = world(["alpha"]);
+  const entry = w.entries[0]!;
+  const cli = (...args: string[]) => {
+    const result = spawnSync(process.execPath, [cliPath, ...args, "--config", w.config, "--scope", entry.id, "--json"], { encoding: "utf8", timeout: 30000 });
+    return { code: result.status, data: JSON.parse(result.stdout) };
+  };
+  assert.equal(cli("review", "decide", "--plan", "road", "--purpose", "approve-direction", "--owner-ref", "synthetic:approval", "--owner-message-at", OWNER_MSG, "--reason", "Fixture direction").code, 0);
+  const read = readScope(entry);
+  const request = join(w.base, "revise.json");
+  writeFileSync(request, JSON.stringify({ operationId: "revise", scopeId: entry.id, expected: read.snapshot, action: "revise", payload: {
+    planId: "road", pendingRevisionId: null, acceptedRevisionId: read.state.plans[0]!.accepted!.id,
+    content: { title: "New road", purpose: "New walk", outcomes: [...content.outcomes, { ...content.outcomes[0], id: "second-stop" }], constraints: [{ id: "safe", text: "Stay safe" }], nonGoals: ["No detours"], rationale: "New reason", questions: [{ id: "when", text: "When?" }], sources: [{ id: "fixture", locator: "fixture://source", anchor: null, version: null, observedAt: OWNER_MSG, limitations: [] }] },
+  } }));
+  const revised = cli("plan", "revise", "--request", request);
+  assert.equal(revised.code, 0, JSON.stringify(revised.data));
+  const repair = () => {
+    const path = join(w.base, "repair.json");
+    writeFileSync(path, JSON.stringify({ requestId: "repair", scopeId: entry.id, expected: readScope(entry).snapshot }));
+    return cli("projection", "repair", "--request", path);
+  };
+  return { ...w, entry, cli, repair, md: join(entry.root, "mozak.md"), graph: join(entry.root, "mozak.json") };
+}
+
+const sortedDelta = "changes constraints, non-goals, outcomes 1 → 2, purpose, questions, rationale, sources, title.";
+const inputDelta = "changes title, purpose, outcomes 1 → 2, constraints, non-goals, rationale, questions, sources.";
+
+test("CLI: revise with input-order fields leaves a current deterministic bridge", () => {
+  const w = revisedWorld();
+  assert.equal(w.cli("context").data.projectionStatus, "current");
+  assert.ok(readFileSync(w.md, "utf8").includes(sortedDelta));
+});
+
+test("CLI: official repair recognizes old pending field order without changing review subject", () => {
+  const w = revisedWorld();
+  const graph = readFileSync(w.graph);
+  const review = () => w.cli("review", "show", "--plan", "road", "--purpose", "approve-direction").data.review;
+  const before = review();
+  writeFileSync(w.md, readFileSync(w.md, "utf8").replace(sortedDelta, inputDelta));
+  assert.equal(w.cli("context").data.projectionStatus, "bridge-stale");
+  assert.equal(w.repair().code, 0);
+  assert.ok(readFileSync(w.md, "utf8").includes(sortedDelta));
+  assert.deepEqual(readFileSync(w.graph), graph);
+  assert.deepEqual(review(), before);
+  const repaired = readFileSync(w.md);
+  assert.equal(w.repair().data.status, "already-current");
+  assert.deepEqual(readFileSync(w.md), repaired);
+});
+
+test("CLI: pending-order compatibility never repairs hand edits", () => {
+  const w = revisedWorld();
+  const original = readFileSync(w.md, "utf8").replace(sortedDelta, inputDelta);
+  const graph = readFileSync(w.graph);
+  for (const edited of [original + "\nMy note\n", original.replace("outcomes 1 → 2", "outcomes 1 → 9"), original.replace("changes title, purpose", "changes title, title"), original.replace("The roadmap below", "My roadmap below")]) {
+    writeFileSync(w.md, edited);
+    assert.equal(w.repair().code, 3);
+    assert.equal(readFileSync(w.md, "utf8"), edited);
+    assert.deepEqual(readFileSync(w.graph), graph);
+  }
+});
+
 function world(ids = ["alpha", "beta"]) {
   const base = mkdtempSync(join(scratch, "mozak-render-"));
   roots.push(base);

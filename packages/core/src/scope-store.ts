@@ -9,7 +9,7 @@ import { assertScopeFiles, type ScopeEntry } from "./scope-index.ts";
 import { isGraphPath, scopeFile, scopeFileName, GRAPH_FILE, BRIDGE_FILE, LEGACY_GRAPH_FILE, LEGACY_BRIDGE_FILE } from "./scope-files.ts";
 import { inspectSpecification } from "./spec-file.ts";
 import { DELETE_ACTION, withoutPlans } from "./delete.ts";
-import { renderBridge, renderBridgeLegacy } from "./bridge.ts";
+import { renderBridge, renderBridgeLegacy, isPendingOrderRender } from "./bridge.ts";
 import { removeLeftoverTempFiles, replaceFileDurable, writeFileDurable, fsyncDir } from "./durable.ts";
 
 export { renderBridge, renderBridgeLegacy } from "./bridge.ts";
@@ -79,7 +79,8 @@ function decode(bytes: string, entry: ScopeEntry): ScopeState {
 }
 /**
  * current: bridge bytes equal today's render. stale: they equal the bridge the last write left behind, or they
- * are a byte-exact legacy projection of this graph. Only known renderer output is safe to regenerate.
+ * are a known legacy projection of this graph (including changed-field order permutations).
+ * Only known renderer output is safe to regenerate.
  * A digest stored in the bridge itself is not proof of provenance. Other content is preserved as a conflict.
  */
 function projectStatus(state: ScopeState, graphHash: string, bridge: ReturnType<typeof file>, graphName: string): ProjectionStatus {
@@ -91,7 +92,9 @@ function projectStatus(state: ScopeState, graphHash: string, bridge: ReturnType<
 /** Only byte-exact UTF-8 can be recognised as a generated render. Lossy decoding must never look current or stale. */
 function isOlderRender(state: ScopeState, graphHash: string, bytes: string): boolean {
   const h = hashBytes(bytes);
-  return h === hashBytes(renderBridgeLegacy(state, graphHash)) || h === hashBytes(renderBridge(state, graphHash, LEGACY_GRAPH_FILE));
+  return h === hashBytes(renderBridgeLegacy(state, graphHash))
+    || isPendingOrderRender(state, graphHash, bytes)
+    || isPendingOrderRender(state, graphHash, bytes, LEGACY_GRAPH_FILE);
 }
 /** True when the bridge is an unedited older render of this state. A write may replace it like a current one. */
 function isLegacyBridge(entry: ScopeEntry, read: ScopeRead): boolean {

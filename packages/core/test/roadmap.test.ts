@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { applyMutation, reviewShow } from "../src/review.ts";
 import { planRoadmap } from "../src/roadmap.ts";
-import { renderBridge, renderBridgeLegacy, completedPlanLine, mdText, stopLabel, planHeading } from "../src/bridge.ts";
+import { renderBridge, renderBridgeLegacy, isPendingOrderRender, completedPlanLine, mdText, stopLabel, planHeading } from "../src/bridge.ts";
 
 // Pure-state fixtures, same shapes as review.test.ts. No IO.
 const NOW = "2026-10-12T09:00:00.000Z";
@@ -165,9 +165,43 @@ test("bridge: a pending revision is one delta line, never a second roadmap", () 
   let s = accepted([outcome("a")]);
   s = apply(s, "revise", { planId: "p1", pendingRevisionId: null, acceptedRevisionId: rev(s), content: { ...content([outcome("a"), outcome("b"), outcome("c")]), nonGoals: ["Fly", "Swim"] } });
   const md = renderBridge(s, HASH);
-  assert.match(md, /\n> Revision awaiting approval: changes (outcomes 1 → 3, non-goals|non-goals, outcomes 1 → 3)\. The roadmap below is the accepted version\.\n/);
+  assert.match(md, /\n> Revision awaiting approval: changes non-goals, outcomes 1 → 3\. The roadmap below is the accepted version\.\n/);
   assert.equal(md.split("### Roadmap").length - 1, 1);
   assert.ok(!md.includes("Statement for c"));
+});
+
+test("bridge: pending order compatibility keeps merge metadata and every other byte exact", () => {
+  let s = accepted([outcome("a")]);
+  s = apply(s, "propose", { planId: "source, title", content: content([outcome("z")], "Other work"), distinctFromPlanIds: ["p1"] });
+  s = apply(s, "revise", { planId: "p1", pendingRevisionId: null, acceptedRevisionId: rev(s), mergeFromPlanId: "source, title", content: { ...content([outcome("b")], "New road"), purpose: "New purpose" } });
+  const stateBefore = JSON.stringify(s);
+  const reviewBefore = reviewShow(s, "p1", "approve-direction");
+  for (const graphName of ["mozak.json", "MOZAK.json"]) {
+    const md = renderBridge(s, HASH, graphName);
+    const old = md.replace("changes outcomes, purpose, title, merges", "changes title, outcomes, purpose, merges");
+    assert.notEqual(old, md);
+    assert.ok(isPendingOrderRender(s, HASH, old, graphName));
+    for (const bad of [old.replace("merges source, title", "merges title, source"), old.replace("changes title, outcomes, purpose", "changes title, outcomes"), old.replace(HASH, "b".repeat(64)), old.replace("changes title", "changes  title"), old + "\n", old.replaceAll("\n", "\r\n")]) {
+      assert.equal(isPendingOrderRender(s, HASH, bad, graphName), false);
+    }
+  }
+  assert.equal(JSON.stringify(s), stateBefore);
+  assert.deepEqual(reviewShow(s, "p1", "approve-direction"), reviewBefore);
+});
+
+test("bridge: changed-field permutations and JSON round trips render identically", () => {
+  let s = accepted([outcome("a")]);
+  s = apply(s, "revise", { planId: "p1", pendingRevisionId: null, acceptedRevisionId: rev(s), content: { ...content([outcome("b")], "New road"), purpose: "New purpose", nonGoals: ["No detours"] } });
+  const md = renderBridge(s, HASH);
+  const fields = ["non-goals", "outcomes", "purpose", "title"];
+  for (let start = 0; start < fields.length; start++) {
+    const order = [...fields.slice(start), ...fields.slice(0, start)].reverse();
+    assert.ok(isPendingOrderRender(s, HASH, md.replace(fields.join(", "), order.join(", "))));
+  }
+  const reversed = structuredClone(s);
+  reversed.plans[0].pending.content = Object.fromEntries(Object.entries(reversed.plans[0].pending.content).reverse());
+  assert.equal(renderBridge(reversed, HASH), md);
+  assert.equal(renderBridge(JSON.parse(JSON.stringify(reversed)), HASH), md);
 });
 
 test("bridge: rejected plans are not rendered", () => {

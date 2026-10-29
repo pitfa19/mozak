@@ -6,6 +6,7 @@ This guide covers building mozak from source, the portable installer, exit codes
 
 | Area | Status |
 | --- | --- |
+| Pending-revision summary order and safe projection recovery | Verified 2026-10-29 on macOS, Node 26.11.1: build passed, all 495 tests passed, installer suite 73 passed and 1 skipped (case-sensitive filesystem required). Three built-CLI regressions and two core tests cover deterministic field order, official repair, unchanged canonical bytes and review subject, repeat repair, legacy filenames, merge metadata, and refusal of other edits. Test-first: CLI revision initially exited 5 with its own `bridge-conflict`; after sorting, recovery still failed `bridge-conflict` versus `bridge-stale` until the recogniser was added. With focused Node coverage, crapper scored the new recogniser 1.0, `pendingChangedFields` 8.1, `isOlderRender` 3.0 and `projectStatus` 7.1; unrelated existing functions still exceed 10. Dryer found no duplicate candidates at 0.8 across the three changed source files. Mutator killed all three selected recogniser mutants (not a whole-repo mutation run). Existing plugin CJS `import.meta` warnings remain. No live scope or installation was changed. |
 | Fresh public GitHub clone, build, install and README walkthrough on macOS, Node 26.11.1 | Verified 2026-10-18 at `8337e04`: clean `git clone`, `npm ci --ignore-scripts`, build and install into a fresh prefix with an isolated `HOME` took about 8 seconds. Every README command then ran as written (section 8). |
 | Full test suite on macOS, Node 26.11.1 | Verified 2026-10-28 at `eb99673` plus the 0.4.6 version bump: 490 tests passed, 0 failed. Installer suite 73 passed, 1 skipped (case-collision test needs a case-sensitive filesystem). `npm run build:npm` built a package reporting 0.4.6. |
 | Source build and tests on Linux, Node 24.11.0 | Verified earlier at `c324d45`: 334 core tests and 69 installer tests passed. CI covers Linux on every push since. |
@@ -236,6 +237,8 @@ There is no online force-unlock command.
 ### Projection repair
 
 If a write saved the JSON but not the generated `mozak.md` bridge, the result says so (exit 5). Later semantic writes wait until you run an explicit `projection repair`. `check` never repairs anything.
+
+Versions through 0.4.6 could also produce a conflict themselves after revising several fields: the pending-summary field list followed request key order, while the saved JSON used sorted keys. New renders sort that display list. Repair recognises an old list only when reordering its known field labels makes the entire file exactly match the current render of the same graph. Outcome counts, merge metadata, graph hash and every other byte must match. Other hand edits remain conflicts and are preserved. Repair changes only `mozak.md`, not plan content, approval subjects or review digests, and a repeat reports `already-current`.
 
 ## 6. Safety rules
 
