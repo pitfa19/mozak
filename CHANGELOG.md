@@ -4,6 +4,15 @@ User-visible changes, newest first. Releases are git tags `vX.Y.Z` on `main`; `m
 
 ## Unreleased
 
+## 0.4.7 (2026-10-29)
+
+### Changed
+- `mozak spec attach`: `discussionDigest` is optional. When omitted, Core computes it from the plan's current discussion. A supplied digest is still validated, and a stale one is still refused. The skill's payload reference says so and points to `context --plan PLAN --json`.
+- `mozak observe`: an invalid `--activity-kind`, `--relation`, `--classification` or `--verdict` error names the value and lists the allowed values.
+
+### Fixed
+- Pending summaries list changed fields in a deterministic order, and repair recognises the older field order (see docs/installation.md).
+
 ## 0.4.6 (2026-10-28)
 
 ### Internal
