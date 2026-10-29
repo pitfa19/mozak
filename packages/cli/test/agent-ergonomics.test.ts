@@ -208,3 +208,19 @@ test("observe --payload takes an examples/observe.json shaped file, builds the e
   const mixed = w.cli("observe", "--scope", "fx", "--payload", file, "--plan", "alpha");
   assert.equal(mixed.code, 2);
 });
+
+test("observe flag errors for an invalid kind list the allowed values", () => {
+  const w = fixture();
+  const cases: [string, string, RegExp][] = [
+    ["--activity-kind", "walk", /allowed values are read, run/],
+    ["--relation", "maybe", /allowed values are supports, challenges/],
+    ["--classification", "guess", /allowed values are observed, inferred, unverified/],
+    ["--verdict", "meh", /allowed values are pass, fail, not-assessed/],
+  ];
+  for (const [flag, value, re] of cases) {
+    const r = w.cli("observe", "--scope", "fx", "--plan", "alpha", "--summary", "x", "--locator", "fixture://a", flag, value, "--json");
+    assert.notEqual(r.code, 0);
+    assert.match(r.out + r.err, re);
+    assert.match(r.out + r.err, new RegExp(value));
+  }
+});

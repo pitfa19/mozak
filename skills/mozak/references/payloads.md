@@ -14,7 +14,7 @@ node {{MOZAK_CLI}} <route> --config INVENTORY --scope ID --request <printed path
 | propose | `mozak plan propose` | planId, content (+ optional distinctFromPlanIds) | `examples/propose.json` |
 | revise | `mozak plan revise` | planId, pendingRevisionId, acceptedRevisionId, content (+ optional mergeFromPlanId) | content as in propose |
 | save-discussion | `mozak discussion save` | planId, acceptedRevisionId (or null), pendingRevisionId (or null), summary, stage (clarifying \| ready-for-spec), questions[{id (null for new), text, status (open \| answered \| deferred), answers[{summary, basis (owner \| inspection), ownerRef, ownerMessageAt, evidence[]}], reopenReason}] | `examples/save-discussion.json` |
-| attach-spec | `mozak spec attach` | planId, acceptedRevisionId, path, bounds{summary, limitations, allowedPaths, outcomeChecks[{outcomeId, criterion}] for every outcome, excludedActions}, discussionDigest | `examples/attach-spec.json` |
+| attach-spec | `mozak spec attach` | planId, acceptedRevisionId, path, bounds{summary, limitations, allowedPaths, outcomeChecks[{outcomeId, criterion}] for every outcome, excludedActions}, discussionDigest (optional: computed from the current discussion when omitted) | `examples/attach-spec.json` |
 | complete | `mozak plan complete` | planId, revisionId (+ optional limitations) | |
 | observe (rare: several evidence items) | `mozak observe --request` | planId, observation (+ optional reasoningLinks) | `examples/observe.json` |
 
@@ -24,7 +24,7 @@ node {{MOZAK_CLI}} <route> --config INVENTORY --scope ID --request <printed path
 - The two revision IDs must match the plan right now (`plan show --json`), else `stale-reference`. After a revise, the pending ID changes.
 - Resend every saved question each time, with the ID Core returned. Answers are append-only: keep earlier ones byte for byte.
 - `owner` answers need `ownerRef` and a UTC `ownerMessageAt`. `inspection` answers need evidence (same shape as observe evidence) and null owner fields.
-- `ready-for-spec` is refused while any question is `open`. `attach-spec` then needs the discussion's `discussionDigest` from `context --plan PLAN`.
+- `ready-for-spec` is refused while any question is `open`. `attach-spec` then binds the discussion's `discussionDigest`. It is optional: when omitted, Core computes it from the plan's current discussion. `context --plan PLAN --json` shows it. A supplied digest that is stale is still refused.
 - A discussion is advisory. It never approves anything.
 
 ### What `executionEligible` means

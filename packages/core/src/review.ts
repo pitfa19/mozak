@@ -137,7 +137,7 @@ const PURPOSES = new Set<string>([...OWNER_ACTIONS]);
 
 const SHAPES: Record<MutationAction, { required: string[]; optional: string[] }> = {
   "save-discussion": { required: ["planId", "acceptedRevisionId", "pendingRevisionId", "summary", "stage", "questions"], optional: [] },
-  "attach-spec": { required: ["planId", "acceptedRevisionId", "path", "bounds", "discussionDigest"], optional: [] },
+  "attach-spec": { required: ["planId", "acceptedRevisionId", "path", "bounds"], optional: ["discussionDigest"] },
   "approve-implementation": { required: [...DECISION_FIELDS, "specificationId"], optional: [] },
   "revoke-implementation": { required: [...DECISION_FIELDS, "authorizationId"], optional: [] },
   propose: { required: ["planId", "content"], optional: ["distinctFromPlanIds"] },
@@ -260,7 +260,7 @@ export function validateMutation(action: unknown, payload: unknown, actor: unkno
       return;
     case "attach-spec":
       nonEmpty(p.planId, "planId"); nonEmpty(p.acceptedRevisionId, "acceptedRevisionId"); nonEmpty(p.path, "path");
-      if (p.discussionDigest !== null && !isDigest(p.discussionDigest)) throw invalid("invalid discussionDigest");
+      if (p.discussionDigest !== undefined && p.discussionDigest !== null && !isDigest(p.discussionDigest)) throw invalid("invalid discussionDigest");
       try { validateBounds(p.bounds); } catch (e) { throw invalid((e as Error).message); }
       return;
     case "propose":
@@ -815,6 +815,8 @@ export function applyMutation(
         file.byteLength !== Buffer.byteLength(file.content) || createHash("sha256").update(file.content).digest("hex") !== file.sha256) throw invalid("attach-spec requires trusted inspected specification bytes");
       const bounds = validateBounds(p.bounds);
       if (accepted.content.outcomes.some(o => !bounds.outcomeChecks.some(c => c.outcomeId === o.id)) || bounds.outcomeChecks.some(c => !accepted.content.outcomes.some(o => o.id === c.outcomeId))) throw invalid("bounds must cover exactly the accepted outcomes");
+      // Omitted digest: compute it from the plan's current discussion (null when there is none).
+      if (p.discussionDigest === undefined) p.discussionDigest = plan.discussion ? discussionDigest(plan.discussion) : null;
       if (plan.discussion) {
         if (!discussionCurrent(plan) || plan.discussion.stage !== "ready-for-spec" || p.discussionDigest !== discussionDigest(plan.discussion)) throw stale("attachment requires current ready-for-spec discussion digest");
         if (plan.discussion.questions.some(q => q.status === "deferred") && bounds.limitations.length === 0) throw invalid("deferred questions require explicit specification limitations");
