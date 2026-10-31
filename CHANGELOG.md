@@ -4,6 +4,9 @@ User-visible changes, newest first. Releases are git tags `vX.Y.Z` on `main`; `m
 
 ## Unreleased
 
+### Fixed
+- A late supporting observation no longer drops an owner-accepted outcome from `done` to `evidence` in the roadmap, `mozak.md` and `needs` checks. Only a new challenge reopens it. `plan complete` still needs an owner acceptance bound to the exact current evidence.
+
 ## 0.4.7 (2026-10-29)
 
 ### Changed

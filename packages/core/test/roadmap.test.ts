@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { applyMutation, reviewShow } from "../src/review.ts";
+import { applyMutation, outcomeStatus, reviewShow } from "../src/review.ts";
 import { planRoadmap } from "../src/roadmap.ts";
 import { renderBridge, renderBridgeLegacy, isPendingOrderRender, completedPlanLine, mdText, stopLabel, planHeading } from "../src/bridge.ts";
 
@@ -75,6 +75,62 @@ test("roadmap: a challenge on an objective outcome needs owner acceptance again"
   s = support(s, "a", "o1");
   s = support(s, "a", "ch1", "p1", "challenges");
   assert.deepEqual(statuses(s), ["a:evidence*"]);
+});
+
+test("S1c: a late supporting observation keeps an owner-accepted outcome done", () => {
+  let s = accepted([outcome("a", "owner"), outcome("b")]);
+  s = support(s, "a", "o1");
+  s = acceptOutcome(s, "a");
+  assert.deepEqual(statuses(s), ["a:done", "b:todo*"]);
+  s = support(s, "a", "late");
+  assert.deepEqual(statuses(s), ["a:done", "b:todo*"]);
+});
+
+test("S1c: a new challenge reopens an owner-accepted outcome", () => {
+  let s = accepted([outcome("a", "owner")]);
+  s = support(s, "a", "o1");
+  s = acceptOutcome(s, "a");
+  s = support(s, "a", "late");
+  s = support(s, "a", "ch1", "p1", "challenges");
+  assert.deepEqual(statuses(s), ["a:evidence*"]);
+  s = acceptOutcome(s, "a");
+  assert.deepEqual(statuses(s), ["a:done"]);
+  s = support(s, "a", "late2");
+  assert.deepEqual(statuses(s), ["a:done"]);
+  s = support(s, "a", "ch2", "p1", "challenges");
+  assert.deepEqual(statuses(s), ["a:evidence*"]);
+});
+
+test("S1c: an accepted challenged objective outcome stays done after late support", () => {
+  let s = accepted([outcome("a")]);
+  s = support(s, "a", "o1");
+  s = support(s, "a", "ch1", "p1", "challenges");
+  assert.deepEqual(statuses(s), ["a:evidence*"]);
+  s = acceptOutcome(s, "a");
+  s = support(s, "a", "late");
+  assert.deepEqual(statuses(s), ["a:done"]);
+});
+
+test("S1c: complete still needs an owner acceptance bound to the exact current evidence", () => {
+  let s = accepted([outcome("a", "owner")]);
+  s = support(s, "a", "o1");
+  s = acceptOutcome(s, "a");
+  s = support(s, "a", "late");
+  assert.deepEqual(statuses(s), ["a:done"]);
+  assert.throws(() => apply(s, "complete", { planId: "p1", revisionId: rev(s) }), { code: "owner-review-required" });
+  s = acceptOutcome(s, "a");
+  s = apply(s, "complete", { planId: "p1", revisionId: rev(s) });
+  assert.equal(plan(s).lifecycle.state, "completed");
+});
+
+test("S1c: an outcome id the accepted revision lacks, or a plan with no accepted revision, is todo", () => {
+  let s = accepted([outcome("a", "owner")]);
+  s = support(s, "a", "o1");
+  s = acceptOutcome(s, "a");
+  assert.equal(outcomeStatus(s, plan(s), "a"), "done");
+  assert.equal(outcomeStatus(s, plan(s), "missing"), "todo");
+  const proposed = apply(emptyState(), "propose", { planId: "p1", content: content([outcome("a")]) });
+  assert.equal(outcomeStatus(proposed, plan(proposed), "a"), "todo");
 });
 
 test("roadmap: current is the first not-done stop even when later stops are done", () => {

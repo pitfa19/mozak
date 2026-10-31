@@ -18,11 +18,12 @@ interface Roadmap { stops: RoadmapStop[]; done: number; total: number }
 function planRoadmap(state: ScopeState, plan: Plan): Roadmap | null  // null when the plan has no accepted revision
 ```
 
-Rules (they reuse `outcomeReview` and `boundDecision` from `review.ts`, the same checks `plan complete` runs, so the roadmap can never disagree with completion):
+Rules (they reuse `outcomeReview` and `boundDecision` from `review.ts`, the checks `plan complete` runs):
 
 - `todo`: `outcomeReview(...).evidenceIds` is empty.
-- `evidence`: evidence exists, but the outcome still needs a bound owner acceptance (`acceptance === "owner"` or open challenges, and no `boundDecision`).
-- `done`: evidence exists and either the outcome is `objective` with no challenges, or a bound owner decision exists.
+- `evidence`: evidence exists, but the outcome still needs an owner acceptance (`acceptance === "owner"` or open challenges, and no owner acceptance that saw every open challenge).
+- `done`: evidence exists and either the outcome is `objective` with no challenges, or an owner `accept-outcome` decision on this accepted revision saw every open challenge. A later supporting observation keeps the outcome `done`. Only a new challenge reopens it.
+- `plan complete` is stricter than the roadmap: after a late supporting observation it still needs an owner acceptance bound to the exact current evidence (`boundDecision`). The outcome then also shows an awaiting review entry.
 - Completed plans: every stop is `done`.
 - `current`: the first stop in array order whose status is not `done`. If every stop is done, no stop is current.
 - The function is pure. It reads state and never writes anything.
