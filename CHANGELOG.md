@@ -4,11 +4,24 @@ User-visible changes, newest first. Releases are git tags `vX.Y.Z` on `main`; `m
 
 ## Unreleased
 
+## 0.4.8 (not yet tagged)
+
 ### Fixed
+- `propose` refuses an exact copy of a non-completed plan as `duplicate-plan-candidate` even when the plan ids carry different numbers. Before, such a copy was let through.
+- A merge whose combined discussion would exceed 32 questions is refused as `merge-capacity` at propose and at approval. Before, the extra questions were silently cut.
+- Writes hash `mozak.json` and `mozak.md` again right before each rename and stop with `graph-changed-during-write` when another editor changed them, keeping that edit. This covers `plan delete` too. It narrows the race with editors that ignore the write lock, it does not close it.
+- `init` and projection repair add ignore lines for the write lock and temp files, and `check` reports `lock-not-ignored` and `lock-in-git`.
 - A late supporting observation no longer drops an owner-accepted outcome from `done` to `evidence` in the roadmap, `mozak.md` and `needs` checks. Only a new challenge reopens it. `plan complete` still needs an owner acceptance bound to the exact current evidence.
+- The Obsidian plugin opens plans inside a vault that was opened through a symlink.
+- The test suite passes with the default macOS `TMPDIR` and with `TMPDIR=/tmp` (scratch paths behind a symlink).
 
 ### Changed
+- An inventory may carry a reserved `x` object at the top or in a scope entry. This client ignores it and `check` reports `inventory-x-ignored`, so a future setting does not break older clients.
 - A failed MCP tool call now starts with a one-line `reason` and the `issues`, before the rest of the result. A failed `observe` echoes its `unsavedRequest` last, in the CLI JSON too. Hosts that cut long tool output still show why the call failed.
+
+### Docs
+- README: new "Reads and the network" section on what reads of a repo-mode GitHub scope may fetch, cache and push, and the background release check.
+- The installed skill no longer names one host's scheduler, and its examples say "the owner".
 
 ## 0.4.7 (2026-10-29)
 
