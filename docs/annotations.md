@@ -46,14 +46,14 @@ Temp files are named `mozak.annotations.json.<uuid>.tmp`. `init` and `projection
 
 ```json
 { "format": "mozak.settings/v1",
-  "annotations": { "personalVaults": ["../obsidian"] },
   "concurrency": { "rebase": false },
-  "scopes": { "anpit": { "annotations": false, "concurrency": { "rebase": true } } } }
+  "scopes": { "research": { "annotations": true }, "anpit": { "concurrency": { "rebase": true } } } }
 ```
 
-- Repo-mode remote scopes are always refused. Their plans are pushed to a repository.
-- A per-scope `annotations` value wins.
-- Otherwise annotations are on for local and vault-plans scopes. When `annotations.personalVaults` is set, the default is on only for scope roots inside those folders.
+- Annotations are **off by default** (since 0.5.0). A scope without `"annotations": true` behaves like 0.4.7: `mozak.annotations.json` is never read, `graph`, `ready`, `plans --sort deadline`, `check` and the Obsidian sidebar ignore it, `mozak.md` does not change, and `annotate` is refused with `annotations-disabled`.
+- Turn them on per scope with `scopes.<id>.annotations: true`.
+- Repo-mode remote scopes are always refused. Their plans are pushed to a repository. `check` warns about a sidecar file found in one.
+- `annotations.personalVaults` from older settings files is accepted and has no effect.
 - `concurrency.rebase` turns on the experimental read-set rebase (see `docs/installation.md`, Parallel writes). A per-scope `scopes.<id>.concurrency.rebase` wins over the top-level value. The default is off.
 - The key reserved for a later slice (`indexRoots`) is accepted. Any other key is a `settings-unknown-key` finding with no effect.
 - A wrong value type or a missing `format` makes the file invalid. `annotate` then refuses with `settings-invalid`, `check` reports it, and rebase stays off.

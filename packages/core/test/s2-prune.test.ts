@@ -12,7 +12,7 @@ import { executeOperation } from "../src/api.ts";
 after(cleanup);
 
 function setup() {
-  const w = world(["alpha", "beta"]);
+  const w = world(["alpha", "beta"], { annotations: true });
   w.propose("alpha", "keep");
   w.propose("alpha", "dropped", {}, false);
   w.reject("alpha", "dropped");

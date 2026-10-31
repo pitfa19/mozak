@@ -31,16 +31,16 @@ import { cachedUpdateNotice, installedVersion, npmInstall, refreshUpdateCacheIfS
 import { canonical, digest } from "./understanding.ts";
 import { decideWarnings, reviseWarnings, tracePlan } from "./assist.ts";
 import { annotateScope } from "./scope-store.ts";
-import { readAnnotations, type AnnotationsDoc } from "./annotations.ts";
+import { ANNOTATIONS_FILE, readAnnotations, type AnnotationsDoc, type AnnotationsRead } from "./annotations.ts";
 import { annotationFindings, graphView, readyView, type Universe } from "./crossplan.ts";
 import { effectiveDeadline, planDeadline, today } from "./deadlines.ts";
-import { annotationsMode, ignoredScopeSettingsFile, loadSettings, rebaseEnabled, SETTINGS_FILE, usageLogSetting } from "./settings.ts";
+import { annotationsEnabled, annotationsMode, ignoredScopeSettingsFile, loadSettings, rebaseEnabled, SETTINGS_FILE, usageLogSetting } from "./settings.ts";
 import type { ScopeState } from "./understanding.ts";
 import { inspectLock, recoverLock } from "./lock-recover.ts";
 import { handEditHistory, MAX_HISTORY } from "./history.ts";
 import { LOCAL_SYNC_OK, localEntries, syncLocal, type LocalSyncRow } from "./local-sync.ts";
 import { appendUsage, usageLine, usageLogEnabled } from "./usage.ts";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
 import { citedNoteChanges, LocatorResolver, planCitations } from "./locators.ts";
 import { similarReport } from "./similar.ts";
 import { plansIndex } from "./plans-index.ts";
@@ -418,11 +418,18 @@ function entryOf(inv: ScopeInventory, id: string): ScopeEntry | undefined {
   return inv.scopes.find((s) => s.id === id);
 }
 
+const NO_SIDECAR: AnnotationsRead = { token: { exists: false, sha256: null }, doc: null, issues: [] };
+
+/** The sidecar of a scope, read only when annotations are on for it. Off (the default) reads as absent, like 0.4.7. */
+function sidecarOf(inv: ScopeInventory, entry: ScopeEntry, scopeId?: string): AnnotationsRead {
+  return annotationsEnabled(inv, entry) ? readAnnotations(entry.root, scopeId) : NO_SIDECAR;
+}
+
 /** Sidecar token of one scope, for continuation bindings. */
 function annotationsToken(inv: ScopeInventory, id: string): unknown {
   const entry = entryOf(inv, id);
   if (!entry) return null;
-  try { return readAnnotations(entry.root).token; } catch { return "unreadable"; }
+  try { return sidecarOf(inv, entry).token; } catch { return "unreadable"; }
 }
 
 /**
@@ -447,7 +454,7 @@ function universeOf(inv: ScopeInventory, seed: Record<string, ScopeState> = {}):
       if (!docs.has(id)) {
         const entry = entryOf(inv, id);
         let doc: AnnotationsDoc | null = null;
-        if (entry) { try { doc = readAnnotations(entry.root, id).doc; } catch { doc = null; } }
+        if (entry) { try { doc = sidecarOf(inv, entry, id).doc; } catch { doc = null; } }
         docs.set(id, doc);
       }
       return docs.get(id)!;
@@ -497,7 +504,7 @@ function crossPlanOp(inv: ScopeInventory, operation: "graph" | "ready", a: Recor
       if (!all) single = read;
       coverage.push({ scope: id, status: "ok", revision: read.snapshot.revision, graphHash: read.snapshot.graphHash });
       const entry = entryOf(inv, id)!;
-      const side = readAnnotations(entry.root, id);
+      const side = sidecarOf(inv, entry, id);
       tokens[id] = side.token;
       for (const issue of side.issues) issues.push({ ...issue, scope: id });
     } catch (err) {
@@ -531,7 +538,7 @@ function crossPlanOp(inv: ScopeInventory, operation: "graph" | "ready", a: Recor
 /** Annotation and settings findings for check. Empty when the scope has no sidecar and settings are clean. */
 function annotationCheck(inv: ScopeInventory, entry: ScopeEntry, read: ScopeRead): { code: string; message: string }[] {
   const out: { code: string; message: string }[] = [];
-  const side = readAnnotations(entry.root, entry.id);
+  const side = sidecarOf(inv, entry, entry.id);
   out.push(...side.issues);
   if (ignoredScopeSettingsFile(inv, entry)) {
     out.push({ code: "settings-scope-file-deprecated", message: `${SETTINGS_FILE} in the scope folder is ignored. Put concurrency.rebase under scopes.${entry.id}.concurrency in the ${SETTINGS_FILE} next to the inventory file` });
@@ -539,7 +546,8 @@ function annotationCheck(inv: ScopeInventory, entry: ScopeEntry, read: ScopeRead
   try {
     const settings = loadSettings(inv);
     out.push(...settings.issues);
-    if (side.token.exists && annotationsMode(settings, entry).source === "repo-mode") {
+    // A sidecar in a repo-mode scope is pushed with the plans. Warn about the file even though it is never read.
+    if (annotationsMode(settings, entry).source === "repo-mode" && existsSync(join(entry.root, ANNOTATIONS_FILE))) {
       out.push({ code: "annotations-on-remote", message: "mozak.annotations.json exists in a repo-mode remote scope; annotate refuses these scopes, and the file is ignored by owner routes" });
     }
   } catch (err) {
@@ -557,7 +565,7 @@ function annotateOp(inv: ScopeInventory, a: Record<string, unknown>, actor: Acto
   const entry = resolveScope(inv, nonEmpty(o.scope, "scope"));
   const mode = annotationsMode(loadSettings(inv), entry);
   if (mode.source === "repo-mode") throw new DomainError("annotations-refused-remote", "annotations are refused on repo-mode remote scopes: their plans are committed and pushed to a repository", 2);
-  if (!mode.enabled) throw new DomainError("annotations-disabled", `annotations are off for scope "${entry.id}" in mozak-settings.json`, 2);
+  if (!mode.enabled) throw new DomainError("annotations-disabled", `annotations are off for scope "${entry.id}"; the owner turns them on with "scopes": { "${entry.id}": { "annotations": true } } in the mozak-settings.json next to the inventory`, 2);
   const result = annotateScope(entry, o.request, universeOf(inv).state);
   const lockOrCleanup = result.status.startsWith("committed-") || result.status === "projection-updated-lock-held";
   const exitCode = lockOrCleanup ? 5 : result.status === "ok" || result.status === "replayed" ? 0 : 3;

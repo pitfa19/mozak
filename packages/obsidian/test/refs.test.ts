@@ -8,7 +8,7 @@ import { cleanup, world } from "../../core/test/annotations-fixture.ts";
 after(cleanup);
 
 test("plugin model shows outgoing and incoming owner refs, including across scopes and dangling targets", () => {
-  const w = world(["alpha", "beta"]);
+  const w = world(["alpha", "beta"], { annotations: true });
   w.propose("alpha", "a", { title: "Synthetic alpha A" });
   w.propose("alpha", "b", { title: "Synthetic alpha B" });
   w.propose("beta", "c", { title: "Synthetic beta C" });

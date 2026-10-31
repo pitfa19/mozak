@@ -27,7 +27,7 @@ export const content = (id: string, spec: PlanSpec = {}) => ({
   title: spec.title ?? `Synthetic ${id} work`,
 });
 
-export function world(scopeIds: string[] = ["alpha"], options: { git?: boolean; settings?: unknown } = {}) {
+export function world(scopeIds: string[] = ["alpha"], options: { git?: boolean; settings?: Record<string, unknown>; annotations?: boolean } = {}) {
   const base = mkdtempSync(join(process.env.JCODE_SCRATCH_DIR ?? process.env.TMPDIR ?? tmpdir(), "mozak-annot-"));
   roots.push(base);
   const entries: Record<string, { id: string; root: string }> = {};
@@ -42,7 +42,10 @@ export function world(scopeIds: string[] = ["alpha"], options: { git?: boolean; 
   }
   const config = join(base, "inventory.json");
   writeFileSync(config, JSON.stringify({ format: "mozak.local/v3", scopes: scopeIds.map((id) => ({ id, root: entries[id].root })) }));
-  if (options.settings !== undefined) writeFileSync(join(base, "mozak-settings.json"), JSON.stringify(options.settings));
+  // annotations: true turns owner annotations on for every scope of this world (they are off by default).
+  const enable = options.annotations ? { format: "mozak.settings/v1", scopes: Object.fromEntries(scopeIds.map((id) => [id, { annotations: true }])) } : undefined;
+  const settings = enable && options.settings ? { ...options.settings, scopes: { ...enable.scopes, ...(options.settings.scopes as object ?? {}) } } : options.settings ?? enable;
+  if (settings !== undefined) writeFileSync(join(base, "mozak-settings.json"), JSON.stringify(settings));
   let seq = 0;
   const inv = () => loadInventory(config);
   const change = (scope: string, action: string, payload: unknown, actor: "agent" | "owner" = "agent") =>

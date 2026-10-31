@@ -2,10 +2,10 @@
 // (0.4.0 clients must keep loading it), so new switches live here. A 0.4.0 client never reads this file.
 //
 // { "format": "mozak.settings/v1",
-//   "annotations": { "personalVaults": ["../obsidian"] },
+//   "annotations": { "personalVaults": ["../obsidian"] },   (accepted, no effect since 0.5.0)
 //   "concurrency": { "rebase": false },
 //   "indexRoots": [ { "path": "../vault/personal", "private": true }, { "path": "../vault/research" } ],
-//   "scopes": { "anpit": { "annotations": false, "concurrency": { "rebase": true } } },
+//   "scopes": { "anpit": { "annotations": true, "concurrency": { "rebase": true } } },
 //   "usageLog": false }
 //
 // One file per installation, never inside a scope folder: a scope folder can be a public repo.
@@ -14,7 +14,7 @@
 // settings-unknown-key and has no effect.
 
 import { existsSync, readFileSync } from "node:fs";
-import { dirname, join, resolve, sep } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { DomainError } from "./errors.ts";
 import { realOrSelf } from "./paths.ts";
 import type { ScopeEntry, ScopeInventory } from "./scope-index.ts";
@@ -138,21 +138,23 @@ export function ignoredScopeSettingsFile(inv: ScopeInventory, entry: ScopeEntry)
   return local;
 }
 
-export type AnnotationsMode = { enabled: true; source: "setting" | "default" } | { enabled: false; source: "setting" | "default" | "repo-mode" };
+export type AnnotationsMode = { enabled: true; source: "setting" } | { enabled: false; source: "setting" | "default" | "repo-mode" };
 
 /**
- * Whether the owner may annotate a scope. Repo-mode remote scopes are always refused: their plans are committed and
- * pushed to a repository, which may be public. Otherwise an explicit per-scope setting wins. The default is on for
- * local and vault-plans scopes, narrowed to roots inside `annotations.personalVaults` when that list is set.
+ * Whether owner annotations are on for a scope. Off by default (0.5.0): a scope without `scopes.<id>.annotations: true`
+ * behaves like 0.4.7, its sidecar is never read and `annotate` is refused. Repo-mode remote scopes are always refused:
+ * their plans are committed and pushed to a repository, which may be public. `annotations.personalVaults` is still
+ * accepted for older settings files and has no effect.
  */
 export function annotationsMode(settings: Settings, entry: ScopeEntry): AnnotationsMode {
   if (entry.remote && entry.remote.plansMode === "repo") return { enabled: false, source: "repo-mode" };
   const explicit = settings.scopes[entry.id]?.annotations;
-  if (explicit !== undefined) return explicit ? { enabled: true, source: "setting" } : { enabled: false, source: "setting" };
-  if (settings.personalVaults) {
-    const root = realOrSelf(entry.root);
-    const inside = settings.personalVaults.map(realOrSelf).some((v) => root === v || root.startsWith(v.endsWith(sep) ? v : v + sep));
-    return inside ? { enabled: true, source: "default" } : { enabled: false, source: "default" };
-  }
-  return { enabled: true, source: "default" };
+  if (explicit === true) return { enabled: true, source: "setting" };
+  return { enabled: false, source: explicit === false ? "setting" : "default" };
+}
+
+/** annotationsMode for one scope of an inventory. An unreadable or invalid settings file keeps annotations off. */
+export function annotationsEnabled(inv: ScopeInventory, entry: ScopeEntry): boolean {
+  try { return annotationsMode(loadSettings(inv), entry).enabled; }
+  catch (e) { if (e instanceof DomainError) return false; throw e; }
 }

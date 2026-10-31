@@ -16,7 +16,7 @@ const ref = (planId: string, target: string, relation = "needs", extra: Record<s
 type Issue = { code: string; message: string };
 
 test("annotate writes only the sidecar: mozak.json and mozak.md stay byte-identical and the graph snapshot is unchanged", () => {
-  const w = world();
+  const w = world(["alpha"], { annotations: true });
   w.propose("alpha", "a"); w.propose("alpha", "b");
   const before = w.bytes("alpha");
   const snapshot = readScope(w.entries.alpha).snapshot;
@@ -35,7 +35,7 @@ test("annotate writes only the sidecar: mozak.json and mozak.md stay byte-identi
 });
 
 test("an agent snapshot taken before an annotation still writes: annotations never make agents stale", () => {
-  const w = world();
+  const w = world(["alpha"], { annotations: true });
   w.propose("alpha", "a"); w.propose("alpha", "b");
   const snapshot = readScope(w.entries.alpha).snapshot;
   assert.equal(w.annotate("alpha", [ref("a", "alpha/b")]).exitCode, 0);
@@ -44,7 +44,7 @@ test("an agent snapshot taken before an annotation still writes: annotations nev
 });
 
 test("annotate CAS: a stale sidecar token is refused with nothing written; replay returns the receipt; reuse with other input conflicts", () => {
-  const w = world();
+  const w = world(["alpha"], { annotations: true });
   w.propose("alpha", "a"); w.propose("alpha", "b"); w.propose("alpha", "c");
   const stale = w.token("alpha");
   assert.equal(w.annotate("alpha", [ref("a", "alpha/b")]).exitCode, 0);
@@ -65,7 +65,7 @@ test("annotate CAS: a stale sidecar token is refused with nothing written; repla
 });
 
 test("annotate is owner-only and agent attempts touch nothing", () => {
-  const w = world();
+  const w = world(["alpha"], { annotations: true });
   w.propose("alpha", "a"); w.propose("alpha", "b");
   const out = w.annotate("alpha", [ref("a", "alpha/b")], {}, "agent");
   assert.equal(out.exitCode, 2);
@@ -74,7 +74,7 @@ test("annotate is owner-only and agent attempts touch nothing", () => {
 });
 
 test("annotate refuses dangling targets, self references, unknown outcomes, digest mismatches and batches over 7", () => {
-  const w = world(["alpha", "beta"]);
+  const w = world(["alpha", "beta"], { annotations: true });
   w.propose("alpha", "a", { outcomes: [{ id: "first" }] }); w.propose("alpha", "b");
   const cases: [unknown[], string][] = [
     [[ref("a", "alpha/missing")], "ref-dangling"],
@@ -107,19 +107,21 @@ test("proposals carry one digest per item, at most seven, and never write", () =
   assert.throws(() => proposeItems(Array.from({ length: 8 }, () => ref("a", "alpha/b"))), { code: "invalid-input" });
 });
 
-test("settings: per-scope switch, personal-vault default, repo-mode refusal", () => {
-  const w = world(["alpha", "beta"], { settings: { format: "mozak.settings/v1", scopes: { beta: { annotations: false } } } });
+test("settings: per-scope switch, personalVaults has no effect, repo-mode refusal", () => {
+  const w = world(["alpha", "beta"], { settings: { format: "mozak.settings/v1", scopes: { alpha: { annotations: true }, beta: { annotations: false } } } });
   w.propose("beta", "a"); w.propose("beta", "b");
   const out = w.annotate("beta", [ref("a", "beta/b")]);
   assert.equal(out.data.status, "annotations-disabled");
   assert.equal(w.token("beta").exists, false);
-  const settings = { path: null, personalVaults: [w.entries.alpha.root], scopes: {}, issues: [] };
-  assert.deepEqual(annotationsMode(settings, w.entries.alpha), { enabled: true, source: "default" });
-  assert.deepEqual(annotationsMode(settings, w.entries.beta), { enabled: false, source: "default" });
+  const settings = { path: null, personalVaults: [w.entries.alpha.root], concurrency: {}, scopes: {}, usageLog: false, issues: [] };
+  assert.deepEqual(annotationsMode(settings, w.entries.alpha), { enabled: false, source: "default" });
+  assert.deepEqual(annotationsMode({ ...settings, scopes: { alpha: { annotations: true } } }, w.entries.alpha), { enabled: true, source: "setting" });
+  assert.deepEqual(annotationsMode({ ...settings, scopes: { beta: { annotations: false } } }, w.entries.beta), { enabled: false, source: "setting" });
   const repo = { id: "r", root: w.entries.alpha.root, remote: { spec: "github:o/r", url: "", ref: "main", repoName: "r", baseDir: w.base, cacheRoot: "", fullClone: null, plansMode: "repo" as const } };
   assert.deepEqual(annotationsMode({ ...settings, scopes: { r: { annotations: true } } }, repo), { enabled: false, source: "repo-mode" });
   const vault = { ...repo, remote: { ...repo.remote, plansMode: "vault" as const } };
-  assert.deepEqual(annotationsMode({ path: null, personalVaults: null, scopes: {}, issues: [] }, vault), { enabled: true, source: "default" });
+  assert.deepEqual(annotationsMode({ ...settings, scopes: { r: { annotations: true } } }, vault), { enabled: true, source: "setting" });
+  assert.deepEqual(annotationsMode(settings, vault), { enabled: false, source: "default" });
 });
 
 test("settings: invalid file refuses annotate; unknown keys are check findings", () => {
@@ -133,7 +135,7 @@ test("settings: invalid file refuses annotate; unknown keys are check findings",
 });
 
 test("P0.5 extended: annotation temp files are ignored by git, reported by check and removed by the next write", () => {
-  const w = world(["alpha"], { git: true });
+  const w = world(["alpha"], { git: true, annotations: true });
   w.propose("alpha", "a");
   const ignore = readFileSync(join(w.entries.alpha.root, ".gitignore"), "utf8");
   assert.match(ignore, /^mozak\.annotations\.json\.\*\.tmp$/m);
@@ -147,7 +149,7 @@ test("P0.5 extended: annotation temp files are ignored by git, reported by check
 });
 
 test("a broken sidecar is reported by check and blocks annotate, but never hides plans", () => {
-  const w = world();
+  const w = world(["alpha"], { annotations: true });
   w.propose("alpha", "a"); w.propose("alpha", "b");
   writeFileSync(join(w.entries.alpha.root, ANNOTATIONS_FILE), "{ not json");
   const check = w.op("check", { scope: "alpha" });

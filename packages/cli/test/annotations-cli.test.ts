@@ -17,7 +17,7 @@ function cli(args: string[]) {
 }
 
 test("CLI: annotate (owner route), graph, ready and plans --sort deadline on a synthetic scope", () => {
-  const w = world();
+  const w = world(["alpha"], { annotations: true });
   w.propose("alpha", "a", { purpose: "Synthetic plan a, due 2099-05-01." });
   w.propose("alpha", "b");
   const request = join(w.base, "annotate.json");

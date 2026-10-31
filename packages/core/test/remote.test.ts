@@ -59,6 +59,16 @@ test("inventory: remote entry validation stays strict, v2 still accepted", () =>
 });
 function realpathOf(p: string) { return execFileSync("realpath", [p], { encoding: "utf8" }).trim(); }
 
+test("check warns about a sidecar file in a repo-mode remote scope even though it is never read", () => {
+  const { inv, base } = fixture();
+  assert.equal(exec(inv, "context", { scope: "genome-mcp" }).exitCode, 0);
+  const codes = () => (exec(inv, "check", { scope: "genome-mcp" }).data.issues as { code: string }[]).map((i) => i.code);
+  assert.equal(codes().includes("annotations-on-remote"), false);
+  writeFileSync(join(base, ".mozak-cache", "genome-mcp", "mozak.annotations.json"), "{ not json");
+  assert.equal(codes().includes("annotations-on-remote"), true);
+  assert.equal(codes().includes("annotations-invalid"), false);
+});
+
 test("first read fetches a sparse copy with only the four files", () => {
   const { inv, base } = fixture();
   const out = exec(inv, "context", { scope: "genome-mcp" });

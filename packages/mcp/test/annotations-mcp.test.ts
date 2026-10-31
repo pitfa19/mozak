@@ -15,7 +15,7 @@ function call(rt: Parameters<typeof handle>[1], name: string, args: Record<strin
 }
 
 test("MCP: mozak_plan_graph, mozak_ready and plans sort read annotations; annotate is not reachable", () => {
-  const w = world();
+  const w = world(["alpha"], { annotations: true });
   w.propose("alpha", "a"); w.propose("alpha", "b");
   assert.equal(w.annotate("alpha", [{ kind: "ref", planId: "b", target: "alpha/a", relation: "needs", evidence: "Synthetic: b needs a." }]).exitCode, 0);
   const rt = { inventory: w.inv(), execute: executeOperation };

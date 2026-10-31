@@ -100,7 +100,7 @@ An unambiguous pause instruction stops host work first. The host may then persis
 - Request: `{ "operationId", "scopeId", "expectedAnnotations": { "exists", "sha256" }, "ownerRef", "ownerMessageAt", "items": [...] }`. `expectedAnnotations` is the sidecar token the owner saw (`{ "exists": false, "sha256": null }` when there is no file). It is the only CAS input. Read it from `graph --scope ID --json` as `annotations.ID`.
 - `needs` is advisory. It orders `ready` and shows in the plugin. Nothing refuses a write because of it.
 - Several dates in plan prose are candidates. Propose one `deadline` item and let the owner pick.
-- Refused when `mozak-settings.json` turns annotations off for the scope (`annotations-disabled`) and on repo-mode remote scopes (`annotations-refused-remote`).
+- Annotations are off by default. The owner turns them on per scope with `scopes.<id>.annotations: true` in the `mozak-settings.json` next to the inventory. Otherwise `annotate` is refused (`annotations-disabled`), and on repo-mode remote scopes always (`annotations-refused-remote`).
 
 ## Review digest and CAS
 

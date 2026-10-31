@@ -92,7 +92,7 @@ test("deadline rule precision on synthetic multi-date sentences is at least 0.9"
 });
 
 test("plan deadlines: one future date is inferred, several are candidates, past dates and done outcomes drop, owner wins", (t) => {
-  const w = world();
+  const w = world(["alpha"], { annotations: true });
   w.propose("alpha", "single", { purpose: "Submit the synthetic application by 2026-11-01. It was drafted on 2026-09-01." });
   w.propose("alpha", "several", { purpose: "Synthetic call, deadline 21 Oct 2026.", constraints: ["The second round is due 31 Mar 2027."] });
   w.propose("alpha", "past", { purpose: "Synthetic form was due 2026-01-10, and the next one is due 2026-12-05." });
@@ -120,7 +120,7 @@ test("plan deadlines: one future date is inferred, several are candidates, past 
 });
 
 test("plans --sort deadline orders rows by owner or inferred deadline and adds deadline fields", () => {
-  const w = world();
+  const w = world(["alpha"], { annotations: true });
   w.propose("alpha", "none");
   w.propose("alpha", "later", { purpose: "Synthetic, due 2099-06-01." });
   w.propose("alpha", "sooner", { purpose: "Synthetic, due 2099-02-01." });

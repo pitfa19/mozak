@@ -32,7 +32,7 @@ test("V-ref property: every ref resolves through a plan or mergedPlanId, or chec
   for (let seed = 1; seed <= 16; seed++) {
     const rnd = mulberry32(seed);
     const pick = <T>(xs: T[]) => xs[Math.floor(rnd() * xs.length)]!;
-    const w = world(["alpha", "beta"]);
+    const w = world(["alpha", "beta"], { annotations: true });
     const plans: Record<string, string[]> = { alpha: [], beta: [] };
     for (const scope of ["alpha", "beta"]) {
       const n = 3 + Math.floor(rnd() * 3);
@@ -99,7 +99,7 @@ test("V-ref property: every ref resolves through a plan or mergedPlanId, or chec
 });
 
 test("V-ref: mozak.md is byte-identical with and without the sidecar", () => {
-  const w = world();
+  const w = world(["alpha"], { annotations: true });
   w.propose("alpha", "a"); w.propose("alpha", "b"); w.propose("alpha", "c");
   const bridge = () => readFileSync(join(w.entries.alpha.root, "mozak.md"));
   const without = bridge();
@@ -125,7 +125,7 @@ test("V-ref: the unchanged 0.4.0 core (main) reads and writes a scope that has a
   try {
     execFileSync("sh", ["-c", `git archive main packages/core/src | tar -x -C "${dir}"`], { timeout: 20000 });
     const old = await import(join(dir, "packages/core/src/index.ts"));
-    const w = world();
+    const w = world(["alpha"], { annotations: true });
     w.propose("alpha", "a"); w.propose("alpha", "b");
     assert.equal(w.annotate("alpha", [ref("a", "alpha/b")]).exitCode, 0);
     const sidecar = readFileSync(join(w.entries.alpha.root, ANNOTATIONS_FILE));
@@ -147,7 +147,7 @@ test("V-ref: the unchanged 0.4.0 core (main) reads and writes a scope that has a
 });
 
 test("V-ref: ready is exact on a synthetic chain", () => {
-  const w = world();
+  const w = world(["alpha"], { annotations: true });
   w.propose("alpha", "a"); w.propose("alpha", "b"); w.propose("alpha", "c", { outcomes: [{ id: "first" }, { id: "second" }] });
   w.propose("alpha", "d"); w.propose("alpha", "e", { outcomes: [{ id: "x" }, { id: "y" }] });
   w.propose("alpha", "f"); w.propose("alpha", "g");
@@ -172,7 +172,7 @@ test("V-ref: ready is exact on a synthetic chain", () => {
 });
 
 test("ready orders by owner or inferred deadline, then by how many plans need a plan", () => {
-  const w = world();
+  const w = world(["alpha"], { annotations: true });
   w.propose("alpha", "late", { purpose: "Ship the synthetic report by 2099-09-01." });
   w.propose("alpha", "soon");
   w.propose("alpha", "free");
@@ -184,7 +184,7 @@ test("ready orders by owner or inferred deadline, then by how many plans need a 
 });
 
 test("refs to a merged plan resolve through mergedPlanId", () => {
-  const w = world();
+  const w = world(["alpha"], { annotations: true });
   w.propose("alpha", "x"); w.propose("alpha", "y"); w.propose("alpha", "z");
   assert.equal(w.annotate("alpha", [ref("x", "alpha/y")]).exitCode, 0);
   w.merge("alpha", "z", "y");
@@ -194,7 +194,7 @@ test("refs to a merged plan resolve through mergedPlanId", () => {
 });
 
 test("check reports dangling refs, needs cycles, needs to rejected or completed plans, superseded open plans and next actions", () => {
-  const w = world(["alpha", "beta"]);
+  const w = world(["alpha", "beta"], { annotations: true });
   for (const id of ["a", "b", "c", "done", "old", "new", "gone"]) w.propose("alpha", id);
   w.propose("alpha", "draft", {}, false);
   w.propose("beta", "remote-peer");
@@ -221,7 +221,7 @@ test("check reports dangling refs, needs cycles, needs to rejected or completed 
 });
 
 test("graph lists nodes, edges and counts across scopes", () => {
-  const w = world(["alpha", "beta"]);
+  const w = world(["alpha", "beta"], { annotations: true });
   w.propose("alpha", "a"); w.propose("beta", "b", { outcomes: [{ id: "k" }] });
   assert.equal(w.annotate("alpha", [ref("a", "beta/b#k", "informs")]).exitCode, 0);
   const one = w.op("graph", { scope: "alpha" });
