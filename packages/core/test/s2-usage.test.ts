@@ -5,19 +5,63 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, symlinkSync } from "n
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { cleanup, world } from "./annotations-fixture.ts";
-import { aggregateUsage, appendUsage, monthOf, readUsageLines, usageDir, usageHost, usageLine, usageLogPath, writeUsageAggregate, type UsageLine } from "../src/usage.ts";
+import { aggregateUsage, appendUsage, monthOf, readUsageLines, usageDir, usageHost, usageLine, usageLogEnabled, usageLogPath, writeUsageAggregate, type UsageLine } from "../src/usage.ts";
 import { executeOperation } from "../src/api.ts";
 import { readScope } from "../src/scope-store.ts";
 
 after(cleanup);
 
+/** Runs fn with MOZAK_USAGE_LOG set to value (undefined: unset), then restores it. */
+function withUsageEnv<T>(value: string | undefined, fn: () => T): T {
+  const before = process.env.MOZAK_USAGE_LOG;
+  if (value === undefined) delete process.env.MOZAK_USAGE_LOG; else process.env.MOZAK_USAGE_LOG = value;
+  try { return fn(); } finally { if (before === undefined) delete process.env.MOZAK_USAGE_LOG; else process.env.MOZAK_USAGE_LOG = before; }
+}
+
+test("the usage log is off by default: no env and no setting write nothing next to the inventory", () => {
+  for (const settings of [undefined, { format: "mozak.settings/v1" }]) {
+    const w = world(["alpha"], { settings });
+    withUsageEnv(undefined, () => {
+      executeOperation(w.inv(), "context", { scope: "alpha" });
+      executeOperation(w.inv(), "plans", { all: true });
+    });
+    assert.equal(existsSync(usageDir(w.base)), false, JSON.stringify(settings));
+  }
+});
+
+test("usageLog true in mozak-settings.json turns the log on; MOZAK_USAGE_LOG=off still wins", () => {
+  const w = world(["alpha"], { settings: { format: "mozak.settings/v1", usageLog: true } });
+  withUsageEnv(undefined, () => executeOperation(w.inv(), "context", { scope: "alpha" }));
+  assert.equal(readUsageLines(w.base, monthOf(new Date())).length, 1);
+  withUsageEnv("off", () => executeOperation(w.inv(), "context", { scope: "alpha" }));
+  assert.equal(readUsageLines(w.base, monthOf(new Date())).length, 1);
+  assert.deepEqual(executeOperation(w.inv(), "check", { scope: "alpha" }).data.issues, []);
+});
+
+test("a usageLog that is not a boolean makes the settings file invalid: nothing is logged and check reports it", () => {
+  const w = world(["alpha"], { settings: { format: "mozak.settings/v1", usageLog: "yes" } });
+  withUsageEnv(undefined, () => executeOperation(w.inv(), "context", { scope: "alpha" }));
+  assert.equal(existsSync(usageDir(w.base)), false);
+  const issues = executeOperation(w.inv(), "check", { scope: "alpha" }).data.issues as { code: string; message: string }[];
+  assert.ok(issues.some((i) => i.code === "settings-invalid" && i.message.includes("usageLog")), JSON.stringify(issues));
+});
+
+test("usageLogEnabled: only on, 1 or true turn it on, an explicit off value wins over the setting", () => {
+  for (const v of ["on", "1", "true", " ON "]) assert.equal(usageLogEnabled({ MOZAK_USAGE_LOG: v }), true, v);
+  for (const v of [undefined, "", "0", "off", "false", "yes"]) assert.equal(usageLogEnabled({ MOZAK_USAGE_LOG: v }), false, String(v));
+  assert.equal(usageLogEnabled({}, true), true);
+  for (const v of ["0", "off", "false"]) assert.equal(usageLogEnabled({ MOZAK_USAGE_LOG: v }, true), false, v);
+});
+
 test("every operation appends one counts-only line next to the inventory, never request or plan text", () => {
   const w = world();
   w.propose("alpha", "secret-plan-id", { title: "TOP SECRET TITLE", purpose: "PRIVATE PURPOSE" });
   const inv = w.inv();
-  executeOperation(inv, "context", { scope: "alpha" });
-  executeOperation(inv, "plans", { all: true });
-  executeOperation(inv, "observe", { scope: "alpha", request: { operationId: "x", scopeId: "alpha", expected: { ...readScope(w.entries.alpha).snapshot, revision: "old" }, action: "observe", payload: { planId: "secret-plan-id" } } });
+  withUsageEnv("on", () => {
+    executeOperation(inv, "context", { scope: "alpha" });
+    executeOperation(inv, "plans", { all: true });
+    executeOperation(inv, "observe", { scope: "alpha", request: { operationId: "x", scopeId: "alpha", expected: { ...readScope(w.entries.alpha).snapshot, revision: "old" }, action: "observe", payload: { planId: "secret-plan-id" } } });
+  });
   const base = w.base;
   const month = monthOf(new Date());
   const lines = readUsageLines(base, month);
@@ -35,15 +79,13 @@ test("every operation appends one counts-only line next to the inventory, never 
   assert.equal(execFileSync("git", ["status", "--porcelain", "--untracked-files=all", "--", ".mozak-cache"], { cwd: base, encoding: "utf8" }), "");
 });
 
-test("MOZAK_USAGE_LOG=0 turns the log off; inventories without a file path never log", () => {
+test("MOZAK_USAGE_LOG=0 keeps the log off; inventories without a file path never log", () => {
   const w = world();
-  const before = process.env.MOZAK_USAGE_LOG;
-  process.env.MOZAK_USAGE_LOG = "0";
-  try { executeOperation(w.inv(), "context", { scope: "alpha" }); } finally { if (before === undefined) delete process.env.MOZAK_USAGE_LOG; else process.env.MOZAK_USAGE_LOG = before; }
+  withUsageEnv("0", () => executeOperation(w.inv(), "context", { scope: "alpha" }));
   assert.equal(existsSync(usageDir(w.base)), false);
   const inv = w.inv();
   const plain = { format: inv.format, scopes: inv.scopes, digest: inv.digest };
-  executeOperation(plain, "context", { scope: "alpha" });
+  withUsageEnv("on", () => executeOperation(plain, "context", { scope: "alpha" }));
   assert.equal(existsSync(usageDir(w.base)), false);
 });
 

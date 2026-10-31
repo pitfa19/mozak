@@ -34,7 +34,7 @@ import { annotateScope } from "./scope-store.ts";
 import { readAnnotations, type AnnotationsDoc } from "./annotations.ts";
 import { annotationFindings, graphView, readyView, type Universe } from "./crossplan.ts";
 import { effectiveDeadline, planDeadline, today } from "./deadlines.ts";
-import { annotationsMode, ignoredScopeSettingsFile, loadSettings, rebaseEnabled, SETTINGS_FILE } from "./settings.ts";
+import { annotationsMode, ignoredScopeSettingsFile, loadSettings, rebaseEnabled, SETTINGS_FILE, usageLogSetting } from "./settings.ts";
 import type { ScopeState } from "./understanding.ts";
 import { inspectLock, recoverLock } from "./lock-recover.ts";
 import { handEditHistory, MAX_HISTORY } from "./history.ts";
@@ -1196,12 +1196,13 @@ function plansMdOp(inv: ScopeInventory, a: Record<string, unknown>, actor: Actor
  * Single entry point for every operation. Expected domain failures come back as a structured
  * envelope with an exit code. Only unexpected, non-domain errors are rethrown. The caller's
  * transport supplies the actor. This function never reads it from the arguments.
- * Each call appends one counts-only line to the usage log next to a file-loaded inventory (MOZAK_USAGE_LOG=0 turns it off).
+ * Each call appends one counts-only line to the usage log next to a file-loaded inventory, only when the owner opted in
+ * (MOZAK_USAGE_LOG=on, or `usageLog: true` in mozak-settings.json).
  */
 export function executeOperation(inv: ScopeInventory, operation: string, args: unknown, actor: Actor = "agent"): OperationOutput {
   const started = performance.now();
   const output = runOperation(inv, operation, args, actor);
-  if (inv.path && usageLogEnabled()) {
+  if (inv.path && usageLogEnabled(process.env, usageLogSetting(inv))) {
     try { appendUsage(dirname(inv.path), usageLine(operation, args, String(actor), output.data, output.exitCode, performance.now() - started)); } catch { /* never affects the result */ }
   }
   return output;

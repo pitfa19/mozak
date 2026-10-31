@@ -109,8 +109,11 @@ test("locator resolution: paths, note links, anchors, privacy and prose", () => 
   assert.equal(outside.excerpt, undefined);
 });
 
-test("locators route: per-row resolution, counts, plan filter, and include-private is recorded in the usage log", () => {
+test("locators route: per-row resolution, counts, plan filter, and include-private is recorded in the usage log", (t) => {
   const w = locatorWorld();
+  const before = process.env.MOZAK_USAGE_LOG;
+  process.env.MOZAK_USAGE_LOG = "on";
+  t.after(() => { if (before === undefined) delete process.env.MOZAK_USAGE_LOG; else process.env.MOZAK_USAGE_LOG = before; });
   w.propose("lab", "p1", { title: "Lab trip budget", sources: [{ locator: "local.md" }, { locator: "https://example.invalid" }, { locator: "personal/secret.md" }] });
   w.propose("me", "p2", { title: "Personal errand list", sources: [{ locator: "secret.md" }] });
   const one = w.op("locators", { scope: "lab" });

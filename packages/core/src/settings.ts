@@ -5,7 +5,8 @@
 //   "annotations": { "personalVaults": ["../obsidian"] },
 //   "concurrency": { "rebase": false },
 //   "indexRoots": [ { "path": "../vault/personal", "private": true }, { "path": "../vault/research" } ],
-//   "scopes": { "anpit": { "annotations": false, "concurrency": { "rebase": true } } } }
+//   "scopes": { "anpit": { "annotations": false, "concurrency": { "rebase": true } } },
+//   "usageLog": false }
 //
 // One file per installation, never inside a scope folder: a scope folder can be a public repo.
 //
@@ -20,7 +21,7 @@ import type { ScopeEntry, ScopeInventory } from "./scope-index.ts";
 
 export const SETTINGS_FILE = "mozak-settings.json";
 export const SETTINGS_FORMAT = "mozak.settings/v1";
-const KNOWN_TOP = ["format", "annotations", "concurrency", "indexRoots", "scopes"];
+const KNOWN_TOP = ["format", "annotations", "concurrency", "indexRoots", "scopes", "usageLog"];
 const KNOWN_SCOPE = ["annotations", "concurrency"];
 
 export interface ConcurrencySettings { rebase?: boolean }
@@ -33,6 +34,8 @@ export interface Settings {
   /** null or absent: roots are derived from the inventory (locators.ts defaultIndexRoots). */
   indexRoots?: IndexRoot[] | null;
   scopes: Record<string, { annotations?: boolean; concurrency?: ConcurrencySettings }>;
+  /** Counts-only usage log next to the inventory. Default off. */
+  usageLog: boolean;
   issues: { code: string; message: string }[];
 }
 
@@ -41,7 +44,7 @@ const isPlain = (v: unknown): v is Record<string, unknown> => typeof v === "obje
 /** Read settings for an inventory. Absent file: defaults. Invalid file: throws settings-invalid. */
 export function loadSettings(inv: ScopeInventory): Settings {
   const inventoryPath = (inv as { path?: string }).path;
-  const empty: Settings = { path: null, personalVaults: null, concurrency: {}, indexRoots: null, scopes: {}, issues: [] };
+  const empty: Settings = { path: null, personalVaults: null, concurrency: {}, indexRoots: null, scopes: {}, usageLog: false, issues: [] };
   if (!inventoryPath) return empty;
   const path = join(dirname(inventoryPath), SETTINGS_FILE);
   let text: string;
@@ -99,7 +102,13 @@ export function loadSettings(inv: ScopeInventory): Settings {
       if (!inv.scopes.some((s) => s.id === id)) issues.push({ code: "settings-unknown-scope", message: `${SETTINGS_FILE}: scope "${id}" is not in the inventory` });
     }
   }
-  return { path, personalVaults, concurrency, indexRoots, scopes, issues };
+  return { path, personalVaults, concurrency, indexRoots, scopes, usageLog: usageLogOf(raw.usageLog, fail), issues };
+}
+
+/** `usageLog`: absent is off, otherwise it must be a boolean. */
+function usageLogOf(value: unknown, fail: (why: string) => never): boolean {
+  if (value === undefined) return false;
+  return typeof value === "boolean" ? value : fail(`"usageLog" must be true or false`);
 }
 
 /**
@@ -112,6 +121,12 @@ export function rebaseEnabled(inv: ScopeInventory, scopeId: string): boolean {
   try { settings = loadSettings(inv); }
   catch (e) { if (e instanceof DomainError) return false; throw e; }
   return (settings.scopes[scopeId]?.concurrency?.rebase ?? settings.concurrency.rebase) === true;
+}
+
+/** The `usageLog` setting. An unreadable or invalid settings file keeps it off; `check` reports the file. */
+export function usageLogSetting(inv: ScopeInventory): boolean {
+  try { return loadSettings(inv).usageLog; }
+  catch (e) { if (e instanceof DomainError) return false; throw e; }
 }
 
 /** A mozak-settings.json inside a scope folder is never read. Returns its path when one exists, for `check`. */

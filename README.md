@@ -208,7 +208,7 @@ node packages/cli/dist/index.js plans --config /path/to/inventory.json --scope s
 
 `context --brief` returns bounded summaries, while `--plan` reads one plan without changing the whole-scope snapshot. Owner-only annotations add cross-plan references and deadlines in a sidecar. [Plans indexes and locators](docs/plans-index.md) provide navigation, not a search-quality guarantee. [Annotation commands](docs/annotations.md) describe the separate owner route.
 
-Experimental `concurrency.rebase` remains **off by default**. When explicitly enabled in `mozak-settings.json`, only selected non-conflicting `observe`, `save-discussion` and new-id `propose` requests may rebase. Decisions still require exact snapshots. `recover`, rejected-plan pruning, local fast-forward sync, history diagnostics and counts-only usage logging are also unreleased. Recovery and pruning remain owner operations.
+Experimental `concurrency.rebase` remains **off by default**. When explicitly enabled in `mozak-settings.json`, only selected non-conflicting `observe`, `save-discussion` and new-id `propose` requests may rebase. Decisions still require exact snapshots. `recover`, rejected-plan pruning, local fast-forward sync, history diagnostics and counts-only usage logging are also unreleased. Recovery and pruning remain owner operations. The usage log is off unless you set `MOZAK_USAGE_LOG=on` or `"usageLog": true` in `mozak-settings.json`.
 
 Reproduce the synthetic stale-write example with `node scripts/readme-example.mjs`. This is a narrow check, not evidence of downstream coding benefit. No new benchmark performance claim is made here.
 

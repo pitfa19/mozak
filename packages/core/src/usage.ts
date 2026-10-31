@@ -33,10 +33,15 @@ export const monthOf = (d: Date) => d.toISOString().slice(0, 7);
 export function usageDir(baseDir: string): string { return join(baseDir, CACHE_DIR, USAGE_DIR); }
 export function usageLogPath(baseDir: string, month: string, host = usageHost()): string { return join(usageDir(baseDir), `${host}-${month}.jsonl`); }
 
-/** Off when MOZAK_USAGE_LOG is "0" or "off". */
-export function usageLogEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+/**
+ * Opt-in. On when MOZAK_USAGE_LOG is "on", "1" or "true", or when the installation setting `usageLog` is true.
+ * An explicit "0", "off" or "false" wins over the setting. Anything else counts as unset.
+ */
+export function usageLogEnabled(env: NodeJS.ProcessEnv = process.env, setting = false): boolean {
   const v = (env.MOZAK_USAGE_LOG ?? "").trim().toLowerCase();
-  return v !== "0" && v !== "off" && v !== "false";
+  if (v === "on" || v === "1" || v === "true") return true;
+  if (v === "off" || v === "0" || v === "false") return false;
+  return setting;
 }
 
 /** Append one line. Creates the folder with a `*` .gitignore so a cache inside a vault is never committed. */

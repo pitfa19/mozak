@@ -45,7 +45,7 @@ Relative paths are tried against the scope folder, its repository root, and the 
 
 Paths are relative to the settings file. Without `indexRoots`, the roots are the top folders of each git repository that holds a scope. A folder named `personal` is private. A scope whose folder is a repository root (a shared company vault) is not a root; its own citations still resolve inside its own folder.
 
-A file in a private root returns path and title only. `--include-private` (MCP and API: `includePrivate`) returns the excerpt too, and the usage log records that the call asked for it. Other files outside every root also return path and title only.
+A file in a private root returns path and title only. `--include-private` (MCP and API: `includePrivate`) returns the excerpt too, and the usage log (when turned on with `MOZAK_USAGE_LOG=on` or `"usageLog": true` in `mozak-settings.json`) records that the call asked for it. Other files outside every root also return path and title only.
 
 ## Cited-note staleness in `mozak check`
 
