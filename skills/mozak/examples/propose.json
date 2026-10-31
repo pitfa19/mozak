@@ -10,7 +10,7 @@
           "id": "o1",
           "statement": "Application submitted on the university portal.",
           "acceptance": "owner",
-          "criterion": "Fabijan confirms the portal shows the application as submitted."
+          "criterion": "The owner confirms the portal shows the application as submitted."
         }
       ],
       "constraints": [

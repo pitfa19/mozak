@@ -6,10 +6,10 @@
     "path": "SPEC.md",
     "bounds": {
       "summary": "Only the Erasmus application documents in this folder.",
-      "limitations": ["Drafts only, Fabijan submits."],
+      "limitations": ["Drafts only, the owner submits."],
       "allowedPaths": ["applications/erasmus"],
       "outcomeChecks": [
-        { "outcomeId": "o1", "criterion": "Fabijan confirms the portal shows the application as submitted." }
+        { "outcomeId": "o1", "criterion": "The owner confirms the portal shows the application as submitted." }
       ],
       "excludedActions": ["Submitting the application", "Owner decisions by agent"]
     },
