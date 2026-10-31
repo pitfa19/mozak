@@ -58,6 +58,17 @@ function staleObserve(w: ReturnType<typeof world>) {
   return w.op("observe", { scope: "alpha", request: { operationId: "stale-observe", scopeId: "alpha", expected: stale, action: "observe", payload } });
 }
 
+test("settings: concurrency.rebase defaults off: no settings file, or a file without it, refuses a stale observe", () => {
+  for (const settings of [undefined, { format: FORMAT }, { format: FORMAT, scopes: { alpha: { annotations: true } } }]) {
+    const w = world(["alpha"], { settings });
+    assert.equal(rebaseEnabled(w.inv(), "alpha"), false, JSON.stringify(settings));
+    const refused = staleObserve(w);
+    assert.equal(refused.exitCode, 3, JSON.stringify(settings));
+    assert.equal((refused.data as { status: string }).status, "stale-input");
+    assert.equal((refused.data as { rebased?: unknown }).rebased, undefined);
+  }
+});
+
 test("settings: the write route rebases a stale observe only when the inventory-adjacent file turns it on", () => {
   const on = world(["alpha"], { settings: { format: FORMAT, scopes: { alpha: { concurrency: { rebase: true } } } } });
   const rebased = staleObserve(on);
