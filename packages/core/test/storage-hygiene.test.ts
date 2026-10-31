@@ -49,7 +49,7 @@ for (const nested of [false, true]) {
 test("P0.5: init writes exactly the ignore lines when there is no .gitignore", () => {
   const { root, entry, request } = world();
   initScopeState(entry, request);
-  assert.equal(readFileSync(join(root, ".gitignore"), "utf8"), ".mozak-write-lock/\nmozak.json.*.tmp\nmozak.md.*.tmp\nMOZAK.json.*.tmp\nMOZAK.md.*.tmp\n");
+  assert.equal(readFileSync(join(root, ".gitignore"), "utf8"), ".mozak-write-lock/\nmozak.json.*.tmp\nmozak.md.*.tmp\nMOZAK.json.*.tmp\nMOZAK.md.*.tmp\nmozak.annotations.json.*.tmp\n");
 });
 
 test("P0.5: init refuses a .gitignore that is not a regular file", () => {

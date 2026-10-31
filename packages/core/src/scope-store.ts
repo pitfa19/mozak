@@ -12,6 +12,10 @@ import { DELETE_ACTION, withoutPlans } from "./delete.ts";
 import { renderBridge, renderBridgeLegacy, isPendingOrderRender } from "./bridge.ts";
 import { removeLeftoverTempFiles, replaceFileDurable, writeFileDurable, fsyncDir } from "./durable.ts";
 import { ensureStorageIgnored, storageIgnoreIssues } from "./storage-hygiene.ts";
+import { ANNOTATIONS_FILE, annotationsBytes, applyAnnotate, emptyAnnotations, readAnnotations, validateAnnotateRequest, type ScopeLookup } from "./annotations.ts";
+import { checkRebase, type Rebased } from "./rebase.ts";
+import { lockHost } from "./lock-recover.ts";
+import { PRUNE_ACTION, withoutRejectedPlans } from "./prune.ts";
 
 export { renderBridge, renderBridgeLegacy } from "./bridge.ts";
 
@@ -23,9 +27,12 @@ export interface OperationResult {
   status: string; committed: boolean; operationId?: string; requestId?: string;
   snapshot: ScopeSnapshot | null; projectionStatus: ProjectionStatus | null;
   projectionUpdated: boolean; issues: ScopeIssue[]; result?: Receipt["result"]; replayed?: boolean;
+  /** Present only when concurrency.rebase is on and a stale snapshot was rebased onto fresh state. */
+  rebased?: Rebased;
 }
 /** Internal testing seam, never accepted from CLI/MCP input. */
-export interface StoreOptions { lockTimeoutMs?: number; onPhase?: (phase: string) => void }
+/** `rebase`: experimental read-set rebase (S1b), resolved by the caller from mozak-settings.json. Default off. */
+export interface StoreOptions { lockTimeoutMs?: number; onPhase?: (phase: string) => void; rebaseGuardMs?: number; rebase?: boolean }
 const absent = (): FileToken => ({ exists: false, sha256: null });
 const sleep = (ms: number) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 const own = (o: object, k: string) => Object.prototype.hasOwnProperty.call(o, k);
@@ -50,7 +57,7 @@ function expected(v: unknown): ScopeSnapshot {
   return o as unknown as ScopeSnapshot;
 }
 function bounded(v: unknown): void {
-  if (Buffer.byteLength(canonical(v)) > MAX_REQUEST_BYTES) throw new DomainError("capacity-exceeded", "request exceeds 1 MiB");
+  if (Buffer.byteLength(canonical(v)) > MAX_REQUEST_BYTES) throw new DomainError("capacity-exceeded", "request exceeds 1 MiB; split it into smaller operations");
 }
 function file(path: string, max = MAX_SCOPE_BYTES): { token: FileToken; bytes: string | null; validUtf8: boolean } {
   try {
@@ -73,9 +80,9 @@ function pathExists(path: string): boolean {
 const same = (a: FileToken, b: FileToken) => a.exists === b.exists && a.sha256 === b.sha256;
 function decode(bytes: string, entry: ScopeEntry): ScopeState {
   let raw: unknown;
-  try { raw = JSON.parse(bytes); } catch { throw new DomainError("invalid-json", "mozak.json is not valid JSON"); }
+  try { raw = JSON.parse(bytes); } catch { throw new DomainError("invalid-json", "mozak.json is not valid JSON; restore it from git or fix the syntax by hand, then run mozak check"); }
   const state = validateScope(raw);
-  if (state.scope.id !== entry.id) throw new DomainError("scope-mismatch", "inventory identity does not match mozak.json");
+  if (state.scope.id !== entry.id) throw new DomainError("scope-mismatch", `inventory id "${entry.id}" does not match scope.id "${state.scope.id}" in mozak.json; fix the inventory entry or its root`);
   return state;
 }
 /**
@@ -85,17 +92,31 @@ function decode(bytes: string, entry: ScopeEntry): ScopeState {
  * A digest stored in the bridge itself is not proof of provenance. Other content is preserved as a conflict.
  */
 function projectStatus(state: ScopeState, graphHash: string, bridge: ReturnType<typeof file>, graphName: string): ProjectionStatus {
-  if (bridge.token.exists && bridge.token.sha256 === hashBytes(renderBridge(state, graphHash, graphName))) return "current";
+  const render = renderBridge(state, graphHash, graphName);
+  if (bridge.token.exists && bridge.token.sha256 === hashBytes(render)) return "current";
+  // CRLF line endings or trailing whitespace (git autocrlf, editors) carry no content: the note is still today's render.
+  if (bridge.bytes !== null && bridge.validUtf8 && whitespaceOnly(bridge.bytes, render)) return "current";
   if (same(bridge.token, state.storage.previousBridge)) return "bridge-stale";
   if (bridge.bytes !== null && bridge.validUtf8 && isOlderRender(state, graphHash, bridge.bytes)) return "bridge-stale";
   return "bridge-conflict";
 }
+/** Bytes with CRLF turned into LF, trailing spaces and tabs cut from every line, and trailing blank lines dropped. */
+export function normalizeProjection(bytes: string): string {
+  return bytes.replace(/\r\n/g, "\n").split("\n").map((line) => line.replace(/[ \t]+$/, "")).join("\n").replace(/\n+$/, "");
+}
+/** True when two renders differ only by line endings or trailing whitespace. Exact equality is not whitespace-only. */
+export function whitespaceOnly(bytes: string, render: string): boolean {
+  return bytes !== render && normalizeProjection(bytes) === normalizeProjection(render);
+}
 /** Only byte-exact UTF-8 can be recognised as a generated render. Lossy decoding must never look current or stale. */
 function isOlderRender(state: ScopeState, graphHash: string, bytes: string): boolean {
   const h = hashBytes(bytes);
-  return h === hashBytes(renderBridgeLegacy(state, graphHash))
+  if (h === hashBytes(renderBridgeLegacy(state, graphHash))
     || isPendingOrderRender(state, graphHash, bytes)
-    || isPendingOrderRender(state, graphHash, bytes, LEGACY_GRAPH_FILE);
+    || isPendingOrderRender(state, graphHash, bytes, LEGACY_GRAPH_FILE)) return true;
+  // An older render that only gained CRLF line endings or trailing whitespace is still that render.
+  const n = normalizeProjection(bytes);
+  return n === normalizeProjection(renderBridgeLegacy(state, graphHash)) || n === normalizeProjection(renderBridge(state, graphHash, LEGACY_GRAPH_FILE));
 }
 /** True when the bridge is an unedited older render of this state. A write may replace it like a current one. */
 function isLegacyBridge(entry: ScopeEntry, read: ScopeRead): boolean {
@@ -104,10 +125,24 @@ function isLegacyBridge(entry: ScopeEntry, read: ScopeRead): boolean {
   return bridge.bytes !== null && bridge.validUtf8 && same(bridge.token, read.snapshot.bridge) && isOlderRender(read.state, read.snapshot.graphHash, bridge.bytes);
 }
 export function readScope(entry: ScopeEntry, options: StoreOptions = {}): ScopeRead {
+  return readScopeWith(entry, options, true);
+}
+/** Read for whole-inventory reports (plans.md, similar, locators): same state and snapshot, no git ignore diagnostics. */
+export function readScopeQuiet(entry: ScopeEntry): ScopeRead {
+  return readScopeWith(entry, {}, false);
+}
+/**
+ * Read inside a write: the same canonical state, snapshot and projection status, without the git ignore diagnostics.
+ * A write never uses those issues, and each check spawns one to three git processes (most of a commit's cost in a vault).
+ */
+function readForWrite(entry: ScopeEntry): ScopeRead {
+  return readScopeWith(entry, {}, false);
+}
+function readScopeWith(entry: ScopeEntry, options: StoreOptions, diagnostics: boolean): ScopeRead {
   assertScopeFiles(entry.root);
   for (let attempt = 0; attempt < 3; attempt++) {
     const a = file(scopeFile(entry.root, "graph"));
-    if (a.bytes === null) throw new DomainError("scope-uninitialized", entry.remote ? `not a scope: ${entry.remote.spec}@${entry.remote.ref} has no mozak.json at its root` : `no mozak.json for ${entry.id}`);
+    if (a.bytes === null) throw new DomainError("scope-uninitialized", entry.remote ? `not a scope: ${entry.remote.spec}@${entry.remote.ref} has no mozak.json at its root` : `no mozak.json for ${entry.id}; check its root in the inventory, or ask the owner to run mozak scope init`);
     let bridge: ReturnType<typeof file> | null = null;
     let bridgeIssue: ScopeIssue | null = null;
     try { bridge = file(scopeFile(entry.root, "bridge"), MAX_SCOPE_BYTES * 2); }
@@ -121,7 +156,7 @@ export function readScope(entry: ScopeEntry, options: StoreOptions = {}): ScopeR
     if (!a.validUtf8) throw new DomainError("invalid-encoding", "mozak.json must contain valid UTF-8 bytes");
     const state = decode(a.bytes, entry);
     const projectionStatus = bridge ? projectStatus(state, a.token.sha256!, bridge, scopeFileName(entry.root, "graph")) : "bridge-conflict";
-    const issues: ScopeIssue[] = [...storageIgnoreIssues(entry.root), ...(bridgeIssue ? [bridgeIssue] : [])];
+    const issues: ScopeIssue[] = [...(diagnostics ? storageIgnoreIssues(entry.root) : []), ...(bridgeIssue ? [bridgeIssue] : [])];
     if (entry.inventoryExtensionsIgnored) issues.push({ code: "inventory-x-ignored", message: "Reserved inventory x object settings are ignored by this client; they do not enable any behavior." });
     if (projectionStatus !== "current") issues.push({ code: projectionStatus, message: "Canonical context is available. Explicit projection repair or conflict review is required before further writes." });
     for (const name of ["README.md", "AGENTS.md"]) {
@@ -135,7 +170,7 @@ export function readScope(entry: ScopeEntry, options: StoreOptions = {}): ScopeR
     }
     return { state, snapshot: { revision: state.storage.revision, graphHash: a.token.sha256!, bridge: bridge?.token ?? null }, projectionStatus, issues };
   }
-  throw new DomainError("busy", "canonical state changed during three read attempts", 4);
+  throw new DomainError("busy", "canonical state changed during three read attempts; another writer is active, retry in a few seconds", 4);
 }
 
 /** Trusted IO results never come from mutation payloads or canonical metadata. */
@@ -182,7 +217,7 @@ export function readScopeView(entry: ScopeEntry, candidatePlanId?: string, optio
     if (!lockFree) issues.push({ code: "storage-busy", message: "Scope lock is present or unavailable; execution eligibility is withheld, not reclaimed by age" });
     return { ...after, issues: [...after.issues, ...issues], environment: { storageUsable: after.projectionStatus === "current" && lockFree, specifications } };
   }
-  throw new DomainError("busy", "canonical/projection state changed during three specification read attempts", 4);
+  throw new DomainError("busy", "canonical/projection state changed during three specification read attempts; another writer is active, retry in a few seconds", 4);
 }
 
 function acquire(root: string, options: StoreOptions): () => void {
@@ -209,7 +244,8 @@ function acquire(root: string, options: StoreOptions): () => void {
   }
   // A failure here intentionally leaves the lock behind for offline recovery.
   options.onPhase?.("after-lock-mkdir");
-  writeFileDurable(ownerPath, canonical({ token: ownerToken, pid: process.pid, processStartHint: new Date(Date.now() - process.uptime() * 1000).toISOString(), acquiredAt: new Date().toISOString() }));
+  // host lets `recover` tell a lock that arrived by sync (another host) from one a local process may still hold.
+  writeFileDurable(ownerPath, canonical({ token: ownerToken, pid: process.pid, host: lockHost(), processStartHint: new Date(Date.now() - process.uptime() * 1000).toISOString(), acquiredAt: new Date().toISOString() }));
   fsyncDir(lock);
   return () => {
     const owner = JSON.parse(readFileSync(ownerPath, "utf8")) as { token?: unknown };
@@ -222,9 +258,30 @@ interface Transaction {
   committed: boolean; projectionUpdated: boolean; state?: ScopeState; result?: Receipt["result"];
   temporary: string[]; operationId?: string; requestId?: string;
 }
+/**
+ * Take the write locks of several scope roots in path order, run `work`, then release in reverse order. Every
+ * multi-scope locker uses the same order and single writers hold one lock, so lockers cannot deadlock.
+ * A busy lock releases the ones already held and throws `busy`. Roots that do not exist are skipped.
+ */
+export function withScopeLocks<T>(roots: string[], work: () => T, options: StoreOptions = {}): T {
+  const sorted = [...new Set(roots)].filter((root) => pathExists(root)).sort();
+  const held: (() => void)[] = [];
+  let result: T | undefined;
+  let failure: unknown;
+  try {
+    for (const root of sorted) { assertScopeFiles(root); held.push(acquire(root, options)); }
+    options.onPhase?.("all-locked");
+    result = work();
+  } catch (e) { failure = e; }
+  let releaseError: unknown;
+  for (const release of held.reverse()) { try { release(); } catch (e) { releaseError ??= e; } }
+  if (releaseError) throw new DomainError("recovery-required", `${releaseError instanceof Error ? releaseError.message : String(releaseError)}; original failure: ${failure instanceof Error ? failure.message : "none"}`, 4);
+  if (failure) throw failure;
+  return result as T;
+}
 function outcome(entry: ScopeEntry, tx: Transaction, status: string, issues: ScopeIssue[] = []): OperationResult {
   let read: ScopeRead | null = null;
-  try { read = readScope(entry); } catch { /* committed state is still reported even when readback fails */ }
+  try { read = readForWrite(entry); } catch { /* committed state is still reported even when readback fails */ }
   return { status, committed: tx.committed, ...(tx.operationId ? { operationId: tx.operationId } : {}), ...(tx.requestId ? { requestId: tx.requestId } : {}), snapshot: read?.snapshot ?? null, projectionStatus: read?.projectionStatus ?? null, projectionUpdated: tx.projectionUpdated, issues, ...(tx.result ? { result: tx.result } : {}) };
 }
 function transaction(entry: ScopeEntry, options: StoreOptions, tx: Transaction, work: () => OperationResult): OperationResult {
@@ -262,7 +319,7 @@ function publishGraph(entry: ScopeEntry, state: ScopeState, previousGraph: FileT
   state.storage.previousBridge = previousBridge;
   validateScope(state);
   const bytes = canonical(state);
-  if (Buffer.byteLength(bytes) > MAX_SCOPE_BYTES) throw new DomainError("capacity-exceeded", "canonical state would exceed 4 MiB");
+  if (Buffer.byteLength(bytes) > MAX_SCOPE_BYTES) throw new DomainError("capacity-exceeded", "canonical state would exceed 4 MiB; ask the owner to prune rejected plans or move finished plans to another scope");
   const graphPath = scopeFile(entry.root, "graph");
   const bridgePath = scopeFile(entry.root, "bridge");
   const recheck = (graph: FileToken) => {
@@ -284,13 +341,13 @@ function publishGraph(entry: ScopeEntry, state: ScopeState, previousGraph: FileT
 function receipt(read: ScopeRead, operationId: string, requestDigest: string, tx: Transaction, entry: ScopeEntry): OperationResult | null {
   if (!own(read.state.receipts, operationId)) return null;
   const record = read.state.receipts[operationId];
-  if (record.requestDigest !== requestDigest) throw new DomainError("operation-conflict", "operation ID was already used with different input", 3);
+  if (record.requestDigest !== requestDigest) throw new DomainError("operation-conflict", "operation ID was already used with different input; use a new operationId for a changed request, or read the committed result with mozak operation --id", 3);
   tx.committed = true; tx.result = record.result;
   return { ...outcome(entry, tx, "replayed"), replayed: true };
 }
 function match(read: ScopeRead, snapshot: ScopeSnapshot, bridge = true): void {
-  if (bridge && (!read.snapshot.bridge || !snapshot.bridge)) throw new DomainError("bridge-unavailable", "a trustworthy bridge snapshot is required before writing", 3);
-  if (read.snapshot.revision !== snapshot.revision || read.snapshot.graphHash !== snapshot.graphHash || (bridge && !same(read.snapshot.bridge!, snapshot.bridge!))) throw new DomainError("stale-input", "snapshot changed; reread before submitting a new operation", 3);
+  if (bridge && (!read.snapshot.bridge || !snapshot.bridge)) throw new DomainError("bridge-unavailable", "a trustworthy bridge snapshot is required before writing; run mozak check to see why, and ask the owner to run mozak projection repair", 3);
+  if (read.snapshot.revision !== snapshot.revision || read.snapshot.graphHash !== snapshot.graphHash || (bridge && !same(read.snapshot.bridge!, snapshot.bridge!))) throw new DomainError("stale-input", "snapshot changed; reread before submitting a new operation: take the new snapshot from context as expected and use a new operationId", 3);
 }
 function identity(entry: ScopeEntry, input: Record<string, unknown>): void {
   if (text(input.scopeId, "scopeId") !== entry.id) throw new DomainError("scope-mismatch", "request scope differs from selected scope");
@@ -306,7 +363,7 @@ export function initScopeState(entry: ScopeEntry, input: unknown, options: Store
   const tx: Transaction = { operationId, committed: false, projectionUpdated: false, temporary: [] };
   return transaction(entry, options, tx, () => {
     if (file(scopeFile(entry.root, "graph")).token.exists) {
-      const prior = receipt(readScope(entry), operationId, digest(input), tx, entry);
+      const prior = receipt(readForWrite(entry), operationId, digest(input), tx, entry);
       if (prior) return prior;
       throw new DomainError("already-exists", "existing canonical graph cannot be initialized again", 3);
     }
@@ -327,10 +384,16 @@ export function mutateScope(entry: ScopeEntry, input: unknown, actor: "agent" | 
   validateMutation(r.action, r.payload, actor);
   const tx: Transaction = { operationId, committed: false, projectionUpdated: false, temporary: [] };
   return transaction(entry, options, tx, () => {
-    const read = readScope(entry);
+    const read = readForWrite(entry);
     const replay = receipt(read, operationId, digest(input), tx, entry);
     if (replay) return replay;
-    match(read, snapshot);
+    let rebased: Rebased | undefined;
+    try { match(read, snapshot); }
+    catch (e) {
+      // Off by default. Only a stale snapshot is a rebase candidate; checkRebase refuses with stale-input.
+      if (!(e instanceof DomainError && e.code === "stale-input") || options.rebase !== true) throw e;
+      rebased = checkRebase(read.state, read.snapshot, snapshot, r.action as string, r.payload as Record<string, unknown>, options.rebaseGuardMs);
+    }
     if (read.projectionStatus !== "current" && !isLegacyBridge(entry, read)) throw new DomainError(read.projectionStatus, "projection requires explicit repair or conflict resolution before new writes", 3);
     const now = new Date().toISOString();
     const environment: ReviewEnvironment = { storageUsable: true, specifications: Object.create(null) as NonNullable<ReviewEnvironment["specifications"]> };
@@ -347,7 +410,8 @@ export function mutateScope(entry: ScopeEntry, input: unknown, actor: "agent" | 
     next.state.storage = { revision: randomUUID(), updatedAt: now, previousBridge: read.snapshot.bridge! };
     Object.defineProperty(next.state.receipts, operationId, { value: { requestDigest: digest(input), storageRevision: next.state.storage.revision, recordedAt: now, result: next.result }, enumerable: true, writable: true, configurable: true });
     tx.result = next.result;
-    return publishGraph(entry, next.state, { exists: true, sha256: read.snapshot.graphHash }, read.snapshot.bridge!, tx, options);
+    const published = publishGraph(entry, next.state, { exists: true, sha256: read.snapshot.graphHash }, read.snapshot.bridge!, tx, options);
+    return rebased ? { ...published, rebased } : published;
   });
 }
 export type RenderResult = "rendered" | "current" | "conflict" | "failed";
@@ -360,11 +424,11 @@ export function renderProjection(entry: ScopeEntry, options: StoreOptions = {}):
   let result: RenderResult = "current";
   const tx: Transaction = { committed: false, projectionUpdated: false, temporary: [] };
   const out = transaction(entry, options, tx, () => {
-    const read = readScope(entry);
+    const read = readForWrite(entry);
     if (read.projectionStatus === "current") return outcome(entry, tx, "already-current");
     if (read.projectionStatus === "bridge-conflict") { result = "conflict"; return outcome(entry, tx, "bridge-conflict", [{ code: "bridge-conflict", message: "mozak.md differs from every known render; preserved for owner review (projection repair)" }]); }
     options.onPhase?.("before-render");
-    const again = readScope(entry);
+    const again = readForWrite(entry);
     if (canonical(again.snapshot) !== canonical(read.snapshot)) throw new DomainError("stale-input", "scope changed while rendering; rerun render", 3);
     publish(scopeFile(entry.root, "bridge"), renderBridge(again.state, again.snapshot.graphHash, scopeFileName(entry.root, "graph")), tx);
     tx.projectionUpdated = true; result = "rendered";
@@ -386,7 +450,7 @@ export function retitleScope(entry: ScopeEntry, input: unknown, options: StoreOp
   if (title.length > 200 || /[\r\n]/.test(title)) throw new DomainError("invalid-input", "title must be one line of at most 200 characters");
   const tx: Transaction = { operationId, committed: false, projectionUpdated: false, temporary: [] };
   return transaction(entry, options, tx, () => {
-    const read = readScope(entry);
+    const read = readForWrite(entry);
     const replay = receipt(read, operationId, digest(input), tx, entry);
     if (replay) return replay;
     match(read, snapshot);
@@ -417,7 +481,7 @@ export function deletePlans(entry: ScopeEntry, input: unknown, options: StoreOpt
   const planIds = [...(r.planIds as string[])].sort();
   const tx: Transaction = { operationId, committed: false, projectionUpdated: false, temporary: [] };
   return transaction(entry, options, tx, () => {
-    const read = readScope(entry);
+    const read = readForWrite(entry);
     const replay = receipt(read, operationId, digest(input), tx, entry);
     if (replay) return replay;
     match(read, snapshot);
@@ -427,7 +491,35 @@ export function deletePlans(entry: ScopeEntry, input: unknown, options: StoreOpt
     const result = { action: DELETE_ACTION, ids: planIds };
     state.storage = { revision: randomUUID(), updatedAt: now, previousBridge: read.snapshot.bridge! };
     Object.defineProperty(state.receipts, operationId, { value: { requestDigest: digest(input), storageRevision: state.storage.revision, recordedAt: now, result }, enumerable: true, writable: true, configurable: true });
-    tx.result = result;
+    tx.result = result as Receipt["result"];
+    return publishGraph(entry, state, { exists: true, sha256: read.snapshot.graphHash }, read.snapshot.bridge!, tx, options);
+  });
+}
+/**
+ * Owner-only: remove the named rejected plans from mozak.json (`plan prune --rejected`). The request lists every
+ * plan id the owner saw, so approval is item by item. Same snapshot check, lock, receipt and projection as every
+ * other write, and never rebased. The receipt `{ action: "prune-rejected", ids }` is the prune record.
+ */
+export function pruneRejectedPlans(entry: ScopeEntry, input: unknown, options: StoreOptions = {}): OperationResult {
+  bounded(input);
+  const r = object(input, ["operationId", "scopeId", "expected", "planIds", "ownerRef", "ownerMessageAt"], "prune request");
+  identity(entry, r); const operationId = text(r.operationId, "operationId"); const snapshot = expected(r.expected);
+  text(r.ownerRef, "ownerRef"); text(r.ownerMessageAt, "ownerMessageAt");
+  if (!Array.isArray(r.planIds) || r.planIds.some((id) => typeof id !== "string" || !id.trim()) || r.planIds.length > 100) throw new DomainError("invalid-input", "planIds must list 1 to 100 plan ids");
+  const planIds = [...(r.planIds as string[])].sort();
+  const tx: Transaction = { operationId, committed: false, projectionUpdated: false, temporary: [] };
+  return transaction(entry, options, tx, () => {
+    const read = readForWrite(entry);
+    const replay = receipt(read, operationId, digest(input), tx, entry);
+    if (replay) return replay;
+    match(read, snapshot);
+    if (read.projectionStatus !== "current" && !isLegacyBridge(entry, read)) throw new DomainError(read.projectionStatus, "projection requires explicit repair or conflict resolution before new writes", 3);
+    const state = withoutRejectedPlans(read.state, planIds);
+    const now = new Date().toISOString();
+    const result = { action: PRUNE_ACTION, ids: planIds };
+    state.storage = { revision: randomUUID(), updatedAt: now, previousBridge: read.snapshot.bridge! };
+    Object.defineProperty(state.receipts, operationId, { value: { requestDigest: digest(input), storageRevision: state.storage.revision, recordedAt: now, result }, enumerable: true, writable: true, configurable: true });
+    tx.result = result as Receipt["result"];
     return publishGraph(entry, state, { exists: true, sha256: read.snapshot.graphHash }, read.snapshot.bridge!, tx, options);
   });
 }
@@ -449,7 +541,7 @@ export function renameScopeFiles(entry: ScopeEntry, options: StoreOptions = {}):
     if ((names.includes(GRAPH_FILE) && names.includes(LEGACY_GRAPH_FILE)) || (names.includes(BRIDGE_FILE) && names.includes(LEGACY_BRIDGE_FILE))) {
       throw new DomainError("rename-conflict", "both uppercase and lowercase plan files exist; keep one by hand", 3);
     }
-    const read = readScope(entry);
+    const read = readForWrite(entry);
     if (read.projectionStatus === "bridge-conflict") throw new DomainError("bridge-conflict", "mozak.md has hand edits; review them before renaming", 3);
     const move = (from: string, to: string) => {
       if (from === to) return;
@@ -460,7 +552,7 @@ export function renameScopeFiles(entry: ScopeEntry, options: StoreOptions = {}):
     move(graphName, GRAPH_FILE);
     if (pathExists(join(entry.root, bridgeName))) move(bridgeName, BRIDGE_FILE);
     fsyncDir(entry.root);
-    const again = readScope(entry);
+    const again = readForWrite(entry);
     publish(join(entry.root, BRIDGE_FILE), renderBridge(again.state, again.snapshot.graphHash, GRAPH_FILE), tx);
     tx.projectionUpdated = true; result = "renamed";
     return outcome(entry, tx, "ok");
@@ -474,7 +566,7 @@ export function repairProjection(entry: ScopeEntry, input: unknown, options: Sto
   identity(entry, r); const requestId = text(r.requestId, "requestId"); const snapshot = expected(r.expected);
   const tx: Transaction = { requestId, committed: false, projectionUpdated: false, temporary: [] };
   return transaction(entry, options, tx, () => {
-    const read = readScope(entry); match(read, snapshot, false);
+    const read = readForWrite(entry); match(read, snapshot, false);
     if (read.projectionStatus === "current") {
       ensureStorageIgnored(entry.root);
       return outcome(entry, tx, "already-current");
@@ -482,10 +574,57 @@ export function repairProjection(entry: ScopeEntry, input: unknown, options: Sto
     match(read, snapshot);
     if (read.projectionStatus === "bridge-conflict") throw new DomainError("bridge-conflict", "manual bridge conflict preserved; automatic repair refused", 3);
     options.onPhase?.("before-repair");
-    const current = readScope(entry); match(current, snapshot);
+    const current = readForWrite(entry); match(current, snapshot);
     ensureStorageIgnored(entry.root);
     publish(scopeFile(entry.root, "bridge"), renderBridge(current.state, current.snapshot.graphHash, scopeFileName(entry.root, "graph")), tx);
     tx.projectionUpdated = true;
     return outcome(entry, tx, "ok");
   });
+}
+
+export interface AnnotateOutcome extends OperationResult { annotations: FileToken | null }
+/**
+ * Owner-only: apply owner-approved annotation items to mozak.annotations.json. Runs under the scope lock, writes one
+ * temp file and one rename, and never touches mozak.json or mozak.md. The CAS input is only the sidecar token the
+ * owner reviewed: graph writes by agents neither need nor change it, and an annotation never makes an agent stale.
+ * A retried identical request replays its receipt before the CAS check. `lookup` resolves targets in other scopes.
+ */
+export function annotateScope(entry: ScopeEntry, input: unknown, lookup: ScopeLookup, options: StoreOptions = {}): AnnotateOutcome {
+  bounded(input);
+  const { request, items } = validateAnnotateRequest(input);
+  identity(entry, request as unknown as Record<string, unknown>);
+  const tx: Transaction = { operationId: request.operationId, committed: false, projectionUpdated: false, temporary: [] };
+  let token: FileToken | null = null;
+  const out = transaction(entry, options, tx, () => {
+    const read = readForWrite(entry);
+    const side = readAnnotations(entry.root, entry.id);
+    if (side.issues.length) throw new DomainError(side.issues[0]!.code, `${side.issues[0]!.message}; repair the sidecar by hand before annotating`, 3);
+    const requestDigest = digest(input);
+    const base = { operationId: request.operationId, snapshot: read.snapshot, projectionStatus: read.projectionStatus, projectionUpdated: false, issues: [] as ScopeIssue[] };
+    if (side.doc && own(side.doc.receipts, request.operationId)) {
+      const prior = side.doc.receipts[request.operationId]!;
+      if (prior.requestDigest !== requestDigest) throw new DomainError("operation-conflict", "operation ID was already used with different input; use a new operationId for a changed request, or read the committed result with mozak operation --id", 3);
+      tx.committed = true; tx.result = prior.result; token = side.token;
+      return { ...base, status: "replayed", committed: true, replayed: true, result: prior.result };
+    }
+    if (!same(side.token, request.expectedAnnotations)) throw new DomainError("stale-input", "mozak.annotations.json changed; reread it and show the items again", 3);
+    const now = new Date().toISOString();
+    const revision = randomUUID();
+    const current = side.doc ?? emptyAnnotations(entry.id, now);
+    const local: ScopeLookup = (id) => (id === entry.id ? read.state : lookup(id));
+    const applied = applyAnnotate(current, read.state, items, request, local, now, revision);
+    const result = { action: "annotate" as const, ids: applied.ids };
+    Object.defineProperty(applied.doc.receipts, request.operationId, { value: { requestDigest, revision, recordedAt: now, result }, enumerable: true, writable: true, configurable: true });
+    const bytes = annotationsBytes(applied.doc);
+    const path = join(entry.root, ANNOTATIONS_FILE);
+    options.onPhase?.("before-annotations");
+    replaceFileDurable(path, bytes, (temporary) => tx.temporary.push(temporary), () => {
+      options.onPhase?.("temp-written:annotations");
+      if (!same(readAnnotations(entry.root).token, side.token)) throw new DomainError("annotations-changed-during-write", "mozak.annotations.json changed during the write; external bytes preserved", 3);
+    });
+    tx.committed = true; tx.result = result;
+    token = { exists: true, sha256: hashBytes(bytes) };
+    return { ...base, status: "ok", committed: true, result };
+  });
+  return { ...out, annotations: token };
 }

@@ -39,6 +39,8 @@ jobs:
         run: npm ci --ignore-scripts
       - name: Build
         run: npm run build
+      - name: Typecheck and Markdown link check
+        run: npm run lint
       - name: Core, CLI and fresh MCP regression suite
         run: npm test
       - name: Standalone installation and failure-path checks

@@ -117,3 +117,5 @@
 .mozak-strip-count { font-size: 10px; font-variant-numeric: tabular-nums; color: var(--text-faint); }
 .mozak-sync.is-busy svg { animation: mozak-spin 0.9s linear infinite; }
 @keyframes mozak-spin { to { transform: rotate(360deg); } }
+.mozak-plan-refs { display: flex; flex-wrap: wrap; gap: 2px 8px; margin: -2px 0 4px 18px; font-size: 10px; color: var(--text-muted); }
+.mozak-ref.ref-dangling, .mozak-ref.ref-unavailable { color: var(--text-error); }

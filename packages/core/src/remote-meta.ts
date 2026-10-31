@@ -66,6 +66,8 @@ export interface RemoteMeta {
   lastFetchAt: string | null;
   lastError: string | null;
   fullClone: string | null;
+  /** Last fetch attempt, successful or not. After a failure, reads skip the network until it is ten minutes old. */
+  lastAttemptAt?: string | null;
   /** Last unauthenticated GitHub visibility answer for a repo-mode scope, and when it was taken. */
   visibility?: Visibility | null;
   visibilityCheckedAt?: string | null;
@@ -83,7 +85,7 @@ export function readRemoteMeta(baseDir: string, id: string): RemoteMeta {
     const raw = JSON.parse(readFileSync(metaPath(baseDir, id), "utf8")) as Record<string, unknown>;
     const str = (v: unknown) => (typeof v === "string" && v !== "" ? v : null);
     const vis = raw.visibility === "public" || raw.visibility === "private-or-missing" || raw.visibility === "unknown" ? raw.visibility : null;
-    return { lastFetchAt: str(raw.lastFetchAt), lastError: str(raw.lastError), fullClone: str(raw.fullClone), visibility: vis, visibilityCheckedAt: str(raw.visibilityCheckedAt) };
+    return { lastFetchAt: str(raw.lastFetchAt), lastError: str(raw.lastError), fullClone: str(raw.fullClone), visibility: vis, visibilityCheckedAt: str(raw.visibilityCheckedAt), lastAttemptAt: str(raw.lastAttemptAt) };
   } catch {
     return empty;
   }
@@ -106,4 +108,10 @@ export interface RemoteStatus {
   error?: string;
   /** "full-clone" when reads use a clone made by `mozak pull`, "vault" when plans live in a vault folder, otherwise "sparse-cache". */
   source: "sparse-cache" | "full-clone" | "vault";
+  /**
+   * "fetched": refreshed by this call. "cached": the last fetch is under ten minutes old, nothing was fetched.
+   * "offline": the fetch failed (now or within the last ten minutes) and the cached copy is used.
+   * "local": plans live in a vault folder and are never fetched.
+   */
+  remoteFreshness: "fetched" | "cached" | "offline" | "local";
 }

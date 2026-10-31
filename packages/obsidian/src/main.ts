@@ -18,11 +18,11 @@ export interface MozakSettings {
 const DEFAULTS: MozakSettings = { inventoryPath: "", autoRefresh: true, remotePollSeconds: 60 };
 
 export default class MozakPlugin extends Plugin {
-  settings: MozakSettings = { ...DEFAULTS };
+  override settings: MozakSettings = { ...DEFAULTS };
   private stopWatch: (() => void) | null = null;
   private pollTimer: number | null = null;
 
-  async onload(): Promise<void> {
+  override async onload(): Promise<void> {
     this.settings = { ...DEFAULTS, ...((await this.loadData()) as Partial<MozakSettings> | null) };
     this.registerView(SCOPES_VIEW_TYPE, (leaf) => new ScopesView(leaf, this));
     this.addRibbonIcon("brain-circuit", "Open mozak scopes", () => void this.activateScopes());
@@ -35,7 +35,7 @@ export default class MozakPlugin extends Plugin {
     });
   }
 
-  onunload(): void { this.stopAutoRefresh(); }
+  override onunload(): void { this.stopAutoRefresh(); }
 
   private stopAutoRefresh(): void {
     this.stopWatch?.();
@@ -177,7 +177,7 @@ class MozakSettingTab extends PluginSettingTab {
   // Declarative settings (Obsidian 1.13+, minAppVersion is 1.14.4) so they show up in settings search.
   // The default getControlValue/setControlValue read and write this.plugin.settings; setControlValue is
   // overridden to persist through saveSettings, which also restarts auto-refresh.
-  getSettingDefinitions(): SettingDefinitionItem[] {
+  override getSettingDefinitions(): SettingDefinitionItem[] {
     const resolved = this.plugin.inventory();
     return [
       {
@@ -204,7 +204,7 @@ class MozakSettingTab extends PluginSettingTab {
     ];
   }
 
-  async setControlValue(key: string, value: unknown): Promise<void> {
+  override async setControlValue(key: string, value: unknown): Promise<void> {
     const s = this.plugin.settings;
     if (key === "inventoryPath" && typeof value === "string") s.inventoryPath = value;
     else if (key === "autoRefresh" && typeof value === "boolean") s.autoRefresh = value;

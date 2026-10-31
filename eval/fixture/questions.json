@@ -1,0 +1,572 @@
+{
+  "fixture": "mozak-synthetic-vault-v1",
+  "count": 40,
+  "questions": [
+    {
+      "id": "q01",
+      "type": "single",
+      "lang": "en",
+      "question": "Which supplier does the bike shop use for brake pads now?",
+      "gold": [
+        "bikeshop/decisions/brake-supplier.md",
+        "bikeshop/plans/parts-supplier-switch.md"
+      ],
+      "goldMode": "any",
+      "facts": [
+        "b-dec-supp",
+        "b-supp-done"
+      ],
+      "answer": "Ridgeline Parts"
+    },
+    {
+      "id": "q02",
+      "type": "single",
+      "lang": "en",
+      "question": "How much does a basic tune-up cost?",
+      "gold": [
+        "bikeshop/decisions/pricing-2026.md"
+      ],
+      "goldMode": "any",
+      "facts": [
+        "b-price-tune"
+      ],
+      "answer": "45 EUR"
+    },
+    {
+      "id": "q03",
+      "type": "single",
+      "lang": "en",
+      "question": "When does the shop lease end?",
+      "gold": [
+        "bikeshop/lease.md"
+      ],
+      "goldMode": "any",
+      "facts": [
+        "b-lease"
+      ],
+      "answer": "30 September 2027"
+    },
+    {
+      "id": "q04",
+      "type": "single",
+      "lang": "en",
+      "question": "How much sealant goes into a mountain bike tire for a tubeless setup?",
+      "gold": [
+        "bikeshop/howto/tubeless-setup.md"
+      ],
+      "goldMode": "any",
+      "facts": [
+        "b-tubeless"
+      ],
+      "answer": "90 ml"
+    },
+    {
+      "id": "q05",
+      "type": "single",
+      "lang": "en",
+      "question": "How many tires were ruined in the basement flood?",
+      "gold": [
+        "bikeshop/log/2026-03-18-flood.md"
+      ],
+      "goldMode": "any",
+      "facts": [
+        "b-flood"
+      ],
+      "answer": "12"
+    },
+    {
+      "id": "q06",
+      "type": "single",
+      "lang": "en",
+      "question": "What fluid do Shimano brakes use?",
+      "gold": [
+        "bikeshop/howto/hydraulic-bleed.md"
+      ],
+      "goldMode": "any",
+      "facts": [
+        "b-bleed"
+      ],
+      "answer": "mineral oil"
+    },
+    {
+      "id": "q07",
+      "type": "single",
+      "lang": "en",
+      "question": "When is the next fire inspection due?",
+      "gold": [
+        "bikeshop/log/2026-08-02-inspection.md"
+      ],
+      "goldMode": "any",
+      "facts": [
+        "b-insp"
+      ],
+      "answer": "August 2028"
+    },
+    {
+      "id": "q08",
+      "type": "single",
+      "lang": "en",
+      "question": "What is the minimum stock of 700x28 inner tubes?",
+      "gold": [
+        "bikeshop/inventory/tubes-and-tires.md"
+      ],
+      "goldMode": "any",
+      "facts": [
+        "b-inv-tires"
+      ],
+      "answer": "20"
+    },
+    {
+      "id": "q09",
+      "type": "single",
+      "lang": "en",
+      "question": "How much does the winter bike storage cost?",
+      "gold": [
+        "bikeshop/plans/winter-storage.md"
+      ],
+      "goldMode": "any",
+      "facts": [
+        "b-store-price"
+      ],
+      "answer": "60 EUR per season"
+    },
+    {
+      "id": "q10",
+      "type": "single",
+      "lang": "en",
+      "question": "What wavelength is the infrared LED in the turbidity sensor?",
+      "gold": [
+        "teza/metode/sensor-build.md"
+      ],
+      "goldMode": "any",
+      "facts": [
+        "t-build"
+      ],
+      "answer": "860 nm"
+    },
+    {
+      "id": "q11",
+      "type": "single",
+      "lang": "en",
+      "question": "How much does the faculty grant give for sensor parts?",
+      "gold": [
+        "teza/budget.md"
+      ],
+      "goldMode": "any",
+      "facts": [
+        "t-budget"
+      ],
+      "answer": "420 EUR"
+    },
+    {
+      "id": "q12",
+      "type": "single",
+      "lang": "en",
+      "question": "Who shares a turbidity dataset from the Fyris river?",
+      "gold": [
+        "teza/people/jonas-berg.md"
+      ],
+      "goldMode": "any",
+      "facts": [
+        "t-jonas"
+      ],
+      "answer": "Jonas Berg"
+    },
+    {
+      "id": "q13",
+      "type": "single",
+      "lang": "hr",
+      "question": "Koliko je koštala nova pumpa za vrt?",
+      "gold": [
+        "vrt/odluke/pumpa.md"
+      ],
+      "goldMode": "any",
+      "facts": [
+        "v-pump-model"
+      ],
+      "answer": "189 eura"
+    },
+    {
+      "id": "q14",
+      "type": "single",
+      "lang": "hr",
+      "question": "Kolika je godišnja članarina u vrtu?",
+      "gold": [
+        "vrt/odluke/clanarina.md",
+        "vrt/sastanci/2026-04-15-sastanak.md"
+      ],
+      "goldMode": "any",
+      "facts": [
+        "v-m2-fee"
+      ],
+      "answer": "15 eura"
+    },
+    {
+      "id": "q15",
+      "type": "single",
+      "lang": "hr",
+      "question": "Koliko je sadnica rajčice oštetio kasni mraz?",
+      "gold": [
+        "vrt/dnevnik/2026-05-10.md"
+      ],
+      "goldMode": "any",
+      "facts": [
+        "v-frost"
+      ],
+      "answer": "30"
+    },
+    {
+      "id": "q16",
+      "type": "single",
+      "lang": "hr",
+      "question": "Tko drži ključ šupe s alatom?",
+      "gold": [
+        "vrt/inventar/alati.md"
+      ],
+      "goldMode": "any",
+      "facts": [
+        "v-tools-shed"
+      ],
+      "answer": "Ivana Horvat"
+    },
+    {
+      "id": "q17",
+      "type": "single",
+      "lang": "hr",
+      "question": "Što raste na gredici 7?",
+      "gold": [
+        "vrt/karta-gredica.md"
+      ],
+      "goldMode": "any",
+      "facts": [
+        "v-bed7"
+      ],
+      "answer": "jagode"
+    },
+    {
+      "id": "q18",
+      "type": "single",
+      "lang": "hr",
+      "question": "Kolika je izmjerena mutnoća na Savici?",
+      "gold": [
+        "teza/mjerenja/2026-04-03-savica.md"
+      ],
+      "goldMode": "any",
+      "facts": [
+        "t-sav"
+      ],
+      "answer": "41 NTU"
+    },
+    {
+      "id": "q19",
+      "type": "single",
+      "lang": "hr",
+      "question": "Kojim se standardima kalibrira senzor mutnoće?",
+      "gold": [
+        "teza/metode/kalibracija.md"
+      ],
+      "goldMode": "any",
+      "facts": [
+        "t-cal"
+      ],
+      "answer": "formazin 0, 100 i 400 NTU"
+    },
+    {
+      "id": "q20",
+      "type": "single",
+      "lang": "hr",
+      "question": "Kada je rok za predaju teze?",
+      "gold": [
+        "teza/rokovi.md",
+        "teza/sastanci/2026-06-24-mentorica.md"
+      ],
+      "goldMode": "any",
+      "facts": [
+        "t-deadline"
+      ],
+      "answer": "15. rujna 2026."
+    },
+    {
+      "id": "q21",
+      "type": "single",
+      "lang": "hr",
+      "question": "Tko je mentorica teze?",
+      "gold": [
+        "teza/ljudi/ana-kovacevic.md"
+      ],
+      "goldMode": "any",
+      "facts": [
+        "t-mentor"
+      ],
+      "answer": "prof. dr. Ana Kovačević"
+    },
+    {
+      "id": "q22",
+      "type": "single",
+      "lang": "hr",
+      "question": "Koliko je vode vrt potrošio u srpnju?",
+      "gold": [
+        "vrt/dnevnik/2026-07-21.md"
+      ],
+      "goldMode": "any",
+      "facts": [
+        "v-water"
+      ],
+      "answer": "41 kubik"
+    },
+    {
+      "id": "q23",
+      "type": "single",
+      "lang": "hr",
+      "question": "Koliko je pekara Klas donirala?",
+      "gold": [
+        "vrt/financije/donacije-2026.md"
+      ],
+      "goldMode": "any",
+      "facts": [
+        "v-don-pekara"
+      ],
+      "answer": "300 eura"
+    },
+    {
+      "id": "q24",
+      "type": "multi-hop",
+      "lang": "en",
+      "question": "What is the profession of the person who leads the drip irrigation plan?",
+      "gold": [
+        "vrt/ljudi/marko-duric.md",
+        "vrt/plans/navodnjavanje.md"
+      ],
+      "goldMode": "all",
+      "facts": [
+        "v-irr-owner",
+        "v-marko-job"
+      ],
+      "answer": "vodoinstalater (plumber)"
+    },
+    {
+      "id": "q25",
+      "type": "multi-hop",
+      "lang": "hr",
+      "question": "Tko je vlasnik zgrade u kojoj je servis bicikala i kada istječe najam?",
+      "gold": [
+        "bikeshop/lease.md",
+        "bikeshop/people/tomislav-kranjcevic.md"
+      ],
+      "goldMode": "all",
+      "facts": [
+        "b-landlord",
+        "b-lease"
+      ],
+      "answer": "Tomislav Kranjčević, 30 September 2027"
+    },
+    {
+      "id": "q26",
+      "type": "multi-hop",
+      "lang": "en",
+      "question": "On which days does the person building the booking page work?",
+      "gold": [
+        "bikeshop/people/lena-weiss.md",
+        "bikeshop/plans/online-booking.md"
+      ],
+      "goldMode": "all",
+      "facts": [
+        "b-book-owner",
+        "b-lena"
+      ],
+      "answer": "Tuesdays and Thursdays"
+    },
+    {
+      "id": "q27",
+      "type": "multi-hop",
+      "lang": "hr",
+      "question": "Koliko košta pumpa o kojoj ovisi plan navodnjavanja i kada je postavljena?",
+      "gold": [
+        "vrt/odluke/pumpa.md",
+        "vrt/plans/navodnjavanje.md"
+      ],
+      "goldMode": "all",
+      "facts": [
+        "v-irr-dep",
+        "v-pump-model"
+      ],
+      "answer": "189 eura, 28. ožujka 2026."
+    },
+    {
+      "id": "q28",
+      "type": "multi-hop",
+      "lang": "en",
+      "question": "Who owns the shop that rents the cargo bike to the field campaign?",
+      "gold": [
+        "bikeshop/people/sam-okafor.md",
+        "teza/plans/field-campaign.md"
+      ],
+      "goldMode": "all",
+      "facts": [
+        "t-camp-cargo",
+        "b-sam"
+      ],
+      "answer": "Sam Okafor"
+    },
+    {
+      "id": "q29",
+      "type": "multi-hop",
+      "lang": "hr",
+      "question": "Što je mentorica tražila na prvom sastanku i s kojeg je fakulteta?",
+      "gold": [
+        "teza/ljudi/ana-kovacevic.md",
+        "teza/sastanci/2026-03-11-mentorica.md"
+      ],
+      "goldMode": "all",
+      "facts": [
+        "t-mt1",
+        "t-mentor"
+      ],
+      "answer": "usporedbu s komercijalnim turbidimetrom; Građevinski fakultet"
+    },
+    {
+      "id": "q30",
+      "type": "cross-plan",
+      "lang": "en",
+      "question": "Which plan must finish before the calibration chapter can be written?",
+      "gold": [
+        "teza/plans/field-campaign.md",
+        "teza/plans/pisanje-poglavlja.md"
+      ],
+      "goldMode": "all",
+      "facts": [
+        "t-ch-dep",
+        "t-camp-sites"
+      ],
+      "answer": "Spring field campaign"
+    },
+    {
+      "id": "q31",
+      "type": "cross-plan",
+      "lang": "hr",
+      "question": "O kojem planu ovisi sjemenska banka i je li taj plan završen?",
+      "gold": [
+        "vrt/plans/kompostiste.md",
+        "vrt/plans/sjemenska-banka.md"
+      ],
+      "goldMode": "all",
+      "facts": [
+        "v-seed-dep",
+        "v-komp-done"
+      ],
+      "answer": "Novo kompostište, završeno 22. ožujka 2026."
+    },
+    {
+      "id": "q32",
+      "type": "cross-plan",
+      "lang": "en",
+      "question": "What must be fixed before the winter storage service can start?",
+      "gold": [
+        "bikeshop/log/2026-03-18-flood.md",
+        "bikeshop/plans/winter-storage.md"
+      ],
+      "goldMode": "all",
+      "facts": [
+        "b-store-dep",
+        "b-flood"
+      ],
+      "answer": "the basement must be dry after the March flood"
+    },
+    {
+      "id": "q33",
+      "type": "where",
+      "lang": "en",
+      "question": "Where is the note with the map of the garden beds?",
+      "gold": [
+        "vrt/karta-gredica.md"
+      ],
+      "goldMode": "any",
+      "facts": [
+        "v-beds-total"
+      ],
+      "answer": "vrt/karta-gredica.md"
+    },
+    {
+      "id": "q34",
+      "type": "where",
+      "lang": "hr",
+      "question": "Gdje su zapisana pravila ponašanja u vrtu?",
+      "gold": [
+        "vrt/pravila-vrta.md"
+      ],
+      "goldMode": "any",
+      "facts": [
+        "v-rule-pest"
+      ],
+      "answer": "vrt/pravila-vrta.md"
+    },
+    {
+      "id": "q35",
+      "type": "where",
+      "lang": "en",
+      "question": "Which note explains how to bleed hydraulic brakes?",
+      "gold": [
+        "bikeshop/howto/hydraulic-bleed.md"
+      ],
+      "goldMode": "any",
+      "facts": [
+        "b-bleed"
+      ],
+      "answer": "bikeshop/howto/hydraulic-bleed.md"
+    },
+    {
+      "id": "q36",
+      "type": "where",
+      "lang": "hr",
+      "question": "Gdje je bilješka o mjerenju na Jarunu?",
+      "gold": [
+        "teza/mjerenja/2026-04-17-jarun.md"
+      ],
+      "goldMode": "any",
+      "facts": [
+        "t-jar"
+      ],
+      "answer": "teza/mjerenja/2026-04-17-jarun.md"
+    },
+    {
+      "id": "q37",
+      "type": "abstain",
+      "lang": "en",
+      "question": "What is the Wi-Fi password of the bike shop?",
+      "gold": [],
+      "goldMode": "any",
+      "facts": [],
+      "answer": null
+    },
+    {
+      "id": "q38",
+      "type": "abstain",
+      "lang": "hr",
+      "question": "Koliko pčelinjih košnica ima vrt?",
+      "gold": [],
+      "goldMode": "any",
+      "facts": [],
+      "answer": null
+    },
+    {
+      "id": "q39",
+      "type": "abstain",
+      "lang": "en",
+      "question": "Which journal accepted the turbidity paper?",
+      "gold": [],
+      "goldMode": "any",
+      "facts": [],
+      "answer": null
+    },
+    {
+      "id": "q40",
+      "type": "abstain",
+      "lang": "hr",
+      "question": "Tko je napravio staklenik u vrtu?",
+      "gold": [],
+      "goldMode": "any",
+      "facts": [],
+      "answer": null
+    }
+  ]
+}

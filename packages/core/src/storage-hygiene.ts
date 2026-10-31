@@ -3,7 +3,7 @@ import { appendFileSync, lstatSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { DomainError } from "./errors.ts";
 
-const IGNORE_PATTERNS = [".mozak-write-lock/", "mozak.json.*.tmp", "mozak.md.*.tmp", "MOZAK.json.*.tmp", "MOZAK.md.*.tmp"];
+const IGNORE_PATTERNS = [".mozak-write-lock/", "mozak.json.*.tmp", "mozak.md.*.tmp", "MOZAK.json.*.tmp", "MOZAK.md.*.tmp", "mozak.annotations.json.*.tmp"];
 
 /** Only explicit init/repair writes these local rules. Never changes the git index. */
 export function ensureStorageIgnored(root: string): void {

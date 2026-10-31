@@ -7,6 +7,7 @@ import { checkQuestionInputs, discussionCurrent, saveDiscussion } from "./conver
 import { DomainError } from "./errors.ts";
 import { nonEmptyString } from "./validate.ts";
 import { isDeletedPlanId } from "./delete.ts";
+import { prunedRecord } from "./prune.ts";
 import {
   canonical,
   discussionDigest,
@@ -468,7 +469,7 @@ const SIMILARITY_STOPWORDS = new Set([
   "third", "key", "queued", "remote", "full", "vault", "alpha", "beta", "make", "add", "use", "users",
 ]);
 
-function significantTokens(text: string): string[] {
+export function significantTokens(text: string): string[] {
   const raw = text.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
   const out = new Set<string>();
   for (const word of raw) {
@@ -496,6 +497,58 @@ export interface SimilarPlanMatch {
   lifecycleState: Plan["lifecycle"]["state"];
 }
 
+/** Token sets one plan contributes to the similarity rules. Built once per plan so a pooled report stays O(n) in tokenizing. */
+export interface SimilarityProfile {
+  title: string[];
+  id: string[];
+  body: string[];
+  idNums: string[];
+}
+
+/** `fold` maps text before tokenizing (the pooled report folds Croatian diacritics). The propose guard uses none. */
+export function similarityProfile(planId: string, content: PlanContent, fold: (s: string) => string = (s) => s): SimilarityProfile {
+  return {
+    title: significantTokens(fold(content.title)),
+    id: significantTokens(fold(planId)),
+    body: significantTokens(fold(`${content.title} ${content.purpose} ${content.outcomes.map((o) => o.statement).join(" ")}`)),
+    idNums: numericTokens(planId),
+  };
+}
+
+export interface SimilarityMatch {
+  rule: "title" | "id-and-title" | "id-and-body";
+  titleShared: string[];
+  titleScore: number;
+  bodyShared: string[];
+  bodyScore: number;
+}
+
+/** The propose guard's three threshold rules for one pair of profiles. null when none fires. */
+export function similarityMatch(cand: SimilarityProfile, exist: SimilarityProfile): SimilarityMatch | null {
+  const disjointIdNumbers =
+    cand.idNums.length > 0 && exist.idNums.length > 0 && !cand.idNums.some((n) => exist.idNums.includes(n));
+  const titleMatch = overlapCoefficient(cand.title, exist.title);
+  const idMatch = overlapCoefficient(cand.id, exist.id);
+  const bodyMatch = overlapCoefficient(cand.body, exist.body);
+
+  const strongTitleOverlap = titleMatch.shared.length >= 2 && titleMatch.score >= 0.5;
+  const idAndTitleOverlap =
+    !disjointIdNumbers &&
+    titleMatch.shared.length >= 1 &&
+    idMatch.shared.length >= 1 &&
+    bodyMatch.shared.length >= 2 &&
+    bodyMatch.score >= 0.5;
+  const idAndBodyOverlap =
+    !disjointIdNumbers &&
+    idMatch.shared.length >= 2 &&
+    idMatch.score >= 0.5 &&
+    bodyMatch.shared.length >= 2 &&
+    bodyMatch.score >= 0.4;
+  const rule = strongTitleOverlap ? "title" : idAndTitleOverlap ? "id-and-title" : idAndBodyOverlap ? "id-and-body" : null;
+  if (!rule) return null;
+  return { rule, titleShared: titleMatch.shared, titleScore: titleMatch.score, bodyShared: bodyMatch.shared, bodyScore: bodyMatch.score };
+}
+
 /**
  * Finds existing non-completed plans in the scope whose title, ID, purpose, or outcomes
  * substantially overlap a candidate proposal. Completed plans remain historical and are excluded.
@@ -506,46 +559,14 @@ export function findSimilarPlans(
   distinctFromPlanIds: string[] = [],
 ): SimilarPlanMatch[] {
   const distinct = new Set(distinctFromPlanIds);
-  const candTitle = significantTokens(candidate.content.title);
-  const candId = significantTokens(candidate.planId);
-  const candBody = significantTokens(
-    `${candidate.content.title} ${candidate.content.purpose} ${candidate.content.outcomes.map((o) => o.statement).join(" ")}`,
-  );
-  const candIdNums = numericTokens(candidate.planId);
+  const cand = similarityProfile(candidate.planId, candidate.content);
   const matches: SimilarPlanMatch[] = [];
 
   for (const plan of state.plans) {
     if (plan.id === candidate.planId || plan.lifecycle.state === "completed" || distinct.has(plan.id)) continue;
     const existing = (plan.accepted ?? plan.pending)?.content;
     if (!existing) continue;
-    const existTitle = significantTokens(existing.title);
-    const existId = significantTokens(plan.id);
-    const existBody = significantTokens(
-      `${existing.title} ${existing.purpose} ${existing.outcomes.map((o) => o.statement).join(" ")}`,
-    );
-    const existIdNums = numericTokens(plan.id);
-    const disjointIdNumbers =
-      candIdNums.length > 0 && existIdNums.length > 0 && !candIdNums.some((n) => existIdNums.includes(n));
-
-    const titleMatch = overlapCoefficient(candTitle, existTitle);
-    const idMatch = overlapCoefficient(candId, existId);
-    const bodyMatch = overlapCoefficient(candBody, existBody);
-
-    const strongTitleOverlap = titleMatch.shared.length >= 2 && titleMatch.score >= 0.5;
-    const idAndTitleOverlap =
-      !disjointIdNumbers &&
-      titleMatch.shared.length >= 1 &&
-      idMatch.shared.length >= 1 &&
-      bodyMatch.shared.length >= 2 &&
-      bodyMatch.score >= 0.5;
-    const idAndBodyOverlap =
-      !disjointIdNumbers &&
-      idMatch.shared.length >= 2 &&
-      idMatch.score >= 0.5 &&
-      bodyMatch.shared.length >= 2 &&
-      bodyMatch.score >= 0.4;
-
-    if (strongTitleOverlap || idAndTitleOverlap || idAndBodyOverlap) {
+    if (similarityMatch(cand, similarityProfile(plan.id, existing))) {
       matches.push({ planId: plan.id, title: existing.title, lifecycleState: plan.lifecycle.state });
     }
   }
@@ -892,6 +913,8 @@ export function applyMutation(
       const planId = p.planId as string;
       if (next.plans.some((x) => x.id === planId)) throw invalid(`plan "${planId}" already exists`);
       if (isDeletedPlanId(next, planId)) throw invalid(`plan "${planId}" was deleted from this scope; choose a new plan id`);
+      // A pruned id stays reserved: refs to it resolve through its prune record.
+      if (prunedRecord(next, planId)) throw invalid(`plan id "${planId}" belonged to a pruned rejected plan; choose another id`);
       const content = checkContent(p.content);
       const distinctFromPlanIds = (p.distinctFromPlanIds as string[] | undefined) ?? [];
       for (const distinctId of distinctFromPlanIds) {

@@ -1,0 +1,666 @@
+{
+  "fixture": "mozak-synthetic-vault-v1",
+  "scopes": [
+    {
+      "id": "vrt",
+      "title": "Kvartovski vrt (community garden)",
+      "lang": "hr"
+    },
+    {
+      "id": "bikeshop",
+      "title": "Spoke & Chain bike repair shop",
+      "lang": "en"
+    },
+    {
+      "id": "teza",
+      "title": "Thesis: low-cost turbidity sensors on the Sava",
+      "lang": "mixed"
+    }
+  ],
+  "plans": [
+    {
+      "scope": "vrt",
+      "note": "vrt/plans/navodnjavanje.md",
+      "title": "Navodnjavanje kap po kap",
+      "state": "in-progress"
+    },
+    {
+      "scope": "vrt",
+      "note": "vrt/plans/kompostiste.md",
+      "title": "Novo kompostište",
+      "state": "done"
+    },
+    {
+      "scope": "vrt",
+      "note": "vrt/plans/sjemenska-banka.md",
+      "title": "Sjemenska banka",
+      "state": "proposed"
+    },
+    {
+      "scope": "bikeshop",
+      "note": "bikeshop/plans/online-booking.md",
+      "title": "Online booking for repairs",
+      "state": "in-progress"
+    },
+    {
+      "scope": "bikeshop",
+      "note": "bikeshop/plans/winter-storage.md",
+      "title": "Winter bike storage service",
+      "state": "approved"
+    },
+    {
+      "scope": "bikeshop",
+      "note": "bikeshop/plans/parts-supplier-switch.md",
+      "title": "Switch brake parts supplier",
+      "state": "done"
+    },
+    {
+      "scope": "teza",
+      "note": "teza/plans/field-campaign.md",
+      "title": "Spring field campaign",
+      "state": "in-progress"
+    },
+    {
+      "scope": "teza",
+      "note": "teza/plans/pisanje-poglavlja.md",
+      "title": "Pisanje poglavlja o kalibraciji",
+      "state": "proposed"
+    }
+  ],
+  "facts": [
+    {
+      "id": "b-landlord",
+      "date": "2019-06-01",
+      "notes": [
+        "bikeshop/people/tomislav-kranjcevic.md"
+      ],
+      "text": "Tomislav Kranjčević owns the building and is the landlord of the shop."
+    },
+    {
+      "id": "b-sam",
+      "date": "2019-06-01",
+      "notes": [
+        "bikeshop/people/sam-okafor.md"
+      ],
+      "text": "Sam Okafor owns the shop and is the head mechanic."
+    },
+    {
+      "id": "v-seed-old",
+      "date": "2019-09-01",
+      "notes": [
+        "vrt/inventar/sjeme.md"
+      ],
+      "text": "Najstarija sorta u zbirci je rajčica Volovsko srce iz 2019. godine."
+    },
+    {
+      "id": "b-inv-stand",
+      "date": "2021-03-01",
+      "notes": [
+        "bikeshop/inventory/tools.md"
+      ],
+      "text": "The truing stand was bought second hand in 2021 for 150 EUR."
+    },
+    {
+      "id": "b-sam-cert",
+      "date": "2023-04-01",
+      "notes": [
+        "bikeshop/people/sam-okafor.md"
+      ],
+      "text": "Sam holds a hydraulic brake service certificate from 2023."
+    },
+    {
+      "id": "v-ivana-role",
+      "date": "2024-03-01",
+      "notes": [
+        "vrt/ljudi/ivana-horvat.md"
+      ],
+      "text": "Ivana Horvat je koordinatorica vrta od 2024. godine."
+    },
+    {
+      "id": "v-rule-pest",
+      "date": "2024-03-01",
+      "notes": [
+        "vrt/pravila-vrta.md"
+      ],
+      "text": "U vrtu je zabranjena upotreba kemijskih pesticida."
+    },
+    {
+      "id": "v-rule-quiet",
+      "date": "2024-03-01",
+      "notes": [
+        "vrt/pravila-vrta.md"
+      ],
+      "text": "Nakon 21 sat u vrtu nema glazbe ni buke."
+    },
+    {
+      "id": "b-lease",
+      "date": "2024-10-01",
+      "notes": [
+        "bikeshop/lease.md"
+      ],
+      "text": "The lease ends on 30 September 2027 and the rent is 900 EUR a month."
+    },
+    {
+      "id": "v-beds-total",
+      "date": "2025-01-10",
+      "notes": [
+        "vrt/karta-gredica.md"
+      ],
+      "text": "Vrt ima ukupno 24 gredice raspoređene u četiri reda."
+    },
+    {
+      "id": "v-tools-shed",
+      "date": "2025-03-01",
+      "notes": [
+        "vrt/inventar/alati.md"
+      ],
+      "text": "Ključ šupe s alatom drži Ivana Horvat, a rezervni ključ je kod Željke."
+    },
+    {
+      "id": "v-bed7",
+      "date": "2025-04-01",
+      "notes": [
+        "vrt/karta-gredica.md"
+      ],
+      "text": "Na gredici 7 rastu jagode koje održava škola iz susjedstva."
+    },
+    {
+      "id": "v-marko-job",
+      "date": "2025-05-01",
+      "notes": [
+        "vrt/ljudi/marko-duric.md"
+      ],
+      "text": "Marko Đurić je po struci vodoinstalater i brine o vodi u vrtu."
+    },
+    {
+      "id": "v-zeljka-role",
+      "date": "2025-05-01",
+      "notes": [
+        "vrt/ljudi/zeljka-babic.md"
+      ],
+      "text": "Željka Babić vodi blagajnu i prikuplja članarinu."
+    },
+    {
+      "id": "b-tubeless",
+      "date": "2025-07-01",
+      "notes": [
+        "bikeshop/howto/tubeless-setup.md"
+      ],
+      "text": "Use 60 ml of sealant per road tire and 90 ml per mountain bike tire."
+    },
+    {
+      "id": "b-bleed",
+      "date": "2025-08-01",
+      "notes": [
+        "bikeshop/howto/hydraulic-bleed.md"
+      ],
+      "text": "Shimano brakes take mineral oil; never put DOT fluid in them."
+    },
+    {
+      "id": "b-lena",
+      "date": "2025-09-01",
+      "notes": [
+        "bikeshop/people/lena-weiss.md"
+      ],
+      "text": "Lena Weiss works Tuesdays and Thursdays and looks after the website."
+    },
+    {
+      "id": "t-mentor",
+      "date": "2025-10-01",
+      "notes": [
+        "teza/ljudi/ana-kovacevic.md"
+      ],
+      "text": "Mentorica teze je prof. dr. Ana Kovačević s Građevinskog fakulteta."
+    },
+    {
+      "id": "b-cust",
+      "date": "2025-11-01",
+      "notes": [
+        "bikeshop/customers/repeat-customers.md"
+      ],
+      "text": "The courier collective Brzi Kotač brings in about 15 bikes a month."
+    },
+    {
+      "id": "t-rev",
+      "date": "2025-11-15",
+      "notes": [
+        "teza/literatura/turbidity-review.md"
+      ],
+      "text": "The review compares nephelometric and backscatter methods across 48 studies."
+    },
+    {
+      "id": "t-lowcost",
+      "date": "2025-11-20",
+      "notes": [
+        "teza/literatura/low-cost-sensors.md"
+      ],
+      "text": "Low-cost optical sensors stay within 10 percent of a lab turbidimeter below 400 NTU."
+    },
+    {
+      "id": "t-jonas",
+      "date": "2025-12-01",
+      "notes": [
+        "teza/people/jonas-berg.md"
+      ],
+      "text": "Jonas Berg from Uppsala shares his turbidity dataset from the Fyris river."
+    },
+    {
+      "id": "b-price-tune",
+      "date": "2026-01-02",
+      "notes": [
+        "bikeshop/decisions/pricing-2026.md"
+      ],
+      "text": "A basic tune-up costs 45 EUR and a full service costs 110 EUR."
+    },
+    {
+      "id": "b-inv-tires",
+      "date": "2026-01-05",
+      "notes": [
+        "bikeshop/inventory/tubes-and-tires.md"
+      ],
+      "text": "Minimum stock is 20 inner tubes in size 700x28."
+    },
+    {
+      "id": "v-tools-count",
+      "date": "2026-01-15",
+      "notes": [
+        "vrt/inventar/alati.md"
+      ],
+      "text": "Vrt ima šest motika, četiri lopate i jedan motokultivator."
+    },
+    {
+      "id": "t-budget",
+      "date": "2026-01-20",
+      "notes": [
+        "teza/budget.md"
+      ],
+      "text": "The faculty grant gives 420 EUR for sensor parts."
+    },
+    {
+      "id": "t-build",
+      "date": "2026-02-01",
+      "notes": [
+        "teza/metode/sensor-build.md"
+      ],
+      "text": "Each sensor uses an ESP32 board and an infrared LED at 860 nm."
+    },
+    {
+      "id": "t-build-cost",
+      "date": "2026-02-01",
+      "notes": [
+        "teza/metode/sensor-build.md"
+      ],
+      "text": "One sensor costs about 35 EUR in parts."
+    },
+    {
+      "id": "b-mt1-cargo",
+      "date": "2026-02-12",
+      "notes": [
+        "bikeshop/meetings/2026-02-12-weekly.md"
+      ],
+      "text": "A thesis student asked to rent the cargo bike for river field trips from April."
+    },
+    {
+      "id": "b-mt1-hours",
+      "date": "2026-02-12",
+      "notes": [
+        "bikeshop/meetings/2026-02-12-weekly.md"
+      ],
+      "text": "Saturday opening hours change to 9:00 to 14:00."
+    },
+    {
+      "id": "b-mt1-late",
+      "date": "2026-02-12",
+      "notes": [
+        "bikeshop/meetings/2026-02-12-weekly.md"
+      ],
+      "text": "Velotech delivered brake pads late for the third time in a row."
+    },
+    {
+      "id": "v-m1-members",
+      "date": "2026-03-04",
+      "notes": [
+        "vrt/sastanci/2026-03-04-sastanak.md"
+      ],
+      "text": "Na sastanku je bilo 14 članova."
+    },
+    {
+      "id": "v-m1-pump",
+      "date": "2026-03-04",
+      "notes": [
+        "vrt/sastanci/2026-03-04-sastanak.md"
+      ],
+      "text": "Stara pumpa je pregorjela u veljači, pa je dogovorena kupnja nove."
+    },
+    {
+      "id": "v-komp-wood",
+      "date": "2026-03-10",
+      "notes": [
+        "vrt/plans/kompostiste.md"
+      ],
+      "text": "Drvo za komore donirala je stolarija Hrast."
+    },
+    {
+      "id": "t-mt1",
+      "date": "2026-03-11",
+      "notes": [
+        "teza/sastanci/2026-03-11-mentorica.md"
+      ],
+      "text": "Mentorica je tražila da se doda usporedba s komercijalnim turbidimetrom."
+    },
+    {
+      "id": "b-flood",
+      "date": "2026-03-18",
+      "notes": [
+        "bikeshop/log/2026-03-18-flood.md"
+      ],
+      "text": "A burst pipe flooded the basement and ruined 12 tires."
+    },
+    {
+      "id": "v-komp-done",
+      "date": "2026-03-22",
+      "notes": [
+        "vrt/plans/kompostiste.md"
+      ],
+      "text": "Kompostište s tri komore završeno je 22. ožujka 2026."
+    },
+    {
+      "id": "v-pump-model",
+      "date": "2026-03-25",
+      "notes": [
+        "vrt/odluke/pumpa.md"
+      ],
+      "text": "Kupljena je potopna pumpa snage 600 W za 189 eura."
+    },
+    {
+      "id": "v-pump-date",
+      "date": "2026-03-28",
+      "notes": [
+        "vrt/odluke/pumpa.md"
+      ],
+      "text": "Pumpa je postavljena u bunar 28. ožujka 2026."
+    },
+    {
+      "id": "t-cal",
+      "date": "2026-04-01",
+      "notes": [
+        "teza/metode/kalibracija.md"
+      ],
+      "text": "Senzor se kalibrira formazinskim standardima od 0, 100 i 400 NTU."
+    },
+    {
+      "id": "t-camp-cargo",
+      "date": "2026-04-01",
+      "notes": [
+        "teza/plans/field-campaign.md"
+      ],
+      "text": "Equipment travels on a cargo bike rented from the Spoke & Chain shop, see [[bikeshop/meetings/2026-02-12-weekly]]."
+    },
+    {
+      "id": "t-camp-sites",
+      "date": "2026-04-01",
+      "notes": [
+        "teza/plans/field-campaign.md"
+      ],
+      "text": "Measure turbidity at Savica and Jarun every two weeks from April to June."
+    },
+    {
+      "id": "t-sav",
+      "date": "2026-04-03",
+      "notes": [
+        "teza/mjerenja/2026-04-03-savica.md"
+      ],
+      "text": "Izmjerena mutnoća na Savici bila je 41 NTU nakon kiše."
+    },
+    {
+      "id": "b-flood-ins",
+      "date": "2026-04-10",
+      "notes": [
+        "bikeshop/log/2026-03-18-flood.md"
+      ],
+      "text": "Insurance paid 640 EUR for the flood damage."
+    },
+    {
+      "id": "v-fee-why",
+      "date": "2026-04-15",
+      "notes": [
+        "vrt/odluke/clanarina.md"
+      ],
+      "text": "Članarina pokriva vodu, osiguranje i zajednički alat."
+    },
+    {
+      "id": "v-m2-beds",
+      "date": "2026-04-15",
+      "notes": [
+        "vrt/sastanci/2026-04-15-sastanak.md"
+      ],
+      "text": "Dvije nove gredice dodijeljene su obiteljima s popisa čekanja."
+    },
+    {
+      "id": "v-m2-fee",
+      "date": "2026-04-15",
+      "notes": [
+        "vrt/sastanci/2026-04-15-sastanak.md",
+        "vrt/odluke/clanarina.md"
+      ],
+      "text": "Članarina je povećana na 15 eura godišnje."
+    },
+    {
+      "id": "t-jar",
+      "date": "2026-04-17",
+      "notes": [
+        "teza/mjerenja/2026-04-17-jarun.md"
+      ],
+      "text": "Na Jarunu je izmjereno 7 NTU, a temperatura vode bila je 12 °C."
+    },
+    {
+      "id": "v-irr-dep",
+      "date": "2026-04-20",
+      "notes": [
+        "vrt/plans/navodnjavanje.md"
+      ],
+      "text": "Plan ovisi o novoj pumpi iz odluke [[vrt/odluke/pumpa]]."
+    },
+    {
+      "id": "v-irr-len",
+      "date": "2026-04-20",
+      "notes": [
+        "vrt/plans/navodnjavanje.md"
+      ],
+      "text": "Za dvanaest gredica treba 180 metara cijevi za kapanje."
+    },
+    {
+      "id": "v-irr-owner",
+      "date": "2026-04-20",
+      "notes": [
+        "vrt/plans/navodnjavanje.md"
+      ],
+      "text": "Plan vodi Marko Đurić, a rok je 30. lipnja 2026."
+    },
+    {
+      "id": "b-dec-supp",
+      "date": "2026-04-25",
+      "notes": [
+        "bikeshop/decisions/brake-supplier.md"
+      ],
+      "text": "The shop switched from Velotech to Ridgeline Parts after three late deliveries."
+    },
+    {
+      "id": "b-dec-supp-price",
+      "date": "2026-04-25",
+      "notes": [
+        "bikeshop/decisions/brake-supplier.md"
+      ],
+      "text": "Ridgeline is 8 percent more expensive but delivers within two days."
+    },
+    {
+      "id": "b-supp-done",
+      "date": "2026-05-02",
+      "notes": [
+        "bikeshop/plans/parts-supplier-switch.md"
+      ],
+      "text": "All brake pad orders moved to Ridgeline Parts on 2 May 2026."
+    },
+    {
+      "id": "v-frost",
+      "date": "2026-05-10",
+      "notes": [
+        "vrt/dnevnik/2026-05-10.md"
+      ],
+      "text": "Kasni mraz u noći 9. svibnja oštetio je 30 sadnica rajčice."
+    },
+    {
+      "id": "b-book-owner",
+      "date": "2026-05-15",
+      "notes": [
+        "bikeshop/plans/online-booking.md"
+      ],
+      "text": "Lena Weiss builds the booking page; the target launch is 1 September 2026."
+    },
+    {
+      "id": "b-book-slots",
+      "date": "2026-05-15",
+      "notes": [
+        "bikeshop/plans/online-booking.md"
+      ],
+      "text": "Customers will pick 30-minute drop-off slots between 8:00 and 11:00."
+    },
+    {
+      "id": "b-mt2-booking",
+      "date": "2026-05-20",
+      "notes": [
+        "bikeshop/meetings/2026-05-20-weekly.md"
+      ],
+      "text": "The booking page demo was shown; the payment step is postponed."
+    },
+    {
+      "id": "b-mt2-oil",
+      "date": "2026-05-20",
+      "notes": [
+        "bikeshop/meetings/2026-05-20-weekly.md"
+      ],
+      "text": "Order two more bottles of mineral oil before summer."
+    },
+    {
+      "id": "v-m3-festival",
+      "date": "2026-06-02",
+      "notes": [
+        "vrt/sastanci/2026-06-02-sastanak.md"
+      ],
+      "text": "Vrt sudjeluje na kvartovskom festivalu 20. rujna."
+    },
+    {
+      "id": "v-m3-snails",
+      "date": "2026-06-02",
+      "notes": [
+        "vrt/sastanci/2026-06-02-sastanak.md"
+      ],
+      "text": "Puževi su uništili salatu na gredicama 3 i 4, pa se postavlja bakrena traka."
+    },
+    {
+      "id": "v-seed-dep",
+      "date": "2026-06-02",
+      "notes": [
+        "vrt/plans/sjemenska-banka.md"
+      ],
+      "text": "Sjeme se suši u prostoru iznad kompostišta, pa plan ovisi o planu [[vrt/plans/kompostiste]]."
+    },
+    {
+      "id": "v-seed-idea",
+      "date": "2026-06-02",
+      "notes": [
+        "vrt/plans/sjemenska-banka.md"
+      ],
+      "text": "Članovi bi svake jeseni razmjenjivali domaće sorte rajčice i graha."
+    },
+    {
+      "id": "v-don-pekara",
+      "date": "2026-06-10",
+      "notes": [
+        "vrt/financije/donacije-2026.md"
+      ],
+      "text": "Pekara Klas donirala je 300 eura za sjemensku banku."
+    },
+    {
+      "id": "t-ch-dep",
+      "date": "2026-06-24",
+      "notes": [
+        "teza/plans/pisanje-poglavlja.md"
+      ],
+      "text": "Poglavlje se piše tek kad završi terenska kampanja [[teza/plans/field-campaign]]."
+    },
+    {
+      "id": "t-ch-len",
+      "date": "2026-06-24",
+      "notes": [
+        "teza/plans/pisanje-poglavlja.md"
+      ],
+      "text": "Poglavlje treba imati oko 25 stranica."
+    },
+    {
+      "id": "t-deadline",
+      "date": "2026-06-24",
+      "notes": [
+        "teza/sastanci/2026-06-24-mentorica.md",
+        "teza/rokovi.md"
+      ],
+      "text": "Rok za predaju teze pomaknut je na 15. rujna 2026."
+    },
+    {
+      "id": "t-defense",
+      "date": "2026-06-24",
+      "notes": [
+        "teza/rokovi.md"
+      ],
+      "text": "Obrana je planirana za listopad 2026."
+    },
+    {
+      "id": "b-store-cap",
+      "date": "2026-07-01",
+      "notes": [
+        "bikeshop/plans/winter-storage.md"
+      ],
+      "text": "The basement holds at most 40 bikes once the shelving is in."
+    },
+    {
+      "id": "b-store-dep",
+      "date": "2026-07-01",
+      "notes": [
+        "bikeshop/plans/winter-storage.md"
+      ],
+      "text": "The basement must be dry again after the March flood, see [[bikeshop/log/2026-03-18-flood]]."
+    },
+    {
+      "id": "b-store-price",
+      "date": "2026-07-01",
+      "notes": [
+        "bikeshop/plans/winter-storage.md"
+      ],
+      "text": "Storage costs 60 EUR for the season from November to March."
+    },
+    {
+      "id": "v-drought",
+      "date": "2026-07-21",
+      "notes": [
+        "vrt/dnevnik/2026-07-21.md"
+      ],
+      "text": "Zbog suše se vrt zalijeva samo prije 8 sati ujutro."
+    },
+    {
+      "id": "v-water",
+      "date": "2026-07-31",
+      "notes": [
+        "vrt/dnevnik/2026-07-21.md"
+      ],
+      "text": "Potrošnja vode u srpnju bila je 41 kubik."
+    },
+    {
+      "id": "b-insp",
+      "date": "2026-08-02",
+      "notes": [
+        "bikeshop/log/2026-08-02-inspection.md"
+      ],
+      "text": "The fire inspection passed; the next one is due in August 2028."
+    }
+  ]
+}

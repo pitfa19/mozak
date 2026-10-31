@@ -7,6 +7,11 @@ export * from "./stale.ts";
 export { auditProject, mozakTemplate } from "./init.ts";
 export { hashText, readSnapshot, EMPTY_HASH } from "./write.ts";
 
+// Read-only note helpers and text folding.
+export * from "./notes.ts";
+export * from "./fold.ts";
+export * from "./paths.ts";
+
 // Supported v3 understanding model, conversation and guarded public operations.
 export * from "./errors.ts";
 export * from "./understanding.ts";
@@ -26,5 +31,18 @@ export * from "./visibility.ts";
 export * from "./working-copy.ts";
 export * from "./durable.ts";
 export * from "./update.ts";
+export * from "./annotations.ts";
+export * from "./deadlines.ts";
+export * from "./crossplan.ts";
+export * from "./settings.ts";
+export * from "./lock-recover.ts";
+export * from "./prune.ts";
+export * from "./history.ts";
+export * from "./local-sync.ts";
+export * from "./locators.ts";
+export * from "./similar.ts";
+export * from "./plans-index.ts";
+export * from "./tend.ts";
+
 export * from "./vault-config.ts";
 export * from "./git-commit.ts";

@@ -133,7 +133,7 @@ node scripts/install-obsidian-plugin.mjs /path/to/your/vault --build
 
 The plugin finds `mozak-inventory.json` by searching upward from the vault folder, or you can set its path in the plugin settings. Each GitHub project shows a globe or lock badge for a public or private repo.
 
-**Plugin disclosures (desktop-only, `isDesktopOnly: true`):** When your `mozak-inventory.json` lists scopes outside the current vault, the plugin reads their `mozak.json`, `mozak.md`, `README.md` and `AGENTS.md` files from those configured paths and watches them when **Auto-refresh** is enabled. It never scans folders not listed in your inventory and never approves or changes a plan (it may regenerate a stale `mozak.md` projection when there are no unmerged hand edits). For remote GitHub scopes (`"remote": "github:owner/repo"` without vault-hosted `"plans"`), clicking **Sync remote scopes** or enabling **Repo sync interval (seconds)** runs your local `git` with your existing git login on the hidden `.mozak-cache` copy: `git fetch`, then a reset of that copy to the fetched commit. If an earlier mozak write left a plan commit unpushed (for example after a network failure), the sync first commits and pushes that pending `mozak.json` / `mozak.md` change. Set the sync interval to `0` to turn background git activity off. The sync also asks the public GitHub API, without a login and at most once a day per repo, whether each remote repo is public. The update notice only reads a cache file the CLI writes. The plugin never installs or updates itself, and has no telemetry. See [`packages/obsidian/README.md`](packages/obsidian/README.md#disclosures-obsidian-community-plugin-policy) for the full disclosure list.
+**Plugin disclosures (desktop-only, `isDesktopOnly: true`):** When your `mozak-inventory.json` lists scopes outside the current vault, the plugin reads their `mozak.json`, `mozak.md`, `mozak.annotations.json` (when present), `README.md` and `AGENTS.md` files from those configured paths and watches them when **Auto-refresh** is enabled. It never scans folders not listed in your inventory and never approves or changes a plan (it may regenerate a stale `mozak.md` projection when there are no unmerged hand edits). For remote GitHub scopes (`"remote": "github:owner/repo"` without vault-hosted `"plans"`), clicking **Sync vaults and repos** or enabling **Repo sync interval (seconds)** runs your local `git` with your existing git login on the hidden `.mozak-cache` copy: `git fetch`, then a reset of that copy to the fetched commit. If an earlier mozak write left a plan commit unpushed (for example after a network failure), the sync first commits and pushes that pending `mozak.json` / `mozak.md` change. The button also fast-forwards local vault repositories under scope locks, without pushing or merging diverged histories. That local-vault step is not run by the background timer. Set the sync interval to `0` to turn background git activity off. The sync also asks the public GitHub API, without a login and at most once a day per repo, whether each remote repo is public. The update notice only reads a cache file the CLI writes. The plugin never installs or updates itself, and has no telemetry. See [`packages/obsidian/README.md`](packages/obsidian/README.md#disclosures-obsidian-community-plugin-policy) for the full disclosure list.
 
 ## Under the hood
 
@@ -193,6 +193,24 @@ The Obsidian plugin passed Obsidian's automated community review. Its build and 
 - **The plugin inside Obsidian.** Its view model is unit-tested and it has been tried by hand, but there are no automated tests running inside the Obsidian app.
 - **Real GitHub.** Tests use local bare repos. Real GitHub was checked by hand.
 - **Unsupported setups.** Windows, network filesystems and diverged remote branches.
+
+## Unreleased 0.5 features on this branch
+
+These commands expose plan state. They do not establish an agent speed or accuracy benefit. Run them against an isolated inventory after `npm ci && npm run build`:
+
+```bash
+node packages/cli/dist/index.js context --config /path/to/inventory.json --scope sample --brief
+node packages/cli/dist/index.js context --config /path/to/inventory.json --scope sample --plan PLAN
+node packages/cli/dist/index.js graph --config /path/to/inventory.json --scope sample
+node packages/cli/dist/index.js ready --config /path/to/inventory.json --scope sample
+node packages/cli/dist/index.js plans --config /path/to/inventory.json --scope sample --sort deadline
+```
+
+`context --brief` returns bounded summaries, while `--plan` reads one plan without changing the whole-scope snapshot. Owner-only annotations add cross-plan references and deadlines in a sidecar. [Plans indexes and locators](docs/plans-index.md) provide navigation, not a search-quality guarantee. [Annotation commands](docs/annotations.md) describe the separate owner route.
+
+Experimental `concurrency.rebase` remains **off by default**. When explicitly enabled in `mozak-settings.json`, only selected non-conflicting `observe`, `save-discussion` and new-id `propose` requests may rebase. Decisions still require exact snapshots. `recover`, rejected-plan pruning, local fast-forward sync, history diagnostics and counts-only usage logging are also unreleased. Recovery and pruning remain owner operations.
+
+Reproduce the synthetic stale-write example with `node scripts/readme-example.mjs`, and run `node eval/verify.mjs` to verify the retrieval fixture. These are narrow checks, not evidence of downstream coding benefit. No new benchmark performance claim is made here.
 
 ## Platforms
 

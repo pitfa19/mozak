@@ -9,7 +9,7 @@ import { decideWithFlags, deleteWithFlags, observePayload, observeWithFlags, pla
 import { runningVersion, upgrade } from "./upgrade.js";
 import { doctor, renderDoctor } from "./doctor.js";
 
-const OWNER_ROUTES = new Set(["decide", "init", "repair", "pull", "rename-files", "retitle", "delete"]);
+const OWNER_ROUTES = new Set(["decide", "init", "repair", "pull", "rename-files", "retitle", "delete", "annotate", "recover", "prune", "plans-md"]);
 /** Read routes that may omit --scope: the scope is then found from the current folder's git origin. */
 const CWD_SCOPE_ROUTES = new Set(["context", "check", "review show", "plans", "plan show"]);
 
@@ -36,16 +36,23 @@ const ROUTES: Record<string, Route> = {
   context: { operation: "context", flags: ["config", "scope", "brief", "plan", "json"], requires: ["config"], requestFile: false },
   plans: {
     operation: "plans",
-    flags: ["config", "scope", "all", "include-rejected", "limit", "continuation", "json"],
+    flags: ["config", "scope", "all", "include-rejected", "limit", "continuation", "sort", "json"],
     requires: ["config"],
     requestFile: false,
     mode: "scope",
   },
+  graph: { operation: "graph", flags: ["config", "scope", "all", "json"], requires: ["config"], requestFile: false },
+  ready: { operation: "ready", flags: ["config", "scope", "all", "json"], requires: ["config"], requestFile: false },
+  similar: { operation: "similar", flags: ["config", "scope", "all", "json"], requires: ["config"], requestFile: false },
+  locators: { operation: "locators", flags: ["config", "scope", "all", "plan", "include-private", "json"], requires: ["config"], requestFile: false },
+  "plans-md": { operation: "plans-md", flags: ["config", "print", "json"], requires: ["config"], requestFile: false },
+  annotate: { operation: "annotate", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
+  recover: { operation: "recover", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
   "review show": { operation: "review", flags: ["config", "scope", "plan", "purpose", "outcome", "json"], requires: ["config", "plan"], requestFile: false },
   scopes: { operation: "scopes", flags: ["config", "json"], requires: ["config"], requestFile: false },
-  sync: { operation: "sync", flags: ["config", "scope", "json"], requires: ["config"], requestFile: false },
+  sync: { operation: "sync", flags: ["config", "scope", "local", "json"], requires: ["config"], requestFile: false },
   pull: { operation: "pull", flags: ["config", "scope", "into", "json"], requires: ["config", "scope"], requestFile: false },
-  check: { operation: "check", flags: ["config", "scope", "json"], requires: ["config"], requestFile: false },
+  check: { operation: "check", flags: ["config", "scope", "history", "json"], requires: ["config"], requestFile: false },
   operation: { operation: "operation", flags: ["config", "scope", "id", "json"], requires: ["config", "scope", "id"], requestFile: false },
   "plan propose": { operation: "propose", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
   "plan revise": { operation: "revise", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
@@ -54,6 +61,7 @@ const ROUTES: Record<string, Route> = {
   "plan show": { operation: "plan-show", flags: ["config", "scope", "plan", "json"], requires: ["config", "plan"], requestFile: false },
   observe: { operation: "observe", flags: ["config", "scope", "request", ...OBSERVE_FLAGS], requires: ["config", "scope"], requestFile: true },
   "review decide": { operation: "decide", flags: ["config", "scope", "request", ...DECIDE_FLAGS], requires: ["config", "scope"], requestFile: true },
+  "plan prune": { operation: "prune", flags: ["config", "scope", "rejected", "request"], requires: ["config", "scope", "rejected", "request"], requestFile: true },
   "discussion save": { operation: "save-discussion", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
   "spec attach": { operation: "attach-spec", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
   "projection repair": { operation: "repair", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
@@ -66,7 +74,7 @@ const ROUTES: Record<string, Route> = {
 };
 
 const ROUTE_NAMES = Object.keys(ROUTES);
-const BOOLEAN_FLAGS = new Set(["json", "include-rejected", "all", "write", "brief", "dry-run", "allow-completed", "commit"]);
+const BOOLEAN_FLAGS = new Set(["json", "include-rejected", "all", "write", "brief", "dry-run", "allow-completed", "commit", "rejected", "local", "print", "include-private"]);
 
 class UsageError extends Error {}
 
@@ -76,12 +84,20 @@ function usage(): string {
     "  mozak scope init --scope ID --request FILE          (owner)",
     "  mozak scope retitle --scope ID --request FILE       (owner; change the scope's display title)",
     "  mozak context [--scope ID] [--brief] [--plan ID] [--json]",
-    "  mozak plans [--scope ID | --all] [--include-rejected] [--limit 1..100] [--continuation TOKEN] [--json]",
+    "  mozak plans [--scope ID | --all] [--include-rejected] [--limit 1..100] [--sort deadline] [--continuation TOKEN] [--json]",
+    "  mozak graph (--scope ID | --all) [--json]           (cross-plan refs from owner annotations, with resolution)",
+    "  mozak ready (--scope ID | --all) [--json]           (open plans whose needs are met, by deadline; blocked and superseded apart)",
+    "  mozak similar (--scope ID | --all) [--json]         (similar plans: duplicate, overlap, supersedes-candidate; rejects moved to another scope)",
+    "  mozak locators (--scope ID | --all) [--plan ID] [--include-private] [--json]",
+    "                                                       (where each source and evidence locator points on this machine)",
+    "  mozak plans-md [--print] [--json]                    (owner; write plans.md with plan titles and states at each repo root; --print only shows it)",
+    "  mozak annotate --scope ID --request FILE            (owner; refs and deadlines in mozak.annotations.json)",
     "  mozak scopes [--json]                                (read-only index of every scope: id, folder, title, plan counts)",
-    "  mozak sync [--scope ID] [--json]                     (force-refresh remote scopes; reads refresh them after 10 minutes)",
+    "  mozak sync [--scope ID | --local] [--json]           (force-refresh remote scopes; reads refresh them after 10 minutes)",
+    "                                                       (a local --scope or --local: fetch, then fast-forward the vault repo under the scope locks)",
     "  mozak pull --scope ID [--into PATH]                  (owner; clone the code; vault-plans scopes keep plans in the vault)",
     "  mozak review show [--scope ID] --plan ID [--purpose P] [--outcome ID] [--json]",
-    "  mozak check [--scope ID] [--json]",
+    "  mozak check [--scope ID] [--history N] [--json]       (--history: hand edits in the last N commits of mozak.json)",
     "  mozak operation --scope ID --id OP [--json]",
     "  mozak plan show [--scope ID] --plan ID [--json]      (compact: lifecycle, eligibility, grants, outcomes, spec, next action)",
     "  mozak plan propose|revise|complete --scope ID --request FILE",
@@ -91,11 +107,13 @@ function usage(): string {
     "        [--activity TEXT] [--activity-kind read|run] [--relation supports|challenges] [--classification observed|inferred|unverified]",
     "        [--anchor A] [--version V] [--limitation TEXT] [--dry-run] [--json]",
     "  mozak observe --scope ID --payload FILE [--dry-run]   (payload of examples/observe.json; fresh snapshot, retries stale-input; or --request FILE)",
+    "  mozak plan prune --rejected --scope ID --request FILE (owner; remove the listed rejected plans, refs keep resolving)",
     "  mozak discussion save --scope ID --request FILE      (agent; advisory checkpoint only)",
     "  mozak spec attach --scope ID --request FILE          (agent; descriptor only, no approval)",
     "  mozak review decide --scope ID --plan ID --purpose P [--outcome ID] [--spec SPEC] --owner-ref REF",
     "        --owner-message-at ISO --reason TEXT [--dry-run] [--json]   (owner; reads the fresh subject itself; or --request FILE)",
     "  mozak projection repair --scope ID --request FILE    (owner)",
+    "  mozak recover --scope ID --request FILE              (owner; remove a write lock from another host or a dead local pid)",
     "  mozak render (--scope ID | --all) [--json]           (regenerate stale mozak.md only; never mozak.json)",
     "  mozak rename-files (--scope ID | --all) [--json]     (owner; rename pre-0.4 MOZAK.json/MOZAK.md to lowercase)",
     "Maintenance (no --config needed):",
@@ -234,6 +252,8 @@ interface HumanRow {
   paused?: boolean;
   reason?: string;
   continuation?: string;
+  deadline?: string | null;
+  deadlineStatus?: string;
 }
 interface RemoteInfoRow { scope: string; remote: string; ref: string; stale: boolean; lastFetchAt: string | null; error?: string; source: string }
 function remoteLines(remote: RemoteInfoRow[] | undefined): string[] {
@@ -260,6 +280,8 @@ function renderPlansHuman(data: {
       if (group === "awaiting" && AWAITING_PURPOSE[row.rowKind]) lines.push(`      ${AWAITING_PURPOSE[row.rowKind]}`);
       if (row.outcome) lines.push(`      outcome: ${row.outcome}`);
       if (row.date) lines.push(`      date: ${row.date}`);
+      if (row.deadline) lines.push(`      deadline: ${row.deadline} (${row.deadlineStatus})`);
+      else if (row.deadlineStatus === "candidates") lines.push("      deadline: several dates, owner picks one");
       if (row.paused) lines.push(`      paused${row.reason ? `: ${row.reason}` : ""}`);
       else if (row.reason) lines.push(`      reason: ${row.reason}`);
     }
@@ -307,11 +329,13 @@ function renderScopesHuman(data: { coverage?: { selected: number; ok: number; fa
   return `${lines.join("\n")}\n`;
 }
 
-function renderSyncHuman(data: { remote?: RemoteInfoRow[]; issues?: { code: string; message: string }[] }): string {
+interface LocalSyncInfoRow { repo: string | null; scopes: string[]; status: string; from?: string; to?: string; error?: string }
+function renderSyncHuman(data: { remote?: RemoteInfoRow[]; local?: LocalSyncInfoRow[]; issues?: { code: string; message: string }[] }): string {
   const rows = data.remote ?? [];
-  if (rows.length === 0) return "no remote scopes in the inventory\n";
+  const local = (data.local ?? []).map((r) => `local ${r.repo ?? r.scopes.join(", ")}: ${r.status}${r.from && r.to && r.from !== r.to ? ` ${r.from.slice(0, 8)}..${r.to.slice(0, 8)}` : ""}${r.error ? ` (${r.error})` : ""}`);
+  if (rows.length === 0 && local.length === 0) return "no remote scopes in the inventory\n";
   const warn = (data.issues ?? []).filter((i) => i.code === "cache-not-ignored").map((i) => `warning: ${i.message}`);
-  return `${[...remoteLines(rows), ...warn].join("\n")}\n`;
+  return `${[...remoteLines(rows), ...local, ...warn].join("\n")}\n`;
 }
 
 function flagForm(inventory: ReturnType<typeof loadInventory>, operation: string, v: Record<string, string | boolean | undefined>) {
@@ -388,6 +412,12 @@ function renderPlanShow(d: Record<string, any>): string {
 }
 
 function printEnvelope(output: OperationOutput, json: boolean, routeName: string): void {
+  // plans-md --print without --json shows the files themselves, each under a comment line naming its path.
+  if (!json && routeName === "plans-md" && Array.isArray(output.data.files) && output.data.files.every((f) => typeof (f as { content?: unknown }).content === "string")) {
+    const files = output.data.files as { path: string; content: string }[];
+    process.stdout.write(files.map((f) => `<!-- ${f.path} -->\n${f.content}`).join("\n"));
+    return;
+  }
   if (!json && routeName === "sync") {
     process.stdout.write(renderSyncHuman(output.data));
     return;
@@ -509,6 +539,7 @@ function run(argv: string[]): number {
             ...(values.scope !== undefined ? { scope: values.scope } : { all: true }),
             ...(values["include-rejected"] ? { includeRejected: true } : {}),
             ...(values.limit !== undefined ? { limit: Number(values.limit) } : {}),
+            ...(values.sort !== undefined ? { sort: values.sort } : {}),
           };
     if (values.limit !== undefined && !/^[0-9]+$/.test(String(values.limit))) {
       process.stderr.write("limit must be an integer from 1 to 100\n");
@@ -516,8 +547,22 @@ function run(argv: string[]): number {
     }
   } else if (route.operation === "scopes") {
     args = {};
+  } else if (route.operation === "graph" || route.operation === "ready" || route.operation === "similar") {
+    if ((values.scope === undefined) === (values.all === undefined)) {
+      process.stderr.write(`${route.operation} needs exactly one of --scope or --all\n${usage()}\n`);
+      return 2;
+    }
+    args = values.all ? { all: true } : { scope: values.scope };
+  } else if (route.operation === "locators") {
+    if ((values.scope === undefined) === (values.all === undefined)) {
+      process.stderr.write(`locators needs exactly one of --scope or --all\n${usage()}\n`);
+      return 2;
+    }
+    args = { ...(values.all ? { all: true } : { scope: values.scope }), ...(values.plan !== undefined ? { plan: values.plan } : {}), ...(values["include-private"] ? { includePrivate: true } : {}) };
+  } else if (route.operation === "plans-md") {
+    args = values.print ? { print: true } : {};
   } else if (route.operation === "sync") {
-    args = values.scope !== undefined ? { scope: values.scope } : {};
+    args = { ...(values.scope !== undefined ? { scope: values.scope } : {}), ...(values.local ? { local: true } : {}) };
   } else if (route.operation === "render" || route.operation === "rename-files") {
     if ((values.scope === undefined) === (values.all === undefined)) {
       process.stderr.write(`${route.operation} needs exactly one of --scope or --all\n${usage()}\n`);
@@ -562,8 +607,15 @@ function run(argv: string[]): number {
     const text = values.json === true ? `${JSON.stringify(out.data, null, 2)}\n` : renderFlagResult(out.data, configPath);
     process.stdout.write(text);
     return out.exitCode;
+  } else if (route.operation === "check") {
+    if (values.history !== undefined && !/^[0-9]+$/.test(String(values.history))) {
+      process.stderr.write("history must be an integer from 1 to 500\n");
+      return 2;
+    }
+    args = { scope: values.scope, ...(values.history !== undefined ? { history: Number(values.history) } : {}) };
   } else if (route.requestFile) {
-    const flagged = Object.keys(values).filter((k) => values[k] !== undefined && !["config", "scope", "request", "json", "commit"].includes(k));
+    // `plan prune` requires --rejected next to --request: it names the kind of plan pruned, it is not a payload field.
+    const flagged = Object.keys(values).filter((k) => values[k] !== undefined && !["config", "scope", "request", "json", "commit", "rejected"].includes(k));
     if (flagged.length) {
       process.stderr.write(`--request cannot be combined with --${flagged[0]}\n`);
       return 2;
@@ -585,7 +637,7 @@ function run(argv: string[]): number {
   if (route.requestFile && (output.data as Record<string, any>).committed && !values.commit && !(output.data as Record<string, any>).remotePush) {
     process.stderr.write(`note: ${committedLabel(output.data as Record<string, any>)}\n`);
   }
-  printEnvelope(output, values.json === true || (routeName !== "plans" && routeName !== "scopes" && routeName !== "sync"), routeName);
+  printEnvelope(output, values.json === true || (routeName !== "plans" && routeName !== "scopes" && routeName !== "sync" && routeName !== "plans-md"), routeName);
   return output.exitCode;
 }
 

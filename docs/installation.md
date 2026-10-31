@@ -233,13 +233,77 @@ mozak never steals a write lock because it is old. Follow this order:
 5. Run `context` and `check`, which only read. If the scope state exists, run `projection repair` against the current snapshot.
 6. If a bridge was edited by hand, it is kept as a conflict. Resolve it with the owner before writing again.
 
-There is no online force-unlock command.
+There is no force-unlock command. The owner route `mozak recover` removes one named lock only in two cases where no
+local writer can still own it:
+
+- the lock's `owner.json` names another host (`host` is recorded since S2). Such a lock can only have arrived by sync, for example through a `git add -A` in a vault.
+- it names this host and a pid that is no longer running.
+
+`check` reports a stuck lock as `write-lock-stuck` with its `token`, `host`, `pid` and `verdict`. The owner repeats those
+in a request file: `{ "requestId", "scopeId", "lock": { "token", "host", "pid" }, "ownerRef", "ownerMessageAt" }`, then runs
+`mozak recover --scope ID --request FILE`. It refuses a lock that changed, a lock with contents other than `owner.json`,
+a live local pid (`lock-owner-alive`), and a lock without a host from an older mozak (`lock-host-unknown`, remove that
+one by hand as above). It never touches `mozak.json`. Agents cannot run it, and the MCP server does not offer it.
+
+### Projection tolerance
+
+A `mozak.md` that differs from the current render only by CRLF line endings, trailing spaces or tabs, or blank lines at
+the end counts as current, not as a bridge conflict. The next write puts back the exact render. Any other difference,
+including leading or inner whitespace, is still a conflict.
+
+### Pruning rejected plans: `mozak plan prune --rejected`
+
+Owner route. The request lists the plan ids the owner saw: `{ "operationId", "scopeId", "expected", "planIds", "ownerRef", "ownerMessageAt" }`.
+Only plans that were never accepted and whose revision is rejected can be pruned. A plan another plan still references (a
+pending merge, a reasoning link) is refused with `prune-referenced`. The write is a normal CAS write and is never rebased.
+Its receipt `{ "action": "prune-rejected", "ids": [...] }` is the prune record: owner refs to a pruned id resolve as
+`pruned` (with the operation id), `check` reports `ref-target-pruned`, and the id cannot be proposed again. A 0.4.0
+client reads such a scope unchanged.
+
+### Hand edits: `mozak check --history N`
+
+Every mozak write sets a new `storage.revision` and records it in a receipt. `check --history N` walks the last N commits
+(1 to 500) that touched the scope's `mozak.json`, from local git objects only, and reports `hand-edit` for a commit that
+changed the file but kept the revision (with removed and added plan ids), and `hand-edit-revision` for a revision that no
+receipt records. Outside git it reports `history-unavailable` and skips the walk.
+
+### Syncing a vault: `mozak sync --scope ID` or `mozak sync --local`
+
+For a local scope inside a git repo, `sync` replaces a bare `git pull --rebase`, which bypasses the scope locks. Per repo
+it fetches the upstream of the current branch outside the locks, takes the write lock of every inventoried local and
+vault-plans scope in that repo in path order, runs `git merge --ff-only`, and releases. It never rebases, merges a
+diverged history or pushes. Row status: `fast-forwarded`, `up-to-date`, `ahead` (local commits to push), or a problem:
+`not-fast-forward` (exit 3, nothing changed), `busy` (exit 4, a scope lock is held), `fetch-failed`, `merge-failed`,
+`no-upstream`, `detached`, `not-in-git`. `--local` syncs every such repo and the remote scopes; plain `mozak sync` still
+syncs remote scopes only.
 
 ### Projection repair
 
 If a write saved the JSON but not the generated `mozak.md` bridge, the result says so (exit 5). Later semantic writes wait until you run an explicit `projection repair`. `check` never repairs anything.
 
 Versions through 0.4.6 could also produce a conflict themselves after revising several fields: the pending-summary field list followed request key order, while the saved JSON used sorted keys. New renders sort that display list. Repair recognises an old list only when reordering its known field labels makes the entire file exactly match the current render of the same graph. Outcome counts, merge metadata, graph hash and every other byte must match. Other hand edits remain conflicts and are preserved. Repair changes only `mozak.md`, not plan content, approval subjects or review digests, and a repeat reports `already-current`.
+
+### Parallel writes: `concurrency.rebase` (experimental, off by default)
+
+Every write names the snapshot it was based on. By default any other write in between makes it `stale-input` (exit 3), even when the two writes do not touch the same thing. A scope can opt in to read-set rebase in the `mozak-settings.json` next to the inventory file (the same file as the annotation settings, see `docs/annotations.md`):
+
+```json
+{ "format": "mozak.settings/v1",
+  "concurrency": { "rebase": false },
+  "scopes": { "my-scope": { "concurrency": { "rebase": true } } } }
+```
+
+A per-scope value wins over the top-level `concurrency.rebase`. A missing or invalid file keeps the default (off), and `check` reports an invalid one. A `mozak-settings.json` inside a scope folder is not read. `check` reports it as `settings-scope-file-deprecated`.
+
+With rebase on, a stale write can still commit onto the fresh state when it only appends:
+
+- `observe`: each linked outcome keeps its revision and display status, no one else superseded the same observation, and its ids are still free.
+- `save-discussion`: that plan's discussion was not saved in between.
+- `propose` of a new id: the id is still free. The duplicate check runs on the fresh state.
+
+Owner decisions, `revise`, `complete` and `attach-spec` are never rebased. Any of them in between also refuses the rebase. Only a snapshot equal to the current revision or to a retained receipt's revision can rebase. A rebased result carries `rebased: { from, onto }` and the fresh `snapshot`, so the next write needs no reread. A refused rebase is a normal `stale-input` with the reason in the message.
+
+Limits: the writes in between are found through receipt times. A write merged by git from a machine whose clock is behind can be missed, so a non-rebasable receipt up to 1 second before the snapshot's receipt also refuses. Hand edits to `mozak.json` that keep the same revision always refuse.
 
 ## 6. Safety rules
 
@@ -287,8 +351,25 @@ Cache layout: `.mozak-cache/<id>/` (sparse git clone) and `.mozak-cache/<id>.met
 - Upgrading needs the source checkout the installation came from (or `--source PATH`), and only knows release tags of that checkout's `origin`.
 - The source copy of the conversation skill is a template. The installer refuses an unrendered template. Load the skill only from the installed folder, directly or through a symlink.
 - Older scope formats are refused. mozak does not migrate them.
+- `mozak similar` is lexical. It finds copies and near copies, and supersession only when the newer plan names the older one or the older one was rejected. Plans that mean the same thing in different words are not found.
 
 ## 8. Verification status
+
+Follow-up integration with main 0.4.5 (`164b8e4`), 2026-10-22: `npm ci`, `npm run build`, `npm test` (602 passed, zero failed), `npm run test:install` (73 passed, one skipped), `npm run build:npm` and `npm run lint` (86 Markdown files, 59 relative links, zero broken) passed on macOS, Node 26.10.0. A fresh isolated npm pack/install again completed 27 CLI/MCP commands through a synthetic durable completed plan. The merge retains the registry metadata, flexible config argument, renamed-vault config lookup and reproducible plugin build changes from main, while leaving retired format-1 modules deleted. The original 11 conflicts and the five additional conflicts from moving main are resolved. The independent benchmark compared the original vnext with main 0.4.4, not this amended 0.4.5 integration. Current Linux verification and independent review remain pending. No publish, main merge or owner decision was made. Rebase remains off by default.
+
+Integration with main 0.4.4, 2026-10-22, macOS and Node 26.10.0: `npm ci`, `npm run build`, `npm run lint`, `npm test` (600 passed, zero failed), `npm run test:install` (73 passed, one case-sensitive-filesystem skip), `npm run build:npm`, `node eval/verify.mjs` (seven checks) and `node scripts/readme-example.mjs` passed. The first integration run found three obsolete or missing documentation checks and an aggregate-path overlap failure below a symlinked ancestor. The documentation and obsolete pre-npm assertion were corrected. Aggregate path resolution now resolves existing ancestors before checking a not-yet-created child, with a new regression. A scratch npm pack/install with an isolated home completed a synthetic CLI lifecycle and an MCP context call. This is a local packaging check, not a published release, Linux result, independent code review or measured agent benefit. Rebase remains off by default. The existing plugin CJS `import.meta` warning remains. Main advanced to 0.4.5 during verification, so this paragraph applies only to the pinned 0.4.4 integration.
+
+S7a adapter correction on `hermes/eval-continuation` (macOS, Node 26.10.0):
+`npm run build` passed. `TMPDIR=$HOME/.hermes/cache/scratch ALLOW_ANY_IDENTITY=1 npm test`
+gave 593 passed, 0 failed, 0 skipped. `node --test eval/test/s7a.test.mjs` gave 9 passed.
+`node eval/verify.mjs` gave 7 of 7 checks. `node scripts/check-links.mjs` found 0 broken links.
+Regression tests cover final streaming usage instead of provisional output counts, disjoint token
+reconciliation, failed gold reads, and explicit root-instruction injection under restricted mode.
+These are harness checks, not a cold-start improvement claim. Private comparisons and datasets are
+not published here. Parent review added a regression requiring a matching successful tool result
+before a gold read counts. The regression failed before the fix and the ten cold-start tests now
+pass. Offline reprocessing of ten scored streams leaves every reported endpoint token total
+unchanged. No additional model sessions were needed for this correction.
 
 | Check | Status |
 | --- | --- |

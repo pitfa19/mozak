@@ -9,6 +9,7 @@ import { resolveScope, type ScopeEntry, type ScopeInventory } from "./scope-inde
 import {
   initScopeState,
   mutateScope,
+  pruneRejectedPlans,
   readScope,
   readScopeView,
   repairProjection,
@@ -29,6 +30,21 @@ import { leftoverTempFiles } from "./durable.ts";
 import { cachedUpdateNotice, installedVersion, npmInstall, refreshUpdateCacheIfStale } from "./update.ts";
 import { canonical, digest } from "./understanding.ts";
 import { decideWarnings, reviseWarnings, tracePlan } from "./assist.ts";
+import { annotateScope } from "./scope-store.ts";
+import { readAnnotations, type AnnotationsDoc } from "./annotations.ts";
+import { annotationFindings, graphView, readyView, type Universe } from "./crossplan.ts";
+import { effectiveDeadline, planDeadline, today } from "./deadlines.ts";
+import { annotationsMode, ignoredScopeSettingsFile, loadSettings, rebaseEnabled, SETTINGS_FILE } from "./settings.ts";
+import type { ScopeState } from "./understanding.ts";
+import { inspectLock, recoverLock } from "./lock-recover.ts";
+import { handEditHistory, MAX_HISTORY } from "./history.ts";
+import { LOCAL_SYNC_OK, localEntries, syncLocal, type LocalSyncRow } from "./local-sync.ts";
+import { appendUsage, usageLine, usageLogEnabled } from "./usage.ts";
+import { dirname } from "node:path";
+import { citedNoteChanges, LocatorResolver, planCitations } from "./locators.ts";
+import { similarReport } from "./similar.ts";
+import { plansIndex } from "./plans-index.ts";
+import { readScopeQuiet } from "./scope-store.ts";
 
 /**
  * The scopes index's update notice: reads the cache only, and starts a background refresh when it is old.
@@ -70,10 +86,18 @@ export const OPERATIONS = [
   "rename-files",
   "retitle",
   "delete",
+  "annotate",
+  "graph",
+  "ready",
+  "recover",
+  "prune",
+  "similar",
+  "locators",
+  "plans-md",
 ] as const;
 
 /** Owner-only: refused for every other actor before any file is touched. */
-const OWNER_ONLY = new Set(["decide", "init", "repair", "pull", "rename-files", "retitle", "delete"]);
+const OWNER_ONLY = new Set(["decide", "init", "repair", "pull", "rename-files", "retitle", "delete", "annotate", "recover", "prune"]);
 /** Route name must equal request.action for these routes. */
 const ROUTE_ACTIONS = new Set(["propose", "revise", "observe", "complete", "save-discussion", "attach-spec"]);
 export const DECISION_ACTIONS = [
@@ -210,6 +234,8 @@ interface Continuation {
   after: string;
   /** Sort timestamp of that same row, so a changed underlying row invalidates the token. */
   lastSortAt: string;
+  /** Present only for `plans --sort deadline`. */
+  sort?: "deadline";
 }
 
 const CONTINUATION_KEYS = ["v", "inventory", "selector", "includeRejected", "limit", "binding", "group", "after", "lastSortAt"] as const;
@@ -228,7 +254,8 @@ function decodeContinuation(text: unknown): Continuation {
     throw bad("not decodable");
   }
   if (!isPlain(raw) || raw.v !== 2) throw bad("unknown version");
-  const c = closed(raw, "continuation", CONTINUATION_KEYS);
+  const c = closed(raw, "continuation", CONTINUATION_KEYS, ["sort"]);
+  if (c.sort !== undefined && c.sort !== "deadline") throw bad("unknown sort");
   const selector = closed(c.selector, "continuation selector", ["scope", "all"]);
   if (typeof selector.all !== "boolean") throw bad("selector.all must be a boolean");
   if (selector.all) {
@@ -250,6 +277,7 @@ function decodeContinuation(text: unknown): Continuation {
     group: c.group as Group,
     after: nonEmpty(c.after, "continuation after"),
     lastSortAt: nonEmpty(c.lastSortAt, "continuation lastSortAt"),
+    ...(c.sort === "deadline" ? { sort: "deadline" as const } : {}),
   };
 }
 
@@ -384,21 +412,203 @@ function sortRows(rows: NormalizedRow[]): NormalizedRow[] {
   });
 }
 
+// ---------- annotations ----------
+
+function entryOf(inv: ScopeInventory, id: string): ScopeEntry | undefined {
+  return inv.scopes.find((s) => s.id === id);
+}
+
+/** Sidecar token of one scope, for continuation bindings. */
+function annotationsToken(inv: ScopeInventory, id: string): unknown {
+  const entry = entryOf(inv, id);
+  if (!entry) return null;
+  try { return readAnnotations(entry.root).token; } catch { return "unreadable"; }
+}
+
+/**
+ * Read-only, cached view of every inventoried scope for cross-plan resolution. Never fetches: a remote scope is read
+ * from its local copy as it is. A scope that cannot be read is "unavailable", an id not in the inventory "unknown".
+ */
+function universeOf(inv: ScopeInventory, seed: Record<string, ScopeState> = {}): Universe {
+  const states = new Map<string, ScopeState | "unknown" | "unavailable">(Object.entries(seed));
+  const docs = new Map<string, AnnotationsDoc | null>();
+  return {
+    state(id) {
+      if (!states.has(id)) {
+        if (!entryOf(inv, id)) states.set(id, "unknown");
+        else {
+          try { states.set(id, readScope(resolveScope(inv, id)).state); }
+          catch (err) { if (!(err instanceof DomainError)) throw err; states.set(id, "unavailable"); }
+        }
+      }
+      return states.get(id)!;
+    },
+    annotations(id) {
+      if (!docs.has(id)) {
+        const entry = entryOf(inv, id);
+        let doc: AnnotationsDoc | null = null;
+        if (entry) { try { doc = readAnnotations(entry.root, id).doc; } catch { doc = null; } }
+        docs.set(id, doc);
+      }
+      return docs.get(id)!;
+    },
+  };
+}
+
+/** Stable deadline order: earliest owner or inferred deadline first, plans without one keep their order after. */
+function sortByDeadline(rows: NormalizedRow[], loads: ScopeLoad[], inv: ScopeInventory): NormalizedRow[] {
+  const u = universeOf(inv);
+  const day = today();
+  const cache = new Map<string, { deadline: string | null; status: string }>();
+  const info = (r: NormalizedRow) => {
+    const k = JSON.stringify([r.scope, r.planId]);
+    if (!cache.has(k)) {
+      const state = loads.find((l) => l.binding.scope === r.scope)?.read?.state;
+      const plan = state?.plans.find((p) => p.id === r.planId);
+      const d = state && plan ? planDeadline(state, plan, u.annotations(r.scope), day) : { status: "none" as const };
+      cache.set(k, { deadline: effectiveDeadline(d), status: d.status });
+    }
+    return cache.get(k)!;
+  };
+  const indexed = rows.map((r, i) => ({ r, i, d: info(r) }));
+  indexed.sort((x, y) => {
+    if (x.d.deadline !== y.d.deadline) return x.d.deadline === null ? 1 : y.d.deadline === null ? -1 : x.d.deadline < y.d.deadline ? -1 : 1;
+    return x.i - y.i;
+  });
+  return indexed.map(({ r, d }) => ({ ...r, row: { ...r.row, deadline: d.deadline, deadlineStatus: d.status } }));
+}
+
+/** graph and ready: exactly one of scope or all. Every selected scope is attempted; failures are coverage. */
+function crossPlanOp(inv: ScopeInventory, operation: "graph" | "ready", a: Record<string, unknown>): OperationOutput {
+  const o = closed(a, `${operation} arguments`, [], ["scope", "all"]);
+  const all = strictBoolean(o.all, "all");
+  if ((o.scope === undefined) === !all) throw invalid(`${operation} needs exactly one of scope or all`);
+  const ids = all ? inv.scopes.map((s) => s.id) : [nonEmpty(o.scope, "scope")];
+  const seed: Record<string, ScopeState> = {};
+  const coverage: ScopeBinding[] = [];
+  const issues: { code: string; message: string; scope?: string }[] = [];
+  let single: ScopeRead | null = null;
+  // Sidecar tokens: the owner route annotate takes the reviewed token as expectedAnnotations.
+  const tokens: Record<string, unknown> = {};
+  for (const id of ids) {
+    try {
+      const read = readScope(resolveScope(inv, id));
+      seed[id] = read.state;
+      if (!all) single = read;
+      coverage.push({ scope: id, status: "ok", revision: read.snapshot.revision, graphHash: read.snapshot.graphHash });
+      const entry = entryOf(inv, id)!;
+      const side = readAnnotations(entry.root, id);
+      tokens[id] = side.token;
+      for (const issue of side.issues) issues.push({ ...issue, scope: id });
+    } catch (err) {
+      if (!(err instanceof DomainError)) throw err;
+      if (!all) throw err;
+      coverage.push({ scope: id, status: "failed", code: err.code, message: err.message });
+      issues.push({ code: err.code, message: err.message, scope: id });
+    }
+  }
+  const u = universeOf(inv, seed);
+  const okIds = ids.filter((id) => seed[id]);
+  const complete = coverage.every((c) => c.status === "ok");
+  const view = operation === "graph" ? { graph: graphView(u, okIds) } : { ready: readyView(u, okIds) };
+  return {
+    exitCode: complete ? 0 : 6,
+    data: {
+      status: complete ? "ok" : "partial-coverage",
+      committed: false,
+      operation,
+      snapshot: single?.snapshot ?? null,
+      projectionStatus: single?.projectionStatus ?? null,
+      projectionUpdated: false,
+      issues,
+      coverage: { selected: ids.length, complete, scopes: coverage },
+      annotations: tokens,
+      ...view,
+    },
+  };
+}
+
+/** Annotation and settings findings for check. Empty when the scope has no sidecar and settings are clean. */
+function annotationCheck(inv: ScopeInventory, entry: ScopeEntry, read: ScopeRead): { code: string; message: string }[] {
+  const out: { code: string; message: string }[] = [];
+  const side = readAnnotations(entry.root, entry.id);
+  out.push(...side.issues);
+  if (ignoredScopeSettingsFile(inv, entry)) {
+    out.push({ code: "settings-scope-file-deprecated", message: `${SETTINGS_FILE} in the scope folder is ignored. Put concurrency.rebase under scopes.${entry.id}.concurrency in the ${SETTINGS_FILE} next to the inventory file` });
+  }
+  try {
+    const settings = loadSettings(inv);
+    out.push(...settings.issues);
+    if (side.token.exists && annotationsMode(settings, entry).source === "repo-mode") {
+      out.push({ code: "annotations-on-remote", message: "mozak.annotations.json exists in a repo-mode remote scope; annotate refuses these scopes, and the file is ignored by owner routes" });
+    }
+  } catch (err) {
+    if (!(err instanceof DomainError)) throw err;
+    out.push({ code: err.code, message: err.message });
+  }
+  if (side.doc) out.push(...annotationFindings(universeOf(inv, { [entry.id]: read.state }), entry.id).map(({ code, message }) => ({ code, message })));
+  return out;
+}
+
+function annotateOp(inv: ScopeInventory, a: Record<string, unknown>, actor: Actor): OperationOutput {
+  requireOwner("annotate", actor);
+  const o = closed(a, "annotate arguments", ["scope", "request"]);
+  if (!isPlain(o.request)) throw invalid("request must be an object");
+  const entry = resolveScope(inv, nonEmpty(o.scope, "scope"));
+  const mode = annotationsMode(loadSettings(inv), entry);
+  if (mode.source === "repo-mode") throw new DomainError("annotations-refused-remote", "annotations are refused on repo-mode remote scopes: their plans are committed and pushed to a repository", 2);
+  if (!mode.enabled) throw new DomainError("annotations-disabled", `annotations are off for scope "${entry.id}" in mozak-settings.json`, 2);
+  const result = annotateScope(entry, o.request, universeOf(inv).state);
+  const lockOrCleanup = result.status.startsWith("committed-") || result.status === "projection-updated-lock-held";
+  const exitCode = lockOrCleanup ? 5 : result.status === "ok" || result.status === "replayed" ? 0 : 3;
+  return { exitCode, data: { ...result, operation: "annotate" } };
+}
+
+/** Owner-only: remove one named write lock from another host or a dead local pid. Never touches mozak.json. */
+function recoverOp(inv: ScopeInventory, a: Record<string, unknown>): OperationOutput {
+  const o = closed(a, "recover arguments", ["scope", "request"]);
+  const entry = resolveScope(inv, nonEmpty(o.scope, "scope"));
+  const out = recoverLock(entry, o.request);
+  const issues: { code: string; message: string }[] = [];
+  let read: ScopeRead | null = null;
+  try { read = readScope(entry); issues.push(...read.issues.filter((i) => i.code === "lock-in-git" || i.code === "lock-not-ignored")); } catch { /* the lock is gone either way */ }
+  return {
+    exitCode: 0,
+    data: { status: out.status, committed: false, operation: "recover", requestId: (o.request as Record<string, unknown>).requestId, snapshot: read?.snapshot ?? null, projectionStatus: read?.projectionStatus ?? null, projectionUpdated: false, issues, recovered: out.recovered, reason: out.reason },
+  };
+}
+
+/** Lock finding for check: a stuck lock is reported with what recover needs; a lock held by a live local writer is informational. */
+function lockFinding(entry: ScopeEntry): { finding: Record<string, unknown> | null; info: Record<string, unknown> | null } {
+  let lock;
+  try { lock = inspectLock(entry.root); } catch (err) { if (!(err instanceof DomainError)) throw err; return { finding: { code: err.code, message: err.message }, info: null }; }
+  if (!lock.present) return { finding: null, info: null };
+  const shown = { token: lock.token, host: lock.host, pid: lock.pid, acquiredAt: lock.acquiredAt, verdict: lock.verdict, ...(lock.extraEntries.length ? { extraEntries: lock.extraEntries } : {}) };
+  if (lock.verdict === "live-local-pid") return { finding: null, info: { code: "write-lock-held", message: `pid ${lock.pid} on this host holds the write lock`, lock: shown } };
+  const how = lock.verdict === "other-host" ? `it names host ${lock.host}, so it arrived by sync; the owner may run mozak recover`
+    : lock.verdict === "dead-local-pid" ? `pid ${lock.pid} on this host is no longer running; the owner may run mozak recover`
+    : lock.verdict === "host-unknown" ? "it records no host (older mozak); remove it by hand after making sure no writer runs anywhere"
+    : "its metadata is unavailable; remove it by hand after making sure no writer runs anywhere";
+  return { finding: { code: "write-lock-stuck", message: `a write lock blocks writes: ${how}`, lock: shown }, info: null };
+}
+
 function plansOp(inv: ScopeInventory, a: Record<string, unknown>): OperationOutput {
-  closed(a, "plans arguments", [], ["scope", "all", "includeRejected", "limit", "continuation"]);
+  closed(a, "plans arguments", [], ["scope", "all", "includeRejected", "limit", "continuation", "sort"]);
   let selector: { scope: string | null; all: boolean };
   let includeRejected: boolean;
   let limit: number;
+  let sort: "deadline" | undefined;
   let continuation: Continuation | null = null;
 
   if (a.continuation !== undefined) {
-    for (const key of ["scope", "all", "includeRejected", "limit"]) {
+    for (const key of ["scope", "all", "includeRejected", "limit", "sort"]) {
       if (a[key] !== undefined) throw invalid(`a continuation pins its selector and filters; remove "${key}"`);
     }
     continuation = decodeContinuation(a.continuation);
     selector = continuation.selector;
     includeRejected = continuation.includeRejected;
     limit = continuation.limit;
+    sort = continuation.sort;
   } else {
     const hasScope = a.scope !== undefined;
     const hasAll = a.all !== undefined;
@@ -407,6 +617,8 @@ function plansOp(inv: ScopeInventory, a: Record<string, unknown>): OperationOutp
     selector = hasScope ? { scope: nonEmpty(a.scope, "scope"), all: false } : { scope: null, all: true };
     includeRejected = strictBoolean(a.includeRejected, "includeRejected");
     limit = limitOf(a.limit);
+    if (a.sort !== undefined && a.sort !== "deadline") throw invalid(`sort must be "deadline"`);
+    sort = a.sort as "deadline" | undefined;
   }
 
   const ids = selector.all ? inv.scopes.map((s) => s.id) : [selector.scope as string];
@@ -429,13 +641,15 @@ function plansOp(inv: ScopeInventory, a: Record<string, unknown>): OperationOutp
   }
 
   const binding = loads.map((l) => l.binding);
-  const bindingDigest = digest(binding);
+  // A deadline order also depends on owner annotations, so their tokens join the binding.
+  const sidecars = sort ? loads.map((l) => ({ scope: l.binding.scope, annotations: l.read ? annotationsToken(inv, l.binding.scope) : null })) : null;
+  const bindingDigest = sidecars ? digest({ binding, sidecars }) : digest(binding);
   if (continuation) {
     if (continuation.inventory !== inv.digest) {
-      throw new DomainError("continuation-stale", "inventory changed since this continuation was issued", 3);
+      throw new DomainError("continuation-stale", "inventory changed since this continuation was issued; request the first page again without a continuation", 3);
     }
     if (continuation.binding !== bindingDigest) {
-      throw new DomainError("continuation-stale", "scope snapshots changed since this continuation was issued", 3);
+      throw new DomainError("continuation-stale", "scope snapshots changed since this continuation was issued; request the first page again without a continuation", 3);
     }
   }
 
@@ -458,7 +672,7 @@ function plansOp(inv: ScopeInventory, a: Record<string, unknown>): OperationOutp
   const pages: Record<string, unknown> = {};
   const groupsToRead: Group[] = continuation ? [continuation.group] : [...byGroup.keys()];
   for (const group of groupsToRead) {
-    const all = sortRows(byGroup.get(group) ?? []);
+    const all = sort ? sortByDeadline(sortRows(byGroup.get(group) ?? []), loads, inv) : sortRows(byGroup.get(group) ?? []);
     let start = 0;
     if (continuation) {
       const index = all.findIndex((r) => r.compositeKey === continuation.after);
@@ -483,6 +697,7 @@ function plansOp(inv: ScopeInventory, a: Record<string, unknown>): OperationOutp
             group,
             after: last.compositeKey,
             lastSortAt: last.sortAt,
+            ...(sort ? { sort } : {}),
           })
         : null;
     pages[group] = {
@@ -525,6 +740,7 @@ function plansOp(inv: ScopeInventory, a: Record<string, unknown>): OperationOutp
 
 function readOp(inv: ScopeInventory, operation: string, a: Record<string, unknown>): OperationOutput {
   if (operation === "plans") return plansOp(inv, a);
+  if (operation === "graph" || operation === "ready") return crossPlanOp(inv, operation, a);
 
   if (operation === "scopes") {
     closed(a, "scopes arguments", [], []);
@@ -571,7 +787,7 @@ function readOp(inv: ScopeInventory, operation: string, a: Record<string, unknow
     };
   }
 
-  const o = closed(a, `${operation} arguments`, operation === "operation" ? ["scope", "id"] : ["scope"], operation === "context" ? ["brief", "plan"] : []);
+  const o = closed(a, `${operation} arguments`, operation === "operation" ? ["scope", "id"] : ["scope"], operation === "context" ? ["brief", "plan"] : operation === "check" ? ["history"] : []);
   const scope = nonEmpty(o.scope, "scope");
   const entry = resolveScope(inv, scope);
 
@@ -630,6 +846,11 @@ function readOp(inv: ScopeInventory, operation: string, a: Record<string, unknow
   }
 
   // check: findings are reported, never repaired. Unavailable selections keep their error exit.
+  let history: number | undefined;
+  if (o.history !== undefined) {
+    if (typeof o.history !== "number" || !Number.isInteger(o.history) || o.history < 1 || o.history > MAX_HISTORY) throw invalid(`history must be an integer from 1 to ${MAX_HISTORY}`);
+    history = o.history;
+  }
   let read: ScopeRead;
   try {
     read = readScope(entry);
@@ -648,9 +869,22 @@ function readOp(inv: ScopeInventory, operation: string, a: Record<string, unknow
       },
     };
   }
-  const findings = read.issues;
+  const lock = lockFinding(entry);
+  const findings: object[] = [...read.issues, ...annotationCheck(inv, entry, read), ...(lock.finding ? [lock.finding] : [])];
+  // check --history N: hand edits in the last N commits of mozak.json. Local git objects only, no fetch.
+  const historyReport = history === undefined ? undefined : handEditHistory(entry.root, history);
+  if (historyReport) findings.push(...historyReport.findings);
   // Leftover temp files from an interrupted write are informational: the next write removes them.
-  const leftovers = leftoverTempFiles(entry.root).map((name) => ({ code: "leftover-temp-file", message: `${name} is left over from an interrupted write; the next write removes it` }));
+  const leftovers: object[] = leftoverTempFiles(entry.root).map((name) => ({ code: "leftover-temp-file", message: `${name} is left over from an interrupted write; the next write removes it` }));
+  if (lock.info) leftovers.push(lock.info);
+  if (historyReport && !historyReport.available) leftovers.push({ code: "history-unavailable", message: `check --history skipped: ${historyReport.reason ?? "unavailable"}` });
+  // Cited-note staleness: informational, like leftovers. A changed note does not mean the edit matters.
+  try {
+    for (const c of citedNoteChanges(inv, entry, read.state)) leftovers.push(c);
+  } catch (err) {
+    if (!(err instanceof DomainError)) throw err;
+    leftovers.push({ code: "cited-notes-unavailable", message: `cited-note staleness skipped: ${err.message}` });
+  }
   return {
     exitCode: findings.length > 0 ? 3 : 0,
     data: {
@@ -661,6 +895,7 @@ function readOp(inv: ScopeInventory, operation: string, a: Record<string, unknow
       projectionStatus: read.projectionStatus,
       projectionUpdated: false,
       issues: [...findings, ...leftovers],
+      ...(historyReport ? { history: { scanned: historyReport.scanned, available: historyReport.available, handEdits: historyReport.findings.length } } : {}),
     },
   };
 }
@@ -685,13 +920,14 @@ function writeOp(inv: ScopeInventory, operation: string, a: Record<string, unkno
   else if (operation === "repair") result = repairProjection(entry, request);
   else if (operation === "retitle") result = retitleScope(entry, request);
   else if (operation === "delete") result = deletePlans(entry, request);
+  else if (operation === "prune") result = pruneRejectedPlans(entry, request);
   else {
     // After a revise, tell the host which accepted outcomes and grants will need the owner again once approved.
     let before: ReturnType<typeof tracePlan> = null;
     if ((operation === "revise" || operation === "decide") && isPlain(request.payload) && typeof request.payload.planId === "string") {
       try { before = tracePlan(readScopeView(entry).state, request.payload.planId); } catch { before = null; }
     }
-    result = mutateScope(entry, request, actor);
+    result = mutateScope(entry, request, actor, { rebase: rebaseEnabled(inv, entry.id) });
     if (operation === "revise" && result.committed && before) {
       const warnings = reviseWarnings(scope, (request.payload as Record<string, unknown>).planId as string, before);
       if (warnings.length) return { exitCode: resultExit(result), data: { ...result, operation, warnings } };
@@ -707,7 +943,7 @@ function writeOp(inv: ScopeInventory, operation: string, a: Record<string, unkno
   return { exitCode: resultExit(result), data: { ...result, operation } };
 }
 
-const REMOTE_READ_OPS = new Set(["context", "plans", "scopes", "review", "check", "operation"]);
+const REMOTE_READ_OPS = new Set(["context", "plans", "scopes", "review", "check", "operation", "graph", "ready"]);
 
 function plainScope(args: unknown): string | undefined {
   return isPlain(args) && typeof args.scope === "string" && args.scope.trim() !== "" ? args.scope : undefined;
@@ -723,13 +959,19 @@ function touchedRemotes(inv: ScopeInventory, operation: string, args: unknown): 
     if (scope !== undefined) return all.filter((e) => e.id === scope);
     return all;
   }
+  if (operation === "graph" || operation === "ready") return scope === undefined ? all : all.filter((e) => e.id === scope);
   return scope === undefined ? [] : all.filter((e) => e.id === scope);
 }
 
 function remoteOp(inv: ScopeInventory, operation: string, a: Record<string, unknown>): OperationOutput {
   const base = { committed: false, operation, snapshot: null, projectionStatus: null, projectionUpdated: false } as const;
   if (operation === "sync") {
-    const o = closed(a, "sync arguments", [], ["scope"]);
+    const o = closed(a, "sync arguments", [], ["scope", "local"]);
+    const local = strictBoolean(o.local, "local");
+    if (local && o.scope !== undefined) throw invalid("sync takes scope or local, not both");
+    // A local scope (no remote) syncs the git repo that holds it. --local syncs every local repo as well as remotes.
+    const named = o.scope === undefined ? undefined : inv.scopes.find((s) => s.id === nonEmpty(o.scope, "scope"));
+    if (named && !named.remote) return localSyncOutput(inv, [named], base);
     const targets = o.scope === undefined ? remoteEntries(inv) : [resolveRemoteTarget(inv, nonEmpty(o.scope, "scope"))];
     const remote = targets.map((e) => syncRemote(e, { force: true }));
     const stale = remote.filter((r) => r.stale).length;
@@ -738,9 +980,11 @@ function remoteOp(inv: ScopeInventory, operation: string, a: Record<string, unkn
     // Uses the 24-hour cached answer: the plugin syncs every minute and the unauthenticated API allows 60 calls an hour.
     // Every remote scope gets an answer for the sidebar label; only repo-mode scopes publish plans, so only they warn.
     const exposed = targets.filter((e) => scopeVisibility(e) === "public" && e.remote?.plansMode === "repo").map((e) => ({ code: "public-repo-plans", message: publicRepoPlansMessage(e), scope: e.id }));
+    const localRows = local ? syncLocal(localEntries(inv.scopes), inv.scopes) : [];
+    const localBad = localRows.filter((r) => !LOCAL_SYNC_OK.has(r.status));
     return {
-      exitCode: stale > 0 ? 6 : 0,
-      data: { status: stale > 0 ? "partial" : "ok", ...base, issues: [...remote.filter((r) => r.stale).map((r) => ({ code: "remote-stale", message: `${r.scope}: ${r.error ?? "stale"}`, scope: r.scope })), ...warnings, ...exposed], remote },
+      exitCode: stale > 0 || localBad.length > 0 ? 6 : 0,
+      data: { status: stale > 0 || localBad.length > 0 ? "partial" : "ok", ...base, issues: [...remote.filter((r) => r.stale).map((r) => ({ code: "remote-stale", message: `${r.scope}: ${r.error ?? "stale"}`, scope: r.scope })), ...warnings, ...exposed, ...localIssues(localRows)], remote, ...(local ? { local: localRows } : {}) },
     };
   }
   const o = closed(a, "pull arguments", ["scope"], ["into"]);
@@ -753,9 +997,22 @@ function remoteOp(inv: ScopeInventory, operation: string, a: Record<string, unkn
   return { exitCode: 0, data: { status: "ok", ...base, issues: [], pull: pulled } };
 }
 
+function localIssues(rows: LocalSyncRow[]): { code: string; message: string; scope?: string }[] {
+  return rows.filter((r) => !LOCAL_SYNC_OK.has(r.status)).map((r) => ({ code: `local-sync-${r.status}`, message: `${r.repo ?? r.scopes.join(", ")}: ${r.error ?? r.status}`, scope: r.scopes[0] }));
+}
+
+/** `sync --scope LOCAL`: fast-forward the git repo that holds a local scope, under the locks of every scope in it. */
+function localSyncOutput(inv: ScopeInventory, targets: ScopeEntry[], base: Record<string, unknown>): OperationOutput {
+  const rows = syncLocal(targets, inv.scopes);
+  const bad = rows.filter((r) => !LOCAL_SYNC_OK.has(r.status));
+  const only = rows.length === 1 ? rows[0]! : null;
+  const exitCode = bad.length === 0 ? 0 : only?.status === "not-fast-forward" ? 3 : only?.status === "busy" ? 4 : only?.status === "not-in-git" || only?.status === "no-upstream" || only?.status === "detached" ? 2 : 6;
+  return { exitCode, data: { status: bad.length === 0 ? "ok" : only ? `local-sync-${only.status}` : "partial", ...base, issues: localIssues(rows), remote: [], local: rows } };
+}
+
 function resolveRemoteTarget(inv: ScopeInventory, id: string): ScopeEntry {
   const entry = inv.scopes.find((s) => s.id === id);
-  if (!entry) throw new DomainError("scope-not-found", `no scope "${id}" in the inventory`);
+  if (!entry) throw new DomainError("scope-not-found", `no scope "${id}" in the inventory; run mozak scopes (MCP mozak_scopes) to list the scope ids`);
   if (!entry.remote) throw new DomainError("scope-not-remote", `scope "${id}" is a local scope, there is nothing to sync`);
   return entry;
 }
@@ -849,12 +1106,108 @@ function renameFilesOp(inv: ScopeInventory, a: Record<string, unknown>): Operati
   };
 }
 
+/** Selected scopes for an all-or-one report route: read each one quietly, failures become coverage. Never fetches. */
+function reportScopes(inv: ScopeInventory, operation: string, o: Record<string, unknown>) {
+  const all = strictBoolean(o.all, "all");
+  if ((o.scope === undefined) === !all) throw invalid(`${operation} needs exactly one of scope or all`);
+  const entries = all ? inv.scopes : [resolveScope(inv, nonEmpty(o.scope, "scope"))];
+  const read: { entry: ScopeEntry; state: ScopeState }[] = [];
+  const coverage: ScopeBinding[] = [];
+  const issues: { code: string; message: string; scope?: string }[] = [];
+  for (const entry of entries) {
+    try {
+      const r = readScopeQuiet(entry);
+      read.push({ entry, state: r.state });
+      coverage.push({ scope: entry.id, status: "ok", revision: r.snapshot.revision, graphHash: r.snapshot.graphHash });
+    } catch (err) {
+      if (!(err instanceof DomainError)) throw err;
+      if (!all) throw err;
+      coverage.push({ scope: entry.id, status: "failed", code: err.code, message: err.message });
+      issues.push({ code: err.code, message: err.message, scope: entry.id });
+    }
+  }
+  const complete = coverage.every((c) => c.status === "ok");
+  return { read, issues, complete, coverage: { selected: entries.length, complete, scopes: coverage } };
+}
+
+/** similar: pooled report of similar plans (similar.ts). Read only, no stored state. */
+function similarOp(inv: ScopeInventory, a: Record<string, unknown>): OperationOutput {
+  const o = closed(a, "similar arguments", [], ["scope", "all"]);
+  const r = reportScopes(inv, "similar", o);
+  const report = similarReport(r.read.map((x) => ({ id: x.entry.id, state: x.state })));
+  return {
+    exitCode: r.complete ? 0 : 6,
+    data: { status: r.complete ? "ok" : "partial-coverage", committed: false, operation: "similar", snapshot: null, projectionStatus: null, projectionUpdated: false, issues: r.issues, coverage: r.coverage, similar: report },
+  };
+}
+
+/** locators: where each Source.locator and Evidence.locator points on this machine (locators.ts). Read only. */
+function locatorsOp(inv: ScopeInventory, a: Record<string, unknown>): OperationOutput {
+  const o = closed(a, "locators arguments", [], ["scope", "all", "plan", "includePrivate"]);
+  const includePrivate = strictBoolean(o.includePrivate, "includePrivate");
+  const plan = o.plan === undefined ? undefined : nonEmpty(o.plan, "plan");
+  const r = reportScopes(inv, "locators", o);
+  const resolver = new LocatorResolver(inv, { includePrivate });
+  const rows: Record<string, unknown>[] = [];
+  const counts: Record<string, number> = {};
+  for (const { entry, state } of r.read) {
+    for (const p of state.plans) {
+      if (plan !== undefined && p.id !== plan) continue;
+      for (const c of planCitations(p)) {
+        const res = resolver.resolve(entry, c.locator, c.anchor);
+        counts[res.status] = (counts[res.status] ?? 0) + 1;
+        rows.push({ scope: entry.id, planId: c.planId, field: c.field, id: c.id, locator: c.locator, anchor: c.anchor, ...res });
+      }
+    }
+  }
+  if (plan !== undefined && !r.read.some(({ state }) => state.plans.some((p) => p.id === plan))) throw new DomainError("plan-not-found", `no plan "${plan}" in the selected scopes; run mozak plans (MCP mozak_plans) to list the plan ids`, 2);
+  return {
+    exitCode: r.complete ? 0 : 6,
+    data: {
+      status: r.complete ? "ok" : "partial-coverage", committed: false, operation: "locators", snapshot: null, projectionStatus: null, projectionUpdated: false,
+      issues: r.issues, coverage: r.coverage, includePrivate,
+      roots: resolver.roots.map((x) => ({ path: x.path, private: x.private, source: x.source })),
+      counts, locators: rows,
+    },
+  };
+}
+
+/** plans-md: one generated plans.md per repository (plans-index.ts). print returns the text; writing is owner-only. */
+function plansMdOp(inv: ScopeInventory, a: Record<string, unknown>, actor: Actor): OperationOutput {
+  const o = closed(a, "plans-md arguments", [], ["print"]);
+  const print = strictBoolean(o.print, "print");
+  if (!print) requireOwner("plans-md", actor);
+  const result = plansIndex(inv, { write: !print });
+  const conflicts = result.files.filter((f) => f.result === "conflict");
+  const failed = result.files.flatMap((f) => f.scopes.filter((s) => s.status === "failed").map((s) => ({ code: s.code ?? "scope-unavailable", message: `${s.id} could not be read; it is listed without plans`, scope: s.id })));
+  return {
+    exitCode: conflicts.length ? 3 : failed.length ? 6 : 0,
+    data: {
+      status: conflicts.length ? "conflict" : failed.length ? "partial-coverage" : "ok",
+      committed: false, operation: "plans-md", snapshot: null, projectionStatus: null, projectionUpdated: false,
+      issues: [...conflicts.map((f) => ({ code: "plans-md-conflict", message: `${f.path} exists and was not generated by mozak; it was left as it is` })), ...failed],
+      files: result.files.map((f) => ({ repo: f.repo, path: f.path, result: f.result, plans: f.plans, scopes: f.scopes, ...(print ? { content: f.content } : {}) })),
+      skipped: result.skipped,
+    },
+  };
+}
+
 /**
  * Single entry point for every operation. Expected domain failures come back as a structured
  * envelope with an exit code. Only unexpected, non-domain errors are rethrown. The caller's
  * transport supplies the actor. This function never reads it from the arguments.
+ * Each call appends one counts-only line to the usage log next to a file-loaded inventory (MOZAK_USAGE_LOG=0 turns it off).
  */
 export function executeOperation(inv: ScopeInventory, operation: string, args: unknown, actor: Actor = "agent"): OperationOutput {
+  const started = performance.now();
+  const output = runOperation(inv, operation, args, actor);
+  if (inv.path && usageLogEnabled()) {
+    try { appendUsage(dirname(inv.path), usageLine(operation, args, String(actor), output.data, output.exitCode, performance.now() - started)); } catch { /* never affects the result */ }
+  }
+  return output;
+}
+
+function runOperation(inv: ScopeInventory, operation: string, args: unknown, actor: Actor): OperationOutput {
   try {
     if (actor !== "agent" && actor !== "owner") throw invalid("actor must be agent or owner");
     if (LEGACY_OPERATIONS.has(operation)) {
@@ -876,6 +1229,22 @@ export function executeOperation(inv: ScopeInventory, operation: string, args: u
       requireOwner(operation, actor);
       if (!isPlain(args)) throw invalid("arguments must be an object");
       return renameFilesOp(inv, args);
+    }
+    if (operation === "recover") {
+      requireOwner(operation, actor);
+      if (!isPlain(args)) throw invalid("arguments must be an object");
+      return recoverOp(inv, args);
+    }
+    if (operation === "annotate") {
+      // Never routed through remoteWrite: annotations never commit or push. Repo-mode scopes are refused inside.
+      requireOwner(operation, actor);
+      if (!isPlain(args)) throw invalid("arguments must be an object");
+      return annotateOp(inv, args, actor);
+    }
+    // S6 reports: read the local copies only (never fetch). plans-md writes only plans.md files, owner only.
+    if (operation === "similar" || operation === "locators" || operation === "plans-md") {
+      if (!isPlain(args)) throw invalid("arguments must be an object");
+      return operation === "similar" ? similarOp(inv, args) : operation === "locators" ? locatorsOp(inv, args) : plansMdOp(inv, args, actor);
     }
     if (REMOTE_READ_OPS.has(operation)) {
       if (!isPlain(args)) throw invalid("arguments must be an object");
