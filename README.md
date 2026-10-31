@@ -210,7 +210,7 @@ node packages/cli/dist/index.js plans --config /path/to/inventory.json --scope s
 
 Experimental `concurrency.rebase` remains **off by default**. When explicitly enabled in `mozak-settings.json`, only selected non-conflicting `observe`, `save-discussion` and new-id `propose` requests may rebase. Decisions still require exact snapshots. `recover`, rejected-plan pruning, local fast-forward sync, history diagnostics and counts-only usage logging are also unreleased. Recovery and pruning remain owner operations.
 
-Reproduce the synthetic stale-write example with `node scripts/readme-example.mjs`, and run `node eval/verify.mjs` to verify the retrieval fixture. These are narrow checks, not evidence of downstream coding benefit. No new benchmark performance claim is made here.
+Reproduce the synthetic stale-write example with `node scripts/readme-example.mjs`. This is a narrow check, not evidence of downstream coding benefit. No new benchmark performance claim is made here.
 
 ## Platforms
 

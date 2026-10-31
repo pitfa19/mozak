@@ -6,8 +6,6 @@ import { join } from "node:path";
 import { foldKey, foldText } from "../src/fold.ts";
 import { isWithin, realOrSelf } from "../src/paths.ts";
 import { noteKey } from "../src/notes.ts";
-// The eval harness keeps its own plain .mjs copy of the folding table so it runs without a build.
-import { fold as evalFold } from "../../../eval/lib/fold.mjs";
 
 test("realOrSelf resolves a symlink and returns a missing path unchanged", () => {
   const root = realOrSelf(mkdtempSync(join(tmpdir(), "mozak-paths-")));
@@ -26,9 +24,8 @@ test("isWithin accepts the folder itself and children, and refuses siblings, par
   assert.equal(isWithin("/x/b", "/a/b"), false);
 });
 
-test("core folding and the eval harness copy fold every Croatian letter the same way", () => {
+test("core folding folds every Croatian letter", () => {
   const sample = "čćšžđ ČĆŠŽĐ Đurđevac Šibenik žaba abc ÄÖ";
-  assert.equal(foldText(sample), evalFold(sample));
   assert.equal(foldText(sample), "ccszd CCSZD Durdevac Sibenik zaba abc ÄÖ");
   assert.equal(foldKey("Đurđevac"), "durdevac");
 });

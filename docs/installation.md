@@ -355,22 +355,6 @@ Cache layout: `.mozak-cache/<id>/` (sparse git clone) and `.mozak-cache/<id>.met
 
 ## 8. Verification status
 
-Follow-up integration with main 0.4.5 (`164b8e4`), 2026-10-22: `npm ci`, `npm run build`, `npm test` (602 passed, zero failed), `npm run test:install` (73 passed, one skipped), `npm run build:npm` and `npm run lint` (86 Markdown files, 59 relative links, zero broken) passed on macOS, Node 26.10.0. A fresh isolated npm pack/install again completed 27 CLI/MCP commands through a synthetic durable completed plan. The merge retains the registry metadata, flexible config argument, renamed-vault config lookup and reproducible plugin build changes from main, while leaving retired format-1 modules deleted. The original 11 conflicts and the five additional conflicts from moving main are resolved. The independent benchmark compared the original vnext with main 0.4.4, not this amended 0.4.5 integration. Current Linux verification and independent review remain pending. No publish, main merge or owner decision was made. Rebase remains off by default.
-
-Integration with main 0.4.4, 2026-10-22, macOS and Node 26.10.0: `npm ci`, `npm run build`, `npm run lint`, `npm test` (600 passed, zero failed), `npm run test:install` (73 passed, one case-sensitive-filesystem skip), `npm run build:npm`, `node eval/verify.mjs` (seven checks) and `node scripts/readme-example.mjs` passed. The first integration run found three obsolete or missing documentation checks and an aggregate-path overlap failure below a symlinked ancestor. The documentation and obsolete pre-npm assertion were corrected. Aggregate path resolution now resolves existing ancestors before checking a not-yet-created child, with a new regression. A scratch npm pack/install with an isolated home completed a synthetic CLI lifecycle and an MCP context call. This is a local packaging check, not a published release, Linux result, independent code review or measured agent benefit. Rebase remains off by default. The existing plugin CJS `import.meta` warning remains. Main advanced to 0.4.5 during verification, so this paragraph applies only to the pinned 0.4.4 integration.
-
-S7a adapter correction on `hermes/eval-continuation` (macOS, Node 26.10.0):
-`npm run build` passed. `TMPDIR=$HOME/.hermes/cache/scratch ALLOW_ANY_IDENTITY=1 npm test`
-gave 593 passed, 0 failed, 0 skipped. `node --test eval/test/s7a.test.mjs` gave 9 passed.
-`node eval/verify.mjs` gave 7 of 7 checks. `node scripts/check-links.mjs` found 0 broken links.
-Regression tests cover final streaming usage instead of provisional output counts, disjoint token
-reconciliation, failed gold reads, and explicit root-instruction injection under restricted mode.
-These are harness checks, not a cold-start improvement claim. Private comparisons and datasets are
-not published here. Parent review added a regression requiring a matching successful tool result
-before a gold read counts. The regression failed before the fix and the ten cold-start tests now
-pass. Offline reprocessing of ten scored streams leaves every reported endpoint token total
-unchanged. No additional model sessions were needed for this correction.
-
 | Check | Status |
 | --- | --- |
 | P0.5 to P0.7 storage hygiene on `vnext/2a-fixes` (2026-10-31, macOS, Node 26) | Passed: `npm test` with `JCODE_SCRATCH_DIR` unset, 529 of 529 with the default macOS `TMPDIR`, with `TMPDIR=/tmp` and with a realpath folder. P0.5: `init` and projection repair add the write-lock and temp-file ignore lines, `check` reports `lock-not-ignored` and `lock-in-git`. P0.6: `mozak.json` and `mozak.md` are hashed again right before each rename (`graph-changed-during-write`), for propose, retitle, init and `plan delete` (a new delete test failed before the fix and passes after). P0.7: a reserved `x` object in the inventory or a scope entry is accepted and reported as `inventory-x-ignored`. The rename check narrows the direct-editor race, it does not close it. |
