@@ -34,11 +34,11 @@ Off unless you turn them on in the `mozak-settings.json` next to the inventory: 
 
 ## Known limits
 
-- `concurrency.rebase` relies on receipt times. A write merged by git from a machine whose clock is behind can be missed. The 300 ms p95 commit target is not met on a large store at 1000 write attempts; see [installation.md](installation.md#8-verification-status) for the number measured on this release.
+- `concurrency.rebase` relies on receipt times. A write merged by git from a machine whose clock is behind can be missed. That is why it stays off by default. On this release the large-store stress run (8 writers, kill -9, about 1000 write attempts) kept the commit p95 under the 300 ms target on macOS; see [installation.md](installation.md#8-verification-status).
 - The rename rehash narrows the race with a direct editor. It does not close it.
 - Approval follows a trusted-host convention. It is not authentication.
 - Linux and macOS only. The Obsidian plugin is desktop only.
-- Linux CI and the Node 24.11 run happen on the pull request. The local checks for this release ran on macOS with Node 26.
+- Linux was not checked locally. CI runs it on the pull request. The local checks for this release ran on macOS with Node 24.11.0 and Node 26.
 
 ## Release steps (owner)
 

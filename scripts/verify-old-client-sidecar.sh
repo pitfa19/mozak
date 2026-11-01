@@ -8,6 +8,8 @@ BASE="$(mktemp -d "${TMPDIR:-/tmp}/mozak-s4-old-client.XXXXXX")"
 trap 'rm -rf "$BASE"' EXIT
 mkdir -p "$BASE/alpha"; printf 'Synthetic\n' > "$BASE/alpha/README.md"; printf 'Synthetic\n' > "$BASE/alpha/AGENTS.md"
 printf '{"format":"mozak.local/v3","scopes":[{"id":"alpha","root":"./alpha"}]}' > "$BASE/inv.json"
+# Annotations are off unless the settings file next to the inventory turns them on for the scope.
+printf '{"format":"mozak.settings/v1","scopes":{"alpha":{"annotations":true}}}' > "$BASE/mozak-settings.json"
 NOW=2026-10-21T08:00:00.000Z
 printf '{"operationId":"init","scopeId":"alpha","kind":"project","title":"Synthetic","expectedAbsent":{"graph":true,"bridge":true},"ownerRef":"synthetic","ownerMessageAt":"%s"}' "$NOW" > "$BASE/init.json"
 node "$NEW" scope init --config "$BASE/inv.json" --scope alpha --request "$BASE/init.json" > /dev/null
@@ -18,7 +20,9 @@ propose() { # $1 cli, $2 plan id
 }
 propose "$NEW" a branch; propose "$NEW" b branch
 printf '{"operationId":"annot-1","scopeId":"alpha","expectedAnnotations":{"exists":false,"sha256":null},"ownerRef":"synthetic","ownerMessageAt":"%s","items":[{"kind":"ref","planId":"b","target":"alpha/a","relation":"needs","evidence":"b needs a"}]}' "$NOW" > "$BASE/a.json"
-node "$NEW" annotate --config "$BASE/inv.json" --scope alpha --request "$BASE/a.json" > /dev/null && echo "annotate via branch: exit 0"
+node "$NEW" annotate --config "$BASE/inv.json" --scope alpha --request "$BASE/a.json" > /dev/null
+echo "annotate via branch: exit 0"
+[ -f "$BASE/alpha/mozak.annotations.json" ] || { echo "no sidecar written" >&2; exit 1; }
 SIDE="$(shasum -a 256 "$BASE/alpha/mozak.annotations.json" | cut -d' ' -f1)"
 echo "old cli version: $(node "$OLD" --version)"
 for r in "context --scope alpha --json" "plans --scope alpha --json" "check --scope alpha --json"; do
@@ -27,6 +31,7 @@ for r in "context --scope alpha --json" "plans --scope alpha --json" "check --sc
 done
 propose "$OLD" c old-cli
 set +e; node "$OLD" check --config "$BASE/inv.json" --scope alpha --json > /dev/null; echo "old check after old write: exit $?"; set -e
-[ "$SIDE" = "$(shasum -a 256 "$BASE/alpha/mozak.annotations.json" | cut -d' ' -f1)" ] && echo "sidecar unchanged by old client"
+[ "$SIDE" = "$(shasum -a 256 "$BASE/alpha/mozak.annotations.json" | cut -d' ' -f1)" ] || { echo "sidecar changed by old client" >&2; exit 1; }
+echo "sidecar unchanged by old client"
 set +e; node "$NEW" check --config "$BASE/inv.json" --scope alpha --json > /dev/null; echo "branch check after old write: exit $?"; set -e
 node "$NEW" graph --config "$BASE/inv.json" --scope alpha --json | jq -c "{edges: .graph.counts.edges, dangling: .graph.counts.dangling, nodes: .graph.counts.nodes}"
