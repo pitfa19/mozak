@@ -49,9 +49,10 @@ export function loadScopesModel(inventoryPath: string): ScopesModel {
         annotations: annotationsEnabled(inv, resolved) ? readAnnotations(resolved.root, entry.id).doc : null,
         focus: focus[entry.id] ?? [],
         ...(remote ? { remote } : {}),
+        ...(entry.repo ? { repo: entry.repo } : {}),
       };
     } catch (err) {
-      return { id: entry.id, root: entry.root, entryFiles: entryFiles(entry.root), error: fail(err), ...(remote ? { remote } : {}) };
+      return { id: entry.id, root: entry.root, entryFiles: entryFiles(entry.root), error: fail(err), ...(remote ? { remote } : {}), ...(entry.repo ? { repo: entry.repo } : {}) };
     }
   });
   return scopesModel(inventoryPath, loads);

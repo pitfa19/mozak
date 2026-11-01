@@ -207,6 +207,14 @@ export class ScopesView extends ItemView {
       }
     }
     el(row, "span", "mozak-scope-title", scope.title);
+    if (scope.repo) {
+      // Display-only link to the code repo. A plain anchor: Obsidian opens it in the browser, mozak never fetches it.
+      const link = el(row, "a", "clickable-icon mozak-repo");
+      setIcon(link, "github");
+      link.setAttr("href", scope.repo.url);
+      link.setAttr("aria-label", `Open ${scope.repo.label}`);
+      link.addEventListener("click", (ev) => ev.stopPropagation());
+    }
     const counts = el(row, "span", "mozak-counts");
     if (scope.status === "failed") {
       const e = el(counts, "span", "mozak-count is-error");

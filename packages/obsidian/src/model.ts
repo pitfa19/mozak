@@ -1,6 +1,6 @@
 // Pure view models. Turns core ScopeState plus review rows into plain data for the UI. No IO.
 // Plans are read in mozak.md, so the sidebar only needs identity, state, progress and a heading to jump to.
-import { completedPlanLine, isBridgeFileName, planDisplayState, planHeading, planRoadmap, resolveRef, type AnnotationsDoc, type Plan, type PlanDisplayState, type ScopeLookup, type ScopeState } from "@mozak/core";
+import { completedPlanLine, isBridgeFileName, planDisplayState, planHeading, planRoadmap, repoLinkLabel, repoLinkUrl, resolveRef, type AnnotationsDoc, type Plan, type PlanDisplayState, type ScopeLookup, type ScopeState } from "@mozak/core";
 
 export type PlanStateKey = PlanDisplayState;
 export type StopKey = "done" | "evidence" | "current" | "todo";
@@ -69,9 +69,13 @@ export interface ScopeVM {
   bridgeFile: string | null;
   /** Null for a local scope. */
   remote: RemoteVM | null;
+  /** Display-only link to the code repo, when the inventory entry has one. Never fetched. */
+  repo: RepoVM | null;
   errorCode: string | null;
   errorMessage: string | null;
 }
+/** A scope's repo link for the sidebar: the inventory value, a browsable URL and a short label. */
+export interface RepoVM { spec: string; url: string; label: string }
 export interface ScopesModel {
   inventoryPath: string;
   loadedAt: string;
@@ -90,6 +94,8 @@ export interface ScopeLoad {
   awaitingRows?: { planId: string; rowKind: string }[];
   reviewNeededPlanIds?: string[];
   remote?: RemoteVM;
+  /** The entry's display-only repo link, when it has one. */
+  repo?: string;
   error?: { code: string; message: string };
   /** Parsed mozak.annotations.json, when the scope has a valid one. */
   annotations?: AnnotationsDoc | null;
@@ -172,6 +178,11 @@ export function planViewModel(
   };
 }
 
+/** The sidebar form of a repo link. Pure. */
+export function repoVM(spec: string | undefined): RepoVM | null {
+  return spec === undefined ? null : { spec, url: repoLinkUrl(spec), label: repoLinkLabel(spec) };
+}
+
 export function scopeViewModel(load: ScopeLoad): ScopeVM {
   const bridgeName = load.entryFiles.find(isBridgeFileName) ?? null;
   const hasMozakMd = bridgeName !== null;
@@ -188,6 +199,7 @@ export function scopeViewModel(load: ScopeLoad): ScopeVM {
       hasMozakMd,
       bridgeFile: bridgeName,
       remote: load.remote ?? null,
+      repo: repoVM(load.repo),
       errorCode: load.error?.code ?? "unknown",
       errorMessage: load.error?.message ?? "scope could not be read",
     };
@@ -209,6 +221,7 @@ export function scopeViewModel(load: ScopeLoad): ScopeVM {
     hasMozakMd,
     bridgeFile: bridgeName,
     remote: load.remote ?? null,
+    repo: repoVM(load.repo),
     errorCode: null,
     errorMessage: null,
   };

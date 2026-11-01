@@ -58,6 +58,25 @@ test("CLI: scope move needs the owner flags and exactly one of --to or --drop, a
   assert.match(cli(["--help"]).out, /mozak scope move --scope ID/);
 });
 
+test("CLI: scope link sets and clears a display-only link that scopes prints; move --repo sets it too", () => {
+  const w = setup();
+  const set = cli(["scope", "link", "--config", w.config, "--scope", "alpha", "--repo", "github:o/alpha"]);
+  assert.equal(set.code, 0, set.out + set.err);
+  assert.equal(set.out, "alpha: repo github:o/alpha\n");
+  assert.equal(cli(["scope", "link", "--config", w.config, "--scope", "alpha", "--repo", "github:o/alpha"]).out, "alpha: repo github:o/alpha (unchanged)\n");
+  const bad = cli(["scope", "link", "--config", w.config, "--scope", "alpha", "--repo", "ftp://x"]);
+  assert.equal(bad.code, 2);
+  assert.equal(JSON.parse(bad.out).status, "invalid-input");
+  const moved = cli(["scope", "move", "--config", w.config, "--scope", "alpha", "--to", "vault/alpha", "--repo", "github:o/alpha2", "--json", ...OWNER]);
+  assert.equal(moved.code, 0, moved.out);
+  assert.deepEqual(JSON.parse(moved.out).entry, { id: "alpha", root: "vault/alpha", repo: "github:o/alpha2" });
+  assert.match(cli(["scopes", "--config", w.config]).out, /\n    repo: github:o\/alpha2\n/);
+  const cleared = cli(["scope", "link", "--config", w.config, "--scope", "alpha", "--clear", "--json"]);
+  assert.deepEqual(JSON.parse(cleared.out), { status: "ok", scope: "alpha", repo: null, changed: true });
+  assert.doesNotMatch(cli(["scopes", "--config", w.config]).out, /repo:/);
+  assert.match(cli(["--help"]).out, /mozak scope link --scope ID \(--repo SPEC \| --clear\)/);
+});
+
 test("CLI: scope move --drop removes a 0-plan entry and refuses a scope with plans", () => {
   const w = world(["alpha", "empty"]);
   w.propose("alpha", "a1");

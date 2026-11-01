@@ -18,6 +18,7 @@ import { readScope, withScopeLocks } from "./scope-store.ts";
 import { ANNOTATIONS_FILE } from "./annotations.ts";
 import { isUtcTimestamp } from "./understanding.ts";
 import { nonEmptyString } from "./validate.ts";
+import { parseRepoLink, REPO_LINK_HELP } from "./repo-link.ts";
 import { vaultOf } from "./vault-config.ts";
 
 /** Files a move carries, in copy order. The plan file comes first so a reader never sees a projection without it. */
@@ -26,7 +27,7 @@ export const MOVED_FILES = [...SCOPE_FILE_NAMES, ANNOTATIONS_FILE, "README.md", 
 const LOCATION_KEYS = new Set(["root", "remote", "ref", "plans"]);
 
 export interface MoveArgs {
-  scope: unknown; to?: unknown; drop?: unknown; dryRun?: unknown;
+  scope: unknown; to?: unknown; drop?: unknown; dryRun?: unknown; repo?: unknown;
   ownerRef: unknown; ownerMessageAt: unknown; reason: unknown;
 }
 export interface MovedFile { name: string; bytes: number; sha256: string }
@@ -49,7 +50,7 @@ export interface MoveOptions { onPhase?: (phase: string) => void; lockTimeoutMs?
 
 type RawEntry = Record<string, unknown> & { id: string };
 type SourceFile = { name: string; bytes: Buffer; mode: number };
-interface Request { scope: string; to: string | null; dryRun: boolean; owner: MoveResult["owner"] }
+interface Request { scope: string; to: string | null; repo: string | null; dryRun: boolean; owner: MoveResult["owner"] }
 
 const sha256 = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const invalid = (message: string) => new DomainError("invalid-input", message, 2);
@@ -61,10 +62,20 @@ export function parseMoveArgs(a: MoveArgs): Request {
   if (a.drop !== undefined && typeof a.drop !== "boolean") throw invalid("drop must be a boolean");
   if (drop === (a.to !== undefined)) throw invalid("scope move needs exactly one of --to PATH or --drop");
   const to = drop ? null : nonEmptyString(a.to, "to");
+  const repo = moveRepoArg(a.repo, drop);
   const ownerRef = nonEmptyString(a.ownerRef, "ownerRef");
   if (!isUtcTimestamp(a.ownerMessageAt)) throw invalid("ownerMessageAt must be the UTC time of the owner's message, for example 2026-11-01T17:25:00.000Z");
   const reason = nonEmptyString(a.reason, "reason");
-  return { scope, to, dryRun: a.dryRun === true, owner: { ownerRef, ownerMessageAt: a.ownerMessageAt, reason } };
+  return { scope, to, repo, dryRun: a.dryRun === true, owner: { ownerRef, ownerMessageAt: a.ownerMessageAt, reason } };
+}
+
+/** `--repo` on a move: absent (null), or a valid display-only link that goes with `--to`. */
+function moveRepoArg(value: unknown, drop: boolean): string | null {
+  if (value === undefined) return null;
+  if (drop) throw invalid("--repo goes with --to, not --drop");
+  const repo = parseRepoLink(value);
+  if (repo === null) throw invalid(`${REPO_LINK_HELP}, not ${JSON.stringify(value)}`);
+  return repo;
 }
 
 /** Run `check` on the source folder as a plain local scope: no settings, no remote refresh, no network. */
@@ -114,10 +125,14 @@ function specsLeftBehind(source: ScopeEntry, target: string): { code: string; me
   }));
 }
 
-/** The entry after the move: id, the new root, then every other key of the old entry in its order (focus, x). */
-function movedEntry(old: RawEntry, to: string): Record<string, unknown> {
+/**
+ * The entry after the move: id, the new root, then every other key of the old entry in its order (focus, x, repo).
+ * `repo`, when given, sets or replaces the display-only link.
+ */
+function movedEntry(old: RawEntry, to: string, repo: string | null): Record<string, unknown> {
   const out: Record<string, unknown> = { id: old.id, root: to };
   for (const [k, v] of Object.entries(old)) if (k !== "id" && !LOCATION_KEYS.has(k)) out[k] = v;
+  if (repo !== null) out.repo = repo;
   return out;
 }
 
@@ -233,7 +248,7 @@ function planMove(inventoryPath: string, req: Request): Planned {
   const files = inPlace ? [] : sourceFiles(source.root);
   if (!inPlace) assertTargetFree(target, files.map((f) => f.name), inv);
   assertSourceChecks(source);
-  const entry = movedEntry(old, req.to);
+  const entry = movedEntry(old, req.to, req.repo);
   const changed = JSON.stringify(entry) !== JSON.stringify(old);
   doc.scopes[index] = entry as RawEntry;
   const plans = readScope(source).state.plans.length;

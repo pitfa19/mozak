@@ -5,7 +5,7 @@
 
 import { closeSync, fstatSync, openSync, readSync } from "node:fs";
 import { parseArgs } from "node:util";
-import { decideWithFlags, deleteWithFlags, observePayload, observeWithFlags, planShow, executeOperation, loadInventory, MAX_REQUEST_BYTES, scopeForWorkingCopy, gitCommitScope, DomainError, focusChange, focusList, renderFocus, renderMove, scopeMoveOutput, type OperationOutput, type ScopeInventory } from "@mozak/core";
+import { decideWithFlags, deleteWithFlags, observePayload, observeWithFlags, planShow, executeOperation, loadInventory, MAX_REQUEST_BYTES, scopeForWorkingCopy, gitCommitScope, DomainError, focusChange, focusList, renderFocus, renderMove, scopeLinkOutput, scopeMoveOutput, type OperationOutput, type ScopeInventory } from "@mozak/core";
 import { runningVersion, upgrade } from "./upgrade.js";
 import { doctor, renderDoctor } from "./doctor.js";
 
@@ -62,7 +62,8 @@ const ROUTES: Record<string, Route> = {
   "focus list": { operation: "focus-list", flags: ["config", "scope", "json"], requires: ["config"], requestFile: false },
   "focus add": { operation: "focus-add", flags: ["config", "scope", "plan", "json"], requires: ["config", "scope", "plan"], requestFile: false },
   "focus remove": { operation: "focus-remove", flags: ["config", "scope", "plan", "json"], requires: ["config", "scope", "plan"], requestFile: false },
-  "scope move": { operation: "scope-move", flags: ["config", "scope", "to", "drop", "dry-run", "owner-ref", "owner-message-at", "reason", "json"], requires: ["config", "scope", "owner-ref", "owner-message-at", "reason"], requestFile: false },
+  "scope move": { operation: "scope-move", flags: ["config", "scope", "to", "drop", "repo", "dry-run", "owner-ref", "owner-message-at", "reason", "json"], requires: ["config", "scope", "owner-ref", "owner-message-at", "reason"], requestFile: false },
+  "scope link": { operation: "scope-link", flags: ["config", "scope", "repo", "clear", "json"], requires: ["config", "scope"], requestFile: false },
   observe: { operation: "observe", flags: ["config", "scope", "request", ...OBSERVE_FLAGS], requires: ["config", "scope"], requestFile: true },
   "review decide": { operation: "decide", flags: ["config", "scope", "request", ...DECIDE_FLAGS], requires: ["config", "scope"], requestFile: true },
   "plan prune": { operation: "prune", flags: ["config", "scope", "rejected", "request"], requires: ["config", "scope", "rejected", "request"], requestFile: true },
@@ -78,7 +79,7 @@ const ROUTES: Record<string, Route> = {
 };
 
 const ROUTE_NAMES = Object.keys(ROUTES);
-const BOOLEAN_FLAGS = new Set(["json", "include-rejected", "all", "write", "brief", "dry-run", "allow-completed", "commit", "rejected", "local", "print", "include-private", "drop"]);
+const BOOLEAN_FLAGS = new Set(["json", "include-rejected", "all", "write", "brief", "dry-run", "allow-completed", "commit", "rejected", "local", "print", "include-private", "drop", "clear"]);
 
 class UsageError extends Error {}
 
@@ -87,9 +88,11 @@ function usage(): string {
     "usage: mozak [--config FILE] <route> [--config FILE] [flags]",
     "  mozak scope init --scope ID --request FILE          (owner)",
     "  mozak scope retitle --scope ID --request FILE       (owner; change the scope's display title)",
-    "  mozak scope move --scope ID (--to PATH | --drop) --owner-ref REF --owner-message-at ISO --reason TEXT [--dry-run] [--json]",
+    "  mozak scope move --scope ID (--to PATH [--repo SPEC] | --drop) --owner-ref REF --owner-message-at ISO --reason TEXT [--dry-run] [--json]",
     "                                                       (owner; copy the scope's files into a vault folder, verify them,",
     "                                                        point its inventory entry there; old files stay. --drop: 0-plan entry only)",
+    "  mozak scope link --scope ID (--repo SPEC | --clear) [--json]",
+    "                                                       (owner; display-only repo link, github:owner/repo or https URL; never fetched)",
     "  mozak context [--scope ID] [--brief] [--plan ID] [--json]",
     "  mozak plans [--scope ID | --all] [--include-rejected] [--limit 1..100] [--sort deadline] [--continuation TOKEN] [--json]",
     "  mozak graph (--scope ID | --all) [--json]           (cross-plan refs from owner annotations, with resolution)",
@@ -312,6 +315,7 @@ interface IndexRow {
   kind?: string;
   plans?: { completed: number; open: number; awaiting: number };
   entryFiles: string[];
+  repo?: string;
   remote?: string;
   ref?: string;
   stale?: boolean;
@@ -327,6 +331,7 @@ function renderScopesHuman(data: { coverage?: { selected: number; ok: number; fa
       lines.push(`${s.id}  [${s.kind}]  ${s.title}${s.remote ? "  [remote" + (s.stale ? ", STALE" : "") + "]" : ""}`);
       if (s.remote) lines.push(`    remote: ${s.remote}@${s.ref}${s.stale ? ` (cached copy, ${s.staleReason ?? "fetch failed"})` : ""}`);
       lines.push(`    folder: ${s.root}`);
+      if (s.repo) lines.push(`    repo: ${s.repo}`);
       lines.push(`    plans: ${p.completed} completed, ${p.open} open, ${p.awaiting} awaiting`);
       lines.push(`    files: ${s.entryFiles.join(", ") || "none"}`);
     } else {
@@ -465,9 +470,18 @@ function focusRoute(configPath: string, inventory: ScopeInventory, operation: st
 function moveRoute(configPath: string, values: Record<string, string | boolean | undefined>): number {
   const out = scopeMoveOutput(configPath, {
     scope: values.scope, ...(values.to !== undefined ? { to: values.to } : {}), ...(values.drop ? { drop: true } : {}), ...(values["dry-run"] ? { dryRun: true } : {}),
+    ...(values.repo !== undefined ? { repo: values.repo } : {}),
     ownerRef: values["owner-ref"], ownerMessageAt: values["owner-message-at"], reason: values.reason,
   });
   process.stdout.write(values.json === true ? `${JSON.stringify(out.data, null, 2)}\n` : renderMove(out.data));
+  return out.exitCode;
+}
+
+/** `mozak scope link`: owner route on the inventory file. Sets or clears the display-only repo link. Not in MCP. */
+function linkRoute(configPath: string, values: Record<string, string | boolean | undefined>): number {
+  const out = scopeLinkOutput(configPath, { scope: values.scope, ...(values.repo !== undefined ? { repo: values.repo } : {}), ...(values.clear ? { clear: true } : {}) });
+  const d = out.data as Record<string, any>;
+  process.stdout.write(values.json === true || d.status !== "ok" ? `${JSON.stringify(d, null, 2)}\n` : `${d.scope}: ${d.repo === null ? "no repo link" : `repo ${d.repo}`}${d.changed ? "" : " (unchanged)"}\n`);
   return out.exitCode;
 }
 
@@ -553,6 +567,7 @@ function run(argv: string[]): number {
   const cwdScope = CWD_SCOPE_ROUTES.has(routeName) && values.scope === undefined && values.all === undefined && values.continuation === undefined;
   if (route.operation.startsWith("focus-")) return focusRoute(configPath, inventory, route.operation, values);
   if (route.operation === "scope-move") return moveRoute(configPath, values);
+  if (route.operation === "scope-link") return linkRoute(configPath, values);
   if (cwdScope) {
     try {
       values.scope = scopeForWorkingCopy(inventory, process.cwd()).id;

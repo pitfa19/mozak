@@ -4,6 +4,7 @@ import { basename, dirname, join, resolve } from "node:path";
 import { DomainError } from "./errors.ts";
 import type { RemoteInfo } from "./remote-meta.ts";
 import { isLegacyEntry, LEGACY_KEYS, legacyLocation } from "./legacy-entry.ts";
+import { parseRepoLink, REPO_LINK_HELP } from "./repo-link.ts";
 import { vaultOf } from "./vault-config.ts";
 
 /** Pilot-local explicit inventory. Never a global registration or a directory scan. */
@@ -22,6 +23,8 @@ export interface ScopeEntry {
   remote?: RemoteInfo;
   /** Diagnostic only: reserved x settings were ignored at inventory or selected-entry level. */
   inventoryExtensionsIgnored?: true;
+  /** Display-only link to the code repo (`github:owner/repo` or an https URL), when the entry has one. */
+  repo?: string;
   /**
    * Set when the entry is kept in the inventory but every route refuses it (for example a root outside any vault).
    * `resolveScope` throws it. `mozak scope move` still reads the entry, so the owner can move it.
@@ -40,8 +43,9 @@ export interface ScopeInventory {
 
 const INVENTORY_KEYS = ["format", "scopes"] as const;
 const ENTRY_KEYS = ["id", "root"] as const;
-/** Optional on every scope entry. `focus`: the owner's starred plan ids, read by the plugin and `mozak focus` only. */
-const OPTIONAL_ENTRY_KEYS = ["focus"] as const;
+/** Optional on every scope entry. `focus`: the owner's starred plan ids, read by the plugin and `mozak focus` only.
+ * `repo`: a display-only link to the code repo (never used for git or the network). */
+const OPTIONAL_ENTRY_KEYS = ["focus", "repo"] as const;
 /** A legacy entry's id named a cache folder, so it never held path characters. */
 const LEGACY_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
 
@@ -166,8 +170,17 @@ function localEntry(entry: Record<string, unknown>, file: string, base: string):
   const rawRoot = entry.root;
   if (typeof rawRoot !== "string" || rawRoot.trim() === "") throw invalidInventory(file, `scope "${id}" root must be a nonempty string`);
   const root = canonicalPath(resolve(base, rawRoot));
+  const scope: ScopeEntry = { id, root };
+  if ("repo" in entry) scope.repo = repoOf(entry.repo, id, file);
   const refused = vaultRule(id, root);
-  return refused ? { id, root, refused } : { id, root };
+  if (refused) scope.refused = refused;
+  return scope;
+}
+
+function repoOf(value: unknown, id: string, file: string): string {
+  const repo = parseRepoLink(value);
+  if (repo === null) throw invalidInventory(file, `scope "${id}" ${REPO_LINK_HELP}`);
+  return repo;
 }
 
 /** Each id and each canonical root appears once. */

@@ -25,6 +25,8 @@ export interface ScopeIndexRow {
   plans?: { completed: number; open: number; awaiting: number };
   /** Which of AGENTS.md, mozak.json, mozak.md (or their pre-0.4 uppercase names) and README.md exist as regular files in the root. */
   entryFiles: string[];
+  /** Display-only link to the code repo, when the inventory entry has one. */
+  repo?: string;
 }
 
 export interface ScopeIndex {
@@ -58,6 +60,8 @@ function failedRow(id: string, root: string, err: DomainError): ScopeIndexRow {
   return { id, root, status: "failed", code: err.code, message: err.message, entryFiles: entryFilesOf(root) };
 }
 
+const withRepo = (row: ScopeIndexRow, repo: string | undefined): ScopeIndexRow => (repo === undefined ? row : { ...row, repo });
+
 export function scopeIndex(inv: ScopeInventory): ScopeIndex {
   const scopes: ScopeIndexRow[] = [];
   for (const entry of inv.scopes) {
@@ -65,7 +69,7 @@ export function scopeIndex(inv: ScopeInventory): ScopeIndex {
       const resolved = resolveScope(inv, entry.id);
       const read = readScope(resolved);
       const groups = reviewRows(read.state);
-      scopes.push({
+      scopes.push(withRepo({
         id: entry.id,
         root: resolved.root,
         status: "ok",
@@ -73,10 +77,10 @@ export function scopeIndex(inv: ScopeInventory): ScopeIndex {
         kind: read.state.scope.kind,
         plans: { completed: groups.completed.length, open: groups.open.length, awaiting: groups.awaiting.length },
         entryFiles: entryFilesOf(resolved.root),
-      });
+      }, entry.repo));
     } catch (err) {
       if (!(err instanceof DomainError)) throw err;
-      scopes.push(failedRow(entry.id, entry.root, err));
+      scopes.push(withRepo(failedRow(entry.id, entry.root, err), entry.repo));
     }
   }
   const ok = scopes.filter((s) => s.status === "ok").length;
