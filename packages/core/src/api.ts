@@ -988,8 +988,8 @@ function remoteOp(inv: ScopeInventory, operation: string, a: Record<string, unkn
     const o = closed(a, "sync arguments", [], ["scope", "local"]);
     const local = strictBoolean(o.local, "local");
     if (local && o.scope !== undefined) throw invalid("sync takes scope or local, not both");
-    // A local scope (no remote) syncs the git repo that holds it. --local syncs every local repo as well as remotes.
-    const named = o.scope === undefined ? undefined : inv.scopes.find((s) => s.id === nonEmpty(o.scope, "scope"));
+    // A local scope syncs the git repo that holds it. A refused scope (outside a vault, legacy repo scope) is refused.
+    const named = o.scope === undefined ? undefined : resolveScope(inv, nonEmpty(o.scope, "scope"));
     if (named && !named.remote) return localSyncOutput(inv, [named], base);
     const targets = o.scope === undefined ? remoteEntries(inv) : [resolveRemoteTarget(inv, nonEmpty(o.scope, "scope"))];
     const remote = targets.map((e) => syncRemote(e, { force: true }));
@@ -1030,8 +1030,7 @@ function localSyncOutput(inv: ScopeInventory, targets: ScopeEntry[], base: Recor
 }
 
 function resolveRemoteTarget(inv: ScopeInventory, id: string): ScopeEntry {
-  const entry = inv.scopes.find((s) => s.id === id);
-  if (!entry) throw new DomainError("scope-not-found", `no scope "${id}" in the inventory; run mozak scopes (MCP mozak_scopes) to list the scope ids`);
+  const entry = resolveScope(inv, id);
   if (!entry.remote) throw new DomainError("scope-not-remote", `scope "${id}" is a local scope, there is nothing to sync`);
   return entry;
 }

@@ -1,8 +1,9 @@
 import { createHash } from "node:crypto";
-import { existsSync, lstatSync, readFileSync, realpathSync, statSync, type Stats } from "node:fs";
+import { lstatSync, readFileSync, realpathSync, statSync, type Stats } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { DomainError } from "./errors.ts";
-import { cacheRootFor, parseRemoteSpec, readRemoteMeta, CACHE_DIR, DEFAULT_REF, REF_PATTERN, type RemoteInfo } from "./remote-meta.ts";
+import type { RemoteInfo } from "./remote-meta.ts";
+import { isLegacyEntry, LEGACY_KEYS, legacyLocation } from "./legacy-entry.ts";
 import { vaultOf } from "./vault-config.ts";
 
 /** Pilot-local explicit inventory. Never a global registration or a directory scan. */
@@ -11,7 +12,7 @@ export const INVENTORY_FORMAT_V2 = "mozak.local/v2" as const;
 export const INVENTORY_FORMAT = "mozak.local/v3" as const;
 export type InventoryFormat = typeof INVENTORY_FORMAT_V2 | typeof INVENTORY_FORMAT;
 export const WRITE_LOCK_DIR = ".mozak-write-lock";
-import { SCOPE_FILE_NAMES, scopeFile } from "./scope-files.ts";
+import { SCOPE_FILE_NAMES } from "./scope-files.ts";
 
 export interface ScopeEntry {
   id: string;
@@ -39,10 +40,10 @@ export interface ScopeInventory {
 
 const INVENTORY_KEYS = ["format", "scopes"] as const;
 const ENTRY_KEYS = ["id", "root"] as const;
-const REMOTE_ENTRY_KEYS = ["id", "remote", "ref", "plans"] as const;
 /** Optional on every scope entry. `focus`: the owner's starred plan ids, read by the plugin and `mozak focus` only. */
 const OPTIONAL_ENTRY_KEYS = ["focus"] as const;
-const REMOTE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
+/** A legacy entry's id named a cache folder, so it never held path characters. */
+const LEGACY_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -110,137 +111,100 @@ export function canonicalPath(path: string): string {
 }
 
 function digestOf(format: string, scopes: ScopeEntry[]): string {
-  const canonical = JSON.stringify({
-    format,
-    // Local entries keep the exact v2 shape, so existing digests do not change. Vault entries add their plans folder.
-    scopes: scopes.map((scope) =>
-      scope.remote
-        ? scope.remote.plansMode === "vault"
-          ? { id: scope.id, root: scope.root, remote: scope.remote.spec, ref: scope.remote.ref, plans: "vault" }
-          : { id: scope.id, root: scope.root, remote: scope.remote.spec, ref: scope.remote.ref }
-        : { id: scope.id, root: scope.root },
-    ),
-  });
+  // Format plus sorted id and canonical root: the exact v2 shape, so existing digests do not change.
+  const canonical = JSON.stringify({ format, scopes: scopes.map((scope) => ({ id: scope.id, root: scope.root })) });
   return createHash("sha256").update(canonical, "utf8").digest("hex");
 }
 
-/**
- * Read and validate an explicit local inventory. Relative roots resolve against the config
- * directory. Missing or unreadable roots are retained so that only the selected scope fails later.
- */
-export function loadInventory(configPath: string): ScopeInventory {
-  const file = resolve(configPath);
-
+function readInventoryJson(file: string): Record<string, unknown> {
   let text: string;
   try {
     text = readFileSync(file, "utf8");
   } catch (err) {
     throw new DomainError("inventory-unreadable", `${file}: cannot read inventory (${errorCode(err) ?? "unknown"})`);
   }
-
   let raw: unknown;
   try {
     raw = JSON.parse(text);
   } catch {
     throw invalidInventory(file, "inventory is not valid JSON");
   }
-
   if (!isPlainObject(raw)) throw invalidInventory(file, "inventory must be a JSON object");
   assertClosedObject(raw, INVENTORY_KEYS, "inventory", file);
   if (raw.format !== INVENTORY_FORMAT && raw.format !== INVENTORY_FORMAT_V2) {
     throw invalidInventory(file, `format must be "${INVENTORY_FORMAT}" or "${INVENTORY_FORMAT_V2}"`);
   }
-  const format: InventoryFormat = raw.format;
   if (!Array.isArray(raw.scopes)) throw invalidInventory(file, `"scopes" must be an array`);
+  return raw;
+}
 
+/** A retired repo-scope entry (v3 only): closed keys, no root, an id that named a cache folder. */
+function legacyEntry(entry: Record<string, unknown>, file: string, base: string): ScopeEntry {
+  for (const key of Object.keys(entry)) {
+    if (key === "root") throw invalidInventory(file, `scope entry must have exactly one of "root" or "remote"`);
+    if (key !== "x" && key !== "id" && !(LEGACY_KEYS as readonly string[]).includes(key) && !(OPTIONAL_ENTRY_KEYS as readonly string[]).includes(key)) {
+      throw invalidInventory(file, `unknown key "${key}" in scope entry`);
+    }
+  }
+  assertExtensionObject(entry, "scope entry", file);
+  const id = entryId(entry, file);
+  if (!LEGACY_ID_PATTERN.test(id)) throw invalidInventory(file, `scope id "${id}" must use letters, digits, ".", "_" or "-"`);
+  const { root, refused } = legacyLocation(base, file, id, entry, canonicalPath);
+  return { id, root, refused };
+}
+
+function entryId(entry: Record<string, unknown>, file: string): string {
+  const id = entry.id;
+  if (typeof id !== "string" || id.trim() === "") throw invalidInventory(file, "scope id must be a nonempty string");
+  return id;
+}
+
+/** A working scope entry: { id, root } plus optional keys. The vault rule marks a root outside a vault as refused. */
+function localEntry(entry: Record<string, unknown>, file: string, base: string): ScopeEntry {
+  assertClosedObject(entry, ENTRY_KEYS, "scope entry", file, OPTIONAL_ENTRY_KEYS);
+  const id = entryId(entry, file);
+  const rawRoot = entry.root;
+  if (typeof rawRoot !== "string" || rawRoot.trim() === "") throw invalidInventory(file, `scope "${id}" root must be a nonempty string`);
+  const root = canonicalPath(resolve(base, rawRoot));
+  const refused = vaultRule(id, root);
+  return refused ? { id, root, refused } : { id, root };
+}
+
+/** Each id and each canonical root appears once. */
+function assertUnique(scope: ScopeEntry, seen: { ids: Set<string>; roots: Map<string, string> }, file: string): void {
+  if (seen.ids.has(scope.id)) throw new DomainError("inventory-duplicate-id", `${file}: duplicate scope id "${scope.id}"`);
+  seen.ids.add(scope.id);
+  const prior = seen.roots.get(scope.root);
+  if (prior !== undefined) {
+    throw new DomainError("inventory-duplicate-root", `${file}: scopes "${prior}" and "${scope.id}" resolve to the same root ${scope.root}`);
+  }
+  seen.roots.set(scope.root, scope.id);
+}
+
+/**
+ * Read and validate an explicit local inventory. Relative roots resolve against the config
+ * directory. Missing or unreadable roots are retained so that only the selected scope fails later.
+ * Entries outside a vault and retired repo-scope entries are kept but refused (see `refused`).
+ */
+export function loadInventory(configPath: string): ScopeInventory {
+  const file = resolve(configPath);
+  const raw = readInventoryJson(file);
+  const format = raw.format as InventoryFormat;
   const base = dirname(file);
-  const seenIds = new Set<string>();
-  const seenRoots = new Map<string, string>();
+  const seen = { ids: new Set<string>(), roots: new Map<string, string>() };
   const scopes: ScopeEntry[] = [];
 
-  for (const entry of raw.scopes) {
+  for (const entry of raw.scopes as unknown[]) {
     if (!isPlainObject(entry)) throw invalidInventory(file, "each scope must be an object");
-    const isRemote = format === INVENTORY_FORMAT && "remote" in entry;
-    if (isRemote) {
-      // Exactly one of root or remote. The ref is optional and defaults to main. The object stays closed.
-      for (const key of Object.keys(entry)) {
-        if (key !== "x" && !(REMOTE_ENTRY_KEYS as readonly string[]).includes(key) && !(OPTIONAL_ENTRY_KEYS as readonly string[]).includes(key)) {
-          throw invalidInventory(file, key === "root" ? `scope entry must have exactly one of "root" or "remote"` : `unknown key "${key}" in scope entry`);
-        }
-      }
-      assertExtensionObject(entry, "scope entry", file);
-      if (!("id" in entry)) throw invalidInventory(file, `missing "id" in scope entry`);
-    } else {
-      assertClosedObject(entry, ENTRY_KEYS, "scope entry", file, OPTIONAL_ENTRY_KEYS);
-    }
+    const scope = format === INVENTORY_FORMAT && isLegacyEntry(entry) ? legacyEntry(entry, file, base) : localEntry(entry, file, base);
     assertFocus(entry, file);
-
-    const id = entry.id;
-    if (typeof id !== "string" || id.trim() === "") {
-      throw invalidInventory(file, "scope id must be a nonempty string");
-    }
-    let root: string;
-    let remote: RemoteInfo | undefined;
-    if (isRemote) {
-      if (!REMOTE_ID_PATTERN.test(id)) {
-        throw invalidInventory(file, `remote scope id "${id}" must use letters, digits, ".", "_" or "-" (it names a cache folder)`);
-      }
-      if (typeof entry.remote !== "string") throw invalidInventory(file, `scope "${id}" remote must be a string`);
-      const ref = entry.ref === undefined ? DEFAULT_REF : entry.ref;
-      if (typeof ref !== "string" || !REF_PATTERN.test(ref)) {
-        throw invalidInventory(file, `scope "${id}" ref must be a plain branch name`);
-      }
-      const parsed = parseRemoteSpec(entry.remote);
-      if (!parsed) {
-        throw invalidInventory(file, `scope "${id}" remote must look like "github:owner/repo", an https:// URL or an absolute file:// URL`);
-      }
-      const cacheRoot = canonicalPath(cacheRootFor(base, id));
-      if (entry.plans !== undefined) {
-        // Vault plans: the scope root is a local folder. The repo is never cloned, committed to or pushed for plans.
-        if (typeof entry.plans !== "string" || entry.plans.trim() === "") throw invalidInventory(file, `scope "${id}" plans must be a nonempty path`);
-        const plansRoot = canonicalPath(resolve(base, entry.plans));
-        const cacheDir = canonicalPath(join(base, CACHE_DIR));
-        if (plansRoot === cacheDir || plansRoot.startsWith(cacheDir + "/")) {
-          throw invalidInventory(file, `scope "${id}" plans folder must not be inside ${CACHE_DIR}/`);
-        }
-        root = plansRoot;
-        remote = { spec: entry.remote, url: parsed.url, ref, repoName: parsed.repoName, baseDir: base, cacheRoot, fullClone: null, plansMode: "vault" };
-      } else {
-        const meta = readRemoteMeta(base, id);
-        const fullClone = meta.fullClone !== null && existsSync(join(meta.fullClone, ".git")) && existsSync(scopeFile(meta.fullClone, "graph")) ? canonicalPath(meta.fullClone) : null;
-        root = fullClone ?? cacheRoot;
-        remote = { spec: entry.remote, url: parsed.url, ref, repoName: parsed.repoName, baseDir: base, cacheRoot, fullClone, plansMode: "repo" };
-      }
-    } else {
-      const rawRoot = entry.root;
-      if (typeof rawRoot !== "string" || rawRoot.trim() === "") {
-        throw invalidInventory(file, `scope "${id}" root must be a nonempty string`);
-      }
-      root = canonicalPath(resolve(base, rawRoot));
-    }
-
-    if (seenIds.has(id)) {
-      throw new DomainError("inventory-duplicate-id", `${file}: duplicate scope id "${id}"`);
-    }
-    seenIds.add(id);
-
-    const canonical = root;
-    const prior = seenRoots.get(canonical);
-    if (prior !== undefined) {
-      throw new DomainError(
-        "inventory-duplicate-root",
-        `${file}: scopes "${prior}" and "${id}" resolve to the same root ${canonical}`,
-      );
-    }
-    seenRoots.set(canonical, id);
-    const scope: ScopeEntry = remote ? { id, root: canonical, remote } : { id, root: canonical };
+    assertUnique(scope, seen, file);
     if ("x" in raw || "x" in entry) scope.inventoryExtensionsIgnored = true;
-    const refused = vaultRule(id, canonical);
-    if (refused) scope.refused = refused;
     scopes.push(scope);
   }
 
-  scopes.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  // Ids are unique (assertUnique), so ordering by "is a before b" is total. Code-point order, not locale order.
+  scopes.sort((a, b) => (a.id < b.id ? -1 : 1));
   const inventory: ScopeInventory = { format, scopes, digest: digestOf(format, scopes) };
   // Not enumerable: the loaded inventory compares and serializes exactly as before. Used to find mozak-settings.json.
   Object.defineProperty(inventory, "path", { value: file, enumerable: false });

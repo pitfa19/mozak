@@ -63,19 +63,12 @@ test("repoKey normalizes https, ssh, scp-like, github: and file forms", () => {
   assert.equal(repoKey("not a url"), null);
 });
 
-test("context, plans, check and review show without --scope inside a clone resolve the vault scope", async () => {
+test("context, plans, check and review show without --scope inside a clone no longer resolve a legacy repo scope", async () => {
   const { inv, clone } = fixture();
+  // 0.6.0: a remote entry is legacy-repo-scope, so a clone's origin matches no working scope.
   const ctx = await run(["context", "--config", inv], clone);
-  assert.equal(ctx.code, 0, ctx.out + ctx.err);
-  assert.equal(JSON.parse(ctx.out).context.scope.id, "tool");
-  // Also from a subfolder of the clone.
-  mkdirSync(join(clone, "src"));
-  assert.equal((await run(["context", "--config", inv], join(clone, "src"))).code, 0);
-  const plans = await run(["plans", "--config", inv, "--json"], clone);
-  assert.equal(plans.code, 0, plans.out);
-  assert.equal((await run(["check", "--config", inv], clone)).code, 0);
-  const show = await run(["review", "show", "--config", inv, "--plan", "nope"], clone);
-  assert.notEqual(JSON.parse(show.out).status, "scope-not-found");
+  assert.equal(ctx.code, 2, ctx.out + ctx.err);
+  assert.equal(JSON.parse(ctx.out).status, "scope-not-found");
   // The clone never receives plan files.
   assert.ok(!existsSync(join(clone, "mozak.json")));
   assert.equal(g(clone, "status", "--porcelain"), "");
@@ -105,13 +98,13 @@ test("explicit --scope still wins inside a clone", async () => {
   assert.notEqual(JSON.parse(r.out).context?.scope?.id, "tool");
 });
 
-test("pull --into a Downloads folder clones code only", async () => {
+test("pull refuses a legacy repo scope and clones nothing", async () => {
   const { inv, base, plans } = fixture();
   const before = readFileSync(join(plans, "mozak.json"));
   const dest = join(base, "Downloads", "fresh");
   const r = await run(["pull", "--config", inv, "--scope", "tool", "--into", dest, "--json"], base);
-  assert.equal(r.code, 0, r.out + r.err);
-  assert.ok(existsSync(join(dest, "index.js")));
-  assert.ok(!existsSync(join(dest, "mozak.json")));
+  assert.equal(r.code, 2, r.out + r.err);
+  assert.equal(JSON.parse(r.out).status, "legacy-repo-scope");
+  assert.ok(!existsSync(dest));
   assert.deepEqual(readFileSync(join(plans, "mozak.json")), before);
 });

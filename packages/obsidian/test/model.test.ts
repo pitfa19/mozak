@@ -126,29 +126,21 @@ test("remote scopes carry their badge data through the view model and are counte
   assert.deepEqual(countRemote([a, b]), { remote: 1, stale: 1 });
 });
 
-test("vault-plans scopes keep the repo badge, are never stale, open plans inside the vault, and need no sync", () => {
+test("a legacy vault-plans entry is a failed row naming scope move, and opening its folder stays inside the vault", () => {
   const base = vaultTemp(join(process.env.JCODE_SCRATCH_DIR ?? tmpdir(), "mozak-obs-vault-"));
   const vault = join(base, "vault");
   const plans = join(vault, "creations", "tool");
   mkdirSync(plans, { recursive: true });
   writeFileSync(join(plans, "README.md"), "# r\n");
   writeFileSync(join(plans, "AGENTS.md"), "# a\n");
+  initScopeState({ id: "tool", root: plans }, { operationId: "i", scopeId: "tool", kind: "project", title: "Tool", expectedAbsent: { graph: true, bridge: true }, ownerRef: "host:t", ownerMessageAt: "2026-10-18T08:50:00.000Z" });
   const inv = join(vault, "mozak-inventory.json");
   writeFileSync(inv, JSON.stringify({ format: "mozak.local/v3", scopes: [{ id: "tool", remote: "github:o/tool", plans: "creations/tool" }] }));
-  initScopeState(loadInventory(inv).scopes[0]!, { operationId: "i", scopeId: "tool", kind: "project", title: "Tool", expectedAbsent: { graph: true, bridge: true }, ownerRef: "host:t", ownerMessageAt: "2026-10-18T08:50:00.000Z" });
-  const model = loadScopesModel(inv);
-  const scope = model.scopes[0]!;
-  assert.equal(scope.status, "ok");
-  assert.equal(scope.remote?.spec, "github:o/tool");
-  assert.equal(scope.remote?.vault, true);
-  assert.equal(scope.remote?.stale, false);
-  assert.deepEqual(countRemote(model.scopes), { remote: 0, stale: 0 });
+  const scope = loadScopesModel(inv).scopes[0]!;
+  assert.equal(scope.status, "failed");
+  assert.equal(scope.errorCode, "legacy-repo-scope");
+  assert.match(scope.errorMessage!, /mozak scope move --scope tool --to creations\/tool/);
   assert.equal(resolveOpenTarget(vault, join(scope.root, "mozak.md"), realOrSelf).kind, "vault");
-  assert.equal(remoteVM("github:o/r", "main", { lastFetchAt: null, lastError: "offline" }, new Date(), undefined, true).stale, false);
-  assert.equal(scope.remote?.visibility, null, "never checked shows no badge");
-  assert.equal(remoteVM("github:o/r", "main", { lastFetchAt: null, lastError: null, visibility: "public" }, new Date(), undefined, true).visibility, "public");
-  assert.equal(remoteVM("github:o/r", "main", { lastFetchAt: null, lastError: null, visibility: "private-or-missing" }).visibility, "private");
-  assert.equal(remoteVM("github:o/r", "main", { lastFetchAt: null, lastError: null, visibility: "unknown" }).visibility, null);
 });
 
 // ---------- roadmap navigation (plan obsidian-roadmap) ----------

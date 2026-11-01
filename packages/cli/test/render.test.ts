@@ -149,18 +149,15 @@ test("render reports a failed cleanup even if the projection was already publish
   assert.equal(sha(join(entry.root, "mozak.json")), json);
 });
 
-test("direct render refuses remote scopes before touching their cache", () => {
+test("render --all reports a legacy repo entry as failed and never touches its cache", () => {
   const { config, entries } = world(["alpha"]);
   writeFileSync(config, JSON.stringify({ format: "mozak.local/v3", scopes: [{ id: "alpha", remote: "github:example/sample", ref: "main" }] }));
-  const remote = loadInventory(config).scopes[0]!;
-  const entry = { ...entries[0]!, remote: remote.remote };
   makeLegacy(entries[0]!);
-  const before = sha(join(entry.root, "mozak.md"));
-  assert.throws(() => renderProjection(entry), { code: "remote-render-refused" });
-  assert.equal(sha(join(entry.root, "mozak.md")), before);
+  const before = sha(join(entries[0]!.root, "mozak.md"));
   const out = executeOperation(loadInventory(config), "render", { all: true }, "agent");
-  assert.equal(out.exitCode, 0);
-  assert.equal((out.data.scopes as { result: string }[])[0]!.result, "remote-skipped");
+  assert.equal(out.exitCode, 6);
+  assert.deepEqual((out.data.scopes as { result: string; code?: string }[]).map((r) => [r.result, r.code]), [["failed", "legacy-repo-scope"]]);
+  assert.equal(sha(join(entries[0]!.root, "mozak.md")), before);
 });
 
 test("a hand-edited bridge stays a conflict and render refuses to overwrite it", () => {
