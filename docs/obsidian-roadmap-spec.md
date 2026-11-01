@@ -44,7 +44,7 @@ Purpose text.
 ### Roadmap
 ```mermaid
 flowchart LR
-  s1["✅ Concept doc"]:::done --> s2["🟡 Mini cleanup"]:::evidence --> s3["📍 Hermes sandbox"]:::current --> s4["Dogfood RAG"]:::todo
+  s1["✅ Concept doc"]:::done --> s2["🟡 Mini cleanup"]:::evidence --> s3["📍 Agent sandbox"]:::current --> s4["Dogfood RAG"]:::todo
   classDef done fill:#22a55b,color:#fff
   classDef evidence fill:#e8b931,color:#000
   classDef current fill:#8b5cf6,color:#fff

@@ -11,11 +11,53 @@ You work in ideas and plans, not code. Several agents share one plan without ove
 [![Node 24.11+](https://img.shields.io/badge/node-24.11%2B-339933?style=flat-square)](docs/installation.md)
 [![Platforms](https://img.shields.io/badge/platforms-Linux%20%7C%20macOS-blue?style=flat-square)](docs/installation.md)
 
-[What it is](#what-it-is) · [See it run](#see-it-run) · [Install](#install) · [How it works](#how-it-works) · [Obsidian](#see-everything-in-obsidian) · [Safety](#safety) · [Tested](#what-is-tested-and-what-is-not) · [Docs](docs/installation.md)
+[What it is](#the-problem) · [Example](#a-short-example) · [See it run](#see-it-run) · [Install](#install) · [How it works](#how-it-works) · [Obsidian](#see-everything-in-obsidian) · [Safety](#safety) · [Tested](#what-is-tested-and-what-is-not) · [Docs](docs/installation.md)
 
 </div>
 
 ---
+
+## The problem
+
+Coding agents forget the plan between sessions, so you explain the project again. When several agents work at once, one can overwrite what another just wrote. And an agent can start building before you agreed on what to build.
+
+mozak fixes this with plain files:
+
+- **Every agent reads the same plan.** `mozak.json` holds it and `mozak.md` is a readable copy. You never explain the project twice.
+- **Agents propose, you decide.** Agreeing on *what* to do and agreeing to *start building* are two separate yeses.
+- **Stale writes are refused.** An agent that writes from an old copy gets `stale-input` and must reread. Nothing is overwritten.
+- **One view across all your projects.** The Obsidian plugin shows every project's plans and progress in one sidebar, with a Focus tab for the plans you starred.
+
+No cloud, no account, no background service.
+
+```bash
+npm install -g mozak && mozak doctor --fix
+```
+
+## A short example
+
+Two agents read the same plan, then both propose at once. The first write lands. The second is refused because its copy is now old, so it cannot overwrite the first. This is real output: `node scripts/readme-example.mjs` reproduces it on a throwaway scope after `npm run build`.
+
+```text
+$ mozak plan propose --scope my-app --request a.json   # agent A proposes
+status: ok
+committed: true
+(exit 0)
+
+$ mozak plan propose --scope my-app --request b.json   # agent B proposes from the same, now old, snapshot
+status: stale-input
+committed: false
+stale-input: snapshot changed; reread before submitting a new operation: take the new snapshot from context as expected and use a new operationId
+(exit 3)
+
+$ mozak plans --scope my-app   # what is in the plan now
+awaiting (1)
+  - Add dark mode  [dark-mode]
+      review: direction approval
+      outcome: The app has a dark theme
+```
+
+The plan is now waiting for your yes. Agent B rereads and proposes again from the new snapshot.
 
 ## See it run
 
@@ -157,6 +199,8 @@ The agent writes plain `mozak.json` and `mozak.md` files in your project folder.
 | Run the guided planning conversation | the installed skill at `PREFIX/skills/mozak/SKILL.md` |
 | Rename a project (owner) | `mozak scope retitle` |
 | Delete plans so they no longer exist (owner) | `mozak plan delete --plans A,B` |
+| Star or unstar a plan for the Focus tab (owner) | `mozak focus add\|remove --scope ID --plan ID`, or the star in the sidebar |
+| Clear a write lock left by a dead process or another host (owner) | `mozak recover` |
 | Move pre-0.4 `MOZAK.json` / `MOZAK.md` to lowercase (owner) | `mozak rename-files --all` |
 
 Every scope command needs an explicit `--config`. Only the maintenance commands (`upgrade`, `doctor`) run without one.
@@ -194,23 +238,16 @@ The Obsidian plugin passed Obsidian's automated community review. Its build and 
 - **Real GitHub.** Tests use local bare repos. Real GitHub was checked by hand.
 - **Unsupported setups.** Windows, network filesystems and diverged remote branches.
 
-## Unreleased 0.5 features on this branch
+## New in 0.5
 
-These commands expose plan state. They do not establish an agent speed or accuracy benefit. Run them against an isolated inventory after `npm ci && npm run build`:
+- **Focus tab.** Star a plan in the Obsidian sidebar to put it in Focus. `mozak focus list` shows the stars, and agents can read them but never change them. See [docs/installation.md](docs/installation.md#6a-focus-list).
+- **Shorter reads.** `mozak context --brief` gives one short summary per plan, `mozak context --plan ID` the full state of one plan.
+- **Owner annotations, off by default.** Links between plans (needs, informs, supersedes) and deadlines, read by `mozak graph`, `mozak ready` and `mozak plans --sort deadline`. Turn them on per scope. See [docs/annotations.md](docs/annotations.md).
+- **Plans index and similar plans.** `mozak plans-md`, `mozak locators` and `mozak similar`. See [docs/plans-index.md](docs/plans-index.md). They help you navigate, they make no search-quality claim.
+- **Store hygiene.** `mozak recover` clears a stuck write lock, `mozak plan prune --rejected` removes rejected plans, `mozak check --history N` finds hand edits, `mozak sync --local` fast-forwards your vaults.
+- **Off unless you turn them on:** the experimental `concurrency.rebase` for parallel agents, and a counts-only usage log (`MOZAK_USAGE_LOG=on` or `"usageLog": true` in `mozak-settings.json`).
 
-```bash
-node packages/cli/dist/index.js context --config /path/to/inventory.json --scope sample --brief
-node packages/cli/dist/index.js context --config /path/to/inventory.json --scope sample --plan PLAN
-node packages/cli/dist/index.js graph --config /path/to/inventory.json --scope sample
-node packages/cli/dist/index.js ready --config /path/to/inventory.json --scope sample
-node packages/cli/dist/index.js plans --config /path/to/inventory.json --scope sample --sort deadline
-```
-
-`context --brief` returns bounded summaries, while `--plan` reads one plan without changing the whole-scope snapshot. Owner-only annotations add cross-plan references and deadlines in a sidecar. [Plans indexes and locators](docs/plans-index.md) provide navigation, not a search-quality guarantee. [Annotation commands](docs/annotations.md) describe the separate owner route.
-
-Experimental `concurrency.rebase` remains **off by default**. When explicitly enabled in `mozak-settings.json`, only selected non-conflicting `observe`, `save-discussion` and new-id `propose` requests may rebase. Decisions still require exact snapshots. `recover`, rejected-plan pruning, local fast-forward sync, history diagnostics and counts-only usage logging are also unreleased. Recovery and pruning remain owner operations. The usage log is off unless you set `MOZAK_USAGE_LOG=on` or `"usageLog": true` in `mozak-settings.json`.
-
-Reproduce the synthetic stale-write example with `node scripts/readme-example.mjs`. This is a narrow check, not evidence of downstream coding benefit. No new benchmark performance claim is made here.
+The full list is in [CHANGELOG.md](CHANGELOG.md).
 
 ## Platforms
 

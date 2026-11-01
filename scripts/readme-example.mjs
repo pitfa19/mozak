@@ -15,7 +15,8 @@ let seq = 0;
 
 function mozak(args, { json = false } = {}) {
   const p = spawnSync(process.execPath, [cli, ...args, "--config", join(root, "mozak-inventory.json"), ...(json ? ["--json"] : [])], { encoding: "utf8", timeout: 30_000 });
-  return { code: p.status, out: (p.stdout ?? "") + (p.stderr ?? "") };
+  // stdout only: write routes print a "not committed to git" note on stderr, which is not part of the answer.
+  return { code: p.status, out: p.stdout ?? "" };
 }
 function request(body) {
   const path = join(root, `request-${seq++}.json`);
