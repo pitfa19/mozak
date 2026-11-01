@@ -5,6 +5,7 @@ import { cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, re
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { inventoryFix } from "../src/doctor.ts";
 
 // `mozak doctor` against an isolated HOME: a real installation, made by the real installer, then broken on purpose.
 
@@ -126,9 +127,9 @@ test("doctor flags a changed installation, an outdated plugin copy (fixed by --f
 
 test("doctor on a restore: a correct MCP setting naming a missing wrapper points at --fix, and its inventory is still checked", () => {
   const f = fixture();
-  mkdirSync(join(f.notes, "proj"));
-  writeFileSync(join(f.notes, "proj", "README.md"), "# p\n");
-  writeFileSync(f.inventory, JSON.stringify({ format: "mozak.local/v3", scopes: [{ id: "proj", root: "./proj" }] }));
+  mkdirSync(join(f.vault, "proj"));
+  writeFileSync(join(f.vault, "proj", "README.md"), "# p\n");
+  writeFileSync(f.inventory, JSON.stringify({ format: "mozak.local/v3", scopes: [{ id: "proj", root: "./vault/proj" }] }));
   const wrapper = join(f.home, ".local/bin/mozak-mcp");
   writeFileSync(join(f.home, ".claude.json"), JSON.stringify({ mcpServers: { mozak: { command: wrapper, args: ["--config", f.inventory] } } }));
   let r = doctor(f);
@@ -140,6 +141,26 @@ test("doctor on a restore: a correct MCP setting naming a missing wrapper points
   r = doctor(f, ["--fix"]);
   r = doctor(f);
   assert.equal(r.by("mcp-claude")?.state, "ok", JSON.stringify(r.by("mcp-claude")));
+});
+
+test("doctor reports a scope outside a vault and names mozak scope move", () => {
+  const f = fixture();
+  mkdirSync(join(f.notes, "code"));
+  writeFileSync(f.inventory, JSON.stringify({ format: "mozak.local/v3", scopes: [{ id: "code", root: "./code" }] }));
+  const r = doctor(f, ["--config", f.inventory]);
+  assert.equal(r.by("inventory")?.state, "fail");
+  assert.match(r.by("inventory")!.message, /code \(scope-outside-vault\)/);
+  assert.match(r.by("inventory")!.fix!, /mozak scope move --scope code --to /);
+});
+
+test("inventoryFix: scope move for scopes outside a vault or legacy entries first, then scope init, then check", () => {
+  const inv = "/v/mozak-inventory.json";
+  assert.match(inventoryFix(inv, [{ id: "a", code: "scope-uninitialized" }, { id: "b", code: "scope-outside-vault" }]), /^Move each into a vault folder: mozak scope move --scope b --to <folder in a vault> .* --config \/v\/mozak-inventory\.json \(see docs\/installation\.md, Moving to 0\.6\.0\)$/);
+  assert.match(inventoryFix(inv, [{ id: "web", code: "legacy-repo-scope" }]), /mozak scope move --scope web /);
+  assert.match(inventoryFix(inv, [{ id: "a", code: "scope-uninitialized" }, { id: "b", code: "scope-uninitialized" }]), /^These folders have no mozak\.json\./);
+  assert.equal(inventoryFix(inv, [{ id: "a", code: "scope-uninitialized" }, { id: "b", code: "scope-root-missing" }]), "mozak check --config /v/mozak-inventory.json --scope a");
+  assert.equal(inventoryFix(inv, [{ id: "c" }]), "mozak check --config /v/mozak-inventory.json --scope c");
+  assert.equal(inventoryFix(inv, []), "mozak check --config /v/mozak-inventory.json --scope <id>");
 });
 
 test("versions agree across the root, every package, the plugin manifest and the installer", () => {

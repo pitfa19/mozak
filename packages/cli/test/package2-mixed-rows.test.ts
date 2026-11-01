@@ -1,11 +1,12 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readScope } from "../../core/src/scope-store.ts";
 import { loadInventory } from "../../core/src/scope-index.ts";
+import { vaultTemp } from "../../core/test/vault-temp.ts";
 
 // Mixed awaiting rows through the real built CLI. One plan shows direction, outcome, and implementation rows at once.
 // Each awaiting row carries its explicit purpose label, and titles stay visible. Every owner reference is a synthetic
@@ -31,7 +32,7 @@ const content = (title: string) => ({
 });
 
 function fixture() {
-  const root = mkdtempSync(join(scratch!, "mozak-mixed-"));
+  const root = vaultTemp(join(scratch!, "mozak-mixed-"));
   roots.push(root);
   const path = join(root, "one");
   mkdirSync(path);

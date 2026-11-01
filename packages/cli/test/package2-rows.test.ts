@@ -1,9 +1,10 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { vaultTemp } from "../../core/test/vault-temp.ts";
 
 // Real built-CLI test for human plan rows. One plan can appear as direction, outcome, and implementation
 // awaiting rows at once. Each row must carry its own explicit purpose label so the rows are not ambiguous.
@@ -28,7 +29,7 @@ const content = (title: string) => ({
 });
 
 function fixture() {
-  const root = mkdtempSync(join(scratch!, "mozak-rows-"));
+  const root = vaultTemp(join(scratch!, "mozak-rows-"));
   roots.push(root);
   const path = join(root, "one");
   mkdirSync(path);

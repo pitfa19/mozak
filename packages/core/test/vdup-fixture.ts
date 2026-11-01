@@ -2,7 +2,7 @@
 // set: exact copies under neutral ids, 60 mutations (12 bases x 5 kinds, a third of them Croatian), templated
 // siblings that must never be called duplicates, one supersession pair, and one reject moved to another scope.
 // Used by packages/core/test/vdup.test.ts (every commit) and scripts/verify-dup.ts (on demand).
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { initScopeState, mutateScope, readScope } from "../src/scope-store.ts";
@@ -10,6 +10,7 @@ import { reviewShow } from "../src/review.ts";
 import { executeOperation } from "../src/api.ts";
 import { loadInventory } from "../src/scope-index.ts";
 import type { SimilarPair, SimilarReport } from "../src/similar.ts";
+import { vaultTemp } from "./vault-temp.ts";
 
 const NOW = "2026-10-20T09:00:00.000Z";
 
@@ -74,7 +75,7 @@ export interface Mirror {
 }
 
 export function buildMirror(): Mirror {
-  const base = mkdtempSync(join(process.env.JCODE_SCRATCH_DIR ?? process.env.TMPDIR ?? tmpdir(), "mozak-vdup-"));
+  const base = vaultTemp(join(process.env.JCODE_SCRATCH_DIR ?? process.env.TMPDIR ?? tmpdir(), "mozak-vdup-"));
   const scopes = ["mirror-a", "copies", "mut-1", "mut-2", "mut-3", "mut-4", "mut-5", "tmpl-1", "tmpl-2", "tmpl-3", "relay-old", "relay-bridge"];
   const entries: Record<string, { id: string; root: string }> = {};
   for (const id of scopes) {

@@ -1,12 +1,13 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { errorText, handle, TOOLS } from "../src/server.ts";
 import { initScopeState, loadInventory } from "@mozak/core";
+import { vaultTemp } from "../../core/test/vault-temp.ts";
 
 // Package 1 contract (docs/implementation-package-1-plan-state-review.md, sections 5 and 8).
 // Read tools map to API operations; mutation tools map to API operations; every call is actor "agent".
@@ -60,7 +61,7 @@ after(() => {
 
 /** A real scratch inventory with one scope created through core's public initScopeState. */
 function fixture(): { dir: string; configPath: string; scopeDir: string } {
-  const dir = realpathSync(mkdtempSync(join(tmpdir(), "mozak-mcp-")));
+  const dir = realpathSync(vaultTemp(join(tmpdir(), "mozak-mcp-")));
   scratchDirs.push(dir);
   const scopeDir = join(dir, "alpha");
   mkdirSync(scopeDir);
@@ -768,7 +769,7 @@ function normalizeContext(d: any) {
 test("A08/A09: a real built CLI scenario, then a fresh MCP process returns equivalent context and review DTOs", async () => {
   const f = fixture();
   // The fixture already initialised the scope through core. This scenario drives the real CLI from a clean scope instead.
-  const dir = realpathSync(mkdtempSync(join(tmpdir(), "mozak-parity-")));
+  const dir = realpathSync(vaultTemp(join(tmpdir(), "mozak-parity-")));
   scratchDirs.push(dir);
   const scopeDir = join(dir, "beta");
   mkdirSync(scopeDir);

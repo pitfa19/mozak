@@ -27,9 +27,9 @@ function git(cwd: string, args: string[], timeout = 20_000): string {
 }
 function tryGit(cwd: string, args: string[]): string | null { try { return git(cwd, args); } catch { return null; } }
 
-/** Scopes whose plan files live in a local folder: local scopes and vault-plans scopes. Repo-mode remotes have their own sync. */
+/** Scopes whose plan files live in a local folder: local scopes and vault-plans scopes. Repo-mode remotes have their own sync. Refused entries are never synced. */
 export function localEntries(scopes: ScopeEntry[]): ScopeEntry[] {
-  return scopes.filter((s) => !s.remote || s.remote.plansMode === "vault");
+  return scopes.filter((s) => !s.refused && (!s.remote || s.remote.plansMode === "vault"));
 }
 
 /**

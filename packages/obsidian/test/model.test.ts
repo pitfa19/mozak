@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import { execFileSync } from "node:child_process";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -11,6 +11,7 @@ import { countRemote, countsSummary, defaultFilter, FILTERS, headingLine, planMa
 import { loadScopesModel, realOrSelf, renderStaleProjections } from "../src/load.ts";
 import { cleanup as cleanupWorlds, world } from "../../core/test/annotations-fixture.ts";
 import { after } from "node:test";
+import { vaultTemp } from "../../core/test/vault-temp.ts";
 
 after(cleanupWorlds);
 
@@ -58,7 +59,7 @@ test("resolveOpenTarget separates vault files from outside files", () => {
 });
 
 test("resolveOpenTarget treats a vault opened through a symlink as the same vault", () => {
-  const base = realpathSync(mkdtempSync(join(process.env.JCODE_SCRATCH_DIR ?? tmpdir(), "mozak-obs-link-")));
+  const base = realpathSync(vaultTemp(join(process.env.JCODE_SCRATCH_DIR ?? tmpdir(), "mozak-obs-link-")));
   const real = join(base, "real-vault");
   mkdirSync(join(real, "plans"), { recursive: true });
   writeFileSync(join(real, "plans", "mozak.md"), "# m\n");
@@ -82,7 +83,7 @@ test("failed scope becomes an error row and counts as failed", () => {
 });
 
 test("discoverInventory walks up from the vault and chooseInventory prefers the setting", () => {
-  const top = mkdtempSync(join(tmpdir(), "mozak-obs-"));
+  const top = vaultTemp(join(tmpdir(), "mozak-obs-"));
   const vault = join(top, "repo", "vault");
   mkdirSync(vault, { recursive: true });
   assert.equal(discoverInventory(vault), null);
@@ -94,7 +95,7 @@ test("discoverInventory walks up from the vault and chooseInventory prefers the 
 });
 
 test("loadScopesModel reads a real core inventory, one scope failing without hiding the rest", () => {
-  const top = mkdtempSync(join(tmpdir(), "mozak-obs-"));
+  const top = vaultTemp(join(tmpdir(), "mozak-obs-"));
   mkdirSync(join(top, "empty"));
   writeFileSync(
     join(top, "mozak-inventory.json"),
@@ -126,7 +127,7 @@ test("remote scopes carry their badge data through the view model and are counte
 });
 
 test("vault-plans scopes keep the repo badge, are never stale, open plans inside the vault, and need no sync", () => {
-  const base = mkdtempSync(join(process.env.JCODE_SCRATCH_DIR ?? tmpdir(), "mozak-obs-vault-"));
+  const base = vaultTemp(join(process.env.JCODE_SCRATCH_DIR ?? tmpdir(), "mozak-obs-vault-"));
   const vault = join(base, "vault");
   const plans = join(vault, "creations", "tool");
   mkdirSync(plans, { recursive: true });
@@ -163,7 +164,7 @@ const roadContent = {
 };
 /** A synthetic inventory with one accepted plan whose first outcome has passing evidence. */
 function roadWorld() {
-  const top = mkdtempSync(join(scratchBase, "mozak-obs-road-"));
+  const top = vaultTemp(join(scratchBase, "mozak-obs-road-"));
   mkdirSync(join(top, "road"));
   writeFileSync(join(top, "road", "README.md"), "# r\n");
   writeFileSync(join(top, "road", "AGENTS.md"), "# a\n");

@@ -10,6 +10,8 @@ import { fileURLToPath } from "node:url";
 
 const cli = fileURLToPath(new URL("../packages/cli/dist/index.js", import.meta.url));
 const root = mkdtempSync(join(tmpdir(), "mozak-readme-example-"));
+// The example folder is an Obsidian vault: mozak keeps plans only inside a vault.
+mkdirSync(join(root, ".obsidian"));
 const at = new Date(Date.now() - 60_000).toISOString();
 let seq = 0;
 

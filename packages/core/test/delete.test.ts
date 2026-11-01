@@ -3,15 +3,16 @@
 // cannot be proposed again.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { deletePlans, executeOperation, initScopeState, loadInventory, readScope, resolveScope, withoutPlans, deletedRecord } from "../src/index.ts";
+import { vaultTemp } from "./vault-temp.ts";
 
 const OWNER_AT = "2026-10-22T08:00:00.000Z";
 
 function scope(): { config: string; root: string } {
-  const base = mkdtempSync(join(tmpdir(), "mozak-delete-"));
+  const base = vaultTemp(join(tmpdir(), "mozak-delete-"));
   const root = join(base, "alpha");
   mkdirSync(root);
   writeFileSync(join(root, "README.md"), "# Alpha\n");

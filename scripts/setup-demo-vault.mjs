@@ -62,7 +62,9 @@ for (const s of scopes) {
   writeFileSync(join(dir, "AGENTS.md"), s.agents);
 }
 
-// 2. Write mozak-inventory.json at the vault root so the Obsidian plugin auto-discovers it
+// 2. Write mozak-inventory.json at the vault root so the Obsidian plugin auto-discovers it. The .obsidian folder
+// comes first: mozak reads scopes only inside a vault.
+mkdirSync(join(target, ".obsidian"), { recursive: true });
 const inventoryPath = join(target, "mozak-inventory.json");
 writeFileSync(
   inventoryPath,

@@ -3,7 +3,6 @@ import assert from "node:assert/strict";
 import {
   existsSync,
   mkdirSync,
-  mkdtempSync,
   readdirSync,
   realpathSync,
   rmSync,
@@ -14,6 +13,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DomainError } from "../src/errors.ts";
 import { assertScopeFiles, loadInventory, resolveScope } from "../src/scope-index.ts";
+import { vaultTemp } from "./vault-temp.ts";
 
 const workspaces: string[] = [];
 
@@ -23,7 +23,7 @@ after(() => {
 
 function workspace(): string {
   const base = process.env.JCODE_SCRATCH_DIR ?? tmpdir();
-  const root = mkdtempSync(join(base, "mozak-scope-index-"));
+  const root = vaultTemp(join(base, "mozak-scope-index-"));
   workspaces.push(root);
   return root;
 }

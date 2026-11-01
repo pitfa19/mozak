@@ -49,7 +49,7 @@ test("CLI: scope move needs the owner flags and exactly one of --to or --drop, a
   const missing = cli(["scope", "move", "--config", w.config, "--scope", "alpha", "--to", "vault/alpha"]);
   assert.equal(missing.code, 2);
   assert.match(missing.err, /missing --owner-ref/);
-  const outside = cli(["scope", "move", "--config", w.config, "--scope", "alpha", "--to", "elsewhere", ...OWNER]);
+  const outside = cli(["scope", "move", "--config", w.config, "--scope", "alpha", "--to", "../../elsewhere", ...OWNER]);
   assert.equal(outside.code, 2);
   assert.equal(JSON.parse(outside.out).status, "move-target-outside-vault");
   const both = cli(["scope", "move", "--config", w.config, "--scope", "alpha", "--to", "vault/x", "--drop", ...OWNER]);

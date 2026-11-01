@@ -148,6 +148,20 @@ function vaultsUnder(root: string): string[] {
 }
 
 /**
+ * The one next step for an inventory whose scopes do not read. Scopes outside a vault come first: they need
+ * `mozak scope move`. Then folders without mozak.json. Anything else: check the first failed scope.
+ */
+export function inventoryFix(inventoryPath: string, failed: { id: string; code?: string | undefined }[]): string {
+  const outside = failed.filter((r) => r.code === "scope-outside-vault" || r.code === "legacy-repo-scope");
+  if (outside.length) return `Move each into a vault folder: mozak scope move --scope ${outside[0]!.id} --to <folder in a vault> --owner-ref REF --owner-message-at ISO --reason TEXT --config ${inventoryPath} (see docs/installation.md, Moving to 0.6.0)`;
+  if (failed.length === 0) return `mozak check --config ${inventoryPath} --scope <id>`;
+  if (failed.every((r) => r.code === "scope-uninitialized")) {
+    return `These folders have no mozak.json. If your notes repo should have them, pull it; otherwise start each with mozak scope init (see the skill's references/bootstrap.md).`;
+  }
+  return `mozak check --config ${inventoryPath} --scope ${failed[0]!.id}`;
+}
+
+/**
  * Doctor for an npm install: npm owns the files and the `mozak` / `mozak-mcp` commands, so there is no manifest,
  * no wrapper and no source checkout to check. npm runs no install scripts, so the skill ships as a template and
  * `--fix` renders it once per version into ~/.local/share/mozak-npm/<version>/skills/mozak (absolute CLI path
@@ -205,11 +219,11 @@ function doctorNpm(
     try {
       const inv = loadInventory(resolve(args.config));
       const out = executeOperation(inv, "scopes", {}, "agent");
-      const rows = (out.data.scopes ?? []) as Array<{ id: string; status?: string; error?: unknown }>;
+      const rows = (out.data.scopes ?? []) as Array<{ id: string; status?: string; code?: string; error?: unknown }>;
       const failed = rows.filter((r) => r.status === "failed" || r.error);
       add(failed.length === 0
         ? { id: "inventory", state: "ok", message: `${args.config}: ${rows.length} scope(s), all readable` }
-        : { id: "inventory", state: "fail", message: `${args.config}: ${failed.length} scope(s) do not read: ${failed.map((r) => r.id).join(", ")}`, fix: `mozak check --config ${args.config} --scope ${failed[0].id}` });
+        : { id: "inventory", state: "fail", message: `${args.config}: ${failed.length} scope(s) do not read: ${failed.map((r) => `${r.id}${r.code ? ` (${r.code})` : ""}`).join(", ")}`, fix: inventoryFix(args.config, failed) });
     } catch (err) {
       add({ id: "inventory", state: "fail", message: `${args.config} does not load: ${err instanceof Error ? err.message : String(err)}`, fix: "Fix the JSON, or see docs/installation.md (Inventory)" });
     }
@@ -345,14 +359,11 @@ export function doctor(args: DoctorArgs): { exitCode: number; data: Record<strin
       const codeOf = (r: (typeof rows)[number]) => r.code ?? r.error?.code;
       if (cov?.complete && failed.length === 0) add({ id: "inventory", state: "ok", message: `${inventoryPath}: ${rows.length} scope(s), all readable` });
       else {
-        const uninit = failed.filter((r) => codeOf(r) === "scope-uninitialized");
         add({
           id: "inventory",
           state: "fail",
           message: `${inventoryPath}: ${failed.length || "some"} scope(s) do not read: ${failed.map((r) => `${r.id}${codeOf(r) ? ` (${codeOf(r)})` : ""}`).join(", ")}`,
-          fix: uninit.length === failed.length && uninit.length > 0
-            ? `These folders have no mozak.json. If your notes repo should have them, pull it; otherwise start each with mozak scope init (see the skill's references/bootstrap.md).`
-            : `mozak check --config ${inventoryPath} --scope ${failed[0]?.id ?? "<id>"}`,
+          fix: inventoryFix(inventoryPath, failed.map((r) => ({ id: r.id, code: codeOf(r) }))),
         });
       }
     } catch (err) {

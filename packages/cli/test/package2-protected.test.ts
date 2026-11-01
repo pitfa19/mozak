@@ -1,9 +1,10 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from "node:fs";
+import { mkdirSync, writeFileSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { vaultTemp } from "../../core/test/vault-temp.ts";
 
 // Nested protected-field refusals on the Package 2 routes (discussion save, spec attach).
 // Each attack puts one protected or unknown field inside an otherwise valid envelope. Each case asserts the exact
@@ -30,7 +31,7 @@ const content = {
 };
 
 function fixture() {
-  const root = mkdtempSync(join(scratch!, "mozak-protected-"));
+  const root = vaultTemp(join(scratch!, "mozak-protected-"));
   roots.push(root);
   const path = join(root, "one");
   mkdirSync(path);

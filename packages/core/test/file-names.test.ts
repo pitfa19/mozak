@@ -2,13 +2,14 @@
 // and `rename-files` moves an old scope to the new names without changing its plan.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, readdirSync, renameSync, writeFileSync, mkdirSync } from "node:fs";
+import { readFileSync, readdirSync, renameSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { executeOperation, initScopeState, loadInventory, readScope, renameScopeFiles, resolveScope, scopeFileName } from "../src/index.ts";
+import { vaultTemp } from "./vault-temp.ts";
 
 function scope(): { config: string; root: string; id: string } {
-  const base = mkdtempSync(join(tmpdir(), "mozak-names-"));
+  const base = vaultTemp(join(tmpdir(), "mozak-names-"));
   const root = join(base, "alpha");
   mkdirSync(root);
   writeFileSync(join(root, "README.md"), "# Alpha\n");

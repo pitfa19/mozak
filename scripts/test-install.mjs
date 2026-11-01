@@ -220,7 +220,8 @@ test('relocated real product installs at two canonical Unicode/quoted prefixes a
   assert.equal(direct.status, 0, direct.stderr);
   cli(f, ['context', '--scope', 'one', '--json'], 2); // explicit config remains required
   cli(f, ['not-a-command'], 2); // wrapper preserves failure status
-  const scope = join(f.root, 'synthetic scope'); mkdirSync(scope);
+  const scope = join(f.root, 'synthetic vault', 'synthetic scope'); mkdirSync(scope, { recursive: true });
+  mkdirSync(join(f.root, 'synthetic vault', '.obsidian'));
   writeFileSync(join(scope, 'README.md'), '# Synthetic scope\n');
   writeFileSync(join(scope, 'AGENTS.md'), '# Synthetic instructions\n');
   const config = join(f.root, 'inventory.json');

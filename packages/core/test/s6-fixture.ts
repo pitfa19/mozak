@@ -2,13 +2,14 @@
 // Layout: <base>/vault is one git repo with scopes under personal/ and research/; <base>/company is a second git
 // repo whose scope sits at the repo root, like a shared company vault.
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { initScopeState, mutateScope, readScope } from "../src/scope-store.ts";
 import { reviewShow } from "../src/review.ts";
 import { executeOperation } from "../src/api.ts";
 import { loadInventory } from "../src/scope-index.ts";
+import { vaultTemp } from "./vault-temp.ts";
 
 export const NOW = "2026-10-20T09:00:00.000Z";
 const roots: string[] = [];
@@ -35,7 +36,7 @@ export const s6content = (id: string, spec: S6PlanSpec = {}) => ({
 
 /** scopes: id -> folder relative to base (for example "vault/personal/p"). */
 export function s6world(scopes: Record<string, string>, options: { repos?: string[]; settings?: unknown } = {}) {
-  const base = mkdtempSync(join(process.env.JCODE_SCRATCH_DIR ?? process.env.TMPDIR ?? tmpdir(), "mozak-s6-"));
+  const base = vaultTemp(join(process.env.JCODE_SCRATCH_DIR ?? process.env.TMPDIR ?? tmpdir(), "mozak-s6-"));
   roots.push(base);
   for (const repo of options.repos ?? []) {
     mkdirSync(join(base, repo), { recursive: true });

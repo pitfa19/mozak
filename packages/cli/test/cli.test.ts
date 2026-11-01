@@ -1,10 +1,11 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, realpathSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { vaultTemp } from "../../core/test/vault-temp.ts";
 
 // Basic real-process tests for the built CLI. Each call is a subprocess running packages/cli/dist.
 // Scratch roots live under JCODE_SCRATCH_DIR (or TMPDIR) and are removed only by this file.
@@ -51,7 +52,7 @@ function fixture(id = "sample"): { config: string; scopeRoot: string } {
   if (!existsSync(cliPath)) {
     throw new Error(`built CLI missing at ${cliPath}; run "npm run build" before the CLI tests`);
   }
-  const base = mkdtempSync(join(scratch, "mozak-cli-"));
+  const base = vaultTemp(join(scratch, "mozak-cli-"));
   roots.push(base);
   const scopeRoot = join(base, id);
   mkdirSync(scopeRoot, { recursive: true });

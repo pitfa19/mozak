@@ -1,10 +1,11 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, rmSync, symlinkSync } from "node:fs";
+import { mkdirSync, writeFileSync, readFileSync, readdirSync, rmSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readScope } from "../../core/src/scope-store.ts";
+import { vaultTemp } from "../../core/test/vault-temp.ts";
 
 const scratch = process.env.JCODE_SCRATCH_DIR ?? process.env.TMPDIR;
 if (!scratch) throw new Error("scratch directory required");
@@ -15,7 +16,7 @@ const ownerAt = "2026-10-12T08:00:00.000Z";
 const content = (title = "Recover understanding", acceptance = "objective") => ({ title, purpose: "Preserve agreed meaning", outcomes: [{ id: "o1", statement: "Fresh context is sufficient", acceptance, criterion: "A new process reports the accepted meaning" }], constraints: [], nonGoals: ["Automatic coding authorization"], rationale: "Avoid lost decisions", questions: [], sources: [{ id: "source", locator: "synthetic:source", anchor: null, observedAt: ownerAt, version: "fixture-v1", limitations: ["Synthetic transport fixture, not a real pilot"] }] });
 
 function fixture(initialize = true) {
-  const root = mkdtempSync(join(scratch!, "mozak-acceptance-")); roots.push(root);
+  const root = vaultTemp(join(scratch!, "mozak-acceptance-")); roots.push(root);
   const entries = ["one", "two"].map(id => {
     const path = join(root, id); mkdirSync(path);
     writeFileSync(join(path, "README.md"), "Owner README\n");

@@ -3,6 +3,7 @@ import { existsSync, lstatSync, readFileSync, realpathSync, statSync, type Stats
 import { basename, dirname, join, resolve } from "node:path";
 import { DomainError } from "./errors.ts";
 import { cacheRootFor, parseRemoteSpec, readRemoteMeta, CACHE_DIR, DEFAULT_REF, REF_PATTERN, type RemoteInfo } from "./remote-meta.ts";
+import { vaultOf } from "./vault-config.ts";
 
 /** Pilot-local explicit inventory. Never a global registration or a directory scan. */
 export const INVENTORY_FORMAT_V2 = "mozak.local/v2" as const;
@@ -20,6 +21,11 @@ export interface ScopeEntry {
   remote?: RemoteInfo;
   /** Diagnostic only: reserved x settings were ignored at inventory or selected-entry level. */
   inventoryExtensionsIgnored?: true;
+  /**
+   * Set when the entry is kept in the inventory but every route refuses it (for example a root outside any vault).
+   * `resolveScope` throws it. `mozak scope move` still reads the entry, so the owner can move it.
+   */
+  refused?: { code: string; message: string };
 }
 
 export interface ScopeInventory {
@@ -229,6 +235,8 @@ export function loadInventory(configPath: string): ScopeInventory {
     seenRoots.set(canonical, id);
     const scope: ScopeEntry = remote ? { id, root: canonical, remote } : { id, root: canonical };
     if ("x" in raw || "x" in entry) scope.inventoryExtensionsIgnored = true;
+    const refused = vaultRule(id, canonical);
+    if (refused) scope.refused = refused;
     scopes.push(scope);
   }
 
@@ -240,18 +248,35 @@ export function loadInventory(configPath: string): ScopeInventory {
 }
 
 /**
- * Select exactly one inventoried scope and verify its root is still the same directory that was
- * recorded at load. Reads only; nothing is created or modified.
+ * The vault rule: a scope root must sit at or below a folder that has a .obsidian folder. An entry that breaks it is
+ * kept (so other scopes keep working and `scope move` can read it) and refused by every route.
  */
-export function resolveScope(inv: ScopeInventory, id: string): ScopeEntry {
+function vaultRule(id: string, root: string): ScopeEntry["refused"] | undefined {
+  if (vaultOf(root) !== null) return undefined;
+  return {
+    code: "scope-outside-vault",
+    message: `scope "${id}" is not inside an Obsidian vault (${root} has no folder with .obsidian above it). mozak keeps plans in vaults only: run mozak scope move --scope ${id} --to <folder in a vault> --owner-ref REF --owner-message-at ISO --reason TEXT`,
+  };
+}
+
+/** The one entry with this id, unless it is missing, listed twice or refused (outside a vault, legacy). */
+function selectEntry(inv: ScopeInventory, id: string): ScopeEntry {
   const matches = inv.scopes.filter((scope) => scope.id === id);
   if (matches.length === 0) {
     throw new DomainError("scope-not-found", `no scope "${id}" in the inventory; run mozak scopes (MCP mozak_scopes) to list the scope ids`);
   }
-  const entry = matches[0];
-  if (matches.length > 1 || entry === undefined) {
-    throw new DomainError("scope-ambiguous", `scope "${id}" is listed more than once`);
-  }
+  if (matches.length > 1) throw new DomainError("scope-ambiguous", `scope "${id}" is listed more than once`);
+  const entry = matches[0]!;
+  if (entry.refused) throw new DomainError(entry.refused.code, entry.refused.message);
+  return entry;
+}
+
+/**
+ * Select exactly one inventoried scope and verify its root is still the same directory that was
+ * recorded at load. Reads only; nothing is created or modified.
+ */
+export function resolveScope(inv: ScopeInventory, id: string): ScopeEntry {
+  const entry = selectEntry(inv, id);
 
   let real: string;
   let stats: Stats;

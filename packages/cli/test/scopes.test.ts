@@ -1,10 +1,11 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, realpathSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { vaultTemp } from "../../core/test/vault-temp.ts";
 
 // Real-process tests for the read-only `scopes` index. Each call is a subprocess running packages/cli/dist.
 const here = fileURLToPath(new URL(".", import.meta.url));
@@ -52,7 +53,7 @@ async function mutate(config: string, scope: string, route: string[], action: st
 /** Inventory with: alpha (initialised, one open plan), beta (initialised, no plan), gamma (not initialised), delta (root missing). */
 async function fixture() {
   if (!existsSync(cliPath)) throw new Error(`built CLI missing at ${cliPath}; run "npm run build" first`);
-  const base = mkdtempSync(join(scratch, "mozak-scopes-"));
+  const base = vaultTemp(join(scratch, "mozak-scopes-"));
   roots.push(base);
   const entries: { id: string; root: string }[] = [];
   for (const id of ["alpha", "beta", "gamma"]) {

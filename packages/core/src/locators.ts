@@ -62,7 +62,7 @@ const inside = (path: string, dir: string) => path === dir || path.startsWith(di
 export function defaultIndexRoots(inv: ScopeInventory): LocatorRoot[] {
   const out = new Map<string, LocatorRoot>();
   for (const entry of inv.scopes) {
-    if (entry.remote && entry.remote.plansMode === "repo") continue;
+    if (entry.refused || (entry.remote && entry.remote.plansMode === "repo")) continue;
     const root = realOrSelf(entry.root);
     const repo = findRepoRoot(root);
     if (!repo || repo === root) continue;

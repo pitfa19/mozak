@@ -1,12 +1,13 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync, readFileSync, rmSync, readdirSync } from "node:fs";
+import { writeFileSync, readFileSync, rmSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { executeOperation } from "../../core/src/api.ts";
 import { loadInventory } from "../../core/src/scope-index.ts";
 import { handle } from "../../mcp/src/server.ts";
+import { vaultTemp } from "../../core/test/vault-temp.ts";
 
 // Flag forms for decide, delete and observe, plan show, and the revise/decide warnings.
 // Synthetic scopes in isolated temp folders only; the owner provenance is a synthetic fixture value.
@@ -20,7 +21,7 @@ const content = (title: string) => ({
 });
 
 function fixture() {
-  const root = mkdtempSync(join(process.env.TMPDIR ?? "/tmp", "mozak-ergonomics-")); roots.push(root);
+  const root = vaultTemp(join(process.env.TMPDIR ?? "/tmp", "mozak-ergonomics-")); roots.push(root);
   for (const name of ["README.md", "AGENTS.md"]) writeFileSync(join(root, name), "# Synthetic fixture\n");
   const config = join(root, "inventory.json");
   writeFileSync(config, JSON.stringify({ format: "mozak.local/v3", scopes: [{ id: "fx", root }] }));

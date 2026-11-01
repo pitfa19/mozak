@@ -1,6 +1,6 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync, readFileSync, rmSync, readdirSync } from "node:fs";
+import { writeFileSync, readFileSync, rmSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -9,6 +9,7 @@ import { loadInventory } from "../../core/src/scope-index.ts";
 import { selectContext } from "../../core/src/context-selection.ts";
 import { renderBridge } from "../../core/src/bridge.ts";
 import { hashBytes } from "../../core/src/understanding.ts";
+import { vaultTemp } from "../../core/test/vault-temp.ts";
 
 // Preapproved seams: executeOperation and built CLI/MCP. Fixtures are synthetic; no live inventory.
 const roots: string[] = [];
@@ -16,7 +17,7 @@ after(() => roots.forEach(root => rmSync(root, { recursive: true, force: true })
 const cliPath = fileURLToPath(new URL("../dist/index.js", import.meta.url));
 const content = { title: "Synthetic compact context", purpose: "Recover bounded work", outcomes: [{ id: "out", statement: "Synthetic check passes", acceptance: "objective", criterion: "Fixture passes" }], constraints: [], nonGoals: [], rationale: "Fixture only", questions: [], sources: [] };
 function fixture(title = content.title) {
-  const root = mkdtempSync(join(process.env.TMPDIR!, "mozak-context-modes-")); roots.push(root);
+  const root = vaultTemp(join(process.env.TMPDIR!, "mozak-context-modes-")); roots.push(root);
   for (const name of ["README.md", "AGENTS.md"]) writeFileSync(join(root, name), "# Synthetic fixture\n");
   const config = join(root, "inventory.json");
   writeFileSync(config, JSON.stringify({ format: "mozak.local/v3", scopes: [{ id: "fixture", root }] }));
@@ -31,7 +32,8 @@ function fixture(title = content.title) {
   change("propose", { planId: "alpha", content: { ...content, title } });
   return { root, config, inv, run, change };
 }
-const files = (root: string) => readdirSync(root).sort().map(name => [name, readFileSync(join(root, name))]);
+// The scope's own files. The temp root is also the vault, so its .obsidian folder is not part of the snapshot.
+const files = (root: string) => readdirSync(root).filter(name => name !== ".obsidian").sort().map(name => [name, readFileSync(join(root, name))]);
 function decide(w: ReturnType<typeof fixture>, purpose: string) {
   const review = w.run("review", { plan: "alpha", purpose }).data.review as any;
   w.change(purpose, { planId: "alpha", revisionId: review.revisionId, reviewDigest: review.reviewDigest,

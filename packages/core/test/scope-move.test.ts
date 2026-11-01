@@ -10,7 +10,7 @@ import { content, NOW } from "./annotations-fixture.ts";
 import { executeOperation } from "../src/api.ts";
 import { loadInventory } from "../src/scope-index.ts";
 import { initScopeState, mutateScope, readScope } from "../src/scope-store.ts";
-import { reviewShow } from "../src/review.ts";
+import { reviewRows, reviewShow } from "../src/review.ts";
 import { moveScope, renderMove, scopeMoveOutput } from "../src/scope-move.ts";
 
 const made: string[] = [];
@@ -52,7 +52,8 @@ function setup(extraEntries: unknown[] = []) {
   return { base, vault, config, text };
 }
 const raw = (config: string) => JSON.parse(readFileSync(config, "utf8"));
-const plansOf = (config: string, scope: string) => JSON.stringify(executeOperation(loadInventory(config), "plans", { scope, includeRejected: true, limit: 100 }).data.groups);
+/** Plan rows of the scope as `plans` groups them, read straight from a folder (the source is outside the vault). */
+const plansAt = (id: string, root: string) => JSON.stringify(reviewRows(readScope({ id, root: realpathSync(root) }).state, true));
 /** check after the move: no findings except the x-key notice this fixture's inventory causes on purpose. */
 function assertClean(config: string, scope: string): void {
   const out = executeOperation(loadInventory(config), "check", { scope });
@@ -63,7 +64,7 @@ function assertClean(config: string, scope: string): void {
 test("move: a local scope outside the vault is copied, verified and the entry rewritten; plans and receipts unchanged", () => {
   const f = setup();
   const src = join(f.base, "code", "proj");
-  const before = { json: sha(join(src, "mozak.json")), md: sha(join(src, "mozak.md")), plans: plansOf(f.config, "proj"), receipts: readScope({ id: "proj", root: realpathSync(src) }).state.receipts };
+  const before = { json: sha(join(src, "mozak.json")), md: sha(join(src, "mozak.md")), plans: plansAt("proj", src), receipts: readScope({ id: "proj", root: realpathSync(src) }).state.receipts };
   const out = moveScope(f.config, { scope: "proj", to: "vault/projects/proj", ...OWNER });
   assert.equal(out.status, "ok");
   assert.equal(out.changed, true);
@@ -81,7 +82,9 @@ test("move: a local scope outside the vault is copied, verified and the entry re
   assert.deepEqual(doc.scopes[1], { id: "proj", root: "vault/projects/proj", focus: ["proj-p1"], x: { colour: "red" } });
   assert.deepEqual(doc.scopes[2], { id: "empty", root: "code/empty" });
   assert.match(readFileSync(f.config, "utf8"), /^\{\n  "format"/, "indent kept");
-  assert.equal(plansOf(f.config, "proj"), before.plans, "plans read the same through the new entry");
+  assert.equal(plansAt("proj", target), before.plans, "plans read the same in the new folder");
+  const listed = executeOperation(loadInventory(f.config), "plans", { scope: "proj", limit: 100 });
+  assert.deepEqual((listed.data.groups as { open: { rows: { planId: string }[] } }).open.rows.map((r) => r.planId).sort(), ["proj-p1", "proj-p2"], "plans reads them through the new entry");
   assert.deepEqual(readScope({ id: "proj", root: realpathSync(target) }).state.receipts, before.receipts);
   assertClean(f.config, "proj");
   // No lock or temp file left behind in either place.

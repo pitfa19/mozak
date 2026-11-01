@@ -1,6 +1,6 @@
 // Synthetic temp scopes for annotation tests. Never touches a real inventory or vault.
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { initScopeState, mutateScope, readScope } from "../src/scope-store.ts";
@@ -8,6 +8,7 @@ import { reviewShow } from "../src/review.ts";
 import { executeOperation } from "../src/api.ts";
 import { loadInventory } from "../src/scope-index.ts";
 import { readAnnotations } from "../src/annotations.ts";
+import { vaultTemp } from "./vault-temp.ts";
 
 export const NOW = "2026-10-20T09:00:00.000Z";
 const roots: string[] = [];
@@ -28,7 +29,7 @@ export const content = (id: string, spec: PlanSpec = {}) => ({
 });
 
 export function world(scopeIds: string[] = ["alpha"], options: { git?: boolean; settings?: Record<string, unknown>; annotations?: boolean } = {}) {
-  const base = mkdtempSync(join(process.env.JCODE_SCRATCH_DIR ?? process.env.TMPDIR ?? tmpdir(), "mozak-annot-"));
+  const base = vaultTemp(join(process.env.JCODE_SCRATCH_DIR ?? process.env.TMPDIR ?? tmpdir(), "mozak-annot-"));
   roots.push(base);
   const entries: Record<string, { id: string; root: string }> = {};
   for (const id of scopeIds) {

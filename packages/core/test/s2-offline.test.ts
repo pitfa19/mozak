@@ -3,10 +3,11 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { executeOperation, initScopeState, loadInventory, readRemoteMeta, writeRemoteMeta } from "../src/index.ts";
+import { vaultTemp } from "./vault-temp.ts";
 
 const scratch = process.env.JCODE_SCRATCH_DIR ?? process.env.TMPDIR ?? tmpdir();
 const made: string[] = [];
@@ -16,7 +17,7 @@ const g = (cwd: string, ...args: string[]) =>
 const init = (id: string, root: string) => initScopeState({ id, root }, { operationId: `init-${id}`, scopeId: id, kind: "project", title: id, expectedAbsent: { graph: true, bridge: true }, ownerRef: "host:t", ownerMessageAt: "2026-10-12T08:50:00.000Z" });
 
 function fixture() {
-  const base = mkdtempSync(join(scratch, "mozak-s2off-"));
+  const base = vaultTemp(join(scratch, "mozak-s2off-"));
   made.push(base);
   const bare = join(base, "origin.git");
   const seed = join(base, "seed");

@@ -1,6 +1,6 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync, readFileSync, mkdirSync, unlinkSync, rmSync, existsSync } from "node:fs";
+import { writeFileSync, readFileSync, mkdirSync, unlinkSync, rmSync, existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { initScopeState, readScope, readScopeView, mutateScope, repairProjection } from "../src/scope-store.ts";
@@ -8,6 +8,7 @@ import { contextView, reviewShow } from "../src/review.ts";
 import { loadInventory } from "../src/scope-index.ts";
 import { executeOperation } from "../src/api.ts";
 import { discussionDigest } from "../src/understanding.ts";
+import { vaultTemp } from "./vault-temp.ts";
 
 const scratch = process.env.JCODE_SCRATCH_DIR ?? process.env.TMPDIR;
 if (!scratch) throw new Error("tests require JCODE_SCRATCH_DIR or TMPDIR");
@@ -16,7 +17,7 @@ after(() => { for (const root of roots) rmSync(root, { recursive: true, force: t
 const content = { title: "Bounded formatter", purpose: "Recover exact bounded work", outcomes: [{ id: "out", statement: "String formatter works", acceptance: "objective", criterion: "Local unit tests pass" }], constraints: [], nonGoals: [], rationale: "No repeated interview", questions: [], sources: [] };
 const bounds = { summary: "Implement formatter only", allowedPaths: ["src/format.ts", "test/format.test.ts"], excludedActions: ["network", "installation"], outcomeChecks: [{ outcomeId: "out", criterion: "Local formatter test passes" }], limitations: ["Synthetic automated owner references, not live acceptance"] };
 function world() {
-  const root = mkdtempSync(join(scratch!, "mozak-handoff-")); roots.push(root);
+  const root = vaultTemp(join(scratch!, "mozak-handoff-")); roots.push(root);
   writeFileSync(join(root, "README.md"), "Fixture README\n"); writeFileSync(join(root, "AGENTS.md"), "Fixture instructions\n");
   const entry = { id: "scope", root };
   const inventoryPath = join(root, "inventory.json");

@@ -1,11 +1,12 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readScope } from "../../core/src/scope-store.ts";
 import { loadInventory } from "../../core/src/scope-index.ts";
+import { vaultTemp } from "../../core/test/vault-temp.ts";
 
 // B03 through the real built CLI. Clarification checkpoint: null-ID questions get core-assigned IDs, answers append
 // by ID, a settled question reopens only with a reason, and the answer prefix and reopening history are kept.
@@ -31,7 +32,7 @@ const content = {
 };
 
 function fixture() {
-  const root = mkdtempSync(join(scratch!, "mozak-history-"));
+  const root = vaultTemp(join(scratch!, "mozak-history-"));
   roots.push(root);
   const path = join(root, "one");
   mkdirSync(path);

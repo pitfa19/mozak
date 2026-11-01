@@ -3,11 +3,12 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { initScopeState } from "@mozak/core";
 import { syncAll, syncSummary } from "../src/load.ts";
+import { vaultTemp } from "../../core/test/vault-temp.ts";
 
 const scratch = process.env.JCODE_SCRATCH_DIR ?? process.env.TMPDIR ?? tmpdir();
 const made: string[] = [];
@@ -26,7 +27,7 @@ test("syncSummary names pulled, ahead and diverged vaults and stale remotes", ()
 });
 
 test("syncAll fast-forwards a vault repo that holds a local scope", () => {
-  const base = mkdtempSync(join(scratch, "mozak-obs-sync-"));
+  const base = vaultTemp(join(scratch, "mozak-obs-sync-"));
   made.push(base);
   const bare = join(base, "vault.git");
   const seed = join(base, "seed");

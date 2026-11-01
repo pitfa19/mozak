@@ -4,12 +4,13 @@
 import { after, test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
+import { readFileSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { cleanup, world } from "./annotations-fixture.ts";
 import { readScope, renderBridge } from "../src/scope-store.ts";
 import { canonical } from "../src/understanding.ts";
 import { ANNOTATIONS_FILE, readAnnotations } from "../src/annotations.ts";
+import { vaultTemp } from "./vault-temp.ts";
 
 after(cleanup);
 type Issue = { code: string; message: string };
@@ -121,7 +122,7 @@ test("V-ref: the unchanged 0.4.0 core (main) reads and writes a scope that has a
   try { execFileSync("git", ["rev-parse", "--verify", "-q", "main^{commit}"], { stdio: "ignore", timeout: 5000 }); } catch { hasMain = false; }
   if (!hasMain) { t.skip("branch main is not available in this checkout"); return; }
   const version = JSON.parse(execFileSync("git", ["show", "main:package.json"], { encoding: "utf8", timeout: 5000 })).version;
-  const dir = mkdtempSync(join(process.env.TMPDIR!, "mozak-main-core-"));
+  const dir = vaultTemp(join(process.env.TMPDIR!, "mozak-main-core-"));
   try {
     execFileSync("sh", ["-c", `git archive main packages/core/src | tar -x -C "${dir}"`], { timeout: 20000 });
     const old = await import(join(dir, "packages/core/src/index.ts"));

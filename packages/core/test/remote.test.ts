@@ -1,10 +1,11 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { executeOperation, initScopeState, loadInventory, parseRemoteSpec, writeRemoteMeta, readRemoteMeta } from "../src/index.ts";
+import { vaultTemp } from "./vault-temp.ts";
 
 const scratch = process.env.JCODE_SCRATCH_DIR ?? process.env.TMPDIR ?? tmpdir();
 const made: string[] = [];
@@ -21,7 +22,7 @@ const content = (title: string) => ({
 
 /** Bare origin with an initialised scope plus a decoy file that must never be checked out. */
 function fixture() {
-  const base = mkdtempSync(join(scratch, "mozak-remote-"));
+  const base = vaultTemp(join(scratch, "mozak-remote-"));
   made.push(base);
   const bare = join(base, "origin.git");
   const seed = join(base, "seed");
@@ -40,7 +41,7 @@ function fixture() {
 const exec = (inv: string, op: string, args: unknown, actor: "agent" | "owner" = "agent") => executeOperation(loadInventory(inv), op, args, actor);
 
 test("inventory: remote entry validation stays strict, v2 still accepted", () => {
-  const base = mkdtempSync(join(scratch, "mozak-remote-")); made.push(base);
+  const base = vaultTemp(join(scratch, "mozak-remote-")); made.push(base);
   const inv = join(base, "i.json");
   const bad = (scopes: unknown[], format = "mozak.local/v3") => { writeFileSync(inv, JSON.stringify({ format, scopes })); return () => loadInventory(inv); };
   assert.throws(bad([{ id: "a", remote: "github:o/r", root: "x" }]), /exactly one/);
@@ -177,7 +178,7 @@ test("pull makes a full clone, reads prefer it, and an existing foreign destinat
 });
 
 test("not a scope: remote without mozak.json fails clearly", () => {
-  const base = mkdtempSync(join(scratch, "mozak-remote-")); made.push(base);
+  const base = vaultTemp(join(scratch, "mozak-remote-")); made.push(base);
   const bare = join(base, "o.git"), seed = join(base, "s");
   g(base, "init", "--bare", "-b", "main", bare);
   mkdirSync(seed); g(seed, "init", "-b", "main"); writeFileSync(join(seed, "README.md"), "x");

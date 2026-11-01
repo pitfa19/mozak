@@ -1,11 +1,12 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { initScopeState, loadInventory, repoKey } from "@mozak/core";
+import { vaultTemp } from "../../core/test/vault-temp.ts";
 
 // Real-process tests: the built CLI run from inside a plain git clone finds its scope from the clone's origin,
 // so an agent working in ~/Downloads/<repo> reads the same vault plans. Writes still need --scope.
@@ -32,7 +33,7 @@ function run(args: string[], cwd: string): Promise<{ code: number; out: string; 
 
 function fixture() {
   assert.ok(existsSync(cliPath), "run npm run build first");
-  const base = mkdtempSync(join(scratch, "mozak-cwd-"));
+  const base = vaultTemp(join(scratch, "mozak-cwd-"));
   roots.push(base);
   const bare = join(base, "tool.git");
   const seed = join(base, "seed");

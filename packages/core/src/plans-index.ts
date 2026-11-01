@@ -10,7 +10,7 @@ import { replaceFileDurable } from "./durable.ts";
 import { DomainError } from "./errors.ts";
 import { findRepoRoot } from "./notes.ts";
 import { realOrSelf } from "./paths.ts";
-import type { ScopeInventory } from "./scope-index.ts";
+import { resolveScope, type ScopeInventory } from "./scope-index.ts";
 import { readScopeQuiet } from "./scope-store.ts";
 import type { ScopeState } from "./understanding.ts";
 
@@ -73,7 +73,7 @@ export function plansIndex(inv: ScopeInventory, opts: { write: boolean }): Plans
     const folder = relative(repo, realOrSelf(entry.root)).split(sep).join("/") || ".";
     let state: ScopeState | null = null;
     let code: string | undefined;
-    try { state = readScopeQuiet(entry).state; }
+    try { state = readScopeQuiet(resolveScope(inv, entry.id)).state; }
     catch (err) { if (!(err instanceof DomainError)) throw err; code = err.code; }
     const list = byRepo.get(repo) ?? [];
     list.push({ id: entry.id, folder, state, ...(code ? { code } : {}) });

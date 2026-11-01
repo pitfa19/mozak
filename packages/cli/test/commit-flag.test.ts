@@ -1,11 +1,12 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { executeOperation } from "../../core/src/api.ts";
 import { loadInventory } from "../../core/src/scope-index.ts";
+import { vaultTemp } from "../../core/test/vault-temp.ts";
 
 // --commit on write routes: a local scope inside a git repo with an upstream gets its
 // mozak.json and mozak.md committed and pushed. Without --commit the output says "not committed".
@@ -17,7 +18,7 @@ const env = { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTE
 const git = (cwd: string, ...args: string[]) => execFileSync("git", args, { cwd, env, encoding: "utf8" }).trim();
 
 function fixture(withUpstream: boolean) {
-  const base = mkdtempSync(join(process.env.TMPDIR ?? "/tmp", "mozak-commit-")); roots.push(base);
+  const base = vaultTemp(join(process.env.TMPDIR ?? "/tmp", "mozak-commit-")); roots.push(base);
   const origin = join(base, "origin.git");
   const repo = join(base, "repo");
   git(base, "init", "--quiet", "--bare", "-b", "main", origin);

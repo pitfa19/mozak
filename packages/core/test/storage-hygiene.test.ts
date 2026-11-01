@@ -1,17 +1,18 @@
 import { after, test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync, symlinkSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { initScopeState, readScope, repairProjection } from "../src/scope-store.ts";
 import { executeOperation } from "../src/api.ts";
 import { loadInventory } from "../src/scope-index.ts";
+import { vaultTemp } from "./vault-temp.ts";
 
 const roots: string[] = [];
 after(() => roots.forEach(root => rmSync(root, { recursive: true, force: true })));
 function world(nested = false) {
-  const repo = mkdtempSync(join(tmpdir(), "mozak-hygiene-")); roots.push(repo);
+  const repo = vaultTemp(join(tmpdir(), "mozak-hygiene-")); roots.push(repo);
   execFileSync("git", ["init", "-q", repo], { timeout: 5000 });
   const root = nested ? join(repo, "topic") : repo;
   mkdirSync(root, { recursive: true });

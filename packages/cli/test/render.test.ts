@@ -1,7 +1,7 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, realpathSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,6 +10,7 @@ import { initScopeState, mutateScope, readScope, renderProjection } from "../../
 import { renderBridgeLegacy } from "../../core/src/bridge.ts";
 import { executeOperation } from "../../core/src/api.ts";
 import { loadInventory } from "../../core/src/scope-index.ts";
+import { vaultTemp } from "../../core/test/vault-temp.ts";
 
 // Projection-only render route. Synthetic scopes in scratch roots only; never a real inventory.
 const here = fileURLToPath(new URL(".", import.meta.url));
@@ -90,7 +91,7 @@ test("CLI: pending-order compatibility never repairs hand edits", () => {
 });
 
 function world(ids = ["alpha", "beta"]) {
-  const base = mkdtempSync(join(scratch, "mozak-render-"));
+  const base = vaultTemp(join(scratch, "mozak-render-"));
   roots.push(base);
   for (const id of ids) {
     mkdirSync(join(base, id));

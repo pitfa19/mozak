@@ -3,11 +3,12 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { executeOperation, initScopeState, loadInventory, readScope } from "../src/index.ts";
 import { syncLocal } from "../src/local-sync.ts";
+import { vaultTemp } from "./vault-temp.ts";
 
 const scratch = process.env.JCODE_SCRATCH_DIR ?? process.env.TMPDIR ?? tmpdir();
 const made: string[] = [];
@@ -17,7 +18,7 @@ const g = (cwd: string, ...args: string[]) =>
 const content = (title: string) => ({ constraints: [], nonGoals: [], outcomes: [{ acceptance: "objective", criterion: "c", id: "o", statement: "s" }], purpose: "p", questions: [], rationale: "r", sources: [], title });
 
 function fixture() {
-  const base = mkdtempSync(join(scratch, "mozak-s2sync-"));
+  const base = vaultTemp(join(scratch, "mozak-s2sync-"));
   made.push(base);
   const bare = join(base, "vault.git");
   const seed = join(base, "seed");
@@ -121,7 +122,7 @@ test("sync refuses while any scope lock in the repo is held, releases what it to
 });
 
 test("sync of a local scope outside git reports not-in-git", () => {
-  const base = mkdtempSync(join(scratch, "mozak-s2sync-"));
+  const base = vaultTemp(join(scratch, "mozak-s2sync-"));
   made.push(base);
   const root = join(base, "plain");
   mkdirSync(root);

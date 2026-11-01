@@ -1,12 +1,13 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, unlinkSync, readFileSync, copyFileSync } from "node:fs";
+import { mkdirSync, writeFileSync, rmSync, unlinkSync, readFileSync, copyFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readScope } from "../../core/src/scope-store.ts";
 import { loadInventory } from "../../core/src/scope-index.ts";
 import { discussionDigest } from "../../core/src/understanding.ts";
+import { vaultTemp } from "../../core/test/vault-temp.ts";
 
 // B11 parity over the full owner path. Owner steps go through the BUILT CLI. Each state is then compared between
 // the built CLI and a FRESH built MCP child (packages/mcp/dist/index.js, not src). Every owner reference is an
@@ -31,7 +32,7 @@ const OWNER = {
 const OWN_ANSWER = (summary: string) => ({ summary, basis: "owner", ownerRef: "synthetic-owner:fixture-clarification", ownerMessageAt: "2026-10-12T08:02:00.000Z", evidence: [] });
 
 function fixture() {
-  const root = mkdtempSync(join(scratch!, "mozak-parity-"));
+  const root = vaultTemp(join(scratch!, "mozak-parity-"));
   roots.push(root);
   const path = join(root, "one");
   mkdirSync(path);

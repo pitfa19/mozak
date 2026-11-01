@@ -1065,7 +1065,7 @@ function renderOp(inv: ScopeInventory, a: Record<string, unknown>): OperationOut
   const rows = targets.map((entry) => {
     if (entry.remote && entry.remote.plansMode === "repo") return { scope: entry.id, result: "remote-skipped", exitCode: 0 };
     try {
-      const { result, outcome } = renderProjection(entry);
+      const { result, outcome } = renderProjection(resolveScope(inv, entry.id));
       return { scope: entry.id, result, exitCode: resultExit(outcome), code: outcome.status, projectionUpdated: outcome.projectionUpdated, projectionStatus: outcome.projectionStatus, ...(outcome.issues.length ? { issues: outcome.issues } : {}) };
     } catch (err) {
       if (!(err instanceof DomainError)) throw err;
@@ -1101,7 +1101,7 @@ function renameFilesOp(inv: ScopeInventory, a: Record<string, unknown>): Operati
   const rows = targets.map((entry) => {
     if (entry.remote && entry.remote.plansMode === "repo") return { scope: entry.id, result: "remote-skipped", exitCode: 0 };
     try {
-      const { result, outcome } = renameScopeFiles(entry);
+      const { result, outcome } = renameScopeFiles(resolveScope(inv, entry.id));
       return { scope: entry.id, result, exitCode: resultExit(outcome), code: outcome.status, ...(outcome.issues.length ? { issues: outcome.issues } : {}) };
     } catch (err) {
       if (!(err instanceof DomainError)) throw err;
@@ -1135,7 +1135,7 @@ function reportScopes(inv: ScopeInventory, operation: string, o: Record<string, 
   const issues: { code: string; message: string; scope?: string }[] = [];
   for (const entry of entries) {
     try {
-      const r = readScopeQuiet(entry);
+      const r = readScopeQuiet(resolveScope(inv, entry.id));
       read.push({ entry, state: r.state });
       coverage.push({ scope: entry.id, status: "ok", revision: r.snapshot.revision, graphHash: r.snapshot.graphHash });
     } catch (err) {

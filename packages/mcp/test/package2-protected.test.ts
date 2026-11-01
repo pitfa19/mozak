@@ -1,11 +1,12 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from "node:fs";
+import { mkdirSync, writeFileSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readScope } from "../../core/src/scope-store.ts";
 import { loadInventory } from "../../core/src/scope-index.ts";
+import { vaultTemp } from "../../core/test/vault-temp.ts";
 
 // Package 2 nested protected-field attacks through a FRESH BUILT MCP child (packages/mcp/dist/index.js).
 // Each attack is a valid-looking new-route call with one protected or forged field inside it. Every case asserts
@@ -42,7 +43,7 @@ const content = {
 
 /** Owner setup through the built CLI, ending with an accepted plan and no discussion, specification or grant. */
 function fixture() {
-  const root = mkdtempSync(join(scratch!, "mozak-mcp-protected-"));
+  const root = vaultTemp(join(scratch!, "mozak-mcp-protected-"));
   roots.push(root);
   const path = join(root, "one");
   mkdirSync(path);

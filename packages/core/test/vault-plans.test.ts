@@ -1,10 +1,11 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { executeOperation, initScopeState, loadInventory, readRemoteMeta, setVisibilityChecker } from "../src/index.ts";
+import { vaultTemp } from "./vault-temp.ts";
 
 const scratch = process.env.JCODE_SCRATCH_DIR ?? process.env.TMPDIR ?? tmpdir();
 const made: string[] = [];
@@ -26,7 +27,7 @@ function repoState(bare: string): string {
 
 /** A public-style code repo (no plan files) plus a vault folder holding the scope. */
 function fixture() {
-  const base = mkdtempSync(join(scratch, "mozak-vault-"));
+  const base = vaultTemp(join(scratch, "mozak-vault-"));
   made.push(base);
   const bare = join(base, "code.git");
   const seed = join(base, "seed");
@@ -50,7 +51,7 @@ function fixture() {
 const exec = (inv: string, op: string, args: unknown, actor: "agent" | "owner" = "agent") => executeOperation(loadInventory(inv), op, args, actor);
 
 test("inventory: plans makes a vault scope; shape stays strict; old digests unchanged", () => {
-  const base = mkdtempSync(join(scratch, "mozak-vault-")); made.push(base);
+  const base = vaultTemp(join(scratch, "mozak-vault-")); made.push(base);
   const inv = join(base, "i.json");
   const load = (scopes: unknown[]) => { writeFileSync(inv, JSON.stringify({ format: "mozak.local/v3", scopes })); return loadInventory(inv); };
   const before = load([{ id: "a", remote: "github:o/r" }, { id: "b", root: "b" }]).digest;

@@ -2,12 +2,13 @@
 // Synthetic scopes in temp dirs only.
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import { appendFileSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { executeOperation } from "../src/api.ts";
 import { DomainError } from "../src/errors.ts";
 import { loadInventory, resolveScope } from "../src/scope-index.ts";
 import { initScopeState, mutateScope, readScope } from "../src/scope-store.ts";
+import { vaultTemp } from "./vault-temp.ts";
 
 const scratch = process.env.JCODE_SCRATCH_DIR ?? process.env.TMPDIR;
 if (!scratch) throw new Error("tests require JCODE_SCRATCH_DIR or TMPDIR");
@@ -23,7 +24,7 @@ const content = (title: string) => ({
 
 /** One inventory with the given scope ids, each initialized in its own folder. */
 function world(ids = ["alpha"]) {
-  const base = mkdtempSync(join(scratch!, "mozak-errmsg-"));
+  const base = vaultTemp(join(scratch!, "mozak-errmsg-"));
   roots.push(base);
   const scopes = ids.map((id) => {
     const root = join(base, id);

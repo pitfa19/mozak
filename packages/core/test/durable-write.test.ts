@@ -4,13 +4,14 @@ import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSyn
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { durableStats, executeOperation, initScopeState, leftoverTempFiles, loadInventory, replaceFileDurable, writeRemoteMeta } from "../src/index.ts";
+import { vaultTemp } from "./vault-temp.ts";
 
 const scratch = process.env.JCODE_SCRATCH_DIR ?? process.env.TMPDIR ?? tmpdir();
 const made: string[] = [];
 after(() => { for (const d of made) { if (!d.includes("/mozak-durable-")) throw new Error(d); rmSync(d, { recursive: true, force: true }); } });
 
 function scope() {
-  const base = mkdtempSync(join(scratch, "mozak-durable-")); made.push(base);
+  const base = vaultTemp(join(scratch, "mozak-durable-")); made.push(base);
   const root = join(base, "s"); mkdirSync(root);
   writeFileSync(join(root, "README.md"), "# r\n"); writeFileSync(join(root, "AGENTS.md"), "# a\n");
   const inv = join(base, "inventory.json");
