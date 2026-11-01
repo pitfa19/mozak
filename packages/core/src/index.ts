@@ -1,12 +1,3 @@
-// Read-only legacy inspection and pure parsers, not current scope authority.
-export * from "./parse.ts";
-export * from "./check.ts";
-export * from "./graph.ts";
-export * from "./translate.ts";
-export * from "./stale.ts";
-export { auditProject, mozakTemplate } from "./init.ts";
-export { hashText, readSnapshot, EMPTY_HASH } from "./write.ts";
-
 // Read-only note helpers and text folding.
 export * from "./notes.ts";
 export * from "./fold.ts";

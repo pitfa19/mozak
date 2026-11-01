@@ -157,11 +157,6 @@ export function wikiLinks(text: string): WikiLink[] {
   return out;
 }
 
-/** Wikilink note names outside code, deduplicated. */
-export function wikiNames(text: string): string[] {
-  return [...new Set(wikiLinks(text).map((l) => l.target))];
-}
-
 /** Commit times (unix seconds, ascending) of every commit that changed `file`. Empty without git history. */
 export function commitTimes(root: string, file: string): number[] {
   const rel = relative(root, existsSync(file) ? realpathSync(file) : file);

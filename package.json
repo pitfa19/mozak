@@ -14,6 +14,7 @@
     "build:plugin": "node packages/obsidian/scripts/build.mjs",
     "typecheck": "tsc -b",
     "lint": "npm run typecheck && node scripts/check-links.mjs",
+    "loc": "node scripts/count-loc.mjs",
     "build:npm": "node scripts/build-npm.mjs",
     "test": "node --import ./scripts/test-git-isolation.mjs --test --experimental-strip-types packages/core/test/*.test.ts packages/cli/test/*.test.ts packages/mcp/test/*.test.ts packages/obsidian/test/*.test.ts",
     "test:install": "node --import ./scripts/test-git-isolation.mjs --test scripts/test-install.mjs"
