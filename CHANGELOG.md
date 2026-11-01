@@ -4,23 +4,42 @@ User-visible changes, newest first. Releases are git tags `vX.Y.Z` on `main`; `m
 
 ## Unreleased
 
-## 0.4.8 (not yet tagged)
+## 0.5.0 (not yet tagged)
+
+0.5.0 includes the fixes prepared as 0.4.8, which was never tagged.
+
+**Upgrade every machine before you star a plan.** mozak before 0.5.0 refuses an inventory that has a `focus` list (`unknown key "focus"`).
+
+### Added
+- **Focus tab.** The Obsidian sidebar tabs are Open, Focus and Done; the All tab is gone and rejected plans show in no tab (`mozak plans --include-rejected` still lists them). A star on every plan row adds the plan to the scope's `focus` list in `mozak-inventory.json` or takes it out. The sidebar opens on Focus when it has plans, else Open, and remembers the last tab. `mozak focus list [--scope ID]` reads the lists, `mozak focus add|remove --scope ID --plan ID` (owner) changes them, and MCP has a read-only `mozak_focus`. Focus is a sidebar marker only: it is not plan state, `mozak.json` and `mozak.md` never change, and agents cannot write it. A starred id that is no longer a plan is a `check` warning (`focus-unknown-plan`). See [docs/installation.md](docs/installation.md#6a-focus-list).
+- **Owner annotations, off by default.** Cross-plan refs (needs, informs, supersedes) and deadlines in a `mozak.annotations.json` sidecar, written only through the owner route `mozak annotate`, read by `mozak graph`, `mozak ready`, `mozak plans --sort deadline` (MCP `mozak_plan_graph`, `mozak_ready`) and the sidebar. Turn them on per scope with `scopes.<id>.annotations: true` in the `mozak-settings.json` next to the inventory. A scope without it behaves like 0.4.7: the sidecar is never read and `mozak.md` does not change. See [docs/annotations.md](docs/annotations.md).
+- **Plans index, locators and similar plans.** `mozak plans-md` (owner) writes a `plans.md` with plan titles and states at each notes repo root. `mozak locators` shows where each source and evidence locator points. `check` lists cited notes that changed after they were cited. `mozak similar` (MCP `mozak_similar`) reports duplicate, overlapping and superseding plans across scopes. See [docs/plans-index.md](docs/plans-index.md).
+- **Store hygiene.** The lock owner record names its host, and the owner route `mozak recover` clears a write lock left by another host or a dead local process (`check` reports `write-lock-stuck`). `mozak plan prune --rejected` (owner) removes listed rejected plans; refs to them resolve as pruned and the id cannot be proposed again. `mozak check --history N` reports hand edits to `mozak.json`. `mozak sync --local` fast-forwards git repos that hold local scopes, under the scope locks, and never pushes; the sidebar sync button does the same.
+- **Experimental read-set rebase, off by default.** With `concurrency.rebase: true` in `mozak-settings.json` (top level or per scope), a stale `observe`, `save-discussion` or new-id `propose` commits onto the fresh state when nothing it read has changed. Decisions, `revise`, `complete` and `attach-spec` keep the exact snapshot check.
+- **Counts-only usage log, opt-in.** With `MOZAK_USAGE_LOG=on` or `"usageLog": true` in `mozak-settings.json`, each call appends one line of counts and codes (never plan text) to `.mozak-cache/usage/` next to the inventory. Off by default.
+- `npm run typecheck`, `npm run lint` (typecheck plus a relative-link check, also run in CI) and `npm run loc`. `scripts/readme-example.mjs` reproduces the README example on a throwaway scope.
 
 ### Fixed
-- `propose` refuses an exact copy of a non-completed plan as `duplicate-plan-candidate` even when the plan ids carry different numbers. Before, such a copy was let through.
-- A merge whose combined discussion would exceed 32 questions is refused as `merge-capacity` at propose and at approval. Before, the extra questions were silently cut.
-- Writes hash `mozak.json` and `mozak.md` again right before each rename and stop with `graph-changed-during-write` when another editor changed them, keeping that edit. This covers `plan delete` too. It narrows the race with editors that ignore the write lock, it does not close it.
+- `propose` refuses an exact copy of a non-completed plan as `duplicate-plan-candidate` even when the plan ids carry different numbers.
+- A merge whose combined discussion would exceed 32 questions is refused as `merge-capacity` at propose and at approval, instead of silently cutting questions.
+- Writes hash `mozak.json` and `mozak.md` again right before each rename and stop with `graph-changed-during-write` when another editor changed them (also for `plan delete`). It narrows the race with editors that ignore the write lock, it does not close it.
 - `init` and projection repair add ignore lines for the write lock and temp files, and `check` reports `lock-not-ignored` and `lock-in-git`.
-- A late supporting observation no longer drops an owner-accepted outcome from `done` to `evidence` in the roadmap, `mozak.md` and `needs` checks. Only a new challenge reopens it. `plan complete` still needs an owner acceptance bound to the exact current evidence.
+- A late supporting observation no longer drops an owner-accepted outcome from `done` to `evidence`. Only a new challenge reopens it. `plan complete` still needs an owner acceptance bound to the exact current evidence.
+- A `mozak.md` that differs only by CRLF line endings or trailing whitespace counts as current.
 - The Obsidian plugin opens plans inside a vault that was opened through a symlink.
-- The test suite passes with the default macOS `TMPDIR` and with `TMPDIR=/tmp` (scratch paths behind a symlink).
+- The test suite passes with the default macOS `TMPDIR` and with `TMPDIR=/tmp`.
 
 ### Changed
-- An inventory may carry a reserved `x` object at the top or in a scope entry. This client ignores it and `check` reports `inventory-x-ignored`, so a future setting does not break older clients.
-- A failed MCP tool call now starts with a one-line `reason` and the `issues`, before the rest of the result. A failed `observe` echoes its `unsavedRequest` last, in the CLI JSON too. Hosts that cut long tool output still show why the call failed.
+- Removed the unused format-1 modules from `@mozak/core` (`parse`, `check`, `graph`, `stale`, `translate`, `init`, `write`, `plan`) and their exports. No CLI, MCP or plugin route used them, and format-1 routes still refuse with `unsupported-legacy-operation`. See [docs/audit-2026-10.md](docs/audit-2026-10.md).
+- Common error messages end with the next step (`stale-input`, `scope-not-found`, `plan-not-found`, `operation-conflict`, `busy` and others). Codes and exit codes are unchanged.
+- A failed MCP tool call starts with a one-line `reason` and the `issues`, before the rest of the result.
+- Local and vault-plans scope reads never fetch. Remote reads mark `remoteFreshness` and skip the network for 10 minutes after a failed fetch.
+- An inventory may carry a reserved `x` object at the top or in a scope entry. This client ignores it and `check` reports `inventory-x-ignored`.
+- The compiler runs with `noUnusedLocals`, `noUnusedParameters`, `noImplicitReturns`, `noFallthroughCasesInSwitch` and `noImplicitOverride`.
 
 ### Docs
-- README: new "Reads and the network" section on what reads of a repo-mode GitHub scope may fetch, cache and push, and the background release check.
+- README rewritten around the problem mozak solves, with a real example and the install line. New section "Reads and the network".
+- The plugin README and disclosures say what the plugin writes: a stale `mozak.md` it regenerates, and the `focus` lists through the star. It never writes plan state.
 - The installed skill no longer names one host's scheduler, and its examples say "the owner".
 
 ## 0.4.7 (2026-10-29)
