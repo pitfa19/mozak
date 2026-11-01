@@ -78,13 +78,26 @@ function moveRepoArg(value: unknown, drop: boolean): string | null {
   return repo;
 }
 
-/** Run `check` on the source folder as a plain scope: no settings, no vault rule, no network. */
-function assertSourceChecks(entry: ScopeEntry): void {
+/**
+ * Git-hygiene findings about the source folder's own repository. They describe the old folder, which the move leaves
+ * behind (a 0.5.0 sparse cache never checks out the repo's .gitignore), not the plan files it copies, so they are
+ * warnings. The target's rules are checked by `check` after the move. A tracked lock (`lock-in-git`) still blocks.
+ */
+const SOURCE_ONLY_FINDINGS = new Set(["lock-not-ignored", "lock-ignore-unavailable"]);
+/** Informational `check` entries that never set its exit code (they sit in `issues` next to the findings). */
+const INFO_FINDINGS = new Set(["leftover-temp-file", "focus-unknown-plan", "write-lock-held", "history-unavailable", "cited-note-changed", "cited-notes-unavailable"]);
+
+/** Run `check` on the source folder as a plain scope: no settings, no vault rule, no network. Returns source-only warnings. */
+function assertSourceChecks(entry: ScopeEntry): { code: string; message: string }[] {
   const local: ScopeInventory = { format: "mozak.local/v3", scopes: [{ id: entry.id, root: entry.root }], digest: "" };
   const out = executeOperation(local, "check", { scope: entry.id });
-  if (out.exitCode === 0) return;
-  const codes = (out.data.issues as { code: string }[]).map((i) => i.code).join(", ");
-  throw new DomainError("move-source-fails-check", `scope "${entry.id}" at ${entry.root} fails check (${codes}); fix that first, the move copies only a clean scope`, 3);
+  const issues = out.data.issues as { code: string; message: string }[];
+  const blocking = issues.filter((i) => !SOURCE_ONLY_FINDINGS.has(i.code) && !INFO_FINDINGS.has(i.code));
+  if (blocking.length > 0) {
+    const codes = blocking.map((i) => i.code).join(", ");
+    throw new DomainError("move-source-fails-check", `scope "${entry.id}" at ${entry.root} fails check (${codes}); fix that first, the move copies only a clean scope`, 3);
+  }
+  return issues.filter((i) => SOURCE_ONLY_FINDINGS.has(i.code)).map((i) => ({ code: `source-${i.code}`, message: `${entry.root}: ${i.message} The move leaves that folder behind.` }));
 }
 
 /**
@@ -247,12 +260,12 @@ function planMove(inventoryPath: string, req: Request): Planned {
   const inPlace = target === source.root;
   const files = inPlace ? [] : sourceFiles(source.root);
   if (!inPlace) assertTargetFree(target, files.map((f) => f.name), inv);
-  assertSourceChecks(source);
+  const sourceWarnings = assertSourceChecks(source);
   const entry = movedEntry(old, req.to, req.repo);
   const changed = JSON.stringify(entry) !== JSON.stringify(old);
   doc.scopes[index] = entry as RawEntry;
   const plans = readScope(source).state.plans.length;
-  const warnings = inPlace ? [] : specsLeftBehind(source, target);
+  const warnings = [...sourceWarnings, ...(inPlace ? [] : specsLeftBehind(source, target))];
   return {
     source, files, text: inventoryText(doc, text),
     result: { ...base, status: "ok", action: "move", to: target, inPlace, changed, plans, warnings, entry, files: files.map((f) => ({ name: f.name, bytes: f.bytes.length, sha256: sha256(f.bytes) })) },

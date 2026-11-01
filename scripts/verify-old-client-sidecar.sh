@@ -6,6 +6,8 @@ NEW="$(cd "$(dirname "$0")/.." && pwd)/packages/cli/dist/index.js"
 OLD="${OLD_CLI:-$HOME/.local/share/mozak-next/node_modules/@mozak/cli/dist/index.js}"
 BASE="$(mktemp -d "${TMPDIR:-/tmp}/mozak-s4-old-client.XXXXXX")"
 trap 'rm -rf "$BASE"' EXIT
+# Since 0.6.0 a scope must be inside an Obsidian vault: the temp base is one (older clients ignore .obsidian).
+mkdir -p "$BASE/.obsidian"
 mkdir -p "$BASE/alpha"; printf 'Synthetic\n' > "$BASE/alpha/README.md"; printf 'Synthetic\n' > "$BASE/alpha/AGENTS.md"
 printf '{"format":"mozak.local/v3","scopes":[{"id":"alpha","root":"./alpha"}]}' > "$BASE/inv.json"
 # Annotations are off unless the settings file next to the inventory turns them on for the scope.

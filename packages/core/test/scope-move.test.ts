@@ -3,6 +3,7 @@
 import { after, test } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -150,6 +151,30 @@ test("move refuses a target outside a vault, a target that holds mozak files, an
   assert.throws(() => moveScope(f.config, { scope: "proj", to: "vault/projects/proj", ...OWNER }), { code: "move-source-fails-check" });
   assert.ok(!existsSync(join(f.vault, "projects")));
   same();
+});
+
+test("a source in a git repo that does not ignore the write lock still moves; the finding is a warning, data findings still block", () => {
+  // 0.5.0 sparse caches check out only the plan files, never the repo's .gitignore, so check reports lock-not-ignored
+  // there. That is about the old folder's git rules, which the move leaves behind, not about the plans it copies.
+  const f = setup([{ id: "web", remote: "github:synthetic/web", ref: "main" }]);
+  const cache = join(f.base, ".mozak-cache", "web");
+  makeScope("web", cache);
+  rmSync(join(cache, ".gitignore"), { force: true });
+  execFileSync("git", ["init", "-q", "-b", "main"], { cwd: cache });
+  const out = moveScope(f.config, { scope: "web", to: "vault/projects/web", ...OWNER });
+  assert.equal(out.status, "ok");
+  assert.deepEqual(out.warnings.map((w) => w.code), ["source-lock-not-ignored"]);
+  assert.deepEqual(raw(f.config).scopes[3], { id: "web", root: "vault/projects/web" });
+  // A data finding in the same kind of source still refuses.
+  const g = setup([{ id: "web", remote: "github:synthetic/web", ref: "main" }]);
+  const cache2 = join(g.base, ".mozak-cache", "web");
+  makeScope("web", cache2);
+  execFileSync("git", ["init", "-q", "-b", "main"], { cwd: cache2 });
+  writeFileSync(join(cache2, "mozak.md"), "hand edit\n");
+  const before = readFileSync(g.config, "utf8");
+  assert.throws(() => moveScope(g.config, { scope: "web", to: "vault/projects/web", ...OWNER }), { code: "move-source-fails-check" });
+  assert.equal(readFileSync(g.config, "utf8"), before);
+  assert.ok(!existsSync(join(g.vault, "projects")));
 });
 
 test("move refuses missing owner provenance and bad arguments before touching anything", () => {
