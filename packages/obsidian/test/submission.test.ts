@@ -18,9 +18,12 @@ test("versions.json maps the current plugin version to the manifest's minAppVers
   assert.ok(manifest.description.length <= 250 && manifest.description.endsWith("."), "description is short and ends with a period");
 });
 
-test("plugin README discloses the visibility check and that the update notice reads a cache only", () => {
+test("plugin README discloses the vault sync, that repo links are never fetched, and that the update notice reads a cache only", () => {
   const readme = readRepo("packages/obsidian/README.md");
-  assert.match(readme, /api\.github\.com\/repos\/OWNER\/REPO/);
+  assert.match(readme, /git merge --ff-only/);
+  assert.match(readme, /never contacts GitHub or any other host for it/);
   assert.match(readme, /makes no network call for this/);
   assert.match(readme, /never installs or updates itself/);
+  // 0.6.0 removed the repo scopes, so the visibility check, cache fetches and background polling are not disclosed any more.
+  assert.doesNotMatch(readme, /api\.github\.com\/repos\/OWNER\/REPO|Repo sync interval|\.mozak-cache/);
 });

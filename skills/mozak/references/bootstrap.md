@@ -20,10 +20,8 @@ A single JSON file. Relative `root` paths resolve against the inventory file's o
 {
   "format": "mozak.local/v3",
   "scopes": [
-    { "id": "my-project", "root": "my-project" },
-    { "id": "other", "root": "/absolute/path/to/other" },
-    { "id": "shared", "remote": "github:owner/repo", "ref": "main" },
-    { "id": "oss", "remote": "github:owner/public-repo", "plans": "notes/oss" }
+    { "id": "my-project", "root": "creations/my-project" },
+    { "id": "oss", "root": "/absolute/path/to/vault/oss", "repo": "github:owner/public-repo" }
   ]
 }
 ```
@@ -31,12 +29,13 @@ A single JSON file. Relative `root` paths resolve against the inventory file's o
 Rules enforced by core:
 
 - `format` is `"mozak.local/v3"` (v2 is accepted read-compatibly).
-- Each scope entry has exactly `id` + `root` (local) or `id` + `remote` [+ `ref`] [+ `plans`] (remote).
-- Routing rule: a **private** repo keeps plans inside the repo (shared with collaborators). A **public** repo gets `plans`, a folder for its mozak.json and mozak.md, usually in the owner's notes. Ask the owner which applies; never put plans in a public repo. mozak refuses writes to a repo-mode scope whose repo is public (`public-repo-plans`).
-- A `plans` folder is initialized like a local scope: it needs its own `README.md` and `AGENTS.md` describing the project.
-- Read routes (`context`, `plans`, `check`, `review show`) run inside a clone may omit `--scope`; the scope is found from the clone's git origin. Writes always name `--scope`.
+- Each scope entry has `id` + `root`, and may have `focus` (the owner's stars) and `repo` (a display-only link to the code repo, `github:owner/repo` or an https URL; never fetched).
+- Every `root` is a folder inside an Obsidian vault: a folder with `.obsidian` at or above it. A root outside a vault is a failed scope (`scope-outside-vault`). Plans never go into a code repo, public or private. The project's code repo, if any, goes in `repo`.
+- An entry with `remote`, `ref` or `plans` is a pre-0.6 repo scope (`legacy-repo-scope`). Its error names the `mozak scope move` command; moving it is the owner's call.
+- A scope folder is initialized from its own `README.md` and `AGENTS.md` describing the project.
+- Every scoped route names `--scope`. mozak never guesses a scope from the current folder or its git origin, so an agent working in a code repo passes the scope id explicitly.
 - Scope ids are unique; two scopes may not resolve to the same root.
-- Editing this file is an owner-approved act: confirm before adding or removing entries.
+- Editing this file is an owner-approved act: confirm before adding or removing entries. `mozak scope move`, `mozak scope link` and `mozak focus add|remove` are the owner routes that edit one entry.
 
 Every CLI call takes `--config INVENTORY`. There is no default path and no environment fallback.
 
@@ -44,7 +43,7 @@ Every CLI call takes `--config INVENTORY`. There is no default path and no envir
 
 `scope init` is owner-only and refuses to run until the scope root is a real project entrance:
 
-1. The root directory exists and contains **`README.md` and `AGENTS.md`**, written or reviewed explicitly for this scope. Core refuses init without them (`missing-entry-document`).
+1. The root directory exists inside an Obsidian vault and contains **`README.md` and `AGENTS.md`**, written or reviewed explicitly for this scope. Core refuses init without them (`missing-entry-document`).
 2. The root contains no `mozak.json`, no `mozak.md`, and no legacy `.mozak/` directory (legacy state needs separately approved conversion).
 3. The scope has an entry in the inventory.
 4. The owner has confirmed, in this conversation, initializing this scope id at this root.

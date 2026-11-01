@@ -6,7 +6,7 @@ Start with the [README](../README.md). This page lists every doc in the repo and
 
 | Doc | What it covers |
 | --- | --- |
-| [installation.md](installation.md) | Build from source, the portable installer, `mozak upgrade` and `mozak doctor`, exit codes, recovery, the write lock, the experimental `concurrency.rebase` setting, remote scopes, known limits, and the verification status of every check. |
+| [installation.md](installation.md) | Build from source, the portable installer, `mozak upgrade` and `mozak doctor`, exit codes, recovery, the write lock, the experimental `concurrency.rebase` setting, vault-only scopes and moving to 0.6.0, known limits, and the verification status of every check. |
 | [annotations.md](annotations.md) | Owner annotations: cross-plan refs (needs, informs, supersedes), deadlines, `mozak annotate`, `graph`, `ready` and `plans --sort deadline`. |
 | [../packages/obsidian/README.md](../packages/obsidian/README.md) | The Obsidian plugin: use, settings, and the community plugin disclosures (files outside the vault, network use, no self-update). |
 | [../skills/mozak/SKILL.md](../skills/mozak/SKILL.md) | The agent skill source. It is a template: load the installed copy, not this file. Its `references/` folder has the routes, bootstrap and recovery notes. |

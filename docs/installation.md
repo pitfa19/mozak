@@ -135,7 +135,7 @@ To move older scopes to the new names, run once (owner only):
 mozak rename-files --config INVENTORY --all
 ```
 
-It renames both files under the scope lock and regenerates the note so its link points to `mozak.json`. The plan bytes do not change, so approvals stay valid. It refuses a scope whose note has hand edits, or one that has both names. Repo scopes that commit plans to GitHub are skipped: rename those in a clone with `git mv` and push. Commit the rename in your notes repo afterwards. On a case-insensitive disk, git needs `git add -A` to record a case-only rename.
+It renames both files under the scope lock and regenerates the note so its link points to `mozak.json`. The plan bytes do not change, so approvals stay valid. It refuses a scope whose note has hand edits, or one that has both names. Commit the rename in your notes repo afterwards. On a case-insensitive disk, git needs `git add -A` to record a case-only rename.
 
 ### Update notice
 
@@ -153,7 +153,7 @@ It renames both files under the scope lock and regenerates the note so its link 
 
 It never edits MCP settings, the inventory or any plan file. For those it prints the change to make.
 
-**Restoring on a new machine or account:** install Node, clone and build mozak, run the installer, clone your notes repo (with the inventory and vault-plans folders), connect the MCP server to the inventory, then run `mozak doctor --fix` and follow what it prints until it reports no failures.
+**Restoring on a new machine or account:** install Node, clone and build mozak, run the installer, clone your notes repo (with the inventory and the scope folders), connect the MCP server to the inventory, then run `mozak doctor --fix` and follow what it prints until it reports no failures.
 
 ## 4. Exit codes and status values
 
@@ -270,13 +270,13 @@ receipt records. Outside git it reports `history-unavailable` and skips the walk
 
 ### Syncing a vault: `mozak sync --scope ID` or `mozak sync --local`
 
-For a local scope inside a git repo, `sync` replaces a bare `git pull --rebase`, which bypasses the scope locks. Per repo
-it fetches the upstream of the current branch outside the locks, takes the write lock of every inventoried local and
-vault-plans scope in that repo in path order, runs `git merge --ff-only`, and releases. It never rebases, merges a
+For a scope inside a git repo (usually your vault), `sync` replaces a bare `git pull --rebase`, which bypasses the scope locks. Per repo
+it fetches the upstream of the current branch outside the locks, takes the write lock of every inventoried
+scope in that repo in path order, runs `git merge --ff-only`, and releases. It never rebases, merges a
 diverged history or pushes. Row status: `fast-forwarded`, `up-to-date`, `ahead` (local commits to push), or a problem:
 `not-fast-forward` (exit 3, nothing changed), `busy` (exit 4, a scope lock is held), `fetch-failed`, `merge-failed`,
-`no-upstream`, `detached`, `not-in-git`. `--local` syncs every such repo and the remote scopes; plain `mozak sync` still
-syncs remote scopes only.
+`no-upstream`, `detached`, `not-in-git`. Plain `mozak sync` syncs every such repo. `--local` is still accepted and means
+the same (before 0.6.0 it added the vault repos to the remote scopes).
 
 ### Projection repair
 
@@ -316,7 +316,7 @@ Limits: the writes in between are found through receipt times. A write merged by
 
 ## 6a. Focus list
 
-Every scope entry in the inventory, local or remote, may carry `focus`: an array of unique plan ids the owner starred. The Obsidian sidebar shows them in its Focus tab.
+Every scope entry in the inventory may carry `focus`: an array of unique plan ids the owner starred. The Obsidian sidebar shows them in its Focus tab.
 
 ```json
 { "id": "atlas-app", "root": "./atlas-app", "focus": ["launch", "billing"] }
@@ -328,40 +328,58 @@ Every scope entry in the inventory, local or remote, may carry `focus`: an array
 - A starred id that is no longer a plan is a `check` warning (`focus-unknown-plan`), never an error. Remove it with `mozak focus remove`.
 - mozak before 0.5.0 refuses an inventory with `focus` (`unknown key "focus"`). Upgrade every machine that reads the inventory before starring a plan.
 
-## 6b. Remote scopes
+## 6b. Vault-only scopes (0.6.0)
 
-A scope can live in a GitHub repo instead of a local folder. List it with `remote` and no `root` (exactly one of the two), in a `mozak.local/v3` inventory. `v2` inventories still load unchanged.
+Every scope entry is `{ "id", "root" }`, plus the optional `focus` list and `repo` link. The `root` must be a folder inside an Obsidian vault: some folder at or above it holds a `.obsidian` folder. mozak checks this when it loads the inventory. An entry outside a vault is listed as a failed scope with `scope-outside-vault`, and every route refuses it, while the other scopes keep working. `mozak doctor` names the `scope move` command for it.
 
 ```json
 {
   "format": "mozak.local/v3",
   "scopes": [
-    { "id": "atlas-app",  "root": "./atlas-app" },
-    { "id": "genome-mcp", "remote": "github:pitfa19/genome-mcp", "ref": "main" }
+    { "id": "atlas-app",  "root": "./creations/atlas-app", "repo": "github:pitfa19/atlas-app" },
+    { "id": "lab-notes",  "root": "./research/lab-notes" }
   ]
 }
 ```
 
-`remote` is `github:owner/repo`, an `https://` URL, or an absolute `file://` URL. `ref` is a plain branch name and defaults to `main`.
+- **Repo link, display only.** `repo` is `github:owner/repo` or an `https://` URL. The Obsidian sidebar shows it as a link on the scope row and `mozak scopes` prints it. mozak never uses it for git or the network, and the inventory digest ignores it (as with `focus`). Set or clear it with `mozak scope link --scope ID (--repo SPEC | --clear)` (owner). mozak before 0.6.0 refuses an inventory with a `repo` key, so add links only after every machine runs 0.6.0.
+- **Agents in a code repo.** Agents work in the code repo and name the scope with `--scope`. mozak does not guess a scope from the current folder or its git origin.
+- **Network.** No read or write route fetches, clones or pushes for a scope. `mozak sync` fast-forwards the vault repositories (see [Syncing a vault](#syncing-a-vault-mozak-sync---scope-id-or-mozak-sync---local)). A write with `--commit` commits the scope's two files in its vault repository and pushes when that branch has an upstream.
 
-- **Fetch.** mozak makes a sparse, blobless, depth 1 git clone under `.mozak-cache/<id>/` next to the inventory file. Only `README.md`, `mozak.json`, `mozak.md` and `AGENTS.md` are checked out. It is real git, so you can also commit and push normally. Add `.mozak-cache/` to the `.gitignore` of the inventory folder if it is a git repo (`mozak sync` warns when it is not ignored).
-- **Freshness.** `mozak scopes`, `plans` and `context` refresh a remote scope when the last fetch is older than 10 minutes. `mozak sync [--scope ID]` forces a refresh. If the fetch fails (offline, auth), the cached copy is used and marked `stale` (JSON: `stale`, `lastFetchAt`, `remote[]`, a `remote-stale` issue). The MCP tool `mozak_sync` does the same as `mozak sync`.
-- **Writes.** `propose`, `revise`, `complete`, `observe` and the rest work against the sparse copy. After a successful write mozak commits only `mozak.json` and `mozak.md` and pushes. Owner approval rules are unchanged. A write refuses with `remote-stale` if the copy cannot be refreshed first. If the push fails, the commit stays local, the result is exit 5 with `remote-push-failed`, and the next `mozak sync` pushes it.
-- **Pull.** `mozak pull --scope ID [--into PATH]` (owner) makes a full working clone, default `~/Documents/<repo-name>`. It refuses a destination that exists and is not a clone of the same remote. Afterwards the inventory still says `remote`, but reads and writes use the full clone (recorded in `.mozak-cache/<id>.meta.json`). A sync of a full clone only fast-forwards it. It never overwrites your working tree.
-- **Vault plans (public repos).** Add `"plans": "<folder>"` to a remote entry to keep its `mozak.json` and `mozak.md` in that folder instead of the repo. The folder works like a local scope (it needs `README.md` and `AGENTS.md`, created before `scope init`). mozak never clones, fetches, commits or pushes for such a scope, so it works offline and plans are never published. `sync` reports it as `source: "vault"`. `pull` clones the code only and leaves the plans where they are.
-- **Visibility guard.** For a remote scope whose plans live in the repo, mozak asks the public GitHub API (no login, 5 second timeout) whether the repo is public, and caches the answer for 24 hours in the scope's meta file. A public answer refuses writes with `public-repo-plans` (exit 3) and adds a warning to `sync` and `scopes`. Reads are never blocked, and a failed check never blocks anything.
-- **Inside a clone.** `context`, `plans`, `check` and `review show` may omit `--scope` when run inside a clone of an inventoried repo. The scope is found from the clone's `origin` URL (https, ssh, `github:` and local path forms). Writes always need `--scope`.
-- **Auth.** mozak shells out to `git` (no shell, hard timeouts, no prompts), so your credential helper, for example `gh auth setup-git`, is used.
-- A repo with no `mozak.json` at its root is reported as `scope-uninitialized` ("not a scope").
+## Moving to 0.6.0
 
-Cache layout: `.mozak-cache/<id>/` (sparse git clone) and `.mozak-cache/<id>.meta.json` (last fetch time, last error, full clone path). Deleting the cache is safe once everything is pushed. Unpushed commits in a sparse copy are pushed by the next `mozak sync`.
+0.6.0 removes GitHub repo scopes: entries with `remote`, `ref` or `plans`, `mozak pull`, the remote part of `mozak sync`, the `mozak_sync` MCP tool, the `.mozak-cache` sparse clones and the public-repo check. A local entry whose folder is not inside a vault (for example a code repo holding `mozak.json`) is refused too. Nothing is deleted: 0.6.0 lists each such entry as a failed scope, with the exact command to move it, and every other scope keeps working.
+
+`mozak scope move` (owner) moves one scope:
+
+```sh
+mozak scope move --config INVENTORY --scope ID --to PATH [--repo SPEC] --owner-ref REF --owner-message-at ISO --reason TEXT [--dry-run] [--json]
+mozak scope move --config INVENTORY --scope ID --drop --owner-ref REF --owner-message-at ISO --reason TEXT [--dry-run] [--json]
+```
+
+- `--to PATH` is the new folder, inside a vault (relative paths resolve against the inventory's folder). mozak copies `mozak.json`, `mozak.md`, the annotations sidecar, `README.md` and `AGENTS.md`, checks every copy byte for byte, then rewrites only that inventory entry to `{ "id", "root": PATH }` (plus `repo` when given) under the inventory lock, with the same validated atomic write as `focus`. Every other key (including `focus` and `x`) and every other entry stays as it was.
+- It reads the files from wherever the scope is today: a local folder, a pre-0.6 vault-plans folder, the full clone `mozak pull` made, or the `.mozak-cache/<id>` sparse copy. The plan file stores the scope id, not its path, so plans, receipts and approvals stay valid.
+- It refuses a target outside a vault (`move-target-outside-vault`), a target that already holds mozak files (`move-target-has-scope`, `move-target-file-exists`), a source that fails `check` (`move-source-fails-check`), and an inventory changed since it was read (`stale-input`). A failure before the inventory is replaced removes what it copied, so the old files and the old inventory stay valid. Running it again after a success changes nothing.
+- The old files stay in place. Delete them yourself once you have checked the new folder (for a code repo, as a commit there). Attached specification files are not copied: the result lists each as a `spec-not-moved` warning so you can copy it by hand.
+- `--drop` removes an entry with 0 plans from the inventory instead. Its files stay.
+- `--dry-run` prints the files it would copy, their sizes and hashes, and the new entry, and writes nothing.
+
+Steps:
+
+1. On 0.5, run `mozak sync --scope ID` for every repo scope whose plans live in its repo, so the cache holds the newest plans.
+2. With the 0.6.0 CLI (a scratch install is enough, the inventory keeps working with 0.5 as long as it has no `repo` keys), run `mozak scope move ... --dry-run` for every failed scope, check the list, then run the same commands without `--dry-run`. Use `--drop` for entries you no longer need.
+3. Run `mozak scopes`: 0 failed. Run `mozak check --scope ID` for each moved scope: 0 issues. Commit and push your vault.
+4. Upgrade every machine to 0.6.0 (`mozak upgrade`), then add repo links with `mozak scope link --scope ID --repo github:owner/repo`.
+5. Delete the old plan files from the code repos and remove `.mozak-cache/` next to the inventory (keep `.mozak-cache/usage/` if you use the usage log).
+
+The Obsidian plugin drops its old **Repo sync interval** setting on its own.
 
 ## 7. Known limits
 
-- **One branch per remote scope.** There is no merge handling: a diverged remote makes a write or sync fail and the scope shows stale. The installer does not edit your `.gitignore`.
+- **One branch per vault repo.** `mozak sync` only fast-forwards: a diverged vault branch is reported as `not-fast-forward` and left for you to merge. The installer does not edit your `.gitignore`.
 - **No network filesystems.** Locking and crash safety assume a local disk. Network filesystems and concurrent editors (sync tools writing the same files) are not covered.
 - **Approval is a trusted-host convention.** mozak records the owner's approval message as given by the agent host. It does not authenticate the owner; an agent host that lies can forge an approval.
-- **Restore needs the notes repo plus `mozak doctor --fix`.** Plans live in your notes (and private repos). A new machine needs that repo cloned, mozak installed, the MCP server connected, then `mozak doctor --fix` (section 3, Checking a setup).
+- **Restore needs the notes repo plus `mozak doctor --fix`.** Plans live in your vaults. A new machine needs those repos cloned, mozak installed, the MCP server connected, then `mozak doctor --fix` (section 3, Checking a setup).
 - Crash safety: plan files are flushed to disk before they replace the old ones, and the folder after. On filesystems that ignore folder flushes this is best effort, and it always depends on the disk honouring flushes.
 - Upgrading needs the source checkout the installation came from (or `--source PATH`), and only knows release tags of that checkout's `origin`.
 - The source copy of the conversation skill is a template. The installer refuses an unrendered template. Load the skill only from the installed folder, directly or through a symlink.

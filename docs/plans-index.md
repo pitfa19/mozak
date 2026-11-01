@@ -12,7 +12,7 @@ mozak plans-md --config INVENTORY             # owner: write them
 - One `plans.md` per git repository that holds scopes, at that repository's root. A repository lists only its own scopes, so a company vault's file never names a personal plan, and the other way round.
 - It holds titles and states only: open, paused, awaiting approval, completed. No purposes, outcomes, evidence or decisions. Rejected drafts are left out.
 - The first line marks the file as generated. A `plans.md` without that line is never overwritten: the run reports `plans-md-conflict` (exit 3) and leaves it as it is. Same content means no write.
-- Repo-mode remote scopes and scopes outside git are skipped and listed under `skipped`.
+- Scopes outside git are skipped and listed under `skipped`.
 - Writing is an owner route. `--print` is a read, and agents may call it. mozak does not commit the file; commit it with the vault like any other note.
 
 ## `mozak locators`: where citations point
@@ -28,7 +28,6 @@ Every `Source.locator` and `Evidence.locator` of the selected plans, with what i
 | `resolved` | a file or folder was found. `title` is its first heading or file name. For a Markdown note with an anchor, `anchorFound` says whether a heading matches it. |
 | `missing` | looks like a path or a `[[note]]` link, nothing found |
 | `ambiguous` | a `[[note]]` name matches several notes, none in the citing scope |
-| `remote` | a relative path in a scope whose code lives in a remote repo that is not cloned here |
 | `external` | a URL or a `git:` object, not checked |
 | `not-checked` | prose, such as an owner message or a command |
 

@@ -47,7 +47,7 @@ Status key: **Met** means checked in this repo. **Owner** means only the owner c
 | 20 | No obfuscated code. | Met | `main.js` is an esbuild bundle, not minified. |
 | 21 | No ads. No client-side telemetry. | Met | None. |
 | 22 | Does not install or update itself or its dependencies. | Met | The plugin only reads the update cache (`cachedUpdateNotice`). The bundle has no release-tag fetch and no `spawn(` (test). Updates come through Obsidian or `mozak upgrade`. |
-| 23 | Disclose network use: which services and why. | Met | `packages/obsidian/README.md`, "Disclosures": `git fetch` for remote scopes (default every 60 seconds while Auto-refresh is on), the sync button's fast-forward of local vault repos, the unauthenticated GitHub API visibility check (at most once a day per repo), and the update notice, which reads a local cache only. |
+| 23 | Disclose network use: which services and why. | Met | `packages/obsidian/README.md`, "Disclosures": the **Sync vaults** button's `git fetch` and fast-forward of the vault repos that hold scopes (only on click, never in the background), display-only repo links that are never fetched, and the update notice, which reads a local cache only. Since 0.6.0 there are no repo scopes, no background git and no GitHub API call. |
 | 24 | Disclose access to files outside the vault, and why. | Met | Same section: the scope files the inventory names (`mozak.annotations.json` only for scopes with annotations on), the upward lookup for `mozak-inventory.json`, and what the plugin writes: a stale `mozak.md` it regenerates, and the `focus` lists in `mozak-inventory.json` through the star. It never writes plan state. |
 | 25 | Disclose payments, accounts, ads and server-side telemetry if any. | Met | None. The README says so. |
 | 26 | Include a license and respect the licenses of bundled code. | Met | The bundle contains mozak's own `@mozak/core` and esbuild helpers. `obsidian`, `electron` and Node built-ins are external. The fonts with OFL notices are in `docs/assets/brand/` and are not bundled. |
@@ -57,7 +57,7 @@ Status key: **Met** means checked in this repo. **Owner** means only the owner c
 ## Risks for the automated review
 
 - **A. Update and spawn code in the bundle.** Fixed in 0.4.x: the plugin bundle has no release-tag fetch, no refresher script and no `spawn(` (test `the plugin bundle has no update refresher` in `packages/obsidian/test/model.test.ts`).
-- **B. `child_process` use.** The plugin runs `git` for remote scopes and the sync button, and `curl` for the public visibility check. It is disclosed. Reviewers sometimes ask why. The answer: mozak reads plan files from your own git remotes with your existing login.
+- **B. `child_process` use.** The plugin runs `git` only for the **Sync vaults** button. It is disclosed. Reviewers sometimes ask why. The answer: mozak fast-forwards your own vault repositories with your existing login, under its write locks, so a sync never races a plan write.
 - **C. Writes outside plan state.** New in 0.5.0: the star edits `mozak-inventory.json`. It is disclosed in row 24 and in both READMEs.
 
 ## What the owner does for 0.5.0, in order

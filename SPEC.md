@@ -1,6 +1,8 @@
 # mozak v1 spec
 
 > **Historical.** This is the original v1 design draft from 2026-10-11 (format 1). It does not describe current mozak: format 1 is retired, agents cannot edit plans directly, and mozak is not on npm as 1.0.0. For the current behaviour see [README.md](README.md) and [docs/installation.md](docs/installation.md).
+>
+> **Inventory since 0.6.0.** Every scope is a folder inside an Obsidian vault, listed in `mozak-inventory.json` as `{ "id", "root" }` with optional `focus` and a display-only `repo` link. Project scopes no longer live in git repositories: a code repo is linked, not used for plans. See [docs/installation.md, Vault-only scopes](docs/installation.md#6b-vault-only-scopes-060).
 
 Status: draft, from the 24 grilling decisions of 2026-10-11. Not yet implemented.
 

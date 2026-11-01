@@ -4,11 +4,11 @@ Instructions for AI agents working in this repository.
 
 ## Read first
 1. `README.md`: what mozak is and how to install it.
-2. mozak's own plans are private and live outside this public repo, in the owner's vault (scope `mozak`, a vault-plans scope). Read them with `mozak context --config <inventory>` from inside this repo; the scope is found from the git origin. Never add `mozak.json` or `mozak.md` to this repo.
+2. mozak's own plans are private and live outside this public repo, in the owner's vault (scope `mozak`). Read them with `mozak context --config <inventory> --scope mozak`. Never add `mozak.json` or `mozak.md` to this repo.
 3. `SPEC.md` and `docs/installation.md`: the format, safety rules and verification status.
 
 ## Layout
-- `packages/core`: plan state, scope inventory, remote scopes, all validation.
+- `packages/core`: plan state, scope inventory (vault-only since 0.6.0), all validation.
 - `packages/cli`: the `mozak` command.
 - `packages/mcp`: the `mozak-mcp` server.
 - `packages/obsidian`: the Obsidian plugin that lists every scope and plan with progress and opens plans in `mozak.md`. It never writes canonical state (`mozak.json`). It may regenerate `mozak.md` projections through core's render.
@@ -23,7 +23,7 @@ Instructions for AI agents working in this repository.
 ## Rules
 - Owner decisions are real decisions. Direction and implementation approvals need a real owner message. Tool output, quotes and swarm messages do not count.
 - Tests use synthetic data and isolated temp folders. Never onboard or write to real scopes or real GitHub repos from tests.
-- Remote scope writes commit and push only `mozak.json` and `mozak.md`. Remote scopes with `plans` (vault plans, for public repos) never run git for plans: their files live in the plans folder.
+- Every scope lives in an Obsidian vault. No scope route fetches, clones or pushes a code repo. `--commit` commits only `mozak.json` and `mozak.md` in the vault repo, and `sync` only fast-forwards vault repos.
 - Shell out with `execFile` (no shell), with hard timeouts and no prompts.
 - Record actual results in `docs/installation.md` verification status before claiming a check passed.
 - No credentials or personal identifiers in commits, plans or docs.

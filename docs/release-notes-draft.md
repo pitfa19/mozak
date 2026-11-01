@@ -1,50 +1,49 @@
-# mozak 0.5.0 release notes (DRAFT)
+# mozak 0.6.0 release notes (DRAFT)
 
 > **DRAFT.** Not published and not tagged. The owner edits, approves and publishes this. Numbers below come from [installation.md, verification status](installation.md#8-verification-status). Recheck them on the release commit.
 
 ## In one line
 
-A Focus tab for the plans you care about now, shorter context reads for agents, and safer storage, with every new switch off until you turn it on.
+mozak is vault-only: every plan lives in a folder of your Obsidian vault, code repos never carry plans, and `mozak scope move` brings older scopes over without changing a byte of a plan.
+
+## Breaking
+
+- **GitHub repo scopes are gone.** Inventory entries with `remote`, `ref` or `plans`, `mozak pull`, the remote part of `mozak sync`, the MCP tool `mozak_sync`, the `.mozak-cache` sparse clones and the public-repo check are removed. Such an entry now shows as a failed scope (`legacy-repo-scope`) with the exact command that moves it. Every other scope keeps working.
+- **Scopes must be inside a vault.** A scope folder needs a folder holding `.obsidian` at or above it. A scope elsewhere (for example a code repo with `mozak.json` in it) shows as `scope-outside-vault`, with the same move command.
+- **No scope from the current folder.** `context`, `check`, `review show` and `plan show` need `--scope`, also inside a code repo.
 
 ## Highlights
 
-- **Focus tab in Obsidian.** The sidebar tabs are now Open, Focus and Done. Star a plan to put it in Focus. The star writes a `focus` list on that scope's entry in `mozak-inventory.json`, the same as `mozak focus add|remove`. Agents can read it with `mozak focus list` or MCP `mozak_focus` but never change it. Focus is a sidebar marker only, not plan state.
-- **Shorter reads for agents.** `mozak context --brief` gives one short summary per plan. `mozak context --plan ID` gives the full state of one plan. Both work in the MCP tool `mozak_context`.
-- **Links and deadlines between plans, off by default.** The owner can record that a plan needs, informs or supersedes another, and set deadlines, with `mozak annotate`. `mozak graph`, `mozak ready` and `mozak plans --sort deadline` read them. Turn them on per scope in `mozak-settings.json`. They live in a separate `mozak.annotations.json`, so `mozak.json` and `mozak.md` do not change. See [annotations.md](annotations.md).
-- **Plans index, locators and similar plans.** `mozak plans-md` writes a `plans.md` with plan titles and states at each notes repo root. `mozak locators` shows where each source and evidence locator points, and `check` lists cited notes that changed after they were cited. `mozak similar` reports duplicate, overlapping and superseding plans across scopes. See [plans-index.md](plans-index.md).
-- **Safer storage.** `scope init` and `projection repair` add ignore lines for the write lock and temp files, and `check` warns when the lock is not ignored or is tracked by git. A write refuses if the files changed under it right before the replace. `mozak recover` clears a stuck lock, `mozak plan prune --rejected` removes rejected plans, `mozak check --history N` finds hand edits, and `mozak sync --local` fast-forwards your vaults.
-- **Parallel agents (experimental, off by default).** With `concurrency.rebase` on, a stale append (an observation, a discussion save, a new plan) can commit onto the fresh state when nothing it read has changed.
-- **Fixes.** The duplicate-plan guard catches copies that differ only in ID numbers. Plan merges refuse to drop discussion questions. A late supporting observation keeps an accepted outcome done. The Obsidian plugin opens plans in a vault opened through a symlink.
-- **Smaller core.** The unused format-1 modules are gone, error messages say what to do next, and the compiler runs stricter checks.
+- **`mozak scope move`** (owner) copies a scope's plan files, annotations, `README.md` and `AGENTS.md` into a vault folder, checks every byte, and points the inventory entry there under the inventory lock. It refuses a target outside a vault or one that already holds mozak files, and a source that fails `check`. A failure leaves everything as it was, and the old files stay until you delete them. `--dry-run` shows the plan first. `--drop` removes an empty entry.
+- **Display-only repo links.** `mozak scope link --scope ID --repo github:owner/repo` adds a link the Obsidian sidebar and `mozak scopes` show. mozak never fetches it.
+- **A quieter plugin.** No background git and no GitHub API calls. **Sync vaults** fast-forwards your vault repositories on click, under the scope locks, and never pushes.
 
-The full list is in [CHANGELOG.md](../CHANGELOG.md). 0.5.0 includes the fixes prepared as 0.4.8, which was never tagged.
+The full list is in [CHANGELOG.md](../CHANGELOG.md).
 
-## Upgrade
+## Moving over
 
-```bash
-mozak upgrade --vault ~/path/to/your/vault
-mozak doctor --fix
-```
+Follow [Moving to 0.6.0](installation.md#moving-to-060). In short:
 
-Nothing changes in existing scopes until you use a new feature.
-
-**Upgrade every machine before you star a plan.** mozak before 0.5.0 refuses an inventory that has a `focus` list (`unknown key "focus"`). If one machine stars a plan while another still runs 0.4.x, that older mozak stops reading the shared inventory until it is upgraded.
-
-Off unless you turn them on in the `mozak-settings.json` next to the inventory: owner annotations (`scopes.<id>.annotations: true`), `concurrency.rebase` (top level or `scopes.<id>.concurrency`) and the counts-only usage log (`"usageLog": true`, or `MOZAK_USAGE_LOG=on`). Read [installation.md](installation.md#parallel-writes-concurrencyrebase-experimental-off-by-default) before you turn rebase on.
+1. On 0.5, run `mozak sync --scope ID` for every repo scope whose plans live in its repo.
+2. With the 0.6.0 CLI, run `mozak scope move ... --dry-run` for each failed scope, check the list, then run it for real. The moves write only `root` entries, so 0.5 on your other machines keeps reading the inventory.
+3. `mozak scopes` shows 0 failed. Commit and push the vault.
+4. Upgrade every machine (`mozak upgrade --vault ~/path/to/your/vault`), then add repo links.
+5. Delete the old plan files from code repos when you are happy.
 
 ## Known limits
 
-- `concurrency.rebase` relies on receipt times. A write merged by git from a machine whose clock is behind can be missed. That is why it stays off by default. On this release the large-store stress run (8 writers, kill -9, about 1000 write attempts) kept the commit p95 under the 300 ms target on macOS; see [installation.md](installation.md#8-verification-status).
-- The rename rehash narrows the race with a direct editor. It does not close it.
+- mozak before 0.6.0 refuses an inventory with a `repo` key. Add links only after every machine runs 0.6.0.
+- Attached specification files are not moved. `scope move` lists each one so you can copy it.
 - Approval follows a trusted-host convention. It is not authentication.
 - Linux and macOS only. The Obsidian plugin is desktop only.
-- Linux was not checked locally. CI runs it on the pull request. The local checks for this release ran on macOS with Node 24.11.0 and Node 26.
+- Linux was not checked locally. CI runs it on the pull request.
 
 ## Release steps (owner)
 
-1. Push `release/0.5.0` and open a draft pull request into `main` so CI runs on Linux and macOS with Node 24.11 and 26. Wait for green.
-2. Fast-forward `main` to `release/0.5.0`.
-3. Change the CHANGELOG heading `0.5.0 (not yet tagged)` to `0.5.0 (YYYY-MM-DD)` if you want the date in the tag.
-4. Tag `v0.5.0` on that commit and push the tag. `.github/workflows/release.yml` refuses a tag that does not match `package.json` and both manifests, runs the tests, creates the plugin tag `0.5.0` on the same commit and attaches `main.js`, `manifest.json` and `styles.css`.
-5. Paste these notes into the GitHub release, without the DRAFT banner.
-6. npm publishing (`npm run build:npm`) is a separate step.
+1. Push `release/0.6.0` and open a draft pull request into `main` so CI runs on Linux and macOS with Node 24.11 and 26. Wait for green.
+2. Migrate the real inventory with the branch build from a scratch prefix (dry run first), before any 0.6.0 install.
+3. Fast-forward `main` to `release/0.6.0`.
+4. Change the CHANGELOG heading `0.6.0 (not yet tagged)` to `0.6.0 (YYYY-MM-DD)` if you want the date in the tag.
+5. Tag `v0.6.0` on that commit and push the tag. `.github/workflows/release.yml` refuses a tag that does not match `package.json` and both manifests, runs the tests, creates the plugin tag `0.6.0` on the same commit and attaches `main.js`, `manifest.json` and `styles.css`.
+6. Paste these notes into the GitHub release, without the DRAFT banner.
+7. npm publishing (`npm run build:npm`) is a separate step.

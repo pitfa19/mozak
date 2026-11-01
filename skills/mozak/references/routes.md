@@ -81,6 +81,17 @@ Removes plans so they no longer exist in `mozak.json` or `mozak.md`. Use it only
 - The receipt `{ "action": "delete-plans", "ids": [...] }` stays in `mozak.json` as the record, and the deleted id cannot be proposed again.
 - Prefer a merge when two plans in one scope overlap: approval folds the source into the target and removes it. Use delete for a plan superseded by one in another scope, or a plan the owner no longer wants.
 
+### Moving and linking scopes (owner)
+
+```
+node {{MOZAK_CLI}} scope move --config INVENTORY --scope ID (--to PATH [--repo SPEC] | --drop) --owner-ref REF --owner-message-at ISO --reason TEXT [--dry-run] [--json]
+node {{MOZAK_CLI}} scope link --config INVENTORY --scope ID (--repo SPEC | --clear) [--json]
+```
+
+- `scope move` copies the scope's plan files, sidecar, `README.md` and `AGENTS.md` into a vault folder, checks every byte, then points only that inventory entry there. The old files stay. Use it for a `scope-outside-vault` or `legacy-repo-scope` entry, and only when the owner names the target folder. Always run `--dry-run` first and show the owner the file list and the new entry. `--drop` removes a 0-plan entry instead.
+- `scope link` sets or clears the display-only `repo` link (`github:owner/repo` or an https URL). mozak never fetches it. mozak before 0.6.0 refuses an inventory with `repo`, so add links only after every machine that reads the inventory runs 0.6.0.
+- There is no `pull` route and no remote sync any more. `sync` only fast-forwards vault repositories.
+
 ### Provenance (`ownerRef`, `ownerMessageAt`)
 
 - Preferred: a genuine owner message ID from the host.
@@ -101,7 +112,7 @@ An unambiguous pause instruction stops host work first. The host may then persis
 - Request: `{ "operationId", "scopeId", "expectedAnnotations": { "exists", "sha256" }, "ownerRef", "ownerMessageAt", "items": [...] }`. `expectedAnnotations` is the sidecar token the owner saw (`{ "exists": false, "sha256": null }` when there is no file). It is the only CAS input. Read it from `graph --scope ID --json` as `annotations.ID`.
 - `needs` is advisory. It orders `ready` and shows in the plugin. Nothing refuses a write because of it.
 - Several dates in plan prose are candidates. Propose one `deadline` item and let the owner pick.
-- Annotations are off by default. The owner turns them on per scope with `scopes.<id>.annotations: true` in the `mozak-settings.json` next to the inventory. Otherwise `annotate` is refused (`annotations-disabled`), and on repo-mode remote scopes always (`annotations-refused-remote`).
+- Annotations are off by default. The owner turns them on per scope with `scopes.<id>.annotations: true` in the `mozak-settings.json` next to the inventory. Otherwise `annotate` is refused (`annotations-disabled`).
 
 ## Review digest and CAS
 

@@ -31,7 +31,7 @@ node {{MOZAK_CLI}} <route> --config INVENTORY --scope ID --request <printed path
 `plan show` and `context --plan` return `handoff.executionEligible`. It is true only when all of these hold: the owner approved implementation of the current accepted revision against the attached spec (`implementationAuthorized`), the plan is open (not completed or deleted), the spec file is still byte-identical to what was approved, the scope storage checked usable, and no material review is unresolved. If false, `handoff.reasons` lists why (for example `no-current-implementation-authorization`, `specification-changed`, `lifecycle-completed`). Only implement inside `handoff.bounds` when it is true.
 
 ## Write and git
-A write reporting `committed` means the transaction reached `mozak.json` and `mozak.md` on disk. For a local or vault-plans scope that is not a git commit: the human output says `written ... not committed to git`. Add `--commit` to any write route to commit just those two files in the containing repo, then `pull --rebase` and push when the branch has an upstream (never forces, stops with `git-pull-conflict`, exit 5, on conflict). Repo-mode remote scopes always commit and push by themselves.
+A write reporting `committed` means the transaction reached `mozak.json` and `mozak.md` on disk. That is not a git commit: the human output says `written ... not committed to git`. Add `--commit` to any write route to commit just those two files in the containing vault repo, then `pull --rebase` and push when the branch has an upstream (never forces, stops with `git-pull-conflict`, exit 5, on conflict).
 
 ## Gotchas
 - `stale-input`: rebuild with `make_request.py` and retry once. Resending the same request only replays its receipt.

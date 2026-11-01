@@ -456,7 +456,7 @@ writeFileSync(
 );
 writeFileSync(
   join(pluginDest, "data.json"),
-  JSON.stringify({ inventoryPath: "", autoRefresh: true, remotePollSeconds: 0 }, null, 2) + "\n",
+  JSON.stringify({ inventoryPath: "", autoRefresh: true }, null, 2) + "\n",
 );
 
 // 5. Write a live helper script (demo-step.mjs) so each beat can be triggered cleanly during screen recording

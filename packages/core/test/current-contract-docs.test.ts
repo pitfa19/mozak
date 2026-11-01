@@ -13,10 +13,12 @@ test("SPEC is labelled historical format 1 and points to the current contract", 
   }
 });
 
-test("README discloses that reads can fetch, cache and push repo-mode plans", () => {
+test("README discloses that reads never fetch, and names the only scope network use (sync) and the update check", () => {
   const readme = readFileSync(new URL("../../../README.md", import.meta.url), "utf8");
   const disclosure = readme.split("## Reads and the network")[1]?.split("\n## ")[0] ?? "";
-  for (const term of ["git fetch", "cache", "push", "vault", "MOZAK_NO_UPDATE_CHECK=1"]) {
-    assert.ok(disclosure.includes(term), `missing read-side effect disclosure: ${term}`);
+  for (const term of ["No read route fetches", "mozak sync", "git fetch", "vault", "--commit", "push", "MOZAK_NO_UPDATE_CHECK=1"]) {
+    assert.ok(disclosure.includes(term), `missing network disclosure: ${term}`);
   }
+  // 0.6.0 removed repo scopes: no read may be described as fetching or caching repo-mode plans.
+  assert.doesNotMatch(disclosure, /cache metadata|repo-mode|10 minutes/);
 });

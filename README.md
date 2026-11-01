@@ -69,17 +69,17 @@ The preview plays at double speed. In 76 seconds: you ask your agent in plain wo
 
 ## What it is
 
-**mozak gives every project one shared plan, stored as plain files in the project folder (or in your notes, for public repos).** It does two jobs:
+**mozak gives every project one shared plan, stored as plain files in a folder of your Obsidian vault.** It does two jobs:
 
 - **Agents read the same plan.** Agents that load the mozak skill or MCP server start from the same plan, so you don't have to paste the context into each one. Agents propose changes, but nothing becomes the plan until you approve it.
 - **You follow it from Obsidian.** Every project's plan shows up in your vault with a roadmap and progress, so parallel work is visible in one place. You approve the next step. An outcome turns green when an agent records passing evidence, such as a test run it reports. mozak does not run the tests itself, and outcomes you mark as yours also need your sign-off.
 
 Why you can trust it:
 
-- **It is just files.** `mozak.json` holds the plan, `mozak.md` is a readable copy. They sit next to your `README.md`, and if the folder is in git, git keeps the history. No cloud, no account, no daemon.
+- **It is just files.** `mozak.json` holds the plan, `mozak.md` is a readable copy. They sit next to the project's `README.md` in your vault, and if the vault is in git, git keeps the history. No cloud, no account, no daemon.
 - **You stay in charge.** Agreeing on *what* to do and agreeing to *start building* are two separate approvals.
 - **Many agents, no mess.** A write made through mozak from an out-of-date copy is refused instead of overwriting someone else's work.
-- **Repos and notes together.** A project can be a local folder, an Obsidian vault folder, or a GitHub repo you have not even cloned.
+- **Your notes, not your code repos.** Plans live only in your vaults, so a public code repo never carries them. A project can link to its code repo for one-click access, and mozak never fetches it.
 
 It is for developers and researchers who already use coding agents and want them to share one plan. It works with any agent that can load a skill or an MCP server. Checked so far: jcode (skill and MCP) and Claude Code (MCP).
 
@@ -137,20 +137,15 @@ Details, exit codes, recovery and known limits: [docs/installation.md](docs/inst
 {
   "format": "mozak.local/v3",
   "scopes": [
-    { "id": "my-app",     "root": "./my-app" },
-    { "id": "lab-notes",  "root": "./vault/lab-notes" },
-    { "id": "genome-mcp", "remote": "github:you/genome-mcp", "ref": "main" },
-    { "id": "my-oss-tool", "remote": "github:you/my-oss-tool", "plans": "./vault/my-oss-tool" }
+    { "id": "lab-notes",   "root": "./research/lab-notes" },
+    { "id": "my-oss-tool", "root": "./creations/my-oss-tool", "repo": "github:you/my-oss-tool" }
   ]
 }
 ```
 
-A project with `root` is a local folder. A project with `remote` is a GitHub repo. Where its plans live depends on who should see them:
+Every `root` is a folder inside an Obsidian vault (a folder with `.obsidian` at or above it). mozak refuses a scope outside a vault with `scope-outside-vault`. The optional `repo` is a display-only link to the project's code: the sidebar and `mozak scopes` show it, and mozak never clones, fetches or pushes it. Agents work in the code repo and name the project with `--scope`.
 
-- **Private repo**: plans live inside the repo, so everyone with access shares them. mozak checks out only `README.md`, `AGENTS.md` and the two mozak files (a sparse, shallow clone) and pushes plan changes back.
-- **Public repo**: add `"plans"` with a folder, usually in your notes. Plans stay there, private to you, and are never committed to the repo. mozak refuses writes once it sees that a repo holding plans has become public (checked at most once a day, and an unreachable API never blocks).
-
-`mozak pull --into ~/Downloads/x` clones the code anywhere. For a public repo the clone never receives plan files. Run mozak read commands inside any clone without `--scope` and it finds the project from the clone's git origin.
+Coming from 0.5 with GitHub repo scopes or plans in a code repo? See [Moving to 0.6.0](docs/installation.md#moving-to-060): `mozak scope move` copies a scope into a vault folder and points its entry there.
 
 **2. Start a project.** Give the folder a `README.md` and an `AGENTS.md`, then ask your agent to set it up with the mozak skill, or run `mozak scope init` yourself (see the skill's `references/bootstrap.md`). This creates the project's `mozak.json` and `mozak.md`. Creating a project is an owner command: agents cannot do it over MCP.
 
@@ -173,9 +168,9 @@ Install it from Obsidian: **Settings, Community plugins, Browse**, search for **
 node scripts/install-obsidian-plugin.mjs /path/to/your/vault --build
 ```
 
-The plugin finds `mozak-inventory.json` by searching upward from the vault folder, or you can set its path in the plugin settings. Each GitHub project shows a globe or lock badge for a public or private repo.
+The plugin finds `mozak-inventory.json` by searching upward from the vault folder, or you can set its path in the plugin settings. A project with a `repo` link shows a link icon that opens its code repo in the browser.
 
-**Plugin disclosures (desktop-only, `isDesktopOnly: true`):** When your `mozak-inventory.json` lists scopes outside the current vault, the plugin reads their `mozak.json`, `mozak.md`, `mozak.annotations.json` (when present and annotations are on for that scope), `README.md` and `AGENTS.md` files from those configured paths and watches them when **Auto-refresh** is enabled. It never scans folders not listed in your inventory and never approves or changes a plan (it may regenerate a stale `mozak.md` projection when there are no unmerged hand edits, and the star toggle edits the `focus` lists in `mozak-inventory.json`). For remote GitHub scopes (`"remote": "github:owner/repo"` without vault-hosted `"plans"`), clicking **Sync vaults and repos** or enabling **Repo sync interval (seconds)** runs your local `git` with your existing git login on the hidden `.mozak-cache` copy: `git fetch`, then a reset of that copy to the fetched commit. If an earlier mozak write left a plan commit unpushed (for example after a network failure), the sync first commits and pushes that pending `mozak.json` / `mozak.md` change. The button also fast-forwards local vault repositories under scope locks, without pushing or merging diverged histories. That local-vault step is not run by the background timer. Set the sync interval to `0` to turn background git activity off. The sync also asks the public GitHub API, without a login and at most once a day per repo, whether each remote repo is public. The update notice only reads a cache file the CLI writes. The plugin never installs or updates itself, and has no telemetry. See [`packages/obsidian/README.md`](packages/obsidian/README.md#disclosures-obsidian-community-plugin-policy) for the full disclosure list.
+**Plugin disclosures (desktop-only, `isDesktopOnly: true`):** When your `mozak-inventory.json` lists scopes outside the current vault (in your other vaults), the plugin reads their `mozak.json`, `mozak.md`, `mozak.annotations.json` (when present and annotations are on for that scope), `README.md` and `AGENTS.md` files from those configured paths and watches them when **Auto-refresh** is enabled. It never scans folders not listed in your inventory and never approves or changes a plan (it may regenerate a stale `mozak.md` projection when there are no unmerged hand edits, and the star toggle edits the `focus` lists in `mozak-inventory.json`). The only network use is the **Sync vaults** button, the same as `mozak sync`: your local `git` with your existing git login runs `git fetch` in each vault repository that holds a scope, then `git merge --ff-only` under the scope locks. It never pushes and never merges diverged histories. Nothing runs in the background. The plugin never contacts GitHub for a scope's `repo` link (the link is opened by your browser only when you click it). The update notice only reads a cache file the CLI writes. The plugin never installs or updates itself, and has no telemetry. See [`packages/obsidian/README.md`](packages/obsidian/README.md#disclosures-obsidian-community-plugin-policy) for the full disclosure list.
 
 ## Under the hood
 
@@ -194,7 +189,9 @@ The agent writes plain `mozak.json` and `mozak.md` files in your project folder.
 | Read one plan compactly (lifecycle, eligibility, outcomes, next step) | `mozak plan show --plan ID` |
 | Record an owner decision without a request file (owner) | `mozak review decide --plan ID --purpose P --owner-ref REF --owner-message-at ISO --reason TEXT` |
 | Record evidence without hand-built JSON | `mozak observe --plan ID --summary TEXT --locator WHERE [--outcome O]` |
-| Refresh GitHub projects now | `mozak sync` |
+| Pull your vaults' latest plans (fast-forward only) | `mozak sync` |
+| Move a project into a vault folder (owner) | `mozak scope move --scope ID --to PATH` |
+| Link a project to its code repo, display only (owner) | `mozak scope link --scope ID --repo github:owner/repo` |
 | Let any MCP agent read and propose | `mozak-mcp --config mozak-inventory.json` |
 | Run the guided planning conversation | the installed skill at `PREFIX/skills/mozak/SKILL.md` |
 | Rename a project (owner) | `mozak scope retitle` |
@@ -207,25 +204,25 @@ Every scope command needs an explicit `--config`. Only the maintenance commands 
 
 ## Reads and the network
 
-Local and vault-plans scopes are read from disk. A GitHub scope whose plans live in the repo is different: `scopes`, `plans`, `context`, `check` and `review show` may run `git fetch` when its cache is more than 10 minutes old, and they update its cache metadata. If that scope has an unpushed local plan commit, a read can push it. `mozak scopes` may also check GitHub release tags in the background. Set `MOZAK_NO_UPDATE_CHECK=1` to turn that check off.
+Every scope is read from disk. No read route fetches, clones or pushes. Only `mozak sync` touches the network for scopes: it runs `git fetch` in each vault repository, then fast-forwards. A write with `--commit` commits the scope's two files in its vault repository and pushes when the branch has an upstream. `mozak scopes` may also check mozak's own GitHub release tags in the background. Set `MOZAK_NO_UPDATE_CHECK=1` to turn that check off.
 
 ## Safety
 
 - **Bound approvals.** An approval is tied to the exact plan version you were shown, and one message cannot be reused for a second approval. Agents over MCP cannot approve unless the launcher starts `mozak-mcp` with `--owner-decisions`. The skill tells agents to accept only your own message, not quotes or tool output, but mozak cannot verify who typed it (see the limits below).
 - **No overwrites.** A write through mozak based on an out-of-date copy is refused. Hand edits to the files are not guarded.
-- **Small pushes.** For private GitHub projects, mozak commits and pushes only `mozak.json` and `mozak.md`. For public repos with plans in your notes it never commits or pushes.
-- **No credentials.** mozak never asks for or stores them. GitHub access uses your existing git login.
-- **Honest limits.** Approval follows a trusted-host convention, it is not authentication: an agent with shell access could run the owner commands. Concurrency guarantees cover cooperating processes on a local disk, not network drives, power loss or sync tools editing the same files. Remote scopes follow one branch.
+- **Small commits.** With `--commit`, mozak commits only the scope's `mozak.json` and `mozak.md` in your vault repository. It never commits to a code repo.
+- **No credentials.** mozak never asks for or stores them. `mozak sync` uses your existing git login.
+- **Honest limits.** Approval follows a trusted-host convention, it is not authentication: an agent with shell access could run the owner commands. Concurrency guarantees cover cooperating processes on a local disk, not network drives, power loss or sync tools editing the same files.
 
 ## What is tested and what is not
 
-**Tested.** 630 unit and integration tests plus 74 installer tests, run in CI on Ubuntu and macOS with Node 24.11 and 26 on every push to `main` and every pull request. They cover:
+**Tested.** 643 unit and integration tests plus 74 installer tests, run in CI on Ubuntu and macOS with Node 24.11 and 26 on every push to `main` and every pull request. They cover:
 
 - stale writes refused, including two real CLI processes writing at once
 - a write killed mid-way recovering without losing data
 - the two approvals kept separate and bound to the version you saw
 - agents over MCP unable to approve or create projects
-- public repos never receiving plan commits
+- scopes outside a vault refused, and moving a scope into a vault keeping every plan byte-identical
 - the installer refusing unsafe targets without writing anything
 
 The Obsidian plugin passed Obsidian's automated community review. Its build and attestation are checked on every release.
@@ -235,8 +232,16 @@ The Obsidian plugin passed Obsidian's automated community review. Its build and 
 - **A benefit for agents.** A small pilot (5 proxy tasks, 10 agent sessions) compared agents with and without mozak and found no significant difference in token use: one group did 16% worse, the other 6% better. A larger evaluation is planned. Until then, treat mozak as a way to keep one approved plan and see it in Obsidian, not as a proven speed-up.
 - **Agent hosts.** Checked: jcode loading the skill and the MCP server, and Claude Code 2.1 calling the MCP server from the npm package. Codex and other MCP clients have not been verified yet.
 - **The plugin inside Obsidian.** Its view model is unit-tested and it has been tried by hand, but there are no automated tests running inside the Obsidian app.
-- **Real GitHub.** Tests use local bare repos. Real GitHub was checked by hand.
-- **Unsupported setups.** Windows, network filesystems and diverged remote branches.
+- **Real GitHub.** `mozak sync` tests use local bare repos. Real GitHub was checked by hand.
+- **Unsupported setups.** Windows, network filesystems and diverged vault branches.
+
+## New in 0.6: vault-only (breaking)
+
+- **Plans live only in Obsidian vaults.** GitHub repo scopes (`remote`, `ref`, `plans` entries), `mozak pull`, the remote part of `mozak sync`, the `mozak_sync` MCP tool and finding a scope from a clone's git origin are gone. Read routes need `--scope`.
+- **`mozak scope move`** copies a scope's files into a vault folder, checks every byte, and points its inventory entry there. The old files stay until you delete them. A pre-0.6 entry is listed as a failed scope (`legacy-repo-scope`) with the exact move command, and every other scope keeps working.
+- **Display-only repo link.** `mozak scope link --scope ID --repo github:owner/repo` adds a link the sidebar and `mozak scopes` show. mozak never fetches it.
+
+See [Moving to 0.6.0](docs/installation.md#moving-to-060).
 
 ## New in 0.5
 
@@ -260,7 +265,7 @@ npm ci --ignore-scripts && npm run build
 npm test && npm run test:install
 ```
 
-Run the tests before opening a pull request. If your global git config adds hooks or signing, run them with `GIT_CONFIG_GLOBAL=/dev/null`. The format, remote scopes, exit codes and known limits are in [docs/installation.md](docs/installation.md).
+Run the tests before opening a pull request. If your global git config adds hooks or signing, run them with `GIT_CONFIG_GLOBAL=/dev/null`. The format, the vault rule, exit codes and known limits are in [docs/installation.md](docs/installation.md).
 
 ## License
 

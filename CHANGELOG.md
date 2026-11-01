@@ -4,7 +4,26 @@ User-visible changes, newest first. Releases are git tags `vX.Y.Z` on `main`; `m
 
 ## Unreleased
 
-## 0.5.0 (not yet tagged)
+## 0.6.0 (not yet tagged)
+
+**Breaking: mozak is vault-only.** Plans live only in Obsidian vault folders. GitHub repo scopes are gone. Move every pre-0.6 entry with `mozak scope move` before you rely on 0.6.0, see [Moving to 0.6.0](docs/installation.md#moving-to-060). The moves write only `root` entries, so 0.5.0 keeps reading the migrated inventory as long as it has no `repo` keys.
+
+### Added
+- **`mozak scope move --scope ID (--to PATH [--repo SPEC] | --drop)`** (owner). Copies the scope's `mozak.json`, `mozak.md`, annotations sidecar, `README.md` and `AGENTS.md` into a vault folder, checks every copy byte for byte, then rewrites only that inventory entry to `{ "id", "root" }` under the inventory lock, with the same validated atomic write as `focus`. It reads a local folder, a vault-plans folder, a `mozak pull` clone or the `.mozak-cache` copy. It refuses a target outside a vault or one that already holds mozak files, a source that fails `check`, and an inventory that changed since it was read. A failure leaves the old files and the old inventory valid. The old files stay. `--dry-run` writes nothing. `--drop` removes a 0-plan entry. Attached spec files are listed as `spec-not-moved` warnings.
+- **Display-only repo link.** An entry may carry `repo` (`github:owner/repo` or an https URL). `mozak scopes` prints it and the sidebar shows a link icon on the scope row. mozak never fetches it, and the inventory digest ignores it. `mozak scope link --scope ID (--repo SPEC | --clear)` (owner) sets it, and `scope move --repo` sets it while moving. mozak before 0.6.0 refuses an inventory with `repo`.
+- **Vault rule.** Every scope root must have a folder holding `.obsidian` at or above it. A root outside a vault is a failed scope (`scope-outside-vault`) that names `mozak scope move`, and `mozak doctor` reports it. Other scopes keep working.
+
+### Removed
+- Repo scopes: inventory entries with `remote`, `ref` or `plans` are listed as failed scopes (`legacy-repo-scope`) with the exact `scope move` command, never a whole-inventory error. Every route refuses them, and nothing fetches or clones for them.
+- `mozak pull`, the remote part of `mozak sync`, the MCP tool `mozak_sync`, the `.mozak-cache` sparse clones, repo-mode commit and push, the GitHub visibility check and `public-repo-plans`.
+- Finding a scope from the current clone's git origin. `context`, `check`, `review show` and `plan show` need `--scope`. `plans` with neither `--scope` nor `--all` lists every scope.
+- Obsidian plugin: the Repos group, stale and visibility badges, and the **Repo sync interval** setting with its background polling. The sync button is now **Sync vaults** and only fast-forwards vault repositories, on click.
+
+### Changed
+- `mozak sync` fast-forwards every vault repository that holds a scope (the same as `--local`, which is still accepted). It never pushes.
+- Tests run in temp vaults (a `.obsidian` folder at the temp root).
+
+## 0.5.0 (2026-11-01)
 
 0.5.0 includes the fixes prepared as 0.4.8, which was never tagged.
 
