@@ -313,6 +313,20 @@ Limits: the writes in between are found through receipt times. A write merged by
 - **Use only the scopes you list.** The inventory file is explicit. Every CLI and MCP call needs `--config FILE`. The MCP server needs it at startup.
 - **Do not onboard real projects while testing.** Use an isolated test folder and synthetic data.
 
+## 6a. Focus list
+
+Every scope entry in the inventory, local or remote, may carry `focus`: an array of unique plan ids the owner starred. The Obsidian sidebar shows them in its Focus tab.
+
+```json
+{ "id": "atlas-app", "root": "./atlas-app", "focus": ["launch", "billing"] }
+```
+
+- `mozak focus list [--scope ID] [--json]` reads the lists. MCP has the read-only tool `mozak_focus`. Agents cannot write focus.
+- `mozak focus add|remove --scope ID --plan ID` (owner) and the sidebar star change one list. The write takes the inventory lock (`.mozak-inventory-lock` next to the inventory file), writes a flushed temp file, checks it with the normal inventory loader, then renames it into place. Entry order, indent and every other key (including `x`) stay as they were. `add` refuses an unknown scope or plan. Adding twice or removing an id that is not there changes nothing.
+- Focus is not plan state. `mozak.json` and `mozak.md` never change, and the inventory digest (format plus sorted id and root) ignores it.
+- A starred id that is no longer a plan is a `check` warning (`focus-unknown-plan`), never an error. Remove it with `mozak focus remove`.
+- mozak before 0.5.0 refuses an inventory with `focus` (`unknown key "focus"`). Upgrade every machine that reads the inventory before starring a plan.
+
 ## 6b. Remote scopes
 
 A scope can live in a GitHub repo instead of a local folder. List it with `remote` and no `root` (exactly one of the two), in a `mozak.local/v3` inventory. `v2` inventories still load unchanged.

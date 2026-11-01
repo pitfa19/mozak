@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { accessSync, constants, lstatSync, mkdirSync, readFileSync, readdirSync, renameSync, rmdirSync, unlinkSync } from "node:fs";
+import { accessSync, constants, lstatSync, readFileSync, readdirSync, renameSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { DomainError } from "./errors.ts";
 import { nonEmptyString as text } from "./validate.ts";
@@ -10,11 +10,11 @@ import { isGraphPath, scopeFile, scopeFileName, GRAPH_FILE, BRIDGE_FILE, LEGACY_
 import { inspectSpecification } from "./spec-file.ts";
 import { DELETE_ACTION, withoutPlans } from "./delete.ts";
 import { renderBridge, renderBridgeLegacy, isPendingOrderRender } from "./bridge.ts";
-import { removeLeftoverTempFiles, replaceFileDurable, writeFileDurable, fsyncDir } from "./durable.ts";
+import { removeLeftoverTempFiles, replaceFileDurable, fsyncDir } from "./durable.ts";
 import { ensureStorageIgnored, storageIgnoreIssues } from "./storage-hygiene.ts";
 import { ANNOTATIONS_FILE, annotationsBytes, applyAnnotate, emptyAnnotations, readAnnotations, validateAnnotateRequest, type ScopeLookup } from "./annotations.ts";
 import { checkRebase, type Rebased } from "./rebase.ts";
-import { lockHost } from "./lock-recover.ts";
+import { acquireDirLock } from "./dir-lock.ts";
 import { PRUNE_ACTION, withoutRejectedPlans } from "./prune.ts";
 
 export { renderBridge, renderBridgeLegacy } from "./bridge.ts";
@@ -34,7 +34,6 @@ export interface OperationResult {
 /** `rebase`: experimental read-set rebase (S1b), resolved by the caller from mozak-settings.json. Default off. */
 export interface StoreOptions { lockTimeoutMs?: number; onPhase?: (phase: string) => void; rebaseGuardMs?: number; rebase?: boolean }
 const absent = (): FileToken => ({ exists: false, sha256: null });
-const sleep = (ms: number) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 const own = (o: object, k: string) => Object.prototype.hasOwnProperty.call(o, k);
 function object(v: unknown, keys: string[], name: string, optional: string[] = []): Record<string, unknown> {
   if (!v || typeof v !== "object" || Array.isArray(v)) throw new DomainError("invalid-input", `${name} must be an object`);
@@ -221,38 +220,7 @@ export function readScopeView(entry: ScopeEntry, candidatePlanId?: string, optio
 }
 
 function acquire(root: string, options: StoreOptions): () => void {
-  const lock = join(root, ".mozak-write-lock");
-  const ownerPath = join(lock, "owner.json");
-  const ownerToken = randomUUID();
-  const deadline = Date.now() + (options.lockTimeoutMs ?? 1000);
-  for (;;) {
-    try { mkdirSync(lock, { mode: 0o700 }); break; }
-    catch (e) { if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw e; }
-    try {
-      const st = lstatSync(lock);
-      if (st.isSymbolicLink() || !st.isDirectory()) throw new DomainError("unsafe-path", "lock path is not a regular directory");
-    } catch (e) {
-      if ((e as NodeJS.ErrnoException).code === "ENOENT") continue;
-      throw e;
-    }
-    if (Date.now() >= deadline) {
-      let known = false;
-      try { const owner = JSON.parse(readFileSync(ownerPath, "utf8")) as { token?: unknown; pid?: unknown }; known = typeof owner.token === "string" && Number.isInteger(owner.pid); } catch { /* diagnostic only */ }
-      throw new DomainError(known ? "busy" : "recovery-required", known ? "scope lock is held; age and timeout do not prove owner death" : "lock metadata unavailable; wait or establish offline quiescence before recovery", 4);
-    }
-    sleep(10);
-  }
-  // A failure here intentionally leaves the lock behind for offline recovery.
-  options.onPhase?.("after-lock-mkdir");
-  // host lets `recover` tell a lock that arrived by sync (another host) from one a local process may still hold.
-  writeFileDurable(ownerPath, canonical({ token: ownerToken, pid: process.pid, host: lockHost(), processStartHint: new Date(Date.now() - process.uptime() * 1000).toISOString(), acquiredAt: new Date().toISOString() }));
-  fsyncDir(lock);
-  return () => {
-    const owner = JSON.parse(readFileSync(ownerPath, "utf8")) as { token?: unknown };
-    if (owner.token !== ownerToken || readdirSync(lock).some(n => n !== "owner.json")) throw new DomainError("lock-ownership-conflict", "lock ownership changed or unexpected contents found; not removing it", 4);
-    unlinkSync(ownerPath);
-    rmdirSync(lock); // No work belonging to the old transaction follows this removal.
-  };
+  return acquireDirLock(join(root, ".mozak-write-lock"), "scope", options);
 }
 interface Transaction {
   committed: boolean; projectionUpdated: boolean; state?: ScopeState; result?: Receipt["result"];

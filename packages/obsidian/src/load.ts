@@ -3,7 +3,7 @@
 // renderStaleProjections, regenerates mozak.md through core and never touches mozak.json.
 import { lstatSync, readdirSync } from "node:fs";
 import { basename, join } from "node:path";
-import { annotationsEnabled, DomainError, executeOperation, loadInventory, readAnnotations, readRemoteMeta, readScope, resolveScope, reviewRows, SCOPE_FILE_NAMES } from "@mozak/core";
+import { annotationsEnabled, DomainError, executeOperation, focusChange, loadInventory, readAnnotations, readFocus, readRemoteMeta, readScope, resolveScope, reviewRows, SCOPE_FILE_NAMES } from "@mozak/core";
 import { remoteVM, scopesModel, type ScopeLoad, type ScopesModel } from "./model.ts";
 
 const ENTRY_NAMES = ["AGENTS.md", ...SCOPE_FILE_NAMES, "README.md"];
@@ -25,6 +25,7 @@ function fail(err: unknown): { code: string; message: string } {
 /** Throws a DomainError when the inventory itself is unreadable or invalid. Per-scope failures become rows. */
 export function loadScopesModel(inventoryPath: string): ScopesModel {
   const inv = loadInventory(inventoryPath);
+  const focus = readFocus(inventoryPath);
   const loads: ScopeLoad[] = inv.scopes.map((entry) => {
     // Remote scopes are read from the local cache only. Refreshing the view never touches the network.
     const remote = entry.remote
@@ -46,6 +47,7 @@ export function loadScopesModel(inventoryPath: string): ScopesModel {
         // Owner annotations are display-only here, and read only for scopes that turn them on (off by default).
         // A broken sidecar simply shows no refs; `mozak check` reports it.
         annotations: annotationsEnabled(inv, resolved) ? readAnnotations(resolved.root, entry.id).doc : null,
+        focus: focus[entry.id] ?? [],
         ...(remote ? { remote } : {}),
       };
     } catch (err) {
@@ -56,6 +58,17 @@ export function loadScopesModel(inventoryPath: string): ScopesModel {
 }
 
 export { fail as describeError };
+
+/**
+ * The star toggle: add or remove one plan in its scope's focus list through core's setFocus (inventory lock, validated
+ * atomic write). The plugin never writes plan state. Returns the new list, or the error for a notice.
+ */
+export function toggleFocus(inventoryPath: string, scope: string, plan: string, focused: boolean): { ok: true; focus: string[] } | { ok: false; code: string; message: string } {
+  const out = focusChange(inventoryPath, { scope, plan, action: focused ? "remove" : "add" });
+  if (out.exitCode === 0) return { ok: true, focus: out.data.focus as string[] };
+  const issue = (out.data.issues as { code: string; message: string }[])[0]!;
+  return { ok: false, code: issue.code, message: issue.message };
+}
 
 /**
  * Regenerate stale mozak.md projections through core's render operation (the same code as `mozak render --all`).

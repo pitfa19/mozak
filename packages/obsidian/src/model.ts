@@ -39,6 +39,8 @@ export interface PlanVM {
   heading: string;
   /** Owner annotation refs from this plan and to it. Present only when there is at least one. */
   refs?: RefVM[];
+  /** The owner starred this plan: its id is in the scope's inventory `focus` list. */
+  focused: boolean;
 }
 export interface RemoteVM {
   spec: string;
@@ -91,6 +93,8 @@ export interface ScopeLoad {
   error?: { code: string; message: string };
   /** Parsed mozak.annotations.json, when the scope has a valid one. */
   annotations?: AnnotationsDoc | null;
+  /** Plan ids from this scope's inventory `focus` list. Ids that are not plans are ignored. */
+  focus?: string[];
 }
 
 const STATE_LABEL: Record<PlanStateKey, string> = {
@@ -132,6 +136,7 @@ export function planViewModel(
   awaitingRows: { planId: string; rowKind: string }[] = [],
   reviewNeeded = false,
   scopeState?: ScopeState,
+  focused = false,
 ): PlanVM {
   const state = planState(plan);
   const shown = plan.accepted ?? plan.pending;
@@ -163,6 +168,7 @@ export function planViewModel(
     reason,
     strip: scopeState ? stripVM(scopeState, plan) : null,
     heading: state === "completed" ? completedPlanLine(plan) : planHeading(plan),
+    focused,
   };
 }
 
@@ -187,8 +193,9 @@ export function scopeViewModel(load: ScopeLoad): ScopeVM {
     };
   }
   const needed = new Set(load.reviewNeededPlanIds ?? []);
+  const focus = new Set(load.focus ?? []);
   const plans = load.state.plans
-    .map((p) => planViewModel(load.id, p, load.awaitingRows ?? [], needed.has(p.id), load.state))
+    .map((p) => planViewModel(load.id, p, load.awaitingRows ?? [], needed.has(p.id), load.state, focus.has(p.id)))
     .sort((a, b) => STATE_ORDER[a.state] - STATE_ORDER[b.state] || (a.title < b.title ? -1 : a.title > b.title ? 1 : 0));
   return {
     id: load.id,
@@ -264,13 +271,29 @@ export function countsSummary(c: ScopeCounts): string {
   return parts.length ? parts.join(", ") : "no plans";
 }
 
-export type PlanFilter = "all" | "open" | "completed";
+export type PlanFilter = "open" | "focus" | "completed";
 
-/** Open means still in play: open, awaiting approval, or paused. Rejected plans only show under All. */
-export function planMatches(plan: Pick<PlanVM, "state">, filter: PlanFilter): boolean {
-  if (filter === "all") return true;
+/** The sidebar tabs, in order. There is no All tab: rejected plans show in no tab (`mozak plans --include-rejected`). */
+export const FILTERS: readonly { id: PlanFilter; label: string; tip: string }[] = [
+  { id: "open", label: "Open", tip: "Open, awaiting approval or paused" },
+  { id: "focus", label: "Focus", tip: "Starred plans that are still open" },
+  { id: "completed", label: "Done", tip: "Completed plans" },
+];
+
+/**
+ * Open means still in play: open, awaiting approval, or paused. Focus is a starred plan still in play, so a focused
+ * plan that completes shows only under Done.
+ */
+export function planMatches(plan: Pick<PlanVM, "state" | "focused">, filter: PlanFilter): boolean {
   if (filter === "completed") return plan.state === "completed";
-  return plan.state === "open" || plan.state === "awaiting" || plan.state === "paused";
+  const inPlay = plan.state === "open" || plan.state === "awaiting" || plan.state === "paused";
+  return filter === "focus" ? inPlay && plan.focused : inPlay;
+}
+
+/** The tab to show: the remembered one when it still exists, else Focus when it has plans, else Open. */
+export function defaultFilter(plans: Pick<PlanVM, "state" | "focused">[], remembered: PlanFilter | null): PlanFilter {
+  if (remembered && FILTERS.some((f) => f.id === remembered)) return remembered;
+  return plans.some((p) => planMatches(p, "focus")) ? "focus" : "open";
 }
 
 /** Staleness of a remote scope's cached copy without touching the network. Mirrors core's ten minute window. */

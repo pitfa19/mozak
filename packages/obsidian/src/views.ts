@@ -1,6 +1,6 @@
 import { ItemView, Notice, setIcon, type WorkspaceLeaf } from "obsidian";
-import { countRemote, planMatches, scopesModel, type PlanFilter, type RefVM, type ScopeVM, type ScopesModel, type StripVM } from "./model.ts";
-import { loadScopesModel, describeError, syncAll } from "./load.ts";
+import { countRemote, defaultFilter, FILTERS, planMatches, scopesModel, type PlanFilter, type PlanVM, type RefVM, type ScopeVM, type ScopesModel, type StripVM } from "./model.ts";
+import { loadScopesModel, describeError, syncAll, toggleFocus } from "./load.ts";
 import type MozakPlugin from "./main.ts";
 import { cachedUpdateNotice } from "@mozak/core";
 
@@ -14,11 +14,7 @@ function el(parent: HTMLElement, tag: string, cls?: string, text?: string): HTML
   return e;
 }
 
-const FILTERS: { id: PlanFilter; label: string; tip: string }[] = [
-  { id: "all", label: "All", tip: "All plans" },
-  { id: "open", label: "Open", tip: "Open, awaiting approval or paused" },
-  { id: "completed", label: "Done", tip: "Completed plans" },
-];
+const EMPTY: Record<PlanFilter, string> = { open: "No open plans. Nice.", focus: "Star a plan to focus on it", completed: "No completed plans yet." };
 
 /** "github:owner/repo" or an https URL to a browsable GitHub URL. Null for file:// remotes. */
 function repoUrl(spec: string): string | null {
@@ -49,9 +45,9 @@ function rank(s: ScopeVM): number {
 export class ScopesView extends ItemView {
   private model: ScopesModel | null = null;
   private error: string | null = null;
-  private expanded = new Set<string>();
   private collapsed = new Set<string>();
-  private filter: PlanFilter = "all";
+  /** Null until the first model loads; then the remembered tab, else Focus when it has plans, else Open. */
+  private filter: PlanFilter | null = null;
 
   private plugin: MozakPlugin;
   constructor(leaf: WorkspaceLeaf, plugin: MozakPlugin) { super(leaf); this.plugin = plugin; }
@@ -75,7 +71,25 @@ export class ScopesView extends ItemView {
         this.error = `${d.message} (${d.code})`;
       }
     }
+    if (this.model && this.filter === null) this.filter = defaultFilter(this.model.scopes.flatMap((s) => s.plans), this.plugin.settings.lastFilter);
     this.render();
+  }
+
+  /** Remember the tab across restarts in the plugin settings. */
+  private setFilter(filter: PlanFilter): void {
+    this.filter = filter;
+    this.plugin.settings.lastFilter = filter;
+    void this.plugin.saveSettings();
+    this.render();
+  }
+
+  /** Star or unstar one plan through core's setFocus, then reload so every tab sees it. */
+  private toggleStar(scope: ScopeVM, plan: PlanVM): void {
+    const path = this.plugin.inventory().path;
+    if (!path) return;
+    const out = toggleFocus(path, scope.id, plan.id, plan.focused);
+    if (!out.ok) new Notice(`mozak: could not ${plan.focused ? "unstar" : "star"} ${plan.title}: ${out.message}`, 10000);
+    this.refresh();
   }
 
   private syncRemote(button: HTMLElement): void {
@@ -100,9 +114,10 @@ export class ScopesView extends ItemView {
     const root = this.contentEl;
     root.empty();
     root.addClass("mozak-root");
+    const filter = this.filter ?? "open";
     const head = el(root, "div", "mozak-header");
     const title = el(head, "span", "mozak-title");
-    setIcon(el(title, "span", `mozak-title-icon icon-${this.filter}`), this.getIcon());
+    setIcon(el(title, "span", `mozak-title-icon icon-${filter}`), this.getIcon());
     el(title, "span", undefined, "mozak");
     const tools = el(head, "div", "mozak-tools");
     if (this.model && this.model.scopes.length > 0) {
@@ -133,12 +148,9 @@ export class ScopesView extends ItemView {
       el(root, "div", "mozak-warn",
         [m.totals.failed ? `${m.totals.failed} unreadable` : "", stale ? `${stale} remote stale` : ""].filter(Boolean).join(", "));
     }
-    const visible = (this.filter === "all"
-      ? [...m.scopes]
-      : m.scopes.filter((s) => s.plans.some((p) => planMatches(p, this.filter))))
-      .sort((a, b) => rank(a) - rank(b));
+    const visible = m.scopes.filter((s) => s.plans.some((p) => planMatches(p, filter))).sort((a, b) => rank(a) - rank(b));
     if (visible.length === 0) {
-      el(root, "div", "mozak-muted mozak-none", this.filter === "open" ? "No open plans. Nice." : "No completed plans yet.");
+      el(root, "div", "mozak-muted mozak-none", EMPTY[filter]);
       return;
     }
     const list = el(root, "div", "mozak-list-scopes");
@@ -166,14 +178,14 @@ export class ScopesView extends ItemView {
       pill.setAttr("aria-label", f.tip);
       el(pill, "span", "mozak-pill-label", f.label);
       el(pill, "span", "mozak-pill-count", String(n));
-      pill.addEventListener("click", () => { this.filter = f.id; this.render(); });
+      pill.addEventListener("click", () => this.setFilter(f.id));
     }
   }
 
   private renderScope(parent: HTMLElement, scope: ScopeVM): void {
-    // A filter only shows scopes with matching plans, so open them to show those plans directly.
-    const filtered = this.filter !== "all";
-    const open = filtered ? !this.collapsed.has(scope.id) : this.expanded.has(scope.id);
+    // Every tab only shows scopes with matching plans, so they start open to show those plans directly.
+    const filter = this.filter ?? "open";
+    const open = !this.collapsed.has(scope.id);
     const openN = scope.plans.filter((p) => planMatches(p, "open")).length;
     const doneN = scope.plans.filter((p) => planMatches(p, "completed")).length;
     const empty = scope.status === "ok" && scope.plans.length === 0;
@@ -210,9 +222,7 @@ export class ScopesView extends ItemView {
       md.addEventListener("click", (ev) => { ev.stopPropagation(); void this.plugin.openMozakMd(scope); });
     }
     row.addEventListener("click", () => {
-      const set = filtered ? this.collapsed : this.expanded;
-      const add = filtered ? open : !open;
-      if (add) set.add(scope.id); else set.delete(scope.id);
+      if (open) this.collapsed.add(scope.id); else this.collapsed.delete(scope.id);
       this.render();
     });
     if (!open) return;
@@ -237,9 +247,15 @@ export class ScopesView extends ItemView {
     }
     if (scope.status === "failed") el(body, "div", "mozak-error", `${scope.errorCode}: ${scope.errorMessage}`);
     if (empty) el(body, "div", "mozak-muted mozak-noplans", "No plans yet");
-    for (const plan of scope.plans.filter((p) => planMatches(p, this.filter))) {
+    for (const plan of scope.plans.filter((p) => planMatches(p, filter))) {
       const p = el(body, "div", `mozak-plan-row row-${plan.state}`);
       p.setAttr("title", `${plan.stateLabel}: ${plan.title}${plan.strip ? `\n${plan.strip.done}/${plan.strip.total} outcomes done` : ""}\nOpen in ${scope.bridgeFile ?? "mozak.md"}`);
+      const star = el(p, "span", `clickable-icon mozak-star${plan.focused ? " is-focused" : ""}`);
+      setIcon(star, "star");
+      star.setAttr("aria-label", plan.focused ? "Remove from Focus" : "Add to Focus");
+      star.setAttr("aria-pressed", String(plan.focused));
+      // The star only edits the focus list; the row click still opens the plan.
+      star.addEventListener("click", (ev) => { ev.stopPropagation(); this.toggleStar(scope, plan); });
       el(p, "span", `mozak-dot dot-${plan.state}`);
       el(p, "span", "mozak-plan-title", plan.title);
       if (plan.state === "awaiting" || plan.state === "paused" || plan.state === "rejected") {

@@ -5,7 +5,7 @@
 
 import { closeSync, fstatSync, openSync, readSync } from "node:fs";
 import { parseArgs } from "node:util";
-import { decideWithFlags, deleteWithFlags, observePayload, observeWithFlags, planShow, executeOperation, loadInventory, MAX_REQUEST_BYTES, scopeForWorkingCopy, gitCommitScope, DomainError, type OperationOutput } from "@mozak/core";
+import { decideWithFlags, deleteWithFlags, observePayload, observeWithFlags, planShow, executeOperation, loadInventory, MAX_REQUEST_BYTES, scopeForWorkingCopy, gitCommitScope, DomainError, focusChange, focusList, renderFocus, type OperationOutput, type ScopeInventory } from "@mozak/core";
 import { runningVersion, upgrade } from "./upgrade.js";
 import { doctor, renderDoctor } from "./doctor.js";
 
@@ -59,6 +59,9 @@ const ROUTES: Record<string, Route> = {
   "plan complete": { operation: "complete", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
   "plan delete": { operation: "delete", flags: ["config", "scope", "request", ...DELETE_FLAGS], requires: ["config", "scope"], requestFile: true },
   "plan show": { operation: "plan-show", flags: ["config", "scope", "plan", "json"], requires: ["config", "plan"], requestFile: false },
+  "focus list": { operation: "focus-list", flags: ["config", "scope", "json"], requires: ["config"], requestFile: false },
+  "focus add": { operation: "focus-add", flags: ["config", "scope", "plan", "json"], requires: ["config", "scope", "plan"], requestFile: false },
+  "focus remove": { operation: "focus-remove", flags: ["config", "scope", "plan", "json"], requires: ["config", "scope", "plan"], requestFile: false },
   observe: { operation: "observe", flags: ["config", "scope", "request", ...OBSERVE_FLAGS], requires: ["config", "scope"], requestFile: true },
   "review decide": { operation: "decide", flags: ["config", "scope", "request", ...DECIDE_FLAGS], requires: ["config", "scope"], requestFile: true },
   "plan prune": { operation: "prune", flags: ["config", "scope", "rejected", "request"], requires: ["config", "scope", "rejected", "request"], requestFile: true },
@@ -100,6 +103,8 @@ function usage(): string {
     "  mozak check [--scope ID] [--history N] [--json]       (--history: hand edits in the last N commits of mozak.json)",
     "  mozak operation --scope ID --id OP [--json]",
     "  mozak plan show [--scope ID] --plan ID [--json]      (compact: lifecycle, eligibility, grants, outcomes, spec, next action)",
+    "  mozak focus list [--scope ID] [--json]               (the owner's starred plans per scope, from the inventory)",
+    "  mozak focus add|remove --scope ID --plan ID          (owner; star or unstar a plan; edits only the inventory's focus list)",
     "  mozak plan propose|revise|complete --scope ID --request FILE",
     "  mozak plan delete --scope ID --plans A,B --owner-ref REF --owner-message-at ISO --reason TEXT [--allow-completed] [--dry-run] [--json]",
     "                                                       (owner; or --request FILE; receipt keeps the record)",
@@ -433,6 +438,22 @@ function printEnvelope(output: OperationOutput, json: boolean, routeName: string
   process.stdout.write(renderPlansHuman(output.data as Parameters<typeof renderPlansHuman>[0]));
 }
 
+/**
+ * `mozak focus list|add|remove`. The focus list lives in the inventory file, not in plan state, so these routes call
+ * core's readFocus and setFocus directly instead of the scope operation facade. add and remove are owner routes:
+ * agents read focus through `focus list` or MCP `mozak_focus` only.
+ */
+function focusRoute(configPath: string, inventory: ScopeInventory, operation: string, values: Record<string, string | boolean | undefined>): number {
+  const scope = values.scope as string | undefined;
+  const out = operation === "focus-list"
+    ? focusList(inventory, { scope })
+    : focusChange(configPath, { scope: scope!, plan: values.plan as string, action: operation === "focus-add" ? "add" : "remove" });
+  process.stdout.write(operation === "focus-list" && values.json !== true && out.exitCode === 0
+    ? renderFocus(out.data.focus as Record<string, string[]>)
+    : `${JSON.stringify(out.data, null, 2)}\n`);
+  return out.exitCode;
+}
+
 /** upgrade and doctor work on the installation, not on scopes, so they have their own flags and no --config rule. */
 function maintenance(name: "upgrade" | "doctor", argv: string[]): number {
   let values: Record<string, string | boolean | string[] | undefined>;
@@ -513,6 +534,7 @@ function run(argv: string[]): number {
   }
 
   const cwdScope = CWD_SCOPE_ROUTES.has(routeName) && values.scope === undefined && values.all === undefined && values.continuation === undefined;
+  if (route.operation.startsWith("focus-")) return focusRoute(configPath, inventory, route.operation, values);
   if (cwdScope) {
     try {
       values.scope = scopeForWorkingCopy(inventory, process.cwd()).id;

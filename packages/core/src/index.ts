@@ -12,6 +12,7 @@ export * from "./scope-files.ts";
 export * from "./scope-list.ts";
 export * from "./review.ts";
 export * from "./delete.ts";
+export * from "./focus.ts";
 export * from "./roadmap.ts";
 export { mdText, stopLabel, completedPlanLine, planHeading, planDisplayState, progressStrip, type PlanDisplayState } from "./bridge.ts";
 export * from "./api.ts";

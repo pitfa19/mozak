@@ -7,15 +7,39 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { applyMutation, executeOperation, initScopeState, loadInventory, mutateScope, planDisplayState, readScope, renderBridge, renderBridgeLegacy, reviewShow } from "@mozak/core";
 import { chooseInventory, discoverInventory } from "../src/discover.ts";
-import { countRemote, countsSummary, headingLine, planMatches, planState, remoteVM, resolveOpenTarget, scopesModel, scopeViewModel, stripVM } from "../src/model.ts";
+import { countRemote, countsSummary, defaultFilter, FILTERS, headingLine, planMatches, planState, remoteVM, resolveOpenTarget, scopesModel, scopeViewModel, stripVM, type PlanFilter, type PlanVM } from "../src/model.ts";
 import { loadScopesModel, realOrSelf, renderStaleProjections } from "../src/load.ts";
+import { cleanup as cleanupWorlds, world } from "../../core/test/annotations-fixture.ts";
+import { after } from "node:test";
 
-test("planMatches: all shows every state, open groups in-play states, completed is exact", () => {
+after(cleanupWorlds);
+
+test("planMatches: open groups in-play states, focus is focused and in play, completed is exact, rejected is in no tab", () => {
   const states = ["open", "awaiting", "paused", "completed", "rejected"] as const;
-  const pick = (f: "all" | "open" | "completed") => states.filter((s) => planMatches({ state: s }, f));
-  assert.deepEqual(pick("all"), [...states]);
-  assert.deepEqual(pick("open"), ["open", "awaiting", "paused"]);
-  assert.deepEqual(pick("completed"), ["completed"]);
+  const pick = (f: PlanFilter, focused: boolean) => states.filter((s) => planMatches({ state: s, focused }, f));
+  assert.deepEqual(pick("open", false), ["open", "awaiting", "paused"]);
+  assert.deepEqual(pick("open", true), ["open", "awaiting", "paused"]);
+  assert.deepEqual(pick("focus", false), []);
+  assert.deepEqual(pick("focus", true), ["open", "awaiting", "paused"], "a focused plan that completes shows only under Done");
+  assert.deepEqual(pick("completed", true), ["completed"]);
+  assert.deepEqual(FILTERS.map((f) => [f.id, f.label]), [["open", "Open"], ["focus", "Focus"], ["completed", "Done"]]);
+});
+
+test("defaultFilter: Focus when it has plans, else Open; a remembered tab wins", () => {
+  const plan = (state: PlanVM["state"], focused: boolean) => ({ state, focused });
+  assert.equal(defaultFilter([plan("open", false)], null), "open");
+  assert.equal(defaultFilter([plan("open", true)], null), "focus");
+  assert.equal(defaultFilter([plan("completed", true)], null), "open", "a completed focused plan does not make Focus the default");
+  assert.equal(defaultFilter([plan("open", true)], "completed"), "completed");
+  assert.equal(defaultFilter([plan("open", true)], "all" as PlanFilter), "focus", "the retired All tab falls back to the rule");
+});
+
+test("scopesModel marks plans the inventory focus list names", () => {
+  const w = world(["alpha"]);
+  w.propose("alpha", "a"); w.propose("alpha", "b");
+  const state = readScope(w.entries.alpha).state;
+  const m = scopesModel("/inv.json", [{ id: "alpha", root: w.entries.alpha.root, entryFiles: [], state, focus: ["b", "gone"] }]);
+  assert.deepEqual(m.scopes[0]!.plans.map((p) => [p.id, p.focused]), [["a", false], ["b", true]]);
 });
 
 test("sidebar plan state is core's display state, one rule for mozak.md and the sidebar", () => {

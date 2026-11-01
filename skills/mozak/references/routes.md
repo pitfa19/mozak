@@ -22,6 +22,7 @@ Run `node {{MOZAK_CLI}} --help` at session start. If a route is missing, stop.
 | `node {{MOZAK_CLI}} graph --config INVENTORY (--scope ID \| --all) --json` | Cross-plan refs from owner annotations and how each target resolves |
 | `node {{MOZAK_CLI}} ready --config INVENTORY (--scope ID \| --all) --json` | Open plans whose `needs` are met, by deadline. Blocked and superseded plans listed apart. Advisory only |
 | `node {{MOZAK_CLI}} plans --config INVENTORY --scope ID --sort deadline --json` | Plan list ordered by owner or inferred deadline |
+| `node {{MOZAK_CLI}} focus list --config INVENTORY [--scope ID] --json` | The owner's starred plans per scope (MCP `mozak_focus`). A sidebar marker for the owner: read it, never write it, and it grants nothing |
 
 Purposes (`review show`, `review decide`): `approve-direction` (default for a pending direction), `reject-pending`, `reconsider`, `pause`, `resume`, `approve-implementation`, `revoke-implementation`, `accept-outcome` (needs `--outcome`).
 

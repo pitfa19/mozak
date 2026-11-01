@@ -1,4 +1,4 @@
-/* ---------- Palette: All gold, Open purple, Done green ---------- */
+/* ---------- Palette: Open purple, Focus gold, Done green ---------- */
 .mozak-root {
   --mozak-gold: #d4a017;
   --mozak-purple: #8b5cf6;
@@ -37,6 +37,7 @@
   transition: background 100ms ease, color 100ms ease;
 }
 .mozak-pill.pill-open { --pill: var(--mozak-purple); }
+.mozak-pill.pill-focus { --pill: var(--mozak-gold); }
 .mozak-pill.pill-completed { --pill: var(--mozak-green); }
 .mozak-pill:hover { color: var(--pill); background: color-mix(in srgb, var(--pill) 12%, transparent); }
 .mozak-pill.is-active { background: var(--pill); color: #fff; }
@@ -102,6 +103,13 @@
 .mozak-dot.dot-open, .mozak-dot.dot-awaiting, .mozak-dot.dot-paused { background: var(--mozak-purple); }
 .mozak-dot.dot-completed { background: var(--mozak-green); }
 .mozak-dot.dot-rejected { background: var(--text-error); }
+/* Star toggle: faint until hovered or set; gold and filled when the plan is in Focus. */
+.mozak-star { display: flex; flex: none; padding: 1px; color: var(--text-faint); opacity: 0; transition: opacity 100ms ease, color 100ms ease; }
+.mozak-plan-row:hover .mozak-star, .mozak-star:focus-visible, .mozak-star.is-focused { opacity: 1; }
+.mozak-star:hover { color: var(--mozak-gold); }
+.mozak-star.is-focused { color: var(--mozak-gold); }
+.mozak-star.is-focused svg { fill: currentColor; }
+.mozak-star svg { width: 12px; height: 12px; }
 .mozak-plan-row.row-completed .mozak-plan-title { color: var(--text-faint); }
 .mozak-mini { flex: none; font-size: 10px; padding: 0 5px; border-radius: 4px; text-transform: lowercase; color: var(--text-muted); background: var(--background-modifier-border); }
 .mozak-mini.state-awaiting { color: var(--mozak-purple); background: color-mix(in srgb, var(--mozak-purple) 16%, transparent); }

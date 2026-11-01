@@ -8,6 +8,7 @@ Shorter context reads for agents, owner links and deadlines between plans, and a
 
 ## Highlights
 
+- **Focus tab in Obsidian.** The sidebar tabs are now Open, Focus and Done. Star a plan to put it in Focus. The star writes a `focus` list on that scope's entry in `mozak-inventory.json`, the same as `mozak focus add|remove`, and agents can read it with `mozak focus list` or MCP `mozak_focus` but never change it. Focus is a sidebar marker only, not plan state.
 - **Shorter reads for agents.** `mozak context --brief` gives one short summary per plan. `mozak context --plan ID` gives the full state of one plan. Both work in the MCP tool `mozak_context`.
 - **Links and deadlines between plans.** The owner can record that a plan needs, informs or supersedes another, and set deadlines, with `mozak annotate`. `mozak graph`, `mozak ready` and `mozak plans --sort deadline` read them. They live in a separate `mozak.annotations.json`, so `mozak.json` and `mozak.md` do not change and 0.4.0 clients keep working. See [annotations.md](annotations.md).
 - **Plans index, locators and similar plans.** `mozak plans-md` writes a `plans.md` with plan titles and states at each notes repo root. `mozak locators` shows where each source and evidence locator points, and `check` lists cited notes that changed after they were cited. `mozak similar` reports duplicate, overlapping and superseding plans across scopes, with templated siblings filtered out. See [plans-index.md](plans-index.md).
@@ -24,7 +25,9 @@ mozak upgrade --vault ~/path/to/your/vault
 mozak doctor --fix
 ```
 
-Nothing changes in existing scopes until you use a new feature. `concurrency.rebase` stays off unless the `mozak-settings.json` next to the inventory turns it on, at the top level or per scope under `scopes.<id>.concurrency`. Store hygiene (`recover`, `plan prune --rejected`, `check --history`, local `sync`) and the late-support fix are also new; see the CHANGELOG. Read [installation.md](installation.md#parallel-writes-concurrencyrebase-experimental-off-by-default) before you turn it on.
+Nothing changes in existing scopes until you use a new feature.
+
+**Upgrade every machine before you star a plan.** mozak before 0.5.0 refuses an inventory that has a `focus` list (`unknown key "focus"`). If one machine stars a plan while another still runs 0.4.x, that older mozak stops reading the shared inventory until it is upgraded. `concurrency.rebase` stays off unless the `mozak-settings.json` next to the inventory turns it on, at the top level or per scope under `scopes.<id>.concurrency`. Store hygiene (`recover`, `plan prune --rejected`, `check --history`, local `sync`) and the late-support fix are also new; see the CHANGELOG. Read [installation.md](installation.md#parallel-writes-concurrencyrebase-experimental-off-by-default) before you turn it on.
 
 ## Known limits
 

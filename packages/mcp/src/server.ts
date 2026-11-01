@@ -2,7 +2,7 @@
 // Core validation is authoritative. This layer only closes the advertised surface:
 // fixed tool names, closed argument objects, a fixed agent actor and no config input.
 
-import { decideWithFlags, executeOperation, planShow, type OperationOutput, type ScopeInventory } from "@mozak/core";
+import { decideWithFlags, executeOperation, focusList, planShow, type OperationOutput, type ScopeInventory } from "@mozak/core";
 import { readFileSync } from "node:fs";
 
 /** This package's version, reported in the MCP handshake. */
@@ -29,6 +29,7 @@ export interface Runtime {
 const HELPERS: Record<string, (inv: ScopeInventory, args: Record<string, unknown>) => OperationOutput> = {
   "plan-show": planShow,
   "decide-flags": decideWithFlags,
+  focus: focusList,
 };
 
 interface PropertySpec {
@@ -141,6 +142,13 @@ export const TOOLS: ToolDef[] = [
     scope: SCOPE,
     plan: { type: "string", description: "Exact plan ID." },
   }, ["scope", "plan"]),
+  tool(
+    "mozak_focus",
+    "focus",
+    "The owner's focus list: plan ids starred per scope in the inventory. A sidebar marker for the owner, read-only here. It grants nothing and does not change plan state; only the owner stars or unstars plans.",
+    { scope: SCOPE },
+    [],
+  ),
   tool(
     "mozak_propose",
     "propose",

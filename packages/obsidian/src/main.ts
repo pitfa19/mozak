@@ -5,7 +5,7 @@ import { BRIDGE_FILE } from "@mozak/core";
 import { chooseInventory } from "./discover.ts";
 import { realOrSelf, renderStaleProjections, syncRemoteScopes } from "./load.ts";
 import { startWatching, watchTargets } from "./watch.ts";
-import { headingLine, resolveOpenTarget, type PlanVM, type ScopeVM } from "./model.ts";
+import { headingLine, resolveOpenTarget, type PlanFilter, type PlanVM, type ScopeVM } from "./model.ts";
 import { LEGACY_PLAN_VIEW_TYPE, ScopesView, SCOPES_VIEW_TYPE } from "./views.ts";
 
 export interface MozakSettings {
@@ -14,8 +14,10 @@ export interface MozakSettings {
   autoRefresh: boolean;
   /** Seconds between automatic syncs of remote (repo) scopes. 0 turns polling off. */
   remotePollSeconds: number;
+  /** The sidebar tab last chosen. Null: Focus when it has plans, else Open. */
+  lastFilter: PlanFilter | null;
 }
-const DEFAULTS: MozakSettings = { inventoryPath: "", autoRefresh: true, remotePollSeconds: 60 };
+const DEFAULTS: MozakSettings = { inventoryPath: "", autoRefresh: true, remotePollSeconds: 60, lastFilter: null };
 
 export default class MozakPlugin extends Plugin {
   override settings: MozakSettings = { ...DEFAULTS };

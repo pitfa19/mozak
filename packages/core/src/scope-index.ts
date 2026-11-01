@@ -34,6 +34,8 @@ export interface ScopeInventory {
 const INVENTORY_KEYS = ["format", "scopes"] as const;
 const ENTRY_KEYS = ["id", "root"] as const;
 const REMOTE_ENTRY_KEYS = ["id", "remote", "ref", "plans"] as const;
+/** Optional on every scope entry. `focus`: the owner's starred plan ids, read by the plugin and `mozak focus` only. */
+const OPTIONAL_ENTRY_KEYS = ["focus"] as const;
 const REMOTE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -62,9 +64,10 @@ function assertClosedObject(
   allowed: readonly string[],
   where: string,
   file: string,
+  optional: readonly string[] = [],
 ): void {
   for (const key of Object.keys(value)) {
-    if (key !== "x" && !allowed.includes(key)) throw invalidInventory(file, `unknown key "${key}" in ${where}`);
+    if (key !== "x" && !allowed.includes(key) && !optional.includes(key)) throw invalidInventory(file, `unknown key "${key}" in ${where}`);
   }
   assertExtensionObject(value, where, file);
   for (const key of allowed) {
@@ -74,6 +77,15 @@ function assertClosedObject(
 
 function assertExtensionObject(value: Record<string, unknown>, where: string, file: string): void {
   if ("x" in value && !isPlainObject(value.x)) throw invalidInventory(file, `"x" in ${where} must be an object`);
+}
+
+/** `focus`, when present: an array of unique nonempty plan id strings. Unknown ids are a `check` warning, not an error. */
+function assertFocus(entry: Record<string, unknown>, file: string): void {
+  if (!("focus" in entry)) return;
+  const focus = entry.focus;
+  if (!Array.isArray(focus) || focus.some((id) => typeof id !== "string" || id.trim() === "") || new Set(focus).size !== focus.length) {
+    throw invalidInventory(file, `scope "${String(entry.id)}" focus must be an array of unique plan ids`);
+  }
 }
 
 /**
@@ -146,15 +158,16 @@ export function loadInventory(configPath: string): ScopeInventory {
     if (isRemote) {
       // Exactly one of root or remote. The ref is optional and defaults to main. The object stays closed.
       for (const key of Object.keys(entry)) {
-        if (key !== "x" && !(REMOTE_ENTRY_KEYS as readonly string[]).includes(key)) {
+        if (key !== "x" && !(REMOTE_ENTRY_KEYS as readonly string[]).includes(key) && !(OPTIONAL_ENTRY_KEYS as readonly string[]).includes(key)) {
           throw invalidInventory(file, key === "root" ? `scope entry must have exactly one of "root" or "remote"` : `unknown key "${key}" in scope entry`);
         }
       }
       assertExtensionObject(entry, "scope entry", file);
       if (!("id" in entry)) throw invalidInventory(file, `missing "id" in scope entry`);
     } else {
-      assertClosedObject(entry, ENTRY_KEYS, "scope entry", file);
+      assertClosedObject(entry, ENTRY_KEYS, "scope entry", file, OPTIONAL_ENTRY_KEYS);
     }
+    assertFocus(entry, file);
 
     const id = entry.id;
     if (typeof id !== "string" || id.trim() === "") {

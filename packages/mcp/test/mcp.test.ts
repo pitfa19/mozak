@@ -22,6 +22,7 @@ const READ_TOOLS: Record<string, { op: string; args: string[]; required: string[
   mozak_check: { op: "check", args: ["scope"], required: ["scope"] },
   mozak_operation: { op: "operation", args: ["scope", "id"], required: ["scope", "id"] },
   mozak_plan_show: { op: "plan-show", args: ["scope", "plan"], required: ["scope", "plan"] },
+  mozak_focus: { op: "focus", args: ["scope"], required: [] },
 };
 const MUTATION_TOOLS: Record<string, { op: string }> = {
   mozak_propose: { op: "propose" },
@@ -43,6 +44,9 @@ const FORBIDDEN = [
   "mozak_review_decide",
   "mozak_approve_direction",
   "mozak_projection_repair",
+  "mozak_focus_add",
+  "mozak_focus_remove",
+  "mozak_set_focus",
 ];
 
 const SYNTHETIC_OWNER = "synthetic-owner:test-fixture";

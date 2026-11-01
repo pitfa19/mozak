@@ -41,6 +41,7 @@ import { handEditHistory, MAX_HISTORY } from "./history.ts";
 import { LOCAL_SYNC_OK, localEntries, syncLocal, type LocalSyncRow } from "./local-sync.ts";
 import { appendUsage, usageLine, usageLogEnabled } from "./usage.ts";
 import { dirname, join } from "node:path";
+import { readFocus } from "./focus.ts";
 import { citedNoteChanges, LocatorResolver, planCitations } from "./locators.ts";
 import { similarReport } from "./similar.ts";
 import { plansIndex } from "./plans-index.ts";
@@ -535,6 +536,14 @@ function crossPlanOp(inv: ScopeInventory, operation: "graph" | "ready", a: Recor
   };
 }
 
+/** focus-unknown-plan for each starred id of this scope that is not a plan in it. Empty without an inventory file. */
+function focusWarnings(inv: ScopeInventory, scopeId: string, state: ScopeState): { code: string; message: string }[] {
+  if (!inv.path) return [];
+  const ids = new Set(state.plans.map((p) => p.id));
+  return (readFocus(inv.path)[scopeId] ?? []).filter((id) => !ids.has(id))
+    .map((id) => ({ code: "focus-unknown-plan", message: `focus lists "${id}", which is not a plan in this scope; the owner can clear it with mozak focus remove` }));
+}
+
 /** Annotation and settings findings for check. Empty when the scope has no sidecar and settings are clean. */
 function annotationCheck(inv: ScopeInventory, entry: ScopeEntry, read: ScopeRead): { code: string; message: string }[] {
   const out: { code: string; message: string }[] = [];
@@ -884,6 +893,8 @@ function readOp(inv: ScopeInventory, operation: string, a: Record<string, unknow
   if (historyReport) findings.push(...historyReport.findings);
   // Leftover temp files from an interrupted write are informational: the next write removes them.
   const leftovers: object[] = leftoverTempFiles(entry.root).map((name) => ({ code: "leftover-temp-file", message: `${name} is left over from an interrupted write; the next write removes it` }));
+  // A starred plan id that no longer exists is a warning only: the owner clears it with mozak focus remove.
+  leftovers.push(...focusWarnings(inv, entry.id, read.state));
   if (lock.info) leftovers.push(lock.info);
   if (historyReport && !historyReport.available) leftovers.push({ code: "history-unavailable", message: `check --history skipped: ${historyReport.reason ?? "unavailable"}` });
   // Cited-note staleness: informational, like leftovers. A changed note does not mean the edit matters.
