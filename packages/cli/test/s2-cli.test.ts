@@ -56,7 +56,7 @@ test("CLI: check --history validates N; sync of a local scope outside git explai
   assert.equal(JSON.parse(ok.out).history.available, false);
   const sync = cli(["sync", "--config", w.config, "--scope", "alpha"]);
   assert.equal(sync.code, 2);
-  assert.match(sync.out, /local .*not-in-git/);
+  assert.match(sync.out, /alpha: not-in-git/);
   const json = cli(["sync", "--config", w.config, "--local", "--json"]);
   assert.equal(JSON.parse(json.out).local[0].status, "not-in-git");
 });

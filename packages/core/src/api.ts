@@ -4,7 +4,6 @@
 
 import { DomainError } from "./errors.ts";
 import { nonEmptyString as nonEmpty } from "./validate.ts";
-import { existsSync } from "node:fs";
 import { resolveScope, type ScopeEntry, type ScopeInventory } from "./scope-index.ts";
 import {
   initScopeState,
@@ -23,15 +22,12 @@ import {
 import { contextView, reviewRows, reviewShow } from "./review.ts";
 import { selectContext } from "./context-selection.ts";
 import { scopeIndex } from "./scope-list.ts";
-import { cacheIgnoreWarning, commitAndPush, pullRemote, remoteEntries, repoEntries, statusOf, syncRemote } from "./remote.ts";
-import type { RemoteStatus } from "./remote-meta.ts";
-import { cachedVisibility, publicRepoPlansMessage, scopeVisibility } from "./visibility.ts";
 import { leftoverTempFiles } from "./durable.ts";
 import { cachedUpdateNotice, installedVersion, npmInstall, refreshUpdateCacheIfStale } from "./update.ts";
 import { canonical, digest } from "./understanding.ts";
 import { decideWarnings, reviseWarnings, tracePlan } from "./assist.ts";
 import { annotateScope } from "./scope-store.ts";
-import { ANNOTATIONS_FILE, readAnnotations, type AnnotationsDoc, type AnnotationsRead } from "./annotations.ts";
+import { readAnnotations, type AnnotationsDoc, type AnnotationsRead } from "./annotations.ts";
 import { annotationFindings, graphView, readyView, type Universe } from "./crossplan.ts";
 import { effectiveDeadline, planDeadline, today } from "./deadlines.ts";
 import { annotationsEnabled, annotationsMode, ignoredScopeSettingsFile, loadSettings, rebaseEnabled, SETTINGS_FILE, usageLogSetting } from "./settings.ts";
@@ -40,7 +36,7 @@ import { inspectLock, recoverLock } from "./lock-recover.ts";
 import { handEditHistory, MAX_HISTORY } from "./history.ts";
 import { LOCAL_SYNC_OK, localEntries, syncLocal, type LocalSyncRow } from "./local-sync.ts";
 import { appendUsage, usageLine, usageLogEnabled } from "./usage.ts";
-import { dirname, join } from "node:path";
+import { dirname } from "node:path";
 import { readFocus } from "./focus.ts";
 import { citedNoteChanges, LocatorResolver, planCitations } from "./locators.ts";
 import { similarReport } from "./similar.ts";
@@ -82,7 +78,6 @@ export const OPERATIONS = [
   "init",
   "repair",
   "sync",
-  "pull",
   "render",
   "rename-files",
   "retitle",
@@ -98,7 +93,7 @@ export const OPERATIONS = [
 ] as const;
 
 /** Owner-only: refused for every other actor before any file is touched. */
-const OWNER_ONLY = new Set(["decide", "init", "repair", "pull", "rename-files", "retitle", "delete", "annotate", "recover", "prune"]);
+const OWNER_ONLY = new Set(["decide", "init", "repair", "rename-files", "retitle", "delete", "annotate", "recover", "prune"]);
 /** Route name must equal request.action for these routes. */
 const ROUTE_ACTIONS = new Set(["propose", "revise", "observe", "complete", "save-discussion", "attach-spec"]);
 export const DECISION_ACTIONS = [
@@ -434,8 +429,8 @@ function annotationsToken(inv: ScopeInventory, id: string): unknown {
 }
 
 /**
- * Read-only, cached view of every inventoried scope for cross-plan resolution. Never fetches: a remote scope is read
- * from its local copy as it is. A scope that cannot be read is "unavailable", an id not in the inventory "unknown".
+ * Read-only, cached view of every inventoried scope for cross-plan resolution. Never fetches.
+ * A scope that cannot be read is "unavailable", an id not in the inventory "unknown".
  */
 function universeOf(inv: ScopeInventory, seed: Record<string, ScopeState> = {}): Universe {
   const states = new Map<string, ScopeState | "unknown" | "unavailable">(Object.entries(seed));
@@ -555,10 +550,6 @@ function annotationCheck(inv: ScopeInventory, entry: ScopeEntry, read: ScopeRead
   try {
     const settings = loadSettings(inv);
     out.push(...settings.issues);
-    // A sidecar in a repo-mode scope is pushed with the plans. Warn about the file even though it is never read.
-    if (annotationsMode(settings, entry).source === "repo-mode" && existsSync(join(entry.root, ANNOTATIONS_FILE))) {
-      out.push({ code: "annotations-on-remote", message: "mozak.annotations.json exists in a repo-mode remote scope; annotate refuses these scopes, and the file is ignored by owner routes" });
-    }
   } catch (err) {
     if (!(err instanceof DomainError)) throw err;
     out.push({ code: err.code, message: err.message });
@@ -573,7 +564,6 @@ function annotateOp(inv: ScopeInventory, a: Record<string, unknown>, actor: Acto
   if (!isPlain(o.request)) throw invalid("request must be an object");
   const entry = resolveScope(inv, nonEmpty(o.scope, "scope"));
   const mode = annotationsMode(loadSettings(inv), entry);
-  if (mode.source === "repo-mode") throw new DomainError("annotations-refused-remote", "annotations are refused on repo-mode remote scopes: their plans are committed and pushed to a repository", 2);
   if (!mode.enabled) throw new DomainError("annotations-disabled", `annotations are off for scope "${entry.id}"; the owner turns them on with "scopes": { "${entry.id}": { "annotations": true } } in the mozak-settings.json next to the inventory`, 2);
   const result = annotateScope(entry, o.request, universeOf(inv).state);
   const lockOrCleanup = result.status.startsWith("committed-") || result.status === "projection-updated-lock-held";
@@ -962,99 +952,42 @@ function writeOp(inv: ScopeInventory, operation: string, a: Record<string, unkno
   return { exitCode: resultExit(result), data: { ...result, operation } };
 }
 
-const REMOTE_READ_OPS = new Set(["context", "plans", "scopes", "review", "check", "operation", "graph", "ready"]);
+/** Read routes: no writes, no network. */
+const READ_OPS = new Set(["context", "plans", "scopes", "review", "check", "operation", "graph", "ready"]);
 
-function plainScope(args: unknown): string | undefined {
-  return isPlain(args) && typeof args.scope === "string" && args.scope.trim() !== "" ? args.scope : undefined;
-}
-
-/** Remote scopes an operation touches: one selected scope, or every remote scope for index and all-scope reads. */
-function touchedRemotes(inv: ScopeInventory, operation: string, args: unknown): ScopeEntry[] {
-  const all = remoteEntries(inv);
-  if (all.length === 0) return [];
-  const scope = plainScope(args);
-  if (operation === "scopes") return all;
-  if (operation === "plans") {
-    if (scope !== undefined) return all.filter((e) => e.id === scope);
-    return all;
-  }
-  if (operation === "graph" || operation === "ready") return scope === undefined ? all : all.filter((e) => e.id === scope);
-  return scope === undefined ? [] : all.filter((e) => e.id === scope);
-}
-
-function remoteOp(inv: ScopeInventory, operation: string, a: Record<string, unknown>): OperationOutput {
-  const base = { committed: false, operation, snapshot: null, projectionStatus: null, projectionUpdated: false } as const;
-  if (operation === "sync") {
-    const o = closed(a, "sync arguments", [], ["scope", "local"]);
-    const local = strictBoolean(o.local, "local");
-    if (local && o.scope !== undefined) throw invalid("sync takes scope or local, not both");
-    // A local scope syncs the git repo that holds it. A refused scope (outside a vault, legacy repo scope) is refused.
-    const named = o.scope === undefined ? undefined : resolveScope(inv, nonEmpty(o.scope, "scope"));
-    if (named && !named.remote) return localSyncOutput(inv, [named], base);
-    const targets = o.scope === undefined ? remoteEntries(inv) : [resolveRemoteTarget(inv, nonEmpty(o.scope, "scope"))];
-    const remote = targets.map((e) => syncRemote(e, { force: true }));
-    const stale = remote.filter((r) => r.stale).length;
-    const bases = [...new Set(targets.map((e) => e.remote?.baseDir).filter((b): b is string => b !== undefined))];
-    const warnings = bases.flatMap((b) => { const w = cacheIgnoreWarning(b); return w ? [{ code: "cache-not-ignored", message: w }] : []; });
-    // Uses the 24-hour cached answer: the plugin syncs every minute and the unauthenticated API allows 60 calls an hour.
-    // Every remote scope gets an answer for the sidebar label; only repo-mode scopes publish plans, so only they warn.
-    const exposed = targets.filter((e) => scopeVisibility(e) === "public" && e.remote?.plansMode === "repo").map((e) => ({ code: "public-repo-plans", message: publicRepoPlansMessage(e), scope: e.id }));
-    const localRows = local ? syncLocal(localEntries(inv.scopes), inv.scopes) : [];
-    const localBad = localRows.filter((r) => !LOCAL_SYNC_OK.has(r.status));
-    return {
-      exitCode: stale > 0 || localBad.length > 0 ? 6 : 0,
-      data: { status: stale > 0 || localBad.length > 0 ? "partial" : "ok", ...base, issues: [...remote.filter((r) => r.stale).map((r) => ({ code: "remote-stale", message: `${r.scope}: ${r.error ?? "stale"}`, scope: r.scope })), ...warnings, ...exposed, ...localIssues(localRows)], remote, ...(local ? { local: localRows } : {}) },
-    };
-  }
-  const o = closed(a, "pull arguments", ["scope"], ["into"]);
-  const entry = resolveRemoteTarget(inv, nonEmpty(o.scope, "scope"));
-  if (entry.remote?.plansMode !== "vault") {
-    const synced = syncRemote(entry, { force: true });
-    if (synced.stale && !existsSync(entry.root)) throw new DomainError("remote-unavailable", `cannot fetch ${synced.remote}: ${synced.error ?? "unknown error"}`, 2);
-  }
-  const pulled = pullRemote(entry, o.into === undefined ? undefined : nonEmpty(o.into, "into"));
-  return { exitCode: 0, data: { status: "ok", ...base, issues: [], pull: pulled } };
+/**
+ * `mozak sync`: fetch, then fast-forward the git repo (vault) that holds each scope, under the locks of every scope in
+ * it. `--scope ID` syncs the repo of that scope, otherwise every vault repo in the inventory (`--local` is the same and
+ * is kept for older callers such as the plugin's sync button). Never pushes, never merges anything but a fast-forward,
+ * and never touches a code repo: plans live only in vaults since 0.6.0.
+ */
+function syncOp(inv: ScopeInventory, a: Record<string, unknown>): OperationOutput {
+  const base = { committed: false, operation: "sync", snapshot: null, projectionStatus: null, projectionUpdated: false } as const;
+  const o = closed(a, "sync arguments", [], ["scope", "local"]);
+  const local = strictBoolean(o.local, "local");
+  if (local && o.scope !== undefined) throw invalid("sync takes scope or local, not both");
+  if (o.scope !== undefined) return localSyncOutput(inv, [resolveScope(inv, nonEmpty(o.scope, "scope"))], base);
+  const rows = syncLocal(localEntries(inv.scopes), inv.scopes);
+  const bad = rows.filter((r) => !LOCAL_SYNC_OK.has(r.status)).length;
+  return { exitCode: bad > 0 ? 6 : 0, data: { status: bad > 0 ? "partial" : "ok", ...base, issues: localIssues(rows), local: rows } };
 }
 
 function localIssues(rows: LocalSyncRow[]): { code: string; message: string; scope?: string }[] {
   return rows.filter((r) => !LOCAL_SYNC_OK.has(r.status)).map((r) => ({ code: `local-sync-${r.status}`, message: `${r.repo ?? r.scopes.join(", ")}: ${r.error ?? r.status}`, scope: r.scopes[0] }));
 }
 
-/** `sync --scope LOCAL`: fast-forward the git repo that holds a local scope, under the locks of every scope in it. */
+/** `sync --scope ID`: fast-forward the git repo that holds one scope, under the locks of every scope in it. */
 function localSyncOutput(inv: ScopeInventory, targets: ScopeEntry[], base: Record<string, unknown>): OperationOutput {
   const rows = syncLocal(targets, inv.scopes);
   const bad = rows.filter((r) => !LOCAL_SYNC_OK.has(r.status));
   const only = rows.length === 1 ? rows[0]! : null;
   const exitCode = bad.length === 0 ? 0 : only?.status === "not-fast-forward" ? 3 : only?.status === "busy" ? 4 : only?.status === "not-in-git" || only?.status === "no-upstream" || only?.status === "detached" ? 2 : 6;
-  return { exitCode, data: { status: bad.length === 0 ? "ok" : only ? `local-sync-${only.status}` : "partial", ...base, issues: localIssues(rows), remote: [], local: rows } };
-}
-
-function resolveRemoteTarget(inv: ScopeInventory, id: string): ScopeEntry {
-  const entry = resolveScope(inv, id);
-  if (!entry.remote) throw new DomainError("scope-not-remote", `scope "${id}" is a local scope, there is nothing to sync`);
-  return entry;
-}
-
-function attachRemote(output: OperationOutput, statuses: RemoteStatus[]): OperationOutput {
-  if (statuses.length === 0) return output;
-  const data: Record<string, unknown> = { ...output.data, remote: statuses };
-  const rows = data.scopes;
-  if (Array.isArray(rows)) {
-    data.scopes = rows.map((row: Record<string, unknown>) => {
-      const st = statuses.find((x) => x.scope === row.id);
-      return st ? { ...row, remote: st.remote, ref: st.ref, stale: st.stale, lastFetchAt: st.lastFetchAt, source: st.source, ...(st.error ? { staleReason: st.error } : {}) } : row;
-    });
-  }
-  const stale = statuses.filter((s) => s.stale);
-  if (stale.length > 0 && Array.isArray(data.issues)) {
-    data.issues = [...(data.issues as unknown[]), ...stale.map((s) => ({ code: "remote-stale", message: `${s.scope}: using cached copy, fetch failed (${s.error ?? "unknown"})`, scope: s.scope }))];
-  }
-  return { ...output, data };
+  return { exitCode, data: { status: bad.length === 0 ? "ok" : only ? `local-sync-${only.status}` : "partial", ...base, issues: localIssues(rows), local: rows } };
 }
 
 /**
- * Regenerate stale mozak.md projections for one local scope or every local scope. Writes only mozak.md.
- * Remote scopes are skipped: their projection follows their next sync or write. Conflicts are reported, not overwritten.
+ * Regenerate stale mozak.md projections for one scope or every scope. Writes only mozak.md.
+ * Conflicts are reported, not overwritten.
  */
 function renderOp(inv: ScopeInventory, a: Record<string, unknown>): OperationOutput {
   const o = closed(a, "render arguments", [], ["scope", "all"]);
@@ -1062,7 +995,6 @@ function renderOp(inv: ScopeInventory, a: Record<string, unknown>): OperationOut
   if ((o.scope === undefined) === !all) throw invalid("render needs exactly one of scope or all");
   const targets = all ? inv.scopes : [resolveScope(inv, nonEmpty(o.scope, "scope"))];
   const rows = targets.map((entry) => {
-    if (entry.remote && entry.remote.plansMode === "repo") return { scope: entry.id, result: "remote-skipped", exitCode: 0 };
     try {
       const { result, outcome } = renderProjection(resolveScope(inv, entry.id));
       return { scope: entry.id, result, exitCode: resultExit(outcome), code: outcome.status, projectionUpdated: outcome.projectionUpdated, projectionStatus: outcome.projectionStatus, ...(outcome.issues.length ? { issues: outcome.issues } : {}) };
@@ -1089,8 +1021,7 @@ function renderOp(inv: ScopeInventory, a: Record<string, unknown>): OperationOut
 }
 
 /**
- * Rename pre-0.4 MOZAK.json / MOZAK.md to mozak.json / mozak.md for one local scope or every local scope.
- * Repo-mode remote scopes are skipped: rename those in their own clone and push. Never changes plan content.
+ * Rename pre-0.4 MOZAK.json / MOZAK.md to mozak.json / mozak.md for one scope or every scope. Never changes plan content.
  */
 function renameFilesOp(inv: ScopeInventory, a: Record<string, unknown>): OperationOutput {
   const o = closed(a, "rename-files arguments", [], ["scope", "all"]);
@@ -1098,7 +1029,6 @@ function renameFilesOp(inv: ScopeInventory, a: Record<string, unknown>): Operati
   if ((o.scope === undefined) === !all) throw invalid("rename-files needs exactly one of scope or all");
   const targets = all ? inv.scopes : [resolveScope(inv, nonEmpty(o.scope, "scope"))];
   const rows = targets.map((entry) => {
-    if (entry.remote && entry.remote.plansMode === "repo") return { scope: entry.id, result: "remote-skipped", exitCode: 0 };
     try {
       const { result, outcome } = renameScopeFiles(resolveScope(inv, entry.id));
       return { scope: entry.id, result, exitCode: resultExit(outcome), code: outcome.status, ...(outcome.issues.length ? { issues: outcome.issues } : {}) };
@@ -1235,10 +1165,9 @@ function runOperation(inv: ScopeInventory, operation: string, args: unknown, act
     if (!(OPERATIONS as readonly string[]).includes(operation)) {
       throw new DomainError("unsupported-operation", `unknown operation "${operation}"`, 2);
     }
-    if (operation === "sync" || operation === "pull") {
-      if (OWNER_ONLY.has(operation)) requireOwner(operation, actor);
+    if (operation === "sync") {
       if (!isPlain(args)) throw invalid("arguments must be an object");
-      return remoteOp(inv, operation, args);
+      return syncOp(inv, args);
     }
     if (operation === "render") {
       if (!isPlain(args)) throw invalid("arguments must be an object");
@@ -1255,7 +1184,7 @@ function runOperation(inv: ScopeInventory, operation: string, args: unknown, act
       return recoverOp(inv, args);
     }
     if (operation === "annotate") {
-      // Never routed through remoteWrite: annotations never commit or push. Repo-mode scopes are refused inside.
+      // Annotations never commit or push.
       requireOwner(operation, actor);
       if (!isPlain(args)) throw invalid("arguments must be an object");
       return annotateOp(inv, args, actor);
@@ -1265,48 +1194,19 @@ function runOperation(inv: ScopeInventory, operation: string, args: unknown, act
       if (!isPlain(args)) throw invalid("arguments must be an object");
       return operation === "similar" ? similarOp(inv, args) : operation === "locators" ? locatorsOp(inv, args) : plansMdOp(inv, args, actor);
     }
-    if (REMOTE_READ_OPS.has(operation)) {
+    if (READ_OPS.has(operation)) {
       if (!isPlain(args)) throw invalid("arguments must be an object");
-      const touched = touchedRemotes(inv, operation, args);
-      const statuses = touched.map((e) => syncRemote(e));
-      const out = attachRemote(readOp(inv, operation, args), statuses);
+      const out = readOp(inv, operation, args);
       if (operation !== "scopes") return out;
-      // Reads never wait on the network for this: only an already cached "public" answer warns.
-      const exposed = repoEntries(inv).filter((e) => cachedVisibility(e) === "public");
+      // Reads never wait on the network for this: only an already cached newer release is reported.
       const update = scopesUpdateIssue();
-      if ((exposed.length === 0 && !update) || !Array.isArray(out.data.issues)) return out;
-      return { ...out, data: { ...out.data, issues: [...(out.data.issues as unknown[]), ...exposed.map((e) => ({ code: "public-repo-plans", message: publicRepoPlansMessage(e), scope: e.id })), ...(update ? [update] : [])] } };
+      if (!update || !Array.isArray(out.data.issues)) return out;
+      return { ...out, data: { ...out.data, issues: [...(out.data.issues as unknown[]), update] } };
     }
-    const input = isPlain(args) ? args : {};
-    // Only repo-mode remote scopes commit and push. Vault-plans scopes write like local scopes.
-    const target = touchedRemotes(inv, operation, input).find((e) => e.remote?.plansMode === "repo");
-    if (target === undefined) return attachRemote(writeOp(inv, operation, input, actor), touchedRemotes(inv, operation, input).map((e) => statusOf(e, false)));
-    return remoteWrite(inv, operation, input, actor, target);
+    return writeOp(inv, operation, isPlain(args) ? args : {}, actor);
   } catch (err) {
     if (err instanceof DomainError) return errorOutput(err, operation, args);
     throw err;
-  }
-}
-
-/** Write against a remote scope: refresh first, refuse on a stale base, then commit mozak.json and mozak.md and push. */
-function remoteWrite(inv: ScopeInventory, operation: string, input: Record<string, unknown>, actor: Actor, entry: ScopeEntry): OperationOutput {
-  if (OWNER_ONLY.has(operation)) requireOwner(operation, actor);
-  if (scopeVisibility(entry) === "public") throw new DomainError("public-repo-plans", `refusing to write: ${publicRepoPlansMessage(entry)}`, 3);
-  const status = syncRemote(entry, { force: true });
-  if (status.stale) {
-    throw new DomainError("remote-stale", `refusing to write: cannot refresh ${status.remote} (${status.error ?? "unknown"}). Run \`mozak sync\` when online.`, 3);
-  }
-  const output = writeOp(inv, operation, input, actor);
-  const data = output.data as { committed?: boolean; projectionUpdated?: boolean; issues?: { code: string; message: string }[] };
-  if (!data.committed && !data.projectionUpdated) return attachRemote(output, [status]);
-  try {
-    const done = commitAndPush(entry, `mozak: ${operation} ${plainScope(input) ?? entry.id}`);
-    const after = syncRemote(entry, { force: false });
-    return attachRemote({ exitCode: output.exitCode, data: { ...output.data, remotePush: done } }, [after]);
-  } catch (err) {
-    if (!(err instanceof Error) || err instanceof DomainError) throw err;
-    const issue = { code: "remote-push-failed", message: `committed locally but not pushed: ${err.message}. It is pushed on the next \`mozak sync\`.` };
-    return attachRemote({ exitCode: 5, data: { ...output.data, issues: [...(data.issues ?? []), issue] } }, [{ ...statusOf(entry, true, err.message) }]);
   }
 }
 

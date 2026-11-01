@@ -5,13 +5,11 @@
 
 import { closeSync, fstatSync, openSync, readSync } from "node:fs";
 import { parseArgs } from "node:util";
-import { decideWithFlags, deleteWithFlags, observePayload, observeWithFlags, planShow, executeOperation, loadInventory, MAX_REQUEST_BYTES, scopeForWorkingCopy, gitCommitScope, DomainError, focusChange, focusList, renderFocus, renderMove, scopeLinkOutput, scopeMoveOutput, type OperationOutput, type ScopeInventory } from "@mozak/core";
+import { decideWithFlags, deleteWithFlags, observePayload, observeWithFlags, planShow, executeOperation, loadInventory, MAX_REQUEST_BYTES, gitCommitScope, focusChange, focusList, renderFocus, renderMove, scopeLinkOutput, scopeMoveOutput, type OperationOutput, type ScopeInventory } from "@mozak/core";
 import { runningVersion, upgrade } from "./upgrade.js";
 import { doctor, renderDoctor } from "./doctor.js";
 
-const OWNER_ROUTES = new Set(["decide", "init", "repair", "pull", "rename-files", "retitle", "delete", "annotate", "recover", "prune", "plans-md"]);
-/** Read routes that may omit --scope: the scope is then found from the current folder's git origin. */
-const CWD_SCOPE_ROUTES = new Set(["context", "check", "review show", "plans", "plan show"]);
+const OWNER_ROUTES = new Set(["decide", "init", "repair", "rename-files", "retitle", "delete", "annotate", "recover", "prune", "plans-md"]);
 
 /** Flag forms that replace hand-written request files. Owner provenance is always explicit. */
 const DECIDE_FLAGS = ["plan", "purpose", "outcome", "spec", "owner-ref", "owner-message-at", "reason", "dry-run"] as const;
@@ -33,7 +31,7 @@ type Route = {
 
 const ROUTES: Record<string, Route> = {
   "scope init": { operation: "init", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
-  context: { operation: "context", flags: ["config", "scope", "brief", "plan", "json"], requires: ["config"], requestFile: false },
+  context: { operation: "context", flags: ["config", "scope", "brief", "plan", "json"], requires: ["config", "scope"], requestFile: false },
   plans: {
     operation: "plans",
     flags: ["config", "scope", "all", "include-rejected", "limit", "continuation", "sort", "json"],
@@ -48,17 +46,16 @@ const ROUTES: Record<string, Route> = {
   "plans-md": { operation: "plans-md", flags: ["config", "print", "json"], requires: ["config"], requestFile: false },
   annotate: { operation: "annotate", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
   recover: { operation: "recover", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
-  "review show": { operation: "review", flags: ["config", "scope", "plan", "purpose", "outcome", "json"], requires: ["config", "plan"], requestFile: false },
+  "review show": { operation: "review", flags: ["config", "scope", "plan", "purpose", "outcome", "json"], requires: ["config", "scope", "plan"], requestFile: false },
   scopes: { operation: "scopes", flags: ["config", "json"], requires: ["config"], requestFile: false },
   sync: { operation: "sync", flags: ["config", "scope", "local", "json"], requires: ["config"], requestFile: false },
-  pull: { operation: "pull", flags: ["config", "scope", "into", "json"], requires: ["config", "scope"], requestFile: false },
-  check: { operation: "check", flags: ["config", "scope", "history", "json"], requires: ["config"], requestFile: false },
+  check: { operation: "check", flags: ["config", "scope", "history", "json"], requires: ["config", "scope"], requestFile: false },
   operation: { operation: "operation", flags: ["config", "scope", "id", "json"], requires: ["config", "scope", "id"], requestFile: false },
   "plan propose": { operation: "propose", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
   "plan revise": { operation: "revise", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
   "plan complete": { operation: "complete", flags: ["config", "scope", "request"], requires: ["config", "scope", "request"], requestFile: true },
   "plan delete": { operation: "delete", flags: ["config", "scope", "request", ...DELETE_FLAGS], requires: ["config", "scope"], requestFile: true },
-  "plan show": { operation: "plan-show", flags: ["config", "scope", "plan", "json"], requires: ["config", "plan"], requestFile: false },
+  "plan show": { operation: "plan-show", flags: ["config", "scope", "plan", "json"], requires: ["config", "scope", "plan"], requestFile: false },
   "focus list": { operation: "focus-list", flags: ["config", "scope", "json"], requires: ["config"], requestFile: false },
   "focus add": { operation: "focus-add", flags: ["config", "scope", "plan", "json"], requires: ["config", "scope", "plan"], requestFile: false },
   "focus remove": { operation: "focus-remove", flags: ["config", "scope", "plan", "json"], requires: ["config", "scope", "plan"], requestFile: false },
@@ -93,7 +90,7 @@ function usage(): string {
     "                                                        point its inventory entry there; old files stay. --drop: 0-plan entry only)",
     "  mozak scope link --scope ID (--repo SPEC | --clear) [--json]",
     "                                                       (owner; display-only repo link, github:owner/repo or https URL; never fetched)",
-    "  mozak context [--scope ID] [--brief] [--plan ID] [--json]",
+    "  mozak context --scope ID [--brief] [--plan ID] [--json]",
     "  mozak plans [--scope ID | --all] [--include-rejected] [--limit 1..100] [--sort deadline] [--continuation TOKEN] [--json]",
     "  mozak graph (--scope ID | --all) [--json]           (cross-plan refs from owner annotations, with resolution)",
     "  mozak ready (--scope ID | --all) [--json]           (open plans whose needs are met, by deadline; blocked and superseded apart)",
@@ -103,13 +100,11 @@ function usage(): string {
     "  mozak plans-md [--print] [--json]                    (owner; write plans.md with plan titles and states at each repo root; --print only shows it)",
     "  mozak annotate --scope ID --request FILE            (owner; refs and deadlines in mozak.annotations.json)",
     "  mozak scopes [--json]                                (read-only index of every scope: id, folder, title, plan counts)",
-    "  mozak sync [--scope ID | --local] [--json]           (force-refresh remote scopes; reads refresh them after 10 minutes)",
-    "                                                       (a local --scope or --local: fetch, then fast-forward the vault repo under the scope locks)",
-    "  mozak pull --scope ID [--into PATH]                  (owner; clone the code; vault-plans scopes keep plans in the vault)",
-    "  mozak review show [--scope ID] --plan ID [--purpose P] [--outcome ID] [--json]",
-    "  mozak check [--scope ID] [--history N] [--json]       (--history: hand edits in the last N commits of mozak.json)",
+    "  mozak sync [--scope ID] [--json]                    (fetch, then fast-forward each vault repo under the scope locks; never pushes)",
+    "  mozak review show --scope ID --plan ID [--purpose P] [--outcome ID] [--json]",
+    "  mozak check --scope ID [--history N] [--json]        (--history: hand edits in the last N commits of mozak.json)",
     "  mozak operation --scope ID --id OP [--json]",
-    "  mozak plan show [--scope ID] --plan ID [--json]      (compact: lifecycle, eligibility, grants, outcomes, spec, next action)",
+    "  mozak plan show --scope ID --plan ID [--json]        (compact: lifecycle, eligibility, grants, outcomes, spec, next action)",
     "  mozak focus list [--scope ID] [--json]               (the owner's starred plans per scope, from the inventory)",
     "  mozak focus add|remove --scope ID --plan ID          (owner; star or unstar a plan; edits only the inventory's focus list)",
     "  mozak plan propose|revise|complete --scope ID --request FILE",
@@ -134,14 +129,13 @@ function usage(): string {
     "  mozak doctor [--fix] [--config FILE] [--json]        (check the setup; --fix only links, wrappers, plugin copies)",
     "Writes (every --request/flag write route) accept --commit: commit the scope's mozak.json and mozak.md in the",
     "  containing git repo, then pull --rebase and push when it has an upstream (never forces; stops on conflict).",
-    "  Without it a local scope's status says \"written ... not committed to git\". Repo-mode remote scopes always push.",
+    "  Without it the status says \"written ... not committed to git\".",
     "Exit: 0 success, 2 invalid or unavailable, 3 stale/conflict/owner-review, 4 busy/recovery,",
     "      5 committed with unfinished projection or cleanup, 6 partial all-scope coverage.",
     "Config: FILE is the explicit inventory JSON. There is no default path and no directory scan.",
-    '  Shape: { "format": "mozak.local/v3", "scopes": [ { "id": "name", "root": "path" } ] }',
-    '  Repo scopes: { "id": "x", "remote": "github:owner/repo" } keeps plans in the repo (private repos);',
-    '  add "plans": "vault/folder" to keep them in that folder instead (public repos).',
-    "  Read routes run inside a clone of an inventoried repo may omit --scope; it is found from the git origin.",
+    '  Shape: { "format": "mozak.local/v3", "scopes": [ { "id": "name", "root": "path", "repo": "github:owner/repo" } ] }',
+    "  Every root is a folder inside an Obsidian vault (a folder with .obsidian at or above it). repo is optional and",
+    "  display-only. An entry with remote, ref or plans is a pre-0.6 repo scope: move it with mozak scope move.",
     "  Relative roots resolve against the inventory file's directory. Ask the owner for the path;",
     "  first use (creating an inventory or a scope) is documented in the skill's references/bootstrap.md.",
   ].join("\n");
@@ -235,7 +229,7 @@ function parseCommand(argv: string[]): Parsed {
     }
   }
   // A continuation pins its own selector, so it may stand alone. Mixed selectors are refused by the facade.
-  // Without --scope or --all, plans is scoped to the current clone (resolved later from its git origin).
+  // Without --scope or --all, plans lists every scope (the same as --all).
   if (route.mode === "scope" && values.continuation === undefined) {
     const hasScope = values.scope !== undefined;
     const hasAll = values.all !== undefined;
@@ -267,12 +261,7 @@ interface HumanRow {
   deadline?: string | null;
   deadlineStatus?: string;
 }
-interface RemoteInfoRow { scope: string; remote: string; ref: string; stale: boolean; lastFetchAt: string | null; error?: string; source: string }
-function remoteLines(remote: RemoteInfoRow[] | undefined): string[] {
-  return (remote ?? []).map((r) => `remote ${r.scope}: ${r.remote}@${r.ref}${r.stale ? ` STALE (cached copy, ${r.error ?? "fetch failed"})` : ""}${r.lastFetchAt ? `, last fetch ${r.lastFetchAt}` : ""}`);
-}
 function renderPlansHuman(data: {
-  remote?: RemoteInfoRow[];
   status: string;
   uniquePlanCount?: number;
   reviewItemCount?: number;
@@ -300,7 +289,6 @@ function renderPlansHuman(data: {
     if (g.hasMore && g.continuation) lines.push(`  more: --continuation ${g.continuation}`);
   }
   for (const issue of data.issues ?? []) lines.push(`issue ${issue.scope ? `[${issue.scope}] ` : ""}${issue.code}: ${issue.message}`);
-  lines.push(...remoteLines(data.remote));
   return `${lines.join("\n")}\n`;
 }
 
@@ -316,11 +304,6 @@ interface IndexRow {
   plans?: { completed: number; open: number; awaiting: number };
   entryFiles: string[];
   repo?: string;
-  remote?: string;
-  ref?: string;
-  stale?: boolean;
-  staleReason?: string;
-  lastFetchAt?: string | null;
 }
 function renderScopesHuman(data: { coverage?: { selected: number; ok: number; failed: number }; scopes?: IndexRow[] }): string {
   const c = data.coverage;
@@ -328,14 +311,13 @@ function renderScopesHuman(data: { coverage?: { selected: number; ok: number; fa
   for (const s of data.scopes ?? []) {
     if (s.status === "ok") {
       const p = s.plans ?? { completed: 0, open: 0, awaiting: 0 };
-      lines.push(`${s.id}  [${s.kind}]  ${s.title}${s.remote ? "  [remote" + (s.stale ? ", STALE" : "") + "]" : ""}`);
-      if (s.remote) lines.push(`    remote: ${s.remote}@${s.ref}${s.stale ? ` (cached copy, ${s.staleReason ?? "fetch failed"})` : ""}`);
+      lines.push(`${s.id}  [${s.kind}]  ${s.title}`);
       lines.push(`    folder: ${s.root}`);
       if (s.repo) lines.push(`    repo: ${s.repo}`);
       lines.push(`    plans: ${p.completed} completed, ${p.open} open, ${p.awaiting} awaiting`);
       lines.push(`    files: ${s.entryFiles.join(", ") || "none"}`);
     } else {
-      lines.push(`${s.id}  failed (${s.code})${s.remote ? "  [remote" + (s.stale ? ", STALE" : "") + "]" : ""}`);
+      lines.push(`${s.id}  failed (${s.code})`);
       lines.push(`    folder: ${s.root}`);
       lines.push(`    ${s.message}`);
     }
@@ -344,12 +326,9 @@ function renderScopesHuman(data: { coverage?: { selected: number; ok: number; fa
 }
 
 interface LocalSyncInfoRow { repo: string | null; scopes: string[]; status: string; from?: string; to?: string; error?: string }
-function renderSyncHuman(data: { remote?: RemoteInfoRow[]; local?: LocalSyncInfoRow[]; issues?: { code: string; message: string }[] }): string {
-  const rows = data.remote ?? [];
-  const local = (data.local ?? []).map((r) => `local ${r.repo ?? r.scopes.join(", ")}: ${r.status}${r.from && r.to && r.from !== r.to ? ` ${r.from.slice(0, 8)}..${r.to.slice(0, 8)}` : ""}${r.error ? ` (${r.error})` : ""}`);
-  if (rows.length === 0 && local.length === 0) return "no remote scopes in the inventory\n";
-  const warn = (data.issues ?? []).filter((i) => i.code === "cache-not-ignored").map((i) => `warning: ${i.message}`);
-  return `${[...remoteLines(rows), ...local, ...warn].join("\n")}\n`;
+function renderSyncHuman(data: { local?: LocalSyncInfoRow[] }): string {
+  const local = (data.local ?? []).map((r) => `${r.repo ?? r.scopes.join(", ")}: ${r.status}${r.from && r.to && r.from !== r.to ? ` ${r.from.slice(0, 8)}..${r.to.slice(0, 8)}` : ""}${r.error ? ` (${r.error})` : ""}`);
+  return local.length === 0 ? "no scopes to sync\n" : `${local.join("\n")}\n`;
 }
 
 function flagForm(inventory: ReturnType<typeof loadInventory>, operation: string, v: Record<string, string | boolean | undefined>) {
@@ -371,11 +350,9 @@ const camel = (k: string) => k.replace(/-([a-z])/g, (_, c: string) => c.toUpperC
 
 /**
  * "committed" in the envelope means the scope transaction reached mozak.json and mozak.md on disk.
- * Git is a separate step: repo-mode remote scopes commit and push on their own (remotePush), and
- * local or vault-plans scopes are only committed to git with --commit. Say which one happened.
+ * Git is a separate step: the scope files are committed to git only with --commit. Say which one happened.
  */
 function committedLabel(d: Record<string, any>): string {
-  if (d.remotePush) return d.remotePush.pushed ? "written, committed and pushed" : "written and committed to git";
   if (d.git) return d.git.committed || d.git.pushed ? `written, ${d.git.message}` : `written, ${d.git.message.replace(/^written, /, "")}`;
   return "written to mozak.json and mozak.md, not committed to git; add --commit to commit and push";
 }
@@ -383,7 +360,7 @@ function committedLabel(d: Record<string, any>): string {
 /** After a successful write with --commit, commit the scope files in their git repo and push. */
 function withGitCommit(out: OperationOutput, scope: unknown, inventory: ReturnType<typeof loadInventory>, operation: string, enabled: boolean): OperationOutput {
   const d = out.data as Record<string, any>;
-  if (!enabled || !d.committed || d.remotePush || d.status === "dry-run") return out;
+  if (!enabled || !d.committed || d.status === "dry-run") return out;
   const entry = inventory.scopes.find((e) => e.id === scope);
   if (!entry) return out;
   const git = gitCommitScope(entry.root, `mozak: ${operation} ${entry.id}`);
@@ -564,19 +541,9 @@ function run(argv: string[]): number {
     return 2;
   }
 
-  const cwdScope = CWD_SCOPE_ROUTES.has(routeName) && values.scope === undefined && values.all === undefined && values.continuation === undefined;
   if (route.operation.startsWith("focus-")) return focusRoute(configPath, inventory, route.operation, values);
   if (route.operation === "scope-move") return moveRoute(configPath, values);
   if (route.operation === "scope-link") return linkRoute(configPath, values);
-  if (cwdScope) {
-    try {
-      values.scope = scopeForWorkingCopy(inventory, process.cwd()).id;
-    } catch (err) {
-      if (!(err instanceof DomainError)) throw err;
-      process.stdout.write(`${JSON.stringify({ status: err.code, committed: false, snapshot: null, projectionStatus: null, projectionUpdated: false, issues: [{ code: err.code, message: err.message }] }, null, 2)}\n`);
-      return err.exitCode;
-    }
-  }
 
   let args: Record<string, unknown>;
   if (route.operation === "plans") {
@@ -624,8 +591,6 @@ function run(argv: string[]): number {
       return 2;
     }
     args = values.all ? { all: true } : { scope: values.scope };
-  } else if (route.operation === "pull") {
-    args = { scope: values.scope, ...(values.into !== undefined ? { into: values.into } : {}) };
   } else if (route.operation === "review") {
     args = { scope: values.scope, plan: values.plan, ...(values.purpose !== undefined ? { purpose: values.purpose } : {}), ...(values.outcome !== undefined ? { outcome: values.outcome } : {}) };
   } else if (route.operation === "context") {
@@ -689,7 +654,7 @@ function run(argv: string[]): number {
   const actor = OWNER_ROUTES.has(route.operation) ? "owner" : "agent";
   const raw = executeOperation(inventory, route.operation, args, actor);
   const output = route.requestFile ? withGitCommit(raw, values.scope, inventory, route.operation, values.commit === true) : raw;
-  if (route.requestFile && (output.data as Record<string, any>).committed && !values.commit && !(output.data as Record<string, any>).remotePush) {
+  if (route.requestFile && (output.data as Record<string, any>).committed && !values.commit) {
     process.stderr.write(`note: ${committedLabel(output.data as Record<string, any>)}\n`);
   }
   printEnvelope(output, values.json === true || (routeName !== "plans" && routeName !== "scopes" && routeName !== "sync" && routeName !== "plans-md"), routeName);

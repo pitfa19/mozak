@@ -1,4 +1,4 @@
-// The sidebar sync button: remote scopes plus a fast-forward of every vault repo that holds a local scope.
+// The sidebar sync button: a fast-forward of every vault repo that holds a scope (0.6.0: no repo scopes any more).
 // Local bare repos in temp dirs only, never GitHub.
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
@@ -16,13 +16,13 @@ after(() => { for (const d of made) { if (!d.includes("/mozak-obs-sync-")) throw
 const g = (cwd: string, ...args: string[]) =>
   execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", "-c", "protocol.file.allow=always", ...args], { cwd, encoding: "utf8", env: { ...process.env, GIT_TERMINAL_PROMPT: "0" } }).trim();
 
-test("syncSummary names pulled, ahead and diverged vaults and stale remotes", () => {
-  assert.equal(syncSummary([], []), "Nothing to sync.");
-  assert.equal(syncSummary([], [{ repo: "/v/obsidian", scopes: ["a"], status: "fast-forwarded" }, { repo: "/v/anpit", scopes: ["b"], status: "up-to-date" }]), "2 of 2 vaults synced (1 pulled).");
-  assert.equal(syncSummary([], [{ repo: "/v/anpit", scopes: ["b"], status: "ahead" }]), "1 of 1 vault synced, anpit has unpushed commits.");
+test("syncSummary names pulled, ahead and diverged vaults", () => {
+  assert.equal(syncSummary([]), "Nothing to sync.");
+  assert.equal(syncSummary([{ repo: "/v/obsidian", scopes: ["a"], status: "fast-forwarded" }, { repo: "/v/anpit", scopes: ["b"], status: "up-to-date" }]), "2 of 2 vaults synced (1 pulled).");
+  assert.equal(syncSummary([{ repo: "/v/anpit", scopes: ["b"], status: "ahead" }]), "1 of 1 vault synced, anpit has unpushed commits.");
   assert.equal(
-    syncSummary([{ scope: "r", stale: true, error: "offline" }, { scope: "s", stale: false }], [{ repo: "/v/obsidian", scopes: ["a"], status: "not-fast-forward" }]),
-    "0 of 1 vault synced. not synced: obsidian: local and remote diverged, pull by hand. 1 of 2 remote scopes could not sync (using cached copy): r: offline.",
+    syncSummary([{ repo: "/v/obsidian", scopes: ["a"], status: "not-fast-forward" }, { repo: null, scopes: ["c"], status: "not-in-git", error: "not in a git repo" }]),
+    "0 of 2 vaults synced. not synced: obsidian: local and remote diverged, pull by hand; c: not in a git repo.",
   );
 });
 

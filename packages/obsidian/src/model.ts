@@ -42,18 +42,6 @@ export interface PlanVM {
   /** The owner starred this plan: its id is in the scope's inventory `focus` list. */
   focused: boolean;
 }
-export interface RemoteVM {
-  spec: string;
-  ref: string;
-  /** Last fetch failed, never happened, or is older than ten minutes. The cached copy is still shown. */
-  stale: boolean;
-  lastFetchAt: string | null;
-  staleReason: string | null;
-  /** True when plans live in a vault folder: nothing is fetched, so the copy is never stale. */
-  vault: boolean;
-  /** Last cached GitHub answer: "public", "private" (private or not visible without login), or null when unknown. */
-  visibility: "public" | "private" | null;
-}
 export interface ScopeCounts { completed: number; open: number; awaiting: number }
 export interface ScopeVM {
   id: string;
@@ -67,8 +55,6 @@ export interface ScopeVM {
   hasMozakMd: boolean;
   /** Actual note file name: mozak.md, or MOZAK.md for a scope not yet renamed. Null when absent. */
   bridgeFile: string | null;
-  /** Null for a local scope. */
-  remote: RemoteVM | null;
   /** Display-only link to the code repo, when the inventory entry has one. Never fetched. */
   repo: RepoVM | null;
   errorCode: string | null;
@@ -93,7 +79,6 @@ export interface ScopeLoad {
   /** Awaiting rows from core reviewRows, only identity is used. */
   awaitingRows?: { planId: string; rowKind: string }[];
   reviewNeededPlanIds?: string[];
-  remote?: RemoteVM;
   /** The entry's display-only repo link, when it has one. */
   repo?: string;
   error?: { code: string; message: string };
@@ -198,7 +183,6 @@ export function scopeViewModel(load: ScopeLoad): ScopeVM {
       entryFiles: load.entryFiles,
       hasMozakMd,
       bridgeFile: bridgeName,
-      remote: load.remote ?? null,
       repo: repoVM(load.repo),
       errorCode: load.error?.code ?? "unknown",
       errorMessage: load.error?.message ?? "scope could not be read",
@@ -220,7 +204,6 @@ export function scopeViewModel(load: ScopeLoad): ScopeVM {
     entryFiles: load.entryFiles,
     hasMozakMd,
     bridgeFile: bridgeName,
-    remote: load.remote ?? null,
     repo: repoVM(load.repo),
     errorCode: null,
     errorMessage: null,
@@ -307,30 +290,6 @@ export function planMatches(plan: Pick<PlanVM, "state" | "focused">, filter: Pla
 export function defaultFilter(plans: Pick<PlanVM, "state" | "focused">[], remembered: PlanFilter | null): PlanFilter {
   if (remembered && FILTERS.some((f) => f.id === remembered)) return remembered;
   return plans.some((p) => planMatches(p, "focus")) ? "focus" : "open";
-}
-
-/** Staleness of a remote scope's cached copy without touching the network. Mirrors core's ten minute window. */
-export function remoteVM(
-  spec: string,
-  ref: string,
-  meta: { lastFetchAt: string | null; lastError: string | null; visibility?: string | null },
-  now = new Date(),
-  freshMs = 10 * 60 * 1000,
-  vault = false,
-): RemoteVM {
-  const visibility = meta.visibility === "public" ? "public" : meta.visibility === "private-or-missing" ? "private" : null;
-  if (vault) return { spec, ref, stale: false, lastFetchAt: null, staleReason: null, vault: true, visibility };
-  const age = meta.lastFetchAt ? now.getTime() - Date.parse(meta.lastFetchAt) : Infinity;
-  let staleReason: string | null = null;
-  if (meta.lastError) staleReason = meta.lastError;
-  else if (!meta.lastFetchAt) staleReason = "never fetched";
-  else if (age >= freshMs) staleReason = "last fetch older than 10 minutes";
-  return { spec, ref, stale: staleReason !== null, lastFetchAt: meta.lastFetchAt, staleReason, vault: false, visibility };
-}
-
-export function countRemote(scopes: ScopeVM[]): { remote: number; stale: number } {
-  const remote = scopes.filter((s) => s.remote && !s.remote.vault);
-  return { remote: remote.length, stale: remote.filter((s) => s.remote?.stale).length };
 }
 
 export type OpenTarget = { kind: "vault"; path: string } | { kind: "external"; path: string };

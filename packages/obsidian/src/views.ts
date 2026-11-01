@@ -1,5 +1,5 @@
 import { ItemView, Notice, setIcon, type WorkspaceLeaf } from "obsidian";
-import { countRemote, defaultFilter, FILTERS, planMatches, scopesModel, type PlanFilter, type PlanVM, type RefVM, type ScopeVM, type ScopesModel, type StripVM } from "./model.ts";
+import { defaultFilter, FILTERS, planMatches, scopesModel, type PlanFilter, type PlanVM, type RefVM, type ScopeVM, type ScopesModel, type StripVM } from "./model.ts";
 import { loadScopesModel, describeError, syncAll, toggleFocus } from "./load.ts";
 import type MozakPlugin from "./main.ts";
 import { cachedUpdateNotice } from "@mozak/core";
@@ -15,25 +15,6 @@ function el(parent: HTMLElement, tag: string, cls?: string, text?: string): HTML
 }
 
 const EMPTY: Record<PlanFilter, string> = { open: "No open plans. Nice.", focus: "Star a plan to focus on it", completed: "No completed plans yet." };
-
-/** "github:owner/repo" or an https URL to a browsable GitHub URL. Null for file:// remotes. */
-function repoUrl(spec: string): string | null {
-  if (spec.startsWith("github:")) return `https://github.com/${spec.slice(7)}`;
-  if (spec.startsWith("https://")) return spec.replace(/\.git$/, "");
-  return null;
-}
-
-function repoLabel(spec: string): string {
-  return spec.replace(/^github:/, "").replace(/^https:\/\/github\.com\//, "").replace(/\.git$/, "");
-}
-
-function ago(iso: string): string {
-  const min = Math.round((Date.now() - Date.parse(iso)) / 60000);
-  if (min < 1) return "just now";
-  if (min < 60) return `${min} min ago`;
-  const h = Math.round(min / 60);
-  return h < 48 ? `${h} h ago` : `${Math.round(h / 24)} days ago`;
-}
 
 /** Scopes with open plans first, then ones with only completed plans, then empty, then failed. Stable within a group. */
 function rank(s: ScopeVM): number {
@@ -92,7 +73,7 @@ export class ScopesView extends ItemView {
     this.refresh();
   }
 
-  private syncRemote(button: HTMLElement): void {
+  private syncVaults(button: HTMLElement): void {
     const path = this.plugin.inventory().path;
     if (!path) return;
     button.addClass("is-busy");
@@ -122,9 +103,9 @@ export class ScopesView extends ItemView {
     const tools = el(head, "div", "mozak-tools");
     if (this.model && this.model.scopes.length > 0) {
       const sync = el(tools, "button", "clickable-icon mozak-sync");
-      sync.setAttr("aria-label", "Sync vaults and repos");
+      sync.setAttr("aria-label", "Sync vaults (fast-forward from their git remotes)");
       setIcon(sync, "cloud-download");
-      sync.addEventListener("click", () => this.syncRemote(sync));
+      sync.addEventListener("click", () => this.syncVaults(sync));
     }
     const btn = el(tools, "button", "clickable-icon mozak-refresh");
     btn.setAttr("aria-label", "Refresh (regenerates stale mozak.md files)");
@@ -143,27 +124,14 @@ export class ScopesView extends ItemView {
     const update = cachedUpdateNotice(this.plugin.manifest.version);
     if (update) el(root, "div", "mozak-update", `mozak ${update.latest} available. Run: ${update.command}`);
     this.renderFilter(root, m);
-    const stale = countRemote(m.scopes).stale;
-    if (m.totals.failed || stale) {
-      el(root, "div", "mozak-warn",
-        [m.totals.failed ? `${m.totals.failed} unreadable` : "", stale ? `${stale} remote stale` : ""].filter(Boolean).join(", "));
-    }
+    if (m.totals.failed) el(root, "div", "mozak-warn", `${m.totals.failed} unreadable`);
     const visible = m.scopes.filter((s) => s.plans.some((p) => planMatches(p, filter))).sort((a, b) => rank(a) - rank(b));
     if (visible.length === 0) {
       el(root, "div", "mozak-muted mozak-none", EMPTY[filter]);
       return;
     }
     const list = el(root, "div", "mozak-list-scopes");
-    const notes = visible.filter((s) => !s.remote);
-    const repos = visible.filter((s) => s.remote);
-    if (repos.length && notes.length) el(list, "div", "mozak-group", "Notes");
-    for (const scope of notes) this.renderScope(list, scope);
-    if (repos.length) {
-      const g = el(list, "div", "mozak-group");
-      setIcon(el(g, "span", "mozak-group-icon"), "github");
-      el(g, "span", undefined, "Repos");
-    }
-    for (const scope of repos) this.renderScope(list, scope);
+    for (const scope of visible) this.renderScope(list, scope);
   }
 
   private renderFilter(root: HTMLElement, m: ScopesModel): void {
@@ -194,18 +162,6 @@ export class ScopesView extends ItemView {
     row.setAttr("title", `${scope.title}\n${scope.id} (${scope.kind})\n${scope.root}`);
     const chev = el(row, "span", "mozak-chevron");
     setIcon(chev, open ? "chevron-down" : "chevron-right");
-    if (scope.remote) {
-      const r = el(row, "span", "mozak-tag mozak-remote" + (scope.remote.stale ? " is-stale" : ""));
-      setIcon(r, "github");
-      r.setAttr("aria-label", `${repoLabel(scope.remote.spec)}${scope.remote.stale ? " (cached copy is stale)" : ""}`);
-      const vis = scope.remote.visibility;
-      if (vis) {
-        const v = el(row, "span", `mozak-tag mozak-vis is-${vis}`);
-        setIcon(v, vis === "public" ? "globe" : "lock");
-        const where = scope.remote.vault ? "plans private in your vault" : "plans shared inside the repo";
-        v.setAttr("aria-label", `${vis === "public" ? "Public repo" : "Private repo"}, ${where}`);
-      }
-    }
     el(row, "span", "mozak-scope-title", scope.title);
     if (scope.repo) {
       // Display-only link to the code repo. A plain anchor: Obsidian opens it in the browser, mozak never fetches it.
@@ -235,23 +191,19 @@ export class ScopesView extends ItemView {
     });
     if (!open) return;
     const body = el(box, "div", "mozak-plans");
-    if (scope.remote) {
+    if (scope.repo) {
       const links = el(body, "div", "mozak-repo-links");
-      const url = repoUrl(scope.remote.spec);
-      if (url) {
-        const gh = el(links, "a", "mozak-repo-link");
-        setIcon(el(gh, "span", "mozak-repo-link-icon"), "external-link");
-        el(gh, "span", undefined, repoLabel(scope.remote.spec));
-        gh.setAttr("href", url);
-        gh.setAttr("aria-label", "Open on GitHub");
-      }
+      const gh = el(links, "a", "mozak-repo-link");
+      setIcon(el(gh, "span", "mozak-repo-link-icon"), "external-link");
+      el(gh, "span", undefined, scope.repo.label);
+      gh.setAttr("href", scope.repo.url);
+      gh.setAttr("aria-label", "Open the code repo");
       if (scope.entryFiles.includes("README.md")) {
         const rd = el(links, "span", "mozak-repo-link");
         setIcon(el(rd, "span", "mozak-repo-link-icon"), "book-open");
         el(rd, "span", undefined, "README");
         rd.addEventListener("click", () => void this.plugin.openScopeFile(scope, "README.md"));
       }
-      if (scope.remote.stale) el(links, "span", "mozak-stale-note", scope.remote.lastFetchAt ? `cached ${ago(scope.remote.lastFetchAt)}` : "not fetched yet");
     }
     if (scope.status === "failed") el(body, "div", "mozak-error", `${scope.errorCode}: ${scope.errorMessage}`);
     if (empty) el(body, "div", "mozak-muted mozak-noplans", "No plans yet");

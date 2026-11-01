@@ -6,11 +6,12 @@
 
 import { readFileSync } from "node:fs";
 import { isAbsolute, join, resolve } from "node:path";
+import { CACHE_DIR } from "./usage.ts";
 import { vaultOf } from "./vault-config.ts";
 
 export const LEGACY_KEYS = ["remote", "ref", "plans"] as const;
-/** The cache folder 0.5.0 kept next to the inventory for repo scopes. */
-export const LEGACY_CACHE_DIR = ".mozak-cache";
+/** The cache folder 0.5.0 kept next to the inventory for repo scopes (same folder as the usage log). */
+export const LEGACY_CACHE_DIR = CACHE_DIR;
 
 export interface LegacyLocation { root: string; refused: { code: string; message: string } }
 

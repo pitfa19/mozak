@@ -5,11 +5,11 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { initScopeState, loadInventory, repoKey } from "@mozak/core";
+import { initScopeState, loadInventory } from "@mozak/core";
 import { vaultTemp } from "../../core/test/vault-temp.ts";
 
-// Real-process tests: the built CLI run from inside a plain git clone finds its scope from the clone's origin,
-// so an agent working in ~/Downloads/<repo> reads the same vault plans. Writes still need --scope.
+// 0.6.0: mozak never derives a scope from the working directory's git origin, and there is no pull route.
+// Run from inside a code clone, every scoped read needs --scope, and the clone is never touched.
 
 const here = fileURLToPath(new URL(".", import.meta.url));
 const cliPath = resolve(here, "..", "dist", "index.js");
@@ -47,8 +47,8 @@ function fixture() {
   writeFileSync(join(plans, "README.md"), "# r\n");
   writeFileSync(join(plans, "AGENTS.md"), "# a\n");
   const inv = join(base, "vault", "inventory.json");
-  writeFileSync(inv, JSON.stringify({ format: "mozak.local/v3", scopes: [{ id: "tool", remote: `file://${bare}`, plans: "tool" }, { id: "other", root: "other" }] }));
-  mkdirSync(join(base, "vault", "other"));
+  // A 0.6.0 entry: a vault folder, with a display-only link to the code repo (never fetched, never matched to a cwd).
+  writeFileSync(inv, JSON.stringify({ format: "mozak.local/v3", scopes: [{ id: "tool", root: "tool", repo: "github:someone/tool" }] }));
   initScopeState(loadInventory(inv).scopes.find((s) => s.id === "tool")!, { operationId: "i", scopeId: "tool", kind: "project", title: "Tool", expectedAbsent: { graph: true, bridge: true }, ownerRef: "host:t", ownerMessageAt: "2026-10-18T08:50:00.000Z" });
   const clone = join(base, "Downloads", "tool");
   mkdirSync(join(base, "Downloads"));
@@ -56,55 +56,33 @@ function fixture() {
   return { base, bare, plans, inv, clone };
 }
 
-test("repoKey normalizes https, ssh, scp-like, github: and file forms", () => {
-  const k = "github.com/pitfa19/mozak";
-  for (const u of ["github:pitfa19/mozak", "https://github.com/pitfa19/mozak.git", "https://github.com/Pitfa19/Mozak", "git@github.com:pitfa19/mozak.git", "ssh://git@github.com/pitfa19/mozak.git"]) assert.equal(repoKey(u), k, u);
-  assert.equal(repoKey("file:///tmp/x/tool.git"), "file:/tmp/x/tool");
-  assert.equal(repoKey("not a url"), null);
-});
-
-test("context, plans, check and review show without --scope inside a clone no longer resolve a legacy repo scope", async () => {
+test("inside a clone, context, check, review show and plan show need --scope, even for a scope with a repo link", async () => {
   const { inv, clone } = fixture();
-  // 0.6.0: a remote entry is legacy-repo-scope, so a clone's origin matches no working scope.
-  const ctx = await run(["context", "--config", inv], clone);
-  assert.equal(ctx.code, 2, ctx.out + ctx.err);
-  assert.equal(JSON.parse(ctx.out).status, "scope-not-found");
-  // The clone never receives plan files.
+  for (const args of [["context"], ["check"], ["review", "show", "--plan", "p"], ["plan", "show", "--plan", "p"]]) {
+    const r = await run([...args, "--config", inv], clone);
+    assert.equal(r.code, 2, `${args.join(" ")}: ${r.out}${r.err}`);
+    assert.match(r.err, /missing --scope/, args.join(" "));
+  }
   assert.ok(!existsSync(join(clone, "mozak.json")));
   assert.equal(g(clone, "status", "--porcelain"), "");
 });
 
-test("an unrelated repo or plain folder gives scope-not-found, and writes still need --scope", async () => {
-  const { inv, base, clone } = fixture();
-  const stranger = join(base, "stranger");
-  mkdirSync(stranger);
-  g(stranger, "init", "-q", "-b", "main");
-  g(stranger, "remote", "add", "origin", "https://github.com/someone/else.git");
-  const r1 = await run(["context", "--config", inv], stranger);
-  assert.equal(r1.code, 2);
-  assert.equal(JSON.parse(r1.out).status, "scope-not-found");
-  const plain = join(base, "plain");
-  mkdirSync(plain);
-  assert.equal(JSON.parse((await run(["context", "--config", inv], plain)).out).status, "scope-not-found");
-  writeFileSync(join(base, "req.json"), "{}");
-  const w = await run(["plan", "propose", "--config", inv, "--request", join(base, "req.json")], clone);
-  assert.equal(w.code, 2);
-  assert.match(w.err, /missing --scope/);
+test("explicit --scope reads the vault folder from anywhere, including a clone", async () => {
+  const { inv, clone, plans } = fixture();
+  const r = await run(["context", "--config", inv, "--scope", "tool", "--json"], clone);
+  assert.equal(r.code, 0, r.out + r.err);
+  assert.equal(JSON.parse(r.out).context.scope.id, "tool");
+  assert.ok(existsSync(join(plans, "mozak.json")));
+  assert.equal(g(clone, "status", "--porcelain"), "");
 });
 
-test("explicit --scope still wins inside a clone", async () => {
-  const { inv, clone } = fixture();
-  const r = await run(["context", "--config", inv, "--scope", "other"], clone);
-  assert.notEqual(JSON.parse(r.out).context?.scope?.id, "tool");
-});
-
-test("pull refuses a legacy repo scope and clones nothing", async () => {
+test("pull is gone: an unknown route that clones nothing and leaves the plans as they were", async () => {
   const { inv, base, plans } = fixture();
   const before = readFileSync(join(plans, "mozak.json"));
   const dest = join(base, "Downloads", "fresh");
   const r = await run(["pull", "--config", inv, "--scope", "tool", "--into", dest, "--json"], base);
   assert.equal(r.code, 2, r.out + r.err);
-  assert.equal(JSON.parse(r.out).status, "legacy-repo-scope");
+  assert.match(r.err, /unknown route "pull/);
   assert.ok(!existsSync(dest));
   assert.deepEqual(readFileSync(join(plans, "mozak.json")), before);
 });

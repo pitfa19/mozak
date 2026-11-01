@@ -68,15 +68,16 @@ test("scopes lists them as failed, other scopes work, and no route fetches, clon
   assert.match(rows[1]!.message!, /mozak scope move --scope tool --to creations\/tool/);
   assert.equal(executeOperation(inv, "context", { scope: "home" }).exitCode, 0);
   for (const id of ["tool", "web"]) {
-    for (const [op, args, actor] of [["context", {}, "agent"], ["plans", {}, "agent"], ["check", {}, "agent"], ["render", {}, "agent"], ["sync", {}, "agent"], ["pull", {}, "owner"]] as const) {
+    for (const [op, args, actor] of [["context", {}, "agent"], ["plans", {}, "agent"], ["check", {}, "agent"], ["render", {}, "agent"], ["sync", {}, "agent"]] as const) {
       const out = executeOperation(inv, op, { scope: id, ...args }, actor);
       assert.equal((out.data.issues as { code: string }[])[0]?.code, "legacy-repo-scope", `${op} ${id}: ${JSON.stringify(out.data)}`);
       assert.notEqual(out.exitCode, 0);
     }
   }
-  // sync without a scope and the all-scope reads touch no remote at all.
+  // sync without a scope and the all-scope reads touch no remote at all; there is no pull operation.
+  assert.equal(executeOperation(inv, "pull", { scope: "tool" }, "owner").data.status, "unsupported-operation");
   const sync = executeOperation(inv, "sync", {});
-  assert.deepEqual(sync.data.remote, []);
+  assert.equal("remote" in sync.data, false);
   assert.equal(executeOperation(inv, "plans", { all: true }).exitCode, 6);
   assert.deepEqual(readdirSync(join(base, ".mozak-cache")).sort(), cacheBefore, "no meta file, no clone");
   assert.ok(!existsSync(join(base, ".mozak-cache", "web.meta.json")));
@@ -96,7 +97,7 @@ test("local reads never fetch: a legacy entry whose origin is gone costs no netw
   const inv = loadInventory(config);
   for (const op of ["context", "check"]) assert.equal(executeOperation(inv, op, { scope: "home" }).exitCode, 0, op);
   assert.equal(executeOperation(inv, "plans", { all: true }).exitCode, 6);
-  assert.equal(executeOperation(inv, "sync", { local: true }).data.remote instanceof Array, true);
+  assert.ok(Array.isArray(executeOperation(inv, "sync", { local: true }).data.local));
   for (const id of ["home", "tool", "web"]) assert.ok(!existsSync(join(base, ".mozak-cache", `${id}.meta.json`)), id);
 });
 

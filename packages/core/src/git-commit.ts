@@ -1,7 +1,7 @@
-// Opt-in git commit for a local (or vault-plans) scope after a write. `mozak <write> --commit`.
+// Opt-in git commit for a scope after a write. `mozak <write> --commit`.
 // A mozak write "commits" the scope transaction to mozak.json and mozak.md on disk. It does not
-// touch git for local scopes, because those usually live in a repo the caller owns (a vault, a
-// project). This helper is the explicit follow-up: commit just the two scope files in the
+// touch git by itself, because scopes live in a repo the caller owns (a vault). This helper is the
+// explicit follow-up: commit just the scope files in the
 // containing repo, then pull --rebase and push when the branch has an upstream. Never forces.
 
 import { execFileSync } from "node:child_process";

@@ -78,7 +78,7 @@ function moveRepoArg(value: unknown, drop: boolean): string | null {
   return repo;
 }
 
-/** Run `check` on the source folder as a plain local scope: no settings, no remote refresh, no network. */
+/** Run `check` on the source folder as a plain scope: no settings, no vault rule, no network. */
 function assertSourceChecks(entry: ScopeEntry): void {
   const local: ScopeInventory = { format: "mozak.local/v3", scopes: [{ id: entry.id, root: entry.root }], digest: "" };
   const out = executeOperation(local, "check", { scope: entry.id });

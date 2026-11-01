@@ -141,7 +141,7 @@ function readScopeWith(entry: ScopeEntry, options: StoreOptions, diagnostics: bo
   assertScopeFiles(entry.root);
   for (let attempt = 0; attempt < 3; attempt++) {
     const a = file(scopeFile(entry.root, "graph"));
-    if (a.bytes === null) throw new DomainError("scope-uninitialized", entry.remote ? `not a scope: ${entry.remote.spec}@${entry.remote.ref} has no mozak.json at its root` : `no mozak.json for ${entry.id}; check its root in the inventory, or ask the owner to run mozak scope init`);
+    if (a.bytes === null) throw new DomainError("scope-uninitialized", `no mozak.json for ${entry.id}; check its root in the inventory, or ask the owner to run mozak scope init`);
     let bridge: ReturnType<typeof file> | null = null;
     let bridgeIssue: ScopeIssue | null = null;
     try { bridge = file(scopeFile(entry.root, "bridge"), MAX_SCOPE_BYTES * 2); }
@@ -388,7 +388,6 @@ export type RenderResult = "rendered" | "current" | "conflict" | "failed";
  * overwrites a conflicting bridge (that stays an owner repair), and runs inside the scope lock.
  */
 export function renderProjection(entry: ScopeEntry, options: StoreOptions = {}): { result: RenderResult; outcome: OperationResult } {
-  if (entry.remote && entry.remote.plansMode === "repo") throw new DomainError("remote-render-refused", "render only regenerates local projections", 2);
   let result: RenderResult = "current";
   const tx: Transaction = { committed: false, projectionUpdated: false, temporary: [] };
   const out = transaction(entry, options, tx, () => {
@@ -498,7 +497,6 @@ export function pruneRejectedPlans(entry: ScopeEntry, input: unknown, options: S
  * The rename goes through a temporary name, which also works on case-insensitive disks.
  */
 export function renameScopeFiles(entry: ScopeEntry, options: StoreOptions = {}): { result: RenameResult; outcome: OperationResult } {
-  if (entry.remote && entry.remote.plansMode === "repo") throw new DomainError("remote-rename-refused", "rename only local or vault-plans scopes; a repo scope is renamed in its own clone", 2);
   let result: RenameResult = "current";
   const tx: Transaction = { committed: false, projectionUpdated: false, temporary: [] };
   const out = transaction(entry, options, tx, () => {

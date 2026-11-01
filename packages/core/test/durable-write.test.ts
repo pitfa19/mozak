@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { durableStats, executeOperation, initScopeState, leftoverTempFiles, loadInventory, replaceFileDurable, writeRemoteMeta } from "../src/index.ts";
+import { durableStats, executeOperation, initScopeState, leftoverTempFiles, loadInventory, replaceFileDurable } from "../src/index.ts";
 import { vaultTemp } from "./vault-temp.ts";
 
 const scratch = process.env.JCODE_SCRATCH_DIR ?? process.env.TMPDIR ?? tmpdir();
@@ -30,14 +30,6 @@ test("every plan write flushes the file and its folder", () => {
   // mozak.json, mozak.md and the lock owner file: three flushed files, and a folder flush after each.
   assert.ok(durableStats.fileSyncs - before.fileSyncs >= 3, `file syncs ${durableStats.fileSyncs - before.fileSyncs}`);
   assert.ok(durableStats.dirSyncs - before.dirSyncs >= 3, `dir syncs ${durableStats.dirSyncs - before.dirSyncs}`);
-});
-
-test("remote meta writes are durable too", () => {
-  const base = mkdtempSync(join(scratch, "mozak-durable-")); made.push(base);
-  const before = { ...durableStats };
-  writeRemoteMeta(base, "x", { lastFetchAt: null, lastError: null, fullClone: null });
-  assert.equal(durableStats.fileSyncs - before.fileSyncs, 1);
-  assert.equal(durableStats.dirSyncs - before.dirSyncs, 1);
 });
 
 test("replaceFileDurable leaves no temp file and replaces atomically", () => {

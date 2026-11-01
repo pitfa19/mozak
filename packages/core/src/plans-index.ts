@@ -39,7 +39,7 @@ export interface PlansIndexFile {
   content: string;
 }
 
-export interface PlansIndexSkip { scope: string; reason: "repo-mode-remote" | "not-in-git-repo" }
+export interface PlansIndexSkip { scope: string; reason: "not-in-git-repo" }
 
 export interface PlansIndexResult { files: PlansIndexFile[]; skipped: PlansIndexSkip[] }
 
@@ -60,14 +60,13 @@ export function renderPlansIndex(scopes: { id: string; folder: string; state: Sc
 }
 
 /**
- * Build plans.md for every repository in the inventory. `write: false` only returns the text. Never fetches: repo-mode
- * remote scopes are skipped (their plans live in a code repo, not a vault), and scopes outside git are skipped.
+ * Build plans.md for every repository in the inventory. `write: false` only returns the text. Never fetches.
+ * Scopes outside git are skipped; a refused scope is listed without plans.
  */
 export function plansIndex(inv: ScopeInventory, opts: { write: boolean }): PlansIndexResult {
   const byRepo = new Map<string, { id: string; folder: string; state: ScopeState | null; code?: string }[]>();
   const skipped: PlansIndexSkip[] = [];
   for (const entry of inv.scopes) {
-    if (entry.remote && entry.remote.plansMode === "repo") { skipped.push({ scope: entry.id, reason: "repo-mode-remote" }); continue; }
     const repo = findRepoRoot(entry.root);
     if (!repo) { skipped.push({ scope: entry.id, reason: "not-in-git-repo" }); continue; }
     const folder = relative(repo, realOrSelf(entry.root)).split(sep).join("/") || ".";

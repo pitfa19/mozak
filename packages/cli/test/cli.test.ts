@@ -153,12 +153,13 @@ test("a read route without --config exits 2", async () => {
   assert.match(r.err, /missing --config/);
 });
 
-test("plans refuses both --scope and --all; with neither it needs a clone of an inventoried repo", async () => {
+test("plans refuses both --scope and --all; with neither it lists every scope, the same as --all", async () => {
   const f = fixture();
-  const neither = await run(["plans", "--config", f.config]);
+  const neither = await run(["plans", "--config", f.config, "--json"]);
+  const all = await run(["plans", "--config", f.config, "--all", "--json"]);
   const both = await run(["plans", "--config", f.config, "--scope", "sample", "--all"]);
-  assert.equal(neither.code, 2);
-  assert.equal(json(neither).status, "scope-not-found");
+  assert.equal(neither.code, all.code, neither.out + neither.err);
+  assert.deepEqual(json(neither).scopes, json(all).scopes);
   assert.equal(both.code, 2);
 });
 

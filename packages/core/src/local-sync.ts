@@ -27,13 +27,13 @@ function git(cwd: string, args: string[], timeout = 20_000): string {
 }
 function tryGit(cwd: string, args: string[]): string | null { try { return git(cwd, args); } catch { return null; } }
 
-/** Scopes whose plan files live in a local folder: local scopes and vault-plans scopes. Repo-mode remotes have their own sync. Refused entries are never synced. */
+/** Scopes whose plan files live in a vault folder (every working scope). Refused entries are never synced. */
 export function localEntries(scopes: ScopeEntry[]): ScopeEntry[] {
-  return scopes.filter((s) => !s.refused && (!s.remote || s.remote.plansMode === "vault"));
+  return scopes.filter((s) => !s.refused);
 }
 
 /**
- * Sync the git repos that hold `targets`. Every inventoried local or vault-plans scope inside such a repo is locked
+ * Sync the git repos that hold `targets`. Every inventoried scope inside such a repo is locked
  * during the merge, not only the targets, because the merge rewrites the whole working tree.
  */
 export function syncLocal(targets: ScopeEntry[], all: ScopeEntry[], options: StoreOptions = {}): LocalSyncRow[] {

@@ -34,3 +34,33 @@ test("format 1 is gone from core: no parse, check, graph, stale, translate, init
   const gone = ["parseMozak", "checkScope", "buildGraph", "loadConfig", "staleReports", "renderStale", "buildPacket", "renderTranslation", "auditProject", "mozakTemplate", "readSnapshot", "hashText", "EMPTY_HASH"];
   assert.deepEqual(gone.filter((name) => name in core), []);
 });
+
+// 0.6.0: mozak keeps plans in vaults only. Repo scopes are gone: no sparse cache, no clone, no push of plans, no
+// GitHub visibility check, no scope from a clone's origin, no `pull` route and no MCP `mozak_sync`.
+test("0.6.0 ships no repo-scope modules, exports or routes", () => {
+  for (const name of ["remote", "remote-meta", "visibility", "working-copy"]) {
+    assert.equal(existsSync(new URL(`packages/core/src/${name}.ts`, repo)), false, `${name}.ts must be removed`);
+  }
+  // s2-sync.test.ts stays: it tests `mozak sync --local` (fast-forward of the vault repo), which 0.6.0 keeps.
+  for (const name of ["remote", "vault-plans", "visibility", "s2-offline"]) {
+    assert.equal(existsSync(new URL(`packages/core/test/${name}.test.ts`, repo)), false, `${name}.test.ts must be removed`);
+  }
+  const gone = ["syncRemote", "pullRemote", "commitAndPush", "cacheIgnoreWarning", "remoteEntries", "repoEntries", "statusOf", "parseRemoteSpec", "readRemoteMeta", "writeRemoteMeta", "scopeVisibility", "cachedVisibility", "setVisibilityChecker", "publicRepoPlansMessage", "githubSlug", "scopeForWorkingCopy", "repoKey", "FRESH_MS", "SPARSE_FILES"];
+  assert.deepEqual(gone.filter((name) => name in core), []);
+  assert.equal((core.OPERATIONS as readonly string[]).includes("pull"), false, "no pull operation");
+  const cli = readFileSync(new URL("packages/cli/src/index.ts", repo), "utf8");
+  assert.doesNotMatch(cli, /\bpull: \{ operation: "pull"/, "no pull route");
+  assert.doesNotMatch(readFileSync(new URL("packages/mcp/src/server.ts", repo), "utf8"), /mozak_sync/);
+});
+
+test("no scope route reaches git fetch, git clone or the GitHub API: only local sync fetches the vault's own repo", () => {
+  const src = (dir: string) => execFileSync("git", ["-C", repo.pathname, "ls-files", "-z", `packages/${dir}/src`], { encoding: "utf8" }).split("\0").filter((p) => p.endsWith(".ts"));
+  const files = ["core", "cli", "mcp", "obsidian"].flatMap(src).filter((p) => existsSync(new URL(p, repo)));
+  const hits = (re: RegExp) => files.filter((p) => re.test(readFileSync(new URL(p, repo), "utf8"))).sort();
+  // `git fetch`: local-sync.ts fetches the vault's own upstream (mozak sync --local); upgrade.ts fetches mozak's own
+  // releases. Neither is a scope's code repo.
+  assert.deepEqual(hits(/["']fetch["']/), ["packages/cli/src/upgrade.ts", "packages/core/src/local-sync.ts"]);
+  assert.deepEqual(hits(/["']clone["']/), []);
+  // api.github.com: only the release update check (mozak's own releases).
+  assert.deepEqual(hits(/api\.github\.com/), ["packages/core/src/update.ts"]);
+});

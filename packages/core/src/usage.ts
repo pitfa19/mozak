@@ -9,7 +9,8 @@ import { basename, dirname, join, resolve } from "node:path";
 import { DomainError } from "./errors.ts";
 import { replaceFileDurable } from "./durable.ts";
 import { isWithin, realOrSelf } from "./paths.ts";
-import { CACHE_DIR } from "./remote-meta.ts";
+/** Folder next to the inventory for local, never committed data. Since 0.6.0 it holds only the opt-in usage log. */
+export const CACHE_DIR = ".mozak-cache";
 
 export const USAGE_DIR = "usage";
 export const USAGE_FORMAT = "mozak.usage/v1" as const;

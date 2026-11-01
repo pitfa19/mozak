@@ -3,8 +3,8 @@
 // renderStaleProjections, regenerates mozak.md through core and never touches mozak.json.
 import { lstatSync, readdirSync } from "node:fs";
 import { basename, join } from "node:path";
-import { annotationsEnabled, DomainError, executeOperation, focusChange, loadInventory, readAnnotations, readFocus, readRemoteMeta, readScope, resolveScope, reviewRows, SCOPE_FILE_NAMES } from "@mozak/core";
-import { remoteVM, scopesModel, type ScopeLoad, type ScopesModel } from "./model.ts";
+import { annotationsEnabled, DomainError, executeOperation, focusChange, loadInventory, readAnnotations, readFocus, readScope, resolveScope, reviewRows, SCOPE_FILE_NAMES } from "@mozak/core";
+import { scopesModel, type ScopeLoad, type ScopesModel } from "./model.ts";
 
 const ENTRY_NAMES = ["AGENTS.md", ...SCOPE_FILE_NAMES, "README.md"];
 
@@ -27,10 +27,6 @@ export function loadScopesModel(inventoryPath: string): ScopesModel {
   const inv = loadInventory(inventoryPath);
   const focus = readFocus(inventoryPath);
   const loads: ScopeLoad[] = inv.scopes.map((entry) => {
-    // Remote scopes are read from the local cache only. Refreshing the view never touches the network.
-    const remote = entry.remote
-      ? remoteVM(entry.remote.spec, entry.remote.ref, readRemoteMeta(entry.remote.baseDir, entry.id), new Date(), undefined, entry.remote.plansMode === "vault")
-      : undefined;
     try {
       const resolved = resolveScope(inv, entry.id);
       const read = readScope(resolved);
@@ -48,11 +44,10 @@ export function loadScopesModel(inventoryPath: string): ScopesModel {
         // A broken sidecar simply shows no refs; `mozak check` reports it.
         annotations: annotationsEnabled(inv, resolved) ? readAnnotations(resolved.root, entry.id).doc : null,
         focus: focus[entry.id] ?? [],
-        ...(remote ? { remote } : {}),
         ...(entry.repo ? { repo: entry.repo } : {}),
       };
     } catch (err) {
-      return { id: entry.id, root: entry.root, entryFiles: entryFiles(entry.root), error: fail(err), ...(remote ? { remote } : {}), ...(entry.repo ? { repo: entry.repo } : {}) };
+      return { id: entry.id, root: entry.root, entryFiles: entryFiles(entry.root), error: fail(err), ...(entry.repo ? { repo: entry.repo } : {}) };
     }
   });
   return scopesModel(inventoryPath, loads);
@@ -73,7 +68,7 @@ export function toggleFocus(inventoryPath: string, scope: string, plan: string, 
 
 /**
  * Regenerate stale mozak.md projections through core's render operation (the same code as `mozak render --all`).
- * The only write the plugin makes: mozak.md of local scopes, never mozak.json. Conflicts are reported, not overwritten.
+ * The only write the plugin makes besides the focus star: mozak.md, never mozak.json. Conflicts are reported, not overwritten.
  */
 export function renderStaleProjections(inventoryPath: string): { ok: boolean; rendered: number; message: string } {
   const inv = loadInventory(inventoryPath);
@@ -83,57 +78,37 @@ export function renderStaleProjections(inventoryPath: string): { ok: boolean; re
   const bad = rows.filter((r) => r.result === "conflict" || r.result === "failed");
   const status = typeof out.data.status === "string" ? out.data.status : "unknown";
   if (out.exitCode !== 0 && bad.length === 0) return { ok: false, rendered, message: `Projection refresh failed (${status}).` };
-  if (bad.length === 0) return { ok: true, rendered, message: rendered ? `Regenerated ${rendered} mozak.md file${rendered === 1 ? "" : "s"}.` : "Local mozak.md projections are current. Remote scopes are skipped." };
+  if (bad.length === 0) return { ok: true, rendered, message: rendered ? `Regenerated ${rendered} mozak.md file${rendered === 1 ? "" : "s"}.` : "mozak.md projections are current." };
   return { ok: false, rendered, message: `mozak.md not regenerated for ${bad.map((r) => `${r.scope} (${r.result === "conflict" ? "unrecognized content preserved for owner review" : "render failed, inspect mozak render output"})`).join(", ")}.` };
-}
-
-/** Force-refresh every remote scope through core (the same code as `mozak sync`). Returns a one line summary. */
-export function syncRemoteScopes(inventoryPath: string): { ok: boolean; message: string } {
-  const inv = loadInventory(inventoryPath);
-  const out = executeOperation(inv, "sync", {}, "agent");
-  const remote = (out.data.remote ?? []) as { scope: string; stale: boolean; error?: string }[];
-  if (remote.length === 0) return { ok: true, message: "No remote scopes in the inventory." };
-  const stale = remote.filter((r) => r.stale);
-  if (stale.length === 0) return { ok: true, message: `Synced ${remote.length} remote scope${remote.length === 1 ? "" : "s"}.` };
-  return { ok: false, message: `${stale.length} of ${remote.length} could not sync (using cached copy): ${stale.map((r) => `${r.scope}: ${r.error ?? "failed"}`).join("; ")}` };
 }
 
 interface LocalRow { repo: string | null; scopes: string[]; status: string; error?: string }
 const LOCAL_OK = new Set(["fast-forwarded", "up-to-date", "ahead"]);
 
 /**
- * The sync button: refresh remote scopes and fast-forward every git repo (vault) that holds a local scope, through
- * core (the same code as `mozak sync --local`). Core takes the scope locks, merges only with --ff-only and never pushes,
- * so a diverged vault is reported, not touched. Returns a one line summary.
+ * The sync button: fast-forward every git repo (vault) that holds a scope, through core (the same code as
+ * `mozak sync`). Core takes the scope locks, merges only with --ff-only and never pushes, so a diverged vault is
+ * reported, not touched. Returns a one line summary.
  */
 export function syncAll(inventoryPath: string): { ok: boolean; message: string } {
   const inv = loadInventory(inventoryPath);
-  const out = executeOperation(inv, "sync", { local: true }, "agent");
-  return { ok: out.exitCode === 0, message: syncSummary((out.data.remote ?? []) as { scope: string; stale: boolean; error?: string }[], (out.data.local ?? []) as LocalRow[]) };
+  const out = executeOperation(inv, "sync", {}, "agent");
+  return { ok: out.exitCode === 0, message: syncSummary((out.data.local ?? []) as LocalRow[]) };
 }
 
 /** One line for a sync notice. Pure, exported for tests. */
-export function syncSummary(remote: { scope: string; stale: boolean; error?: string }[], local: LocalRow[]): string {
-  const parts: string[] = [];
+export function syncSummary(local: LocalRow[]): string {
+  if (local.length === 0) return "Nothing to sync.";
   const name = (r: LocalRow) => (r.repo ? basename(r.repo) : r.scopes.join(", "));
-  if (local.length > 0) {
-    const pulled = local.filter((r) => r.status === "fast-forwarded").length;
-    const ahead = local.filter((r) => r.status === "ahead");
-    const okCount = local.filter((r) => LOCAL_OK.has(r.status)).length;
-    let s = `${okCount} of ${local.length} vault${local.length === 1 ? "" : "s"} synced`;
-    if (pulled) s += ` (${pulled} pulled)`;
-    if (ahead.length) s += `, ${ahead.map(name).join(", ")} ha${ahead.length === 1 ? "s" : "ve"} unpushed commits`;
-    parts.push(s);
-    const bad = local.filter((r) => !LOCAL_OK.has(r.status));
-    if (bad.length) parts.push(`not synced: ${bad.map((r) => `${name(r)}: ${r.status === "not-fast-forward" ? "local and remote diverged, pull by hand" : r.error ?? r.status}`).join("; ")}`);
-  }
-  if (remote.length > 0) {
-    const stale = remote.filter((r) => r.stale);
-    parts.push(stale.length === 0
-      ? `${remote.length} remote scope${remote.length === 1 ? "" : "s"} synced`
-      : `${stale.length} of ${remote.length} remote scopes could not sync (using cached copy): ${stale.map((r) => `${r.scope}: ${r.error ?? "failed"}`).join("; ")}`);
-  }
-  return parts.length ? `${parts.join(". ")}.` : "Nothing to sync.";
+  const pulled = local.filter((r) => r.status === "fast-forwarded").length;
+  const ahead = local.filter((r) => r.status === "ahead");
+  const okCount = local.filter((r) => LOCAL_OK.has(r.status)).length;
+  let s = `${okCount} of ${local.length} vault${local.length === 1 ? "" : "s"} synced`;
+  if (pulled) s += ` (${pulled} pulled)`;
+  if (ahead.length) s += `, ${ahead.map(name).join(", ")} ha${ahead.length === 1 ? "s" : "ve"} unpushed commits`;
+  const bad = local.filter((r) => !LOCAL_OK.has(r.status));
+  if (bad.length) s += `. not synced: ${bad.map((r) => `${name(r)}: ${r.status === "not-fast-forward" ? "local and remote diverged, pull by hand" : r.error ?? r.status}`).join("; ")}`;
+  return `${s}.`;
 }
 
 /** Resolve symlinks for vault-membership checks. Shared with core. */

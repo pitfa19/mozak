@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { shell } from "electron";
 import { BRIDGE_FILE } from "@mozak/core";
 import { chooseInventory } from "./discover.ts";
-import { realOrSelf, renderStaleProjections, syncRemoteScopes } from "./load.ts";
+import { realOrSelf, renderStaleProjections } from "./load.ts";
 import { startWatching, watchTargets } from "./watch.ts";
 import { headingLine, resolveOpenTarget, type PlanFilter, type PlanVM, type ScopeVM } from "./model.ts";
 import { LEGACY_PLAN_VIEW_TYPE, ScopesView, SCOPES_VIEW_TYPE } from "./views.ts";
@@ -12,20 +12,19 @@ export interface MozakSettings {
   inventoryPath: string;
   /** Refresh automatically when a plan file changes. */
   autoRefresh: boolean;
-  /** Seconds between automatic syncs of remote (repo) scopes. 0 turns polling off. */
-  remotePollSeconds: number;
   /** The sidebar tab last chosen. Null: Focus when it has plans, else Open. */
   lastFilter: PlanFilter | null;
 }
-const DEFAULTS: MozakSettings = { inventoryPath: "", autoRefresh: true, remotePollSeconds: 60, lastFilter: null };
+const DEFAULTS: MozakSettings = { inventoryPath: "", autoRefresh: true, lastFilter: null };
 
 export default class MozakPlugin extends Plugin {
   override settings: MozakSettings = { ...DEFAULTS };
   private stopWatch: (() => void) | null = null;
-  private pollTimer: number | null = null;
 
   override async onload(): Promise<void> {
-    this.settings = { ...DEFAULTS, ...((await this.loadData()) as Partial<MozakSettings> | null) };
+    // Settings saved by mozak before 0.6.0 may carry remotePollSeconds; it is dropped (no repo scopes to poll).
+    const { remotePollSeconds: _dropped, ...saved } = ((await this.loadData()) ?? {}) as Partial<MozakSettings> & { remotePollSeconds?: unknown };
+    this.settings = { ...DEFAULTS, ...saved };
     this.registerView(SCOPES_VIEW_TYPE, (leaf) => new ScopesView(leaf, this));
     this.addRibbonIcon("brain-circuit", "Open mozak scopes", () => void this.activateScopes());
     this.addCommand({ id: "open-scopes", name: "Open scopes", callback: () => void this.activateScopes() });
@@ -42,21 +41,15 @@ export default class MozakPlugin extends Plugin {
   private stopAutoRefresh(): void {
     this.stopWatch?.();
     this.stopWatch = null;
-    if (this.pollTimer !== null) window.clearInterval(this.pollTimer);
-    this.pollTimer = null;
   }
 
-  /** (Re)start file watching for local scopes and repo polling for remote scopes, per settings. */
+  /** (Re)start file watching for the inventory and every scope's plan file, per settings. Nothing is polled. */
   restartAutoRefresh(): void {
     this.stopAutoRefresh();
     if (!this.settings.autoRefresh) return;
     const path = this.inventory().path;
     if (!path) return;
     this.startFileWatch(path);
-    const secs = Math.max(0, Math.floor(this.settings.remotePollSeconds));
-    if (secs > 0) {
-      this.pollTimer = window.setInterval(() => this.pollRemotes(path), Math.max(15, secs) * 1000);
-    }
   }
 
   /** Watch files for the current inventory. After every change the targets are rebuilt, so scopes added to the inventory get watched too. */
@@ -66,11 +59,6 @@ export default class MozakPlugin extends Plugin {
       this.refreshAll();
       if (this.settings.autoRefresh) this.startFileWatch(path);
     });
-  }
-
-  /** Pull remote (repo) scopes. A changed cache is picked up by the file watcher. Quiet unless it fails. */
-  private pollRemotes(path: string): void {
-    try { syncRemoteScopes(path); } catch { /* offline or unreadable: keep the cached copy */ }
   }
 
   /** Reload every open mozak view from disk. */
@@ -138,7 +126,7 @@ export default class MozakPlugin extends Plugin {
         return;
       }
     }
-    // Outside the vault (remote cache, other folders): open the file itself. External apps cannot jump to a heading.
+    // Outside the vault (another folder): open the file itself. External apps cannot jump to a heading.
     let found = false;
     try { found = headingLine(readFileSync(file, "utf8"), plan.heading) !== null; } catch { /* reported below */ }
     const err = await this.openExternal(file);
@@ -193,16 +181,6 @@ class MozakSettingTab extends PluginSettingTab {
         desc: "Reload mozak views as soon as a plan changes on disk.",
         control: { type: "toggle", key: "autoRefresh" },
       },
-      {
-        name: "Repo sync interval (seconds)",
-        desc: "How often remote repository scopes are pulled so plan changes appear automatically. 0 turns it off. Minimum 15.",
-        control: {
-          type: "number",
-          key: "remotePollSeconds",
-          min: 0,
-          validate: (n) => (Number.isFinite(n) && n >= 0 ? undefined : "Enter 0 or a positive number of seconds."),
-        },
-      },
     ];
   }
 
@@ -210,7 +188,6 @@ class MozakSettingTab extends PluginSettingTab {
     const s = this.plugin.settings;
     if (key === "inventoryPath" && typeof value === "string") s.inventoryPath = value;
     else if (key === "autoRefresh" && typeof value === "boolean") s.autoRefresh = value;
-    else if (key === "remotePollSeconds" && typeof value === "number" && Number.isFinite(value) && value >= 0) s.remotePollSeconds = value;
     else return;
     await this.plugin.saveSettings();
     if (key === "inventoryPath") this.update();

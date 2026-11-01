@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { applyMutation, executeOperation, initScopeState, loadInventory, mutateScope, planDisplayState, readScope, renderBridge, renderBridgeLegacy, reviewShow } from "@mozak/core";
 import { chooseInventory, discoverInventory } from "../src/discover.ts";
-import { countRemote, countsSummary, defaultFilter, FILTERS, headingLine, planMatches, planState, remoteVM, resolveOpenTarget, scopesModel, scopeViewModel, stripVM, type PlanFilter, type PlanVM } from "../src/model.ts";
+import { countsSummary, defaultFilter, FILTERS, headingLine, planMatches, planState, resolveOpenTarget, scopesModel, scopeViewModel, stripVM, type PlanFilter, type PlanVM } from "../src/model.ts";
 import { loadScopesModel, realOrSelf, renderStaleProjections } from "../src/load.ts";
 import { cleanup as cleanupWorlds, world } from "../../core/test/annotations-fixture.ts";
 import { after } from "node:test";
@@ -108,22 +108,12 @@ test("loadScopesModel reads a real core inventory, one scope failing without hid
   assert.equal(m.scopes.find((s) => s.id === "empty")?.errorCode, "scope-uninitialized");
 });
 
-test("remoteVM marks a copy stale when never fetched, failed, or older than ten minutes", () => {
-  const now = new Date("2026-10-14T12:00:00Z");
-  const iso = (minAgo: number) => new Date(now.getTime() - minAgo * 60_000).toISOString();
-  assert.equal(remoteVM("github:o/r", "main", { lastFetchAt: iso(2), lastError: null }, now).stale, false);
-  assert.equal(remoteVM("github:o/r", "main", { lastFetchAt: iso(11), lastError: null }, now).stale, true);
-  assert.equal(remoteVM("github:o/r", "main", { lastFetchAt: null, lastError: null }, now).staleReason, "never fetched");
-  assert.equal(remoteVM("github:o/r", "main", { lastFetchAt: iso(1), lastError: "offline" }, now).staleReason, "offline");
-});
-
-test("remote scopes carry their badge data through the view model and are counted", () => {
-  const remote = remoteVM("github:o/r", "main", { lastFetchAt: null, lastError: null });
-  const a = scopeViewModel({ id: "r", root: "/c", entryFiles: [], error: { code: "scope-root-missing", message: "x" }, remote });
+test("scope view models carry the display-only repo link, ok or failed", () => {
+  const a = scopeViewModel({ id: "r", root: "/c", entryFiles: [], error: { code: "scope-root-missing", message: "x" }, repo: "github:o/r" });
   const b = scopeViewModel({ id: "l", root: "/l", entryFiles: [], error: { code: "x", message: "y" } });
-  assert.equal(a.remote?.spec, "github:o/r");
-  assert.equal(b.remote, null);
-  assert.deepEqual(countRemote([a, b]), { remote: 1, stale: 1 });
+  assert.deepEqual(a.repo, { spec: "github:o/r", url: "https://github.com/o/r", label: "o/r" });
+  assert.equal(b.repo, null);
+  assert.equal("remote" in a, false, "no repo-scope badge data any more");
 });
 
 test("a legacy vault-plans entry is a failed row naming scope move, and opening its folder stays inside the vault", () => {
@@ -296,7 +286,8 @@ test("Obsidian community plugin submission checklist: root manifest, source hygi
   const mainTs = readRepo("packages/obsidian/src/main.ts");
   assert.match(mainTs, /addCommand\(\{\s*id:\s*"open-scopes",\s*name:\s*"Open scopes"/, "command name uses sentence case without plugin prefix");
   const onunloadBlock = mainTs.slice(mainTs.indexOf("onunload(): void"), mainTs.indexOf("restartAutoRefresh(): void"));
-  assert.ok(onunloadBlock.includes("this.stopAutoRefresh()") && onunloadBlock.includes("this.stopWatch?.()") && onunloadBlock.includes("window.clearInterval(this.pollTimer)"), "onunload cleans up watchers and timers");
+  assert.ok(onunloadBlock.includes("this.stopAutoRefresh()") && mainTs.includes("this.stopWatch?.()"), "onunload cleans up watchers");
+  assert.ok(!/setInterval|pollTimer/.test(mainTs), "no polling timer to leak (0.6.0 has no repo scopes to poll)");
   assert.ok(!onunloadBlock.includes(".detach()"), "onunload does not detach user workspace leaves");
 
   // 3. Disclosures in README.md and packages/obsidian/README.md + LICENSE at repo root.

@@ -29,8 +29,6 @@ export type LocatorStatus =
   | "missing"
   /** A note link with several matching notes and none in the citing scope. */
   | "ambiguous"
-  /** A relative path in a scope whose code lives in a remote repo that is not cloned here. */
-  | "remote"
   /** Prose (an owner message, a command): nothing to resolve. */
   | "not-checked";
 
@@ -62,7 +60,7 @@ const inside = (path: string, dir: string) => path === dir || path.startsWith(di
 export function defaultIndexRoots(inv: ScopeInventory): LocatorRoot[] {
   const out = new Map<string, LocatorRoot>();
   for (const entry of inv.scopes) {
-    if (entry.refused || (entry.remote && entry.remote.plansMode === "repo")) continue;
+    if (entry.refused) continue;
     const root = realOrSelf(entry.root);
     const repo = findRepoRoot(root);
     if (!repo || repo === root) continue;
@@ -172,7 +170,7 @@ export class LocatorResolver {
     const pathLike = explicit || (!/['"`;,]|\s{2}/.test(path) && /^[^\s:]+(?: [^\s:]+){0,6}$/.test(path) && (path.includes("/") || EXT_RE.test(path)));
     if (!pathLike) return { kind: "text", status: "not-checked" };
 
-    for (const candidate of this.candidates(entry, scopeRoot, path)) {
+    for (const candidate of this.candidates(scopeRoot, path)) {
       if (existsSync(candidate)) return this.found(realOrSelf(candidate), anchorUsed, scopeRoot, "path");
     }
     // A bare note name with .md may be a note anywhere in the roots, as Obsidian would find it.
@@ -180,17 +178,15 @@ export class LocatorResolver {
       const note = this.resolveNote(scopeRoot, path, anchorUsed);
       if (note.status !== "missing") return { ...note, kind: "path" };
     }
-    if (!explicit && entry.remote && !entry.remote.fullClone) return { kind: "path", status: "remote" };
     return { kind: "path", status: "missing" };
   }
 
-  private candidates(entry: ScopeEntry, scopeRoot: string, path: string): string[] {
+  private candidates(scopeRoot: string, path: string): string[] {
     if (path === "~" || path.startsWith("~/")) return [join(homedir(), path.slice(1))];
     if (isAbsolute(path)) return [path];
     const bases = [scopeRoot];
     const repo = findRepoRoot(scopeRoot);
     if (repo) bases.push(repo);
-    if (entry.remote?.fullClone) bases.push(entry.remote.fullClone);
     for (const r of this.roots) bases.push(dirname(r.path), r.path);
     return [...new Set(bases.map((b) => resolve(b, path)))];
   }

@@ -138,16 +138,14 @@ export function ignoredScopeSettingsFile(inv: ScopeInventory, entry: ScopeEntry)
   return local;
 }
 
-export type AnnotationsMode = { enabled: true; source: "setting" } | { enabled: false; source: "setting" | "default" | "repo-mode" };
+export type AnnotationsMode = { enabled: true; source: "setting" } | { enabled: false; source: "setting" | "default" };
 
 /**
  * Whether owner annotations are on for a scope. Off by default (0.5.0): a scope without `scopes.<id>.annotations: true`
- * behaves like 0.4.7, its sidecar is never read and `annotate` is refused. Repo-mode remote scopes are always refused:
- * their plans are committed and pushed to a repository, which may be public. `annotations.personalVaults` is still
+ * behaves like 0.4.7, its sidecar is never read and `annotate` is refused. `annotations.personalVaults` is still
  * accepted for older settings files and has no effect.
  */
 export function annotationsMode(settings: Settings, entry: ScopeEntry): AnnotationsMode {
-  if (entry.remote && entry.remote.plansMode === "repo") return { enabled: false, source: "repo-mode" };
   const explicit = settings.scopes[entry.id]?.annotations;
   if (explicit === true) return { enabled: true, source: "setting" };
   return { enabled: false, source: explicit === false ? "setting" : "default" };

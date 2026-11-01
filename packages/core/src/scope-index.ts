@@ -2,14 +2,13 @@ import { createHash } from "node:crypto";
 import { lstatSync, readFileSync, realpathSync, statSync, type Stats } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { DomainError } from "./errors.ts";
-import type { RemoteInfo } from "./remote-meta.ts";
 import { isLegacyEntry, LEGACY_KEYS, legacyLocation } from "./legacy-entry.ts";
 import { parseRepoLink, REPO_LINK_HELP } from "./repo-link.ts";
 import { vaultOf } from "./vault-config.ts";
 
 /** Pilot-local explicit inventory. Never a global registration or a directory scan. */
 export const INVENTORY_FORMAT_V2 = "mozak.local/v2" as const;
-/** v3 adds optional remote scope entries. v2 inventories are still accepted unchanged. */
+/** v3 adds optional entry keys (focus, repo). v2 inventories are still accepted unchanged. */
 export const INVENTORY_FORMAT = "mozak.local/v3" as const;
 export type InventoryFormat = typeof INVENTORY_FORMAT_V2 | typeof INVENTORY_FORMAT;
 export const WRITE_LOCK_DIR = ".mozak-write-lock";
@@ -19,8 +18,6 @@ export interface ScopeEntry {
   id: string;
   /** Canonical absolute root as observed at inventory load (or lexical path for a root not yet present). */
   root: string;
-  /** Present only for a remote scope. `root` is then the cache working copy, or the full clone after `mozak pull`. */
-  remote?: RemoteInfo;
   /** Diagnostic only: reserved x settings were ignored at inventory or selected-entry level. */
   inventoryExtensionsIgnored?: true;
   /** Display-only link to the code repo (`github:owner/repo` or an https URL), when the entry has one. */
@@ -262,8 +259,7 @@ export function resolveScope(inv: ScopeInventory, id: string): ScopeEntry {
     stats = statSync(real);
   } catch (err) {
     if (isMissing(err)) {
-      const hint = entry.remote ? (entry.remote.plansMode === "vault" ? " (vault plans folder missing)" : " (remote scope not fetched yet: run `mozak sync`)") : "";
-      throw new DomainError("scope-root-missing", `scope "${id}" root is missing: ${entry.root}${hint}`);
+      throw new DomainError("scope-root-missing", `scope "${id}" root is missing: ${entry.root}`);
     }
     throw new DomainError("scope-root-unreadable", `scope "${id}" root is unreadable: ${entry.root}`);
   }

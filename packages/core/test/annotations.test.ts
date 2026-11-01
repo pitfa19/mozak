@@ -107,7 +107,7 @@ test("proposals carry one digest per item, at most seven, and never write", () =
   assert.throws(() => proposeItems(Array.from({ length: 8 }, () => ref("a", "alpha/b"))), { code: "invalid-input" });
 });
 
-test("settings: per-scope switch, personalVaults has no effect, repo-mode refusal", () => {
+test("settings: per-scope switch, personalVaults has no effect", () => {
   const w = world(["alpha", "beta"], { settings: { format: "mozak.settings/v1", scopes: { alpha: { annotations: true }, beta: { annotations: false } } } });
   w.propose("beta", "a"); w.propose("beta", "b");
   const out = w.annotate("beta", [ref("a", "beta/b")]);
@@ -117,11 +117,6 @@ test("settings: per-scope switch, personalVaults has no effect, repo-mode refusa
   assert.deepEqual(annotationsMode(settings, w.entries.alpha), { enabled: false, source: "default" });
   assert.deepEqual(annotationsMode({ ...settings, scopes: { alpha: { annotations: true } } }, w.entries.alpha), { enabled: true, source: "setting" });
   assert.deepEqual(annotationsMode({ ...settings, scopes: { beta: { annotations: false } } }, w.entries.beta), { enabled: false, source: "setting" });
-  const repo = { id: "r", root: w.entries.alpha.root, remote: { spec: "github:o/r", url: "", ref: "main", repoName: "r", baseDir: w.base, cacheRoot: "", fullClone: null, plansMode: "repo" as const } };
-  assert.deepEqual(annotationsMode({ ...settings, scopes: { r: { annotations: true } } }, repo), { enabled: false, source: "repo-mode" });
-  const vault = { ...repo, remote: { ...repo.remote, plansMode: "vault" as const } };
-  assert.deepEqual(annotationsMode({ ...settings, scopes: { r: { annotations: true } } }, vault), { enabled: true, source: "setting" });
-  assert.deepEqual(annotationsMode(settings, vault), { enabled: false, source: "default" });
 });
 
 test("settings: invalid file refuses annotate; unknown keys are check findings", () => {
