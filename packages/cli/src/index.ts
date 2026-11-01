@@ -5,7 +5,7 @@
 
 import { closeSync, fstatSync, openSync, readSync } from "node:fs";
 import { parseArgs } from "node:util";
-import { decideWithFlags, deleteWithFlags, observePayload, observeWithFlags, planShow, executeOperation, loadInventory, MAX_REQUEST_BYTES, scopeForWorkingCopy, gitCommitScope, DomainError, focusChange, focusList, renderFocus, type OperationOutput, type ScopeInventory } from "@mozak/core";
+import { decideWithFlags, deleteWithFlags, observePayload, observeWithFlags, planShow, executeOperation, loadInventory, MAX_REQUEST_BYTES, scopeForWorkingCopy, gitCommitScope, DomainError, focusChange, focusList, renderFocus, renderMove, scopeMoveOutput, type OperationOutput, type ScopeInventory } from "@mozak/core";
 import { runningVersion, upgrade } from "./upgrade.js";
 import { doctor, renderDoctor } from "./doctor.js";
 
@@ -62,6 +62,7 @@ const ROUTES: Record<string, Route> = {
   "focus list": { operation: "focus-list", flags: ["config", "scope", "json"], requires: ["config"], requestFile: false },
   "focus add": { operation: "focus-add", flags: ["config", "scope", "plan", "json"], requires: ["config", "scope", "plan"], requestFile: false },
   "focus remove": { operation: "focus-remove", flags: ["config", "scope", "plan", "json"], requires: ["config", "scope", "plan"], requestFile: false },
+  "scope move": { operation: "scope-move", flags: ["config", "scope", "to", "drop", "dry-run", "owner-ref", "owner-message-at", "reason", "json"], requires: ["config", "scope", "owner-ref", "owner-message-at", "reason"], requestFile: false },
   observe: { operation: "observe", flags: ["config", "scope", "request", ...OBSERVE_FLAGS], requires: ["config", "scope"], requestFile: true },
   "review decide": { operation: "decide", flags: ["config", "scope", "request", ...DECIDE_FLAGS], requires: ["config", "scope"], requestFile: true },
   "plan prune": { operation: "prune", flags: ["config", "scope", "rejected", "request"], requires: ["config", "scope", "rejected", "request"], requestFile: true },
@@ -77,7 +78,7 @@ const ROUTES: Record<string, Route> = {
 };
 
 const ROUTE_NAMES = Object.keys(ROUTES);
-const BOOLEAN_FLAGS = new Set(["json", "include-rejected", "all", "write", "brief", "dry-run", "allow-completed", "commit", "rejected", "local", "print", "include-private"]);
+const BOOLEAN_FLAGS = new Set(["json", "include-rejected", "all", "write", "brief", "dry-run", "allow-completed", "commit", "rejected", "local", "print", "include-private", "drop"]);
 
 class UsageError extends Error {}
 
@@ -86,6 +87,9 @@ function usage(): string {
     "usage: mozak [--config FILE] <route> [--config FILE] [flags]",
     "  mozak scope init --scope ID --request FILE          (owner)",
     "  mozak scope retitle --scope ID --request FILE       (owner; change the scope's display title)",
+    "  mozak scope move --scope ID (--to PATH | --drop) --owner-ref REF --owner-message-at ISO --reason TEXT [--dry-run] [--json]",
+    "                                                       (owner; copy the scope's files into a vault folder, verify them,",
+    "                                                        point its inventory entry there; old files stay. --drop: 0-plan entry only)",
     "  mozak context [--scope ID] [--brief] [--plan ID] [--json]",
     "  mozak plans [--scope ID | --all] [--include-rejected] [--limit 1..100] [--sort deadline] [--continuation TOKEN] [--json]",
     "  mozak graph (--scope ID | --all) [--json]           (cross-plan refs from owner annotations, with resolution)",
@@ -454,6 +458,19 @@ function focusRoute(configPath: string, inventory: ScopeInventory, operation: st
   return out.exitCode;
 }
 
+/**
+ * `mozak scope move`: an owner route on the inventory file, like focus, so it calls core's moveScope directly instead of
+ * the scope operation facade. MCP never exposes it.
+ */
+function moveRoute(configPath: string, values: Record<string, string | boolean | undefined>): number {
+  const out = scopeMoveOutput(configPath, {
+    scope: values.scope, ...(values.to !== undefined ? { to: values.to } : {}), ...(values.drop ? { drop: true } : {}), ...(values["dry-run"] ? { dryRun: true } : {}),
+    ownerRef: values["owner-ref"], ownerMessageAt: values["owner-message-at"], reason: values.reason,
+  });
+  process.stdout.write(values.json === true ? `${JSON.stringify(out.data, null, 2)}\n` : renderMove(out.data));
+  return out.exitCode;
+}
+
 /** upgrade and doctor work on the installation, not on scopes, so they have their own flags and no --config rule. */
 function maintenance(name: "upgrade" | "doctor", argv: string[]): number {
   let values: Record<string, string | boolean | string[] | undefined>;
@@ -535,6 +552,7 @@ function run(argv: string[]): number {
 
   const cwdScope = CWD_SCOPE_ROUTES.has(routeName) && values.scope === undefined && values.all === undefined && values.continuation === undefined;
   if (route.operation.startsWith("focus-")) return focusRoute(configPath, inventory, route.operation, values);
+  if (route.operation === "scope-move") return moveRoute(configPath, values);
   if (cwdScope) {
     try {
       values.scope = scopeForWorkingCopy(inventory, process.cwd()).id;

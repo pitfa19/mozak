@@ -93,7 +93,7 @@ function assertFocus(entry: Record<string, unknown>, file: string): void {
  * exist yet keeps its canonical ancestor plus the remaining lexical segments, so a root that
  * appears later can still be compared by identity.
  */
-function canonicalPath(path: string): string {
+export function canonicalPath(path: string): string {
   try {
     return realpathSync(path);
   } catch {

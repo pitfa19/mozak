@@ -2,7 +2,7 @@
 // Inside the plugin, Vault#configDir is the answer. Outside it there is no API, and users can rename the folder,
 // so this looks for the default name first and then for any dot folder that has Obsidian's own config files.
 import { existsSync, readdirSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 /** The default config folder name. Kept in one place; everything else asks vaultConfigDir. */
 export const DEFAULT_CONFIG_DIR = [".", "obsidian"].join("");
@@ -27,6 +27,18 @@ export function vaultConfigDir(vault: string): string | null {
     if (isDir(path) && MARKERS.some((m) => existsSync(join(path, m)))) return path;
   }
   return null;
+}
+
+/**
+ * The vault folder that holds `path`: the nearest folder at or above it with a `.obsidian` folder, or null. `path`
+ * need not exist yet. Only the default config folder name counts, so a scope root is in a vault on every machine or
+ * on none. This is the vault rule every scope root must meet.
+ */
+export function vaultOf(path: string): string | null {
+  for (let dir = path; ; dir = dirname(dir)) {
+    if (isDir(join(dir, DEFAULT_CONFIG_DIR))) return dir;
+    if (dirname(dir) === dir) return null;
+  }
 }
 
 /** Where the mozak plugin lives in a vault, or null when the vault has no config folder. */

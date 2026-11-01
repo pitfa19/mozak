@@ -2,16 +2,15 @@
 // A sidebar marker only. It is not plan state: mozak.json and mozak.md never change, and the inventory digest
 // (format plus sorted id and root) ignores it. Only owner routes write it (`mozak focus add|remove`, the plugin star).
 
-import { readFileSync, rmSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { readFileSync } from "node:fs";
 import { DomainError } from "./errors.ts";
-import { acquireDirLock, type LockOptions } from "./dir-lock.ts";
-import { replaceFileDurable } from "./durable.ts";
+import type { LockOptions } from "./dir-lock.ts";
+import { inventoryText, withInventoryLock, writeInventoryValidated } from "./inventory-file.ts";
 import { loadInventory, resolveScope, type ScopeInventory } from "./scope-index.ts";
 import { readScope } from "./scope-store.ts";
 import type { OperationOutput } from "./api.ts";
 
-export const INVENTORY_LOCK_DIR = ".mozak-inventory-lock";
+export { INVENTORY_LOCK_DIR, jsonStyle } from "./inventory-file.ts";
 
 export type FocusAction = "add" | "remove";
 export interface FocusChange { scope: string; plan: string; action: FocusAction }
@@ -72,12 +71,6 @@ export function nextFocus(current: readonly string[], plan: string, action: Focu
   return current.includes(plan) ? current.filter((id) => id !== plan) : null;
 }
 
-/** The file's own indent (spaces or a tab) and whether it ends with a newline, so a rewrite keeps its style. */
-export function jsonStyle(text: string): { indent: string; newline: boolean } {
-  const m = /\n([ \t]+)\S/.exec(text);
-  return { indent: m ? m[1]! : "  ", newline: text.endsWith("\n") };
-}
-
 function assertPlan(inv: ScopeInventory, scope: string, plan: string): void {
   const state = readScope(resolveScope(inv, scope)).state;
   if (!state.plans.some((p) => p.id === plan)) {
@@ -92,8 +85,7 @@ function assertPlan(inv: ScopeInventory, scope: string, plan: string): void {
  */
 export function setFocus(inventoryPath: string, change: FocusChange, options: LockOptions = {}): FocusResult {
   if (change.action !== "add" && change.action !== "remove") throw new DomainError("invalid-input", `focus action must be add or remove, not "${String(change.action)}"`, 2);
-  const release = acquireDirLock(join(dirname(inventoryPath), INVENTORY_LOCK_DIR), "inventory", options);
-  try {
+  return withInventoryLock(inventoryPath, () => {
     const text = readFileSync(inventoryPath, "utf8");
     const inv = loadInventory(inventoryPath);
     if (!inv.scopes.some((s) => s.id === change.scope)) {
@@ -105,26 +97,7 @@ export function setFocus(inventoryPath: string, change: FocusChange, options: Lo
     const next = nextFocus(entry.focus ?? [], change.plan, change.action);
     if (next === null) return { scope: change.scope, focus: [...(entry.focus ?? [])], changed: false };
     entry.focus = next;
-    const style = jsonStyle(text);
-    const bytes = JSON.stringify(doc, null, style.indent) + (style.newline ? "\n" : "");
-    writeValidated(inventoryPath, bytes);
+    writeInventoryValidated(inventoryPath, inventoryText(doc, text));
     return { scope: change.scope, focus: next, changed: true };
-  } finally {
-    release();
-  }
-}
-
-/**
- * Replace the inventory with `bytes`: the temp file next to it is flushed and loaded with the normal inventory loader
- * (same folder, so relative roots resolve the same) before the rename. On any failure the temp file is removed and the
- * old inventory stays as it was.
- */
-function writeValidated(inventoryPath: string, bytes: string): void {
-  let temporary: string | null = null;
-  try {
-    replaceFileDurable(inventoryPath, bytes, (t) => { temporary = t; }, () => { loadInventory(temporary!); });
-  } catch (e) {
-    if (temporary !== null) rmSync(temporary, { force: true });
-    throw e;
-  }
+  }, options);
 }
