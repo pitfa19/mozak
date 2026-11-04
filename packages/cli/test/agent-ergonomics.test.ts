@@ -92,15 +92,21 @@ test("observe flags link evidence to an accepted outcome; accept-outcome flags; 
   assert.deepEqual(show.outcomes.map((o: any) => [o.id, o.status]), [["o1", "done"], ["o2", "done"]]);
   // Revise: the accepted outcome will need the owner again. The output says which and how.
   const p = plan(w);
-  const revised = w.write("revise", "revise", { planId: "alpha", pendingRevisionId: null, acceptedRevisionId: p.accepted.id, content: content("Alpha v2") });
+  // o1's criterion changes, o2 stays the same: only o1 needs the owner again, o2 carries forward.
+  const v2 = content("Alpha v2");
+  v2.outcomes[0] = { ...v2.outcomes[0], criterion: "Owner says yes twice" };
+  const revised = w.write("revise", "revise", { planId: "alpha", pendingRevisionId: null, acceptedRevisionId: p.accepted.id, content: v2 });
   const warnings = (revised.data as any).warnings;
-  assert.deepEqual(warnings.map((x: any) => x.code).sort(), ["outcome-reacceptance-needed", "outcome-relink-needed"]);
+  assert.deepEqual(warnings.map((x: any) => x.code).sort(), ["outcome-reacceptance-needed"]);
   assert.match(warnings.find((x: any) => x.code === "outcome-reacceptance-needed").command, /--purpose accept-outcome --outcome o1/);
   // Approving the revision repeats it with the new revision id.
   const approve = w.cli("review", "decide", "--scope", "fx", "--plan", "alpha", "--purpose", "approve-direction",
     "--owner-ref", "synthetic:owner-msg-3", "--owner-message-at", "2026-10-12T10:06:00Z", "--reason", "v2 ok");
   assert.equal(approve.code, 0, approve.out);
   assert.match(approve.out, /warning outcome-reacceptance-needed: outcome o1/);
+  assert.doesNotMatch(approve.out, /outcome o2/);
+  const after = w.cli("plan", "show", "--scope", "fx", "--plan", "alpha", "--json").json().plan;
+  assert.deepEqual(after.outcomes.map((o: any) => [o.id, o.status]), [["o1", "todo"], ["o2", "done"]]);
   assert.match(approve.out, new RegExp(`next: mozak review decide --config ${w.config.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} --scope fx --plan alpha --purpose accept-outcome --outcome o1`));
 });
 

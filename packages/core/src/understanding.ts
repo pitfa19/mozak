@@ -326,6 +326,30 @@ export function isUtcTimestamp(value: unknown): value is UtcTimestamp {
   const time = Date.parse(value);
   return Number.isFinite(time) && new Date(time).toISOString().slice(0, 19) === value.slice(0, 19);
 }
+/**
+ * One owner message may approve a direction and, when it explicitly says so, the first implementation of that direction.
+ * True when `d` approves implementation, the latest direction approval before it on the same plan has the same message,
+ * and no implementation decision lies between them (a re-grant after a revoke needs a fresh message).
+ */
+export function sharesDirectionMessage(plan: Plan, d: Decision): boolean {
+  if (d.purpose !== "approve-implementation") return false;
+  const before = plan.decisions.slice(0, plan.decisions.indexOf(d));
+  const at = before.map(x => x.purpose).lastIndexOf("approve-direction");
+  if (at < 0 || before.slice(at).some(x => x.purpose === "approve-implementation" || x.purpose === "revoke-implementation")) return false;
+  return ownerMessageKey(before[at].ownerRef, before[at].ownerMessageAt) === ownerMessageKey(d.ownerRef, d.ownerMessageAt);
+}
+/** Each implementation decision has its own owner message, except the one allowed direction pairing. */
+function requireSeparateImplementationMessages(plans: Plan[]) {
+  const messageCounts = new Map<string, number>();
+  for (const d of plans.flatMap(p => p.decisions)) {
+    const key = ownerMessageKey(d.ownerRef, d.ownerMessageAt);
+    messageCounts.set(key, (messageCounts.get(key) ?? 0) + 1);
+  }
+  for (const p of plans) for (const d of p.decisions.filter(x => x.purpose === "approve-implementation" || x.purpose === "revoke-implementation")) {
+    const count = messageCounts.get(ownerMessageKey(d.ownerRef, d.ownerMessageAt));
+    requireRef(count === 1 || (count === 2 && sharesDirectionMessage(p, d)), "implementation requires a separate owner message across scope decisions");
+  }
+}
 /** Provenance identity normalizes UTC spelling, never rounds sub-millisecond time. */
 export function ownerMessageKey(ownerRef: string, ownerMessageAt: UtcTimestamp): string {
   str(ownerRef, "ownerRef"); date(ownerMessageAt, "ownerMessageAt");
@@ -738,15 +762,7 @@ export function validateScope(value: unknown): ScopeState {
   if (array(o.connections, "connections").length) fail("cross-scope connections are unsupported in package 1", "unsupported-capability");
   identified(o.plans, "plans", planShape);
   const plans = o.plans as Plan[];
-  const allDecisions = plans.flatMap(p => p.decisions);
-  const messageCounts = new Map<string, number>();
-  for (const d of allDecisions) {
-    const key = ownerMessageKey(d.ownerRef, d.ownerMessageAt);
-    messageCounts.set(key, (messageCounts.get(key) ?? 0) + 1);
-  }
-  for (const d of allDecisions) if (d.purpose === "approve-implementation" || d.purpose === "revoke-implementation") {
-    requireRef(messageCounts.get(ownerMessageKey(d.ownerRef, d.ownerMessageAt)) === 1, "implementation requires a separate owner message across scope decisions");
-  }
+  requireSeparateImplementationMessages(plans);
   unique(plans.flatMap(p => [p.accepted?.id, p.pending?.id].filter((id): id is string => id !== undefined)), "scope revisions");
   const map = new Map(plans.map(p => [p.id, p])); plans.forEach(p => planReferences(p, map));
   if (!isObject(o.receipts)) fail("receipts must be an operation-keyed record");

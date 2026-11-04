@@ -26,6 +26,8 @@ Run `node {{MOZAK_CLI}} --help` at session start. If a route is missing, stop. `
 
 Purposes (`review show`, `review decide`): `approve-direction` (default for a pending direction), `reject-pending`, `reconsider`, `pause`, `resume`, `approve-implementation`, `revoke-implementation`, `accept-outcome` (needs `--outcome`).
 
+One owner message per decision, with one exception: an owner message that explicitly approves a direction and its implementation may back `approve-direction` and then `approve-implementation` of that accepted revision. It cannot back any other decision, and it cannot back implementation of a later direction.
+
 ## Agent writes (advisory, grant nothing)
 
 Observe with flags (fresh snapshot, generated ids, up to 3 attempts on stale-input):

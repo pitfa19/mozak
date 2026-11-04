@@ -18,6 +18,7 @@ import {
   isDigest,
   isUtcTimestamp,
   ownerMessageKey,
+  sharesDirectionMessage,
   newRevision,
   validateContent,
   validateObservation,
@@ -781,6 +782,49 @@ function reviewFor(state: ScopeState, plan: Plan, purpose: DecisionPurpose, acce
   return outcomeReview(state, plan, accepted, outcomeId);
 }
 
+/** Outcomes whose id, statement, acceptance kind and criterion are identical in both revisions. */
+export function unchangedOutcomeIds(before: PlanContent, after: PlanContent): Set<string> {
+  return new Set(after.outcomes.filter(o => before.outcomes.some(b => canonical(b) === canonical(o))).map(o => o.id));
+}
+
+/** Outcomes the approval of this plan's awaiting revision would carry forward unchanged. */
+export function keptOnApproval(plan: Plan | undefined): Set<string> {
+  return plan?.accepted && plan.pending ? unchangedOutcomeIds(plan.accepted.content, plan.pending.content) : new Set();
+}
+
+/**
+ * After a direction approval: an outcome whose text did not change keeps its evidence links and, when the owner had
+ * accepted its exact evidence, that acceptance. The carried decision keeps the owner's original message reference.
+ * Changed or new outcomes start empty and need the owner again.
+ */
+/** Owner acceptances bound to the exact current evidence of each outcome. Read before the accepted revision changes. */
+function boundAcceptances(state: ScopeState, plan: Plan, accepted: AcceptedRevision): Map<string, Decision> {
+  const out = new Map<string, Decision>();
+  for (const o of accepted.content.outcomes) {
+    const d = boundDecision(state, plan, accepted, outcomeReview(state, plan, accepted, o.id));
+    if (d) out.set(o.id, d);
+  }
+  return out;
+}
+
+function carryUnchangedOutcomes(state: ScopeState, plan: Plan, previous: AcceptedRevision, acceptances: Map<string, Decision>, now: UtcTimestamp) {
+  const accepted = plan.accepted!;
+  for (const outcomeId of unchangedOutcomeIds(previous.content, accepted.content)) {
+    const acceptance = acceptances.get(outcomeId);
+    for (const container of state.plans) {
+      const carriedLinks = container.reasoningLinks
+        .filter(link => link.to.planId === plan.id && link.to.id === outcomeId && link.to.revisionId === previous.id)
+        .map(link => ({ ...structuredClone(link), id: `link-${randomUUID()}`, to: { ...link.to, revisionId: accepted.id } }));
+      container.reasoningLinks.push(...carriedLinks);
+    }
+    if (!acceptance) continue;
+    const review = outcomeReview(state, plan, accepted, outcomeId);
+    const carried = { ownerRef: acceptance.ownerRef, ownerMessageAt: acceptance.ownerMessageAt, reason: `carried forward from decision ${acceptance.id}: outcome unchanged`,
+      reviewDigest: reviewDigestOf(state, "accept-outcome", plan.id, accepted, review) };
+    recordDecision(plan, "accept-outcome", carried, accepted, now, review);
+  }
+}
+
 function changedKeys(before: PlanContent | undefined, after: PlanContent): string[] {
   return (Object.keys(after) as (keyof PlanContent)[])
     .filter((k) => !before || canonical(before[k]) !== canonical(after[k]))
@@ -825,6 +869,23 @@ function requireReviewDigest(state: ScopeState, plan: Plan, purpose: DecisionPur
   return review;
 }
 
+const isImplementationPurpose = (purpose: string) => purpose === "approve-implementation" || purpose === "revoke-implementation";
+
+/**
+ * An implementation decision needs an owner message no other decision used. The one exception: the message that
+ * approved the plan's current direction may also approve its implementation, when the owner said both.
+ */
+function requireUnconsumedOwnerMessage(state: ScopeState, action: MutationAction, p: Record<string, unknown>) {
+  const key = ownerMessageKey(p.ownerRef as string, p.ownerMessageAt as string);
+  const conflicts = state.plans.flatMap(other => other.decisions).filter(d =>
+    (isImplementationPurpose(action) || isImplementationPurpose(d.purpose)) && ownerMessageKey(d.ownerRef, d.ownerMessageAt) === key);
+  if (conflicts.length === 0) return;
+  const plan = findPlan(state, p.planId as string);
+  const candidate = { ...conflicts[0], id: "candidate", purpose: action as DecisionPurpose, ownerRef: p.ownerRef as string, ownerMessageAt: p.ownerMessageAt as string };
+  const paired = conflicts.length === 1 && conflicts[0].id === plan.accepted?.directionDecisionId && sharesDirectionMessage({ ...plan, decisions: [...plan.decisions, candidate] }, candidate);
+  if (!paired) throw stale("owner message already consumed for implementation decision");
+}
+
 // ---------- transitions ----------
 
 export function applyMutation(
@@ -841,15 +902,7 @@ export function applyMutation(
   const next = structuredClone(state);
   const p = structuredClone(payload) as Record<string, unknown>;
   const ids: string[] = [];
-  if (OWNER_ACTIONS.has(action)) {
-    const key = ownerMessageKey(p.ownerRef as string, p.ownerMessageAt as string);
-    const implementationAction = action === "approve-implementation" || action === "revoke-implementation";
-    if (next.plans.some(other => other.decisions.some(d =>
-      (implementationAction || d.purpose === "approve-implementation" || d.purpose === "revoke-implementation") &&
-      ownerMessageKey(d.ownerRef, d.ownerMessageAt) === key))) {
-      throw stale("owner message already consumed for implementation decision");
-    }
-  }
+  if (OWNER_ACTIONS.has(action)) requireUnconsumedOwnerMessage(next, action, p);
 
   switch (action) {
     case "save-discussion": {
@@ -1030,6 +1083,8 @@ export function applyMutation(
       if (mergeSource) mergeDiscussionQuestions(plan, mergeSource);
       const decision = recordDecision(plan, "approve-direction", p, pending, now);
       if (mergeSource) decision.mergedPlanId = mergeSource.id;
+      const previous = plan.accepted;
+      const acceptances = previous ? boundAcceptances(next, plan, previous) : new Map<string, Decision>();
       const promoted = newRevision(pending.content, now);
       plan.accepted = {
         id: promoted.id,
@@ -1046,6 +1101,7 @@ export function applyMutation(
       if (mergeSource) {
         foldMergedPlan(next, plan, mergeSource, promoted.id, now);
       }
+      if (previous) carryUnchangedOutcomes(next, plan, previous, acceptances, now);
       plan.updatedAt = now;
       ids.push(decision.id, promoted.id);
       break;

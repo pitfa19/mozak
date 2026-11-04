@@ -171,8 +171,34 @@ test("same owner message cannot create another implementation decision", () => {
   refuses(() => validateScope(s));
 });
 
-test("direction confirmation cannot be reused for implementation authorization", () => {
+test("a direction confirmation may back the implementation approval of that direction once, never a third decision", () => {
   const s = grant(); s.plans[0].decisions[1].ownerRef = "host:direction";
+  assert.doesNotThrow(() => validateScope(s));
+  const p = s.plans[0];
+  p.decisions.push({ ...p.decisions[0], id: "pause", purpose: "pause", revisionId: "a" });
+  refuses(() => validateScope(s));
+});
+
+test("a direction confirmation cannot back a revocation", () => {
+  const s = grant(); revoke(s);
+  const p = s.plans[0];
+  p.decisions.at(-1).ownerRef = p.decisions[0].ownerRef; p.decisions.at(-1).ownerMessageAt = p.decisions[0].ownerMessageAt;
+  refuses(() => validateScope(s));
+});
+
+test("a direction confirmation cannot back a second implementation approval after a revoke", () => {
+  const s = grant(); s.plans[0].decisions[1].ownerRef = "host:direction";
+  assert.doesNotThrow(() => validateScope(s));
+  revoke(s);
+  const p = s.plans[0], first = p.decisions[1];
+  p.decisions.push({ ...first, id: "regrant" });
+  refuses(() => validateScope(s));
+});
+
+test("a direction confirmation cannot back implementation when it is not the latest direction before it", () => {
+  const s = grant(), p = s.plans[0];
+  p.decisions.splice(1, 0, { ...p.decisions[0], id: "reject", purpose: "reject-pending", ownerRef: "host:other" });
+  p.decisions[2].ownerRef = "host:other";
   refuses(() => validateScope(s));
 });
 
@@ -209,6 +235,8 @@ test("owner message keys normalize equivalent UTC spelling without rounding prec
 test("equivalent owner timestamps cannot bypass direction, revoke or resume purpose separation", () => {
   const sameTime = "2026-10-12T08:00:00Z";
   const direction = grant(); direction.plans[0].decisions[1].ownerRef = "host:direction"; direction.plans[0].decisions[1].ownerMessageAt = sameTime;
+  assert.doesNotThrow(() => validateScope(direction), "the paired direction and implementation approval is one message under either spelling");
+  direction.plans[0].decisions.push({ ...direction.plans[0].decisions[0], id: "pause", purpose: "pause", revisionId: "a", ownerMessageAt: sameTime });
   refuses(() => validateScope(direction));
   const revoked = grant(); revoke(revoked); revoked.plans[0].decisions.at(-1).ownerRef = "host:grant"; revoked.plans[0].decisions.at(-1).ownerMessageAt = sameTime;
   refuses(() => validateScope(revoked));

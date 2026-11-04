@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { validateMutation, applyMutation, reviewShow, reviewRows, contextView, pendingChangedFields } from "../src/review.ts";
+import { validateMutation, applyMutation, reviewShow, reviewRows, contextView, pendingChangedFields, outcomeStatus, keptOnApproval } from "../src/review.ts";
 import { DomainError } from "../src/errors.ts";
 
 // Fixture helpers. Shapes follow docs/implementation-package-1-plan-state-review.md section 4.
@@ -760,4 +760,82 @@ test("review purposes that need a proposal in a given review state refuse with a
   const rejected = decide(awaiting, "p1", "reject-pending");
   assert.throws(() => reviewShow(rejected, "p1", "approve-direction"), staleWith('plan "p1" has no awaiting proposal'));
   assert.equal(reviewShow(rejected, "p1", "reconsider").revisionId, rejected.plans[0].pending.id);
+});
+
+// Carry-forward: approving a revision keeps evidence and owner acceptance of unchanged outcomes.
+function acceptedWithEvidence(acceptance = "owner") {
+  let s = acceptedState(acceptance);
+  const rev = acceptedId(s);
+  s = apply(s, "observe", { planId: "p1", observation: observation("sup1", "observed"), reasoningLinks: [linkOf("l1", "supports", "sup1", rev)] });
+  if (acceptance === "owner") {
+    const shown = reviewShow(s, "p1", "accept-outcome", "o1");
+    s = apply(s, "accept-outcome", { planId: "p1", revisionId: rev, outcomeId: "o1", reviewDigest: shown.reviewDigest, ...OWNER, ownerRef: "host:session/msg-accept" }, "owner");
+  }
+  return s;
+}
+function reviseAndApprove(s, value) {
+  s = apply(s, "revise", { planId: "p1", pendingRevisionId: null, acceptedRevisionId: acceptedId(s), content: value });
+  const shown = reviewShow(s, "p1", "approve-direction");
+  return apply(s, "approve-direction", { planId: "p1", revisionId: shown.revisionId, reviewDigest: shown.reviewDigest, ...OWNER, ownerRef: "host:session/msg-v2" }, "owner");
+}
+
+test("approving a revision carries evidence and owner acceptance of an unchanged outcome forward", () => {
+  const s = reviseAndApprove(acceptedWithEvidence("owner"), { ...ownerContent("owner"), title: "Plan A v2" });
+  assert.equal(outcomeStatus(s, s.plans[0], "o1"), "done");
+  assert.doesNotThrow(() => applyMutation(s, "complete", { planId: "p1", revisionId: acceptedId(s) }, "agent", NOW));
+  const carried = s.plans[0].decisions.filter(d => d.purpose === "accept-outcome" && d.revisionId === acceptedId(s));
+  assert.equal(carried.length, 1);
+  assert.equal(carried[0].ownerRef, "host:session/msg-accept", "the carried acceptance stays traceable to the owner's own message");
+  assert.match(carried[0].reason, /carried forward/);
+});
+
+test("approving a revision carries objective evidence forward", () => {
+  const s = reviseAndApprove(acceptedWithEvidence("objective"), { ...ownerContent("objective"), title: "Plan A v2" });
+  assert.equal(outcomeStatus(s, s.plans[0], "o1"), "done");
+});
+
+test("a changed outcome criterion is not carried forward", () => {
+  const changed = ownerContent("owner");
+  changed.outcomes = [{ ...changed.outcomes[0], criterion: "export and import tests pass" }];
+  const s = reviseAndApprove(acceptedWithEvidence("owner"), changed);
+  assert.equal(outcomeStatus(s, s.plans[0], "o1"), "todo");
+  assert.equal(s.plans[0].decisions.filter(d => d.purpose === "accept-outcome" && d.revisionId === acceptedId(s)).length, 0);
+});
+
+test("a changed acceptance kind is not carried forward", () => {
+  const s = reviseAndApprove(acceptedWithEvidence("objective"), { ...ownerContent("owner"), title: "Plan A v2" });
+  assert.equal(outcomeStatus(s, s.plans[0], "o1"), "todo");
+});
+
+test("an unresolved challenge is carried forward with the evidence, so it still needs the owner", () => {
+  let s = acceptedState("objective");
+  const rev = acceptedId(s);
+  s = apply(s, "observe", { planId: "p1", observation: observation("sup1", "observed"), reasoningLinks: [linkOf("l1", "supports", "sup1", rev)] });
+  s = apply(s, "observe", { planId: "p1", observation: observation("ch1", "observed"), reasoningLinks: [linkOf("l2", "challenges", "ch1", rev)] });
+  s = reviseAndApprove(s, { ...ownerContent("objective"), title: "Plan A v2" });
+  assert.equal(outcomeStatus(s, s.plans[0], "o1"), "evidence");
+});
+
+test("keptOnApproval lists only outcomes identical in the awaiting revision", () => {
+  let s = acceptedState("owner");
+  assert.deepEqual([...keptOnApproval(s.plans[0])], [], "no awaiting revision");
+  const v2 = ownerContent("owner");
+  v2.outcomes = [v2.outcomes[0], { id: "o2", statement: "New", acceptance: "objective", criterion: "new test" }];
+  s = apply(s, "revise", { planId: "p1", pendingRevisionId: null, acceptedRevisionId: acceptedId(s), content: v2 });
+  assert.deepEqual([...keptOnApproval(s.plans[0])], ["o1"]);
+  assert.deepEqual([...keptOnApproval(undefined)], []);
+});
+
+test("carry-forward survives two approvals and keeps old links as history", () => {
+  let s = acceptedWithEvidence("owner");
+  const first = acceptedId(s);
+  s = reviseAndApprove(s, { ...ownerContent("owner"), title: "Plan A v2" });
+  s = apply(s, "revise", { planId: "p1", pendingRevisionId: null, acceptedRevisionId: acceptedId(s), content: { ...ownerContent("owner"), title: "Plan A v3" } });
+  const shown = reviewShow(s, "p1", "approve-direction");
+  s = apply(s, "approve-direction", { planId: "p1", revisionId: shown.revisionId, reviewDigest: shown.reviewDigest, ...OWNER, ownerRef: "host:session/msg-v3" }, "owner");
+  assert.equal(outcomeStatus(s, s.plans[0], "o1"), "done");
+  const links = s.plans[0].reasoningLinks;
+  assert.equal(links.length, 3);
+  assert.ok(links.some(l => l.id === "l1" && l.to.revisionId === first), "the original link is not rebound");
+  assert.equal(new Set(links.map(l => l.id)).size, 3);
 });

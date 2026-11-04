@@ -40,5 +40,5 @@ A write reporting `committed` means the transaction reached `mozak.json` and `mo
 ## Gotchas
 - `stale-input`: rebuild with `make_request.py` and retry once. Resending the same request only replays its receipt.
 - Several subagents writing to one scope race on the snapshot. Let only the parent write.
-- `revise` output may carry `warnings`: accepted outcomes that need relinking and owner re-acceptance after approval. Tell the owner before asking for the approval.
+- `revise` output may carry `warnings`: only outcomes whose id, statement, acceptance kind or criterion changed need relinking and owner re-acceptance after approval. Unchanged outcomes carry their evidence links and owner acceptance forward on approval (the carried acceptance keeps the owner's original message reference). Tell the owner about the listed ones before asking for the approval.
 - Approvals need the owner's own message. Never build one from a proposal.

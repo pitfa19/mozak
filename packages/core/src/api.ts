@@ -19,7 +19,7 @@ import {
   type OperationResult,
   type ScopeRead,
 } from "./scope-store.ts";
-import { contextView, reviewRows, reviewShow } from "./review.ts";
+import { contextView, reviewRows, reviewShow, keptOnApproval } from "./review.ts";
 import { selectContext } from "./context-selection.ts";
 import { scopeIndex } from "./scope-list.ts";
 import { leftoverTempFiles } from "./durable.ts";
@@ -938,7 +938,8 @@ function writeOp(inv: ScopeInventory, operation: string, a: Record<string, unkno
     }
     result = mutateScope(entry, request, actor, { rebase: rebaseEnabled(inv, entry.id) });
     if (operation === "revise" && result.committed && before) {
-      const warnings = reviseWarnings(scope, (request.payload as Record<string, unknown>).planId as string, before);
+      const planId = (request.payload as Record<string, unknown>).planId as string;
+      const warnings = reviseWarnings(scope, planId, before, keptOnApproval(readScopeView(entry).state.plans.find((x) => x.id === planId)));
       if (warnings.length) return { exitCode: resultExit(result), data: { ...result, operation, warnings } };
     }
     if (operation === "decide" && result.committed && before) {
