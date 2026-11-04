@@ -82,7 +82,7 @@ class UsageError extends Error {}
 
 function usage(): string {
   return [
-    "usage: mozak [--config FILE] <route> [--config FILE] [flags]",
+    "usage: mozak [--config FILE] <route> [--config FILE] [flags]   (--config defaults to $MOZAK_CONFIG; <route> --help lists its flags)",
     "  mozak scope init --scope ID --request FILE          (owner)",
     "  mozak scope retitle --scope ID --request FILE       (owner; change the scope's display title)",
     "  mozak scope move --scope ID (--to PATH [--repo SPEC] | --drop) --owner-ref REF --owner-message-at ISO --reason TEXT [--dry-run] [--json]",
@@ -188,20 +188,34 @@ interface Parsed {
   values: Record<string, string | boolean | undefined>;
 }
 
+/** Route name at the start of argv: two words first, then one. Undefined for an unknown route. */
+function routeOf(argv: string[]): string | undefined {
+  const twoWord = argv.slice(0, 2).join(" ");
+  if (ROUTE_NAMES.includes(twoWord)) return twoWord;
+  return ROUTE_NAMES.includes(argv[0] ?? "") ? argv[0] : undefined;
+}
+
+/** Route names a usage line documents: `  mozak plan propose|revise --x` gives plan propose and plan revise. */
+function usageNames(line: string): string[] {
+  const [, first, second = ""] = line.trim().split(/\s+/);
+  return [first, ...second.split("|").map((w) => `${first} ${w}`)];
+}
+
+/** `mozak <route> --help`: that route's flags, the required ones, and the matching usage lines. */
+function routeHelp(routeName: string): string {
+  const route = ROUTES[routeName];
+  const flags = [...new Set(["config", ...route.flags, ...(route.requestFile ? ["commit"] : []), "json"])];
+  const shown = flags.map((f) => (BOOLEAN_FLAGS.has(f) || f === "commit" ? `--${f}` : `--${f} VALUE`));
+  const lines = usage().split("\n").filter((l) => usageNames(l).includes(routeName));
+  return [`mozak ${routeName}`, `flags: ${shown.join(" ")}`, `required: ${["config", ...route.requires.filter((f) => f !== "config")].map((f) => `--${f}`).join(" ")}`,
+    "--config defaults to $MOZAK_CONFIG when set.", ...lines].join("\n");
+}
+
 function parseCommand(argv: string[]): Parsed {
   // Route is one or two leading words. Anything else is an unknown route.
-  const twoWord = argv.slice(0, 2).join(" ");
-  let routeName: string | undefined;
-  let rest: string[];
-  if (ROUTE_NAMES.includes(twoWord)) {
-    routeName = twoWord;
-    rest = argv.slice(2);
-  } else if (ROUTE_NAMES.includes(argv[0] ?? "")) {
-    routeName = argv[0];
-    rest = argv.slice(1);
-  } else {
-    throw new UsageError(`unknown route "${argv.slice(0, 2).join(" ")}"`);
-  }
+  const routeName = routeOf(argv);
+  if (routeName === undefined) throw new UsageError(`unknown route "${argv.slice(0, 2).join(" ")}"`);
+  const rest = argv.slice(routeName.split(" ").length);
   const route = ROUTES[routeName];
 
   assertNoDuplicates(rest);
@@ -219,6 +233,7 @@ function parseCommand(argv: string[]): Parsed {
     throw new UsageError(err instanceof Error ? err.message : String(err));
   }
   const values = parsed.values as Record<string, string | boolean | undefined>;
+  if (values.config === undefined && process.env.MOZAK_CONFIG) values.config = process.env.MOZAK_CONFIG;
 
   for (const flag of ["config", ...route.requires]) {
     if (values[flag] === undefined) throw new UsageError(`missing --${flag}`);
@@ -518,6 +533,11 @@ function run(argv: string[]): number {
     return 0;
   }
   if (argv[0] === "upgrade" || argv[0] === "doctor") return maintenance(argv[0], argv.slice(1));
+  const helpRoute = routeOf(argv);
+  if (helpRoute && argv.some((a) => a === "--help" || a === "-h")) {
+    process.stdout.write(`${routeHelp(helpRoute)}\n`);
+    return 0;
+  }
 
   let parsed: Parsed;
   try {

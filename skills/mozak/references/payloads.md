@@ -12,7 +12,7 @@ node {{MOZAK_CLI}} <route> --config INVENTORY --scope ID --request <printed path
 | action | route | payload keys (all required unless marked) | example |
 |---|---|---|---|
 | propose | `mozak plan propose` | planId, content (+ optional distinctFromPlanIds) | `examples/propose.json` |
-| revise | `mozak plan revise` | planId, pendingRevisionId, acceptedRevisionId, content (+ optional mergeFromPlanId) | content as in propose |
+| revise | `mozak plan revise` | planId, pendingRevisionId, acceptedRevisionId, content (+ optional mergeFromPlanId) | `examples/revise.json` |
 | save-discussion | `mozak discussion save` | planId, acceptedRevisionId (or null), pendingRevisionId (or null), summary, stage (clarifying \| ready-for-spec), questions[{id (null for new), text, status (open \| answered \| deferred), answers[{summary, basis (owner \| inspection), ownerRef, ownerMessageAt, evidence[]}], reopenReason}] | `examples/save-discussion.json` |
 | attach-spec | `mozak spec attach` | planId, acceptedRevisionId, path, bounds{summary, limitations, allowedPaths, outcomeChecks[{outcomeId, criterion}] for every outcome, excludedActions}, discussionDigest (optional: computed from the current discussion when omitted) | `examples/attach-spec.json` |
 | complete | `mozak plan complete` | planId, revisionId (+ optional limitations) | |
@@ -26,6 +26,10 @@ node {{MOZAK_CLI}} <route> --config INVENTORY --scope ID --request <printed path
 - `owner` answers need `ownerRef` and a UTC `ownerMessageAt`. `inspection` answers need evidence (same shape as observe evidence) and null owner fields.
 - `ready-for-spec` is refused while any question is `open`. `attach-spec` then binds the discussion's `discussionDigest`. It is optional: when omitted, Core computes it from the plan's current discussion. `context --plan PLAN --json` shows it. A supplied digest that is stale is still refused.
 - A discussion is advisory. It never approves anything.
+
+### attach-spec rules
+- An attached spec is frozen: record later changes as an observation or re-attach. Editing the file afterwards makes `executionEligible` false (`specification-changed`).
+- `path` and every `bounds.allowedPaths` entry are relative to the scope root (inside the vault): no leading `/`, no drive letter, no trailing slash, no `.` or `..` parts, no globs (`* ? [ ] { }`), no backslashes, no duplicates, and no remotes (URLs like `https://...` fail too). Example: `applications/erasmus`.
 
 ### What `executionEligible` means
 `plan show` and `context --plan` return `handoff.executionEligible`. It is true only when all of these hold: the owner approved implementation of the current accepted revision against the attached spec (`implementationAuthorized`), the plan is open (not completed or deleted), the spec file is still byte-identical to what was approved, the scope storage checked usable, and no material review is unresolved. If false, `handoff.reasons` lists why (for example `no-current-implementation-authorization`, `specification-changed`, `lifecycle-completed`). Only implement inside `handoff.bounds` when it is true.

@@ -6,7 +6,7 @@ Every command uses the full built path. Never the bare `mozak` command:
 node {{MOZAK_CLI}} <route> --config INVENTORY --scope ID [flags]
 ```
 
-Run `node {{MOZAK_CLI}} --help` at session start. If a route is missing, stop.
+Run `node {{MOZAK_CLI}} --help` at session start. If a route is missing, stop. `<route> --help` lists that route's flags. `--config` defaults to `$MOZAK_CONFIG` when set.
 
 ## Read
 
