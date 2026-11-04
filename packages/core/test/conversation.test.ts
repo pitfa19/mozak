@@ -328,3 +328,16 @@ test("non-implementation decisions keep sharing a message as before", () => {
   const paused = decide(s, "pause", undefined, direction);
   assert.equal(plan(paused).lifecycle.state, "paused");
 });
+
+test("bounds amendment path: edit spec, re-attach on the same direction, one owner approval replaces the grant", () => {
+  let s = grant(attach(accepted()));
+  const oldGrant = plan(s).implementationAuthorization, directionId = plan(s).accepted.id;
+  const amended = text + "Model: smaller. Usage ceiling: 2 sessions.\n";
+  const amendedFile = { path: "spec.md", content: amended, sha256: createHash("sha256").update(amended).digest("hex"), byteLength: Buffer.byteLength(amended) };
+  s = mutate(s, "attach-spec", attachPayload(s), { storageUsable: true, specifications: {}, attachment: amendedFile });
+  assert.equal(plan(s).accepted.id, directionId, "no new direction revision");
+  const env = { storageUsable: true, specifications: Object.fromEntries(plan(s).specifications.map(spec => [specificationKey("p", spec.id), { health: "current", content: amended }])) };
+  s = decide(s, "approve-implementation", env, "amend-msg");
+  assert.notEqual(plan(s).implementationAuthorization, oldGrant);
+  assert.equal(handoff(s, env).executionEligible, true);
+});
