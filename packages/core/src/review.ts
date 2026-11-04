@@ -781,6 +781,49 @@ function reviewFor(state: ScopeState, plan: Plan, purpose: DecisionPurpose, acce
   return outcomeReview(state, plan, accepted, outcomeId);
 }
 
+/** Outcomes whose id, statement, acceptance kind and criterion are identical in both revisions. */
+export function unchangedOutcomeIds(before: PlanContent, after: PlanContent): Set<string> {
+  return new Set(after.outcomes.filter(o => before.outcomes.some(b => canonical(b) === canonical(o))).map(o => o.id));
+}
+
+/** Outcomes the approval of this plan's awaiting revision would carry forward unchanged. */
+export function keptOnApproval(plan: Plan | undefined): Set<string> {
+  return plan?.accepted && plan.pending ? unchangedOutcomeIds(plan.accepted.content, plan.pending.content) : new Set();
+}
+
+/**
+ * After a direction approval: an outcome whose text did not change keeps its evidence links and, when the owner had
+ * accepted its exact evidence, that acceptance. The carried decision keeps the owner's original message reference.
+ * Changed or new outcomes start empty and need the owner again.
+ */
+/** Owner acceptances bound to the exact current evidence of each outcome. Read before the accepted revision changes. */
+function boundAcceptances(state: ScopeState, plan: Plan, accepted: AcceptedRevision): Map<string, Decision> {
+  const out = new Map<string, Decision>();
+  for (const o of accepted.content.outcomes) {
+    const d = boundDecision(state, plan, accepted, outcomeReview(state, plan, accepted, o.id));
+    if (d) out.set(o.id, d);
+  }
+  return out;
+}
+
+function carryUnchangedOutcomes(state: ScopeState, plan: Plan, previous: AcceptedRevision, acceptances: Map<string, Decision>, now: UtcTimestamp) {
+  const accepted = plan.accepted!;
+  for (const outcomeId of unchangedOutcomeIds(previous.content, accepted.content)) {
+    const acceptance = acceptances.get(outcomeId);
+    for (const container of state.plans) {
+      const carriedLinks = container.reasoningLinks
+        .filter(link => link.to.planId === plan.id && link.to.id === outcomeId && link.to.revisionId === previous.id)
+        .map(link => ({ ...structuredClone(link), id: `link-${randomUUID()}`, to: { ...link.to, revisionId: accepted.id } }));
+      container.reasoningLinks.push(...carriedLinks);
+    }
+    if (!acceptance) continue;
+    const review = outcomeReview(state, plan, accepted, outcomeId);
+    const carried = { ownerRef: acceptance.ownerRef, ownerMessageAt: acceptance.ownerMessageAt, reason: `carried forward from decision ${acceptance.id}: outcome unchanged`,
+      reviewDigest: reviewDigestOf(state, "accept-outcome", plan.id, accepted, review) };
+    recordDecision(plan, "accept-outcome", carried, accepted, now, review);
+  }
+}
+
 function changedKeys(before: PlanContent | undefined, after: PlanContent): string[] {
   return (Object.keys(after) as (keyof PlanContent)[])
     .filter((k) => !before || canonical(before[k]) !== canonical(after[k]))
@@ -1030,6 +1073,8 @@ export function applyMutation(
       if (mergeSource) mergeDiscussionQuestions(plan, mergeSource);
       const decision = recordDecision(plan, "approve-direction", p, pending, now);
       if (mergeSource) decision.mergedPlanId = mergeSource.id;
+      const previous = plan.accepted;
+      const acceptances = previous ? boundAcceptances(next, plan, previous) : new Map<string, Decision>();
       const promoted = newRevision(pending.content, now);
       plan.accepted = {
         id: promoted.id,
@@ -1046,6 +1091,7 @@ export function applyMutation(
       if (mergeSource) {
         foldMergedPlan(next, plan, mergeSource, promoted.id, now);
       }
+      if (previous) carryUnchangedOutcomes(next, plan, previous, acceptances, now);
       plan.updatedAt = now;
       ids.push(decision.id, promoted.id);
       break;

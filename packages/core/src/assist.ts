@@ -7,7 +7,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { executeOperation, type OperationOutput } from "./api.ts";
 import { resolveScope, type ScopeInventory } from "./scope-index.ts";
 import { readScopeView } from "./scope-store.ts";
-import { outcomeStatus, contextView } from "./review.ts";
+import { outcomeStatus, contextView, keptOnApproval } from "./review.ts";
 import { DomainError } from "./errors.ts";
 import { nonEmptyString as str } from "./validate.ts";
 import type { Plan, ScopeState } from "./understanding.ts";
@@ -59,11 +59,14 @@ export function tracePlan(state: ScopeState, planId: string): PlanTrace | null {
 
 export interface Warning { code: string; message: string; command?: string }
 
-/** After `revise`: outcomes that count as done now and will need new links (and owner re-acceptance) once approved. */
-export function reviseWarnings(scope: string, planId: string, before: PlanTrace | null): Warning[] {
+/**
+ * After `revise`: outcomes that count as done now and will need new links (and owner re-acceptance) once approved.
+ * Outcomes left unchanged (`kept`) carry their evidence and acceptance forward on approval, so they are not listed.
+ */
+export function reviseWarnings(scope: string, planId: string, before: PlanTrace | null, kept: Set<string> = new Set()): Warning[] {
   if (!before) return [];
   const out: Warning[] = [];
-  for (const o of before.outcomes.filter((r) => r.status === "done")) {
+  for (const o of before.outcomes.filter((r) => r.status === "done" && !kept.has(r.id))) {
     out.push(o.acceptance === "owner"
       ? { code: "outcome-reacceptance-needed", message: `outcome ${o.id} is accepted on revision ${before.acceptedId}. Once the owner approves this revision it needs its evidence linked to the new revision and a fresh owner acceptance.`, command: decideCommand(scope, planId, "accept-outcome", ` --outcome ${o.id}`) }
       : { code: "outcome-relink-needed", message: `outcome ${o.id} is done on revision ${before.acceptedId}. Once this revision is approved, record its evidence again against the new revision (mozak observe --outcome ${o.id}).` });
@@ -177,8 +180,9 @@ export function decideWithFlags(inv: ScopeInventory, raw: unknown): OperationOut
         return fail("subject-changed", `the current specification is ${String(review.specificationId)}, not ${a.spec}; show the current subject to the owner`, 3);
       }
       const request = { operationId: `decide-${randomUUID()}`, scopeId: a.scope, expected: shown.data.snapshot, action: a.purpose, payload: decisionPayload(review, a) };
+      const kept = keptOnApproval(before?.plans.find((p) => p.id === a.plan));
       const warningsAhead = a.purpose === "approve-direction" && beforeTrace
-        ? decideWarnings(a.scope, a.plan, a.purpose, beforeTrace, { ...beforeTrace, outcomes: beforeTrace.outcomes.map((r) => ({ ...r, status: "todo" })), implementationAuthorized: false })
+        ? decideWarnings(a.scope, a.plan, a.purpose, beforeTrace, { ...beforeTrace, outcomes: beforeTrace.outcomes.map((r) => (kept.has(r.id) ? r : { ...r, status: "todo" })), implementationAuthorized: false })
         : [];
       if (a.dryRun) {
         return { exitCode: 0, data: { status: "dry-run", committed: false, operation: "decide", snapshot: shown.data.snapshot, projectionStatus: null, projectionUpdated: false, issues: [], subject: subjectSummary(review), request, warnings: warningsAhead } };
