@@ -1,0 +1,36 @@
+{
+  "_doc": "mozak plan revise: replace a plan's proposed content with a new pending revision. Copy, replace the values, keep every key (closed schema). acceptedRevisionId = the plan's accepted revision or null if never approved; pendingRevisionId = its current pending revision or null if none (read both with `mozak plan show --plan PLAN --json`). content is the full new content, same shape as examples/propose.json, not a diff. Optional mergeFromPlanId folds another plan in. Build with scripts/make_request.py revise <this file>, then `mozak plan revise --request FILE`. A revise needs owner approval again before it counts.",
+  "payload": {
+    "planId": "example-plan",
+    "pendingRevisionId": null,
+    "acceptedRevisionId": "REPLACE-with-the-accepted-revisionId-or-null",
+    "content": {
+      "title": "Apply to the Erasmus internship (two host labs)",
+      "purpose": "Get a summer internship abroad through Erasmus+ before the March deadline.",
+      "outcomes": [
+        {
+          "id": "o1",
+          "statement": "Application submitted on the university portal.",
+          "acceptance": "owner",
+          "criterion": "The owner confirms the portal shows the application as submitted."
+        }
+      ],
+      "constraints": [
+        { "id": "c1", "text": "Use the CV in paper-and-applications/cv/, do not invent experience." }
+      ],
+      "nonGoals": ["Finding housing"],
+      "rationale": "The owner narrowed the shortlist to two host labs.",
+      "questions": [],
+      "sources": [
+        {
+          "id": "s1",
+          "locator": "https://example.org/erasmus-call",
+          "anchor": null,
+          "observedAt": "2026-10-21T12:00:00.000Z",
+          "version": null,
+          "limitations": []
+        }
+      ]
+    }
+  }
+}

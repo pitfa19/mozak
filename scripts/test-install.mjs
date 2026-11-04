@@ -206,6 +206,10 @@ test('relocated real product installs at two canonical Unicode/quoted prefixes a
   assert.ok(!skill.includes(repository) && !skill.includes(f.source), 'no developer/source path in skill');
   assert.ok(!/\{\{[^}]+\}\}/.test(skill), 'no unrendered placeholders');
   assert.ok(manifest.files.some(file => file.path.startsWith('skills/mozak/references/')));
+  // Every example in the source (and so every one payloads.md names) is shipped.
+  for (const name of readdirSync(join(repository, 'skills/mozak/examples'))) {
+    assert.ok(manifest.files.some(file => file.path === `skills/mozak/examples/${name}`), `example shipped: ${name}`);
+  }
   // Hiding the relocated source demonstrates wrappers cannot resolve its modules.
   renameSync(f.source, `${f.source} hidden`);
   assert.match(cli(f, ['--help']).stdout, /mozak/i);

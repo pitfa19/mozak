@@ -16,7 +16,13 @@ const MAX_FILE = 16 * 1024 * 1024;
 const MAX_TOTAL = 64 * 1024 * 1024;
 const MAX_FILES = 4096;
 const SOURCE = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+// Required skill files. Every other file in skills/mozak/examples ships too (skillFiles), so a new example cannot be left out.
 const SKILLS = ['SKILL.md', 'references/routes.md', 'references/bootstrap.md', 'references/recovery.md', 'references/payloads.md', 'examples/overview.md', 'examples/propose.json', 'examples/observe.json', 'scripts/make_request.py'];
+function skillFiles() {
+  let names = [];
+  try { names = readdirSync(join(SOURCE, 'skills/mozak/examples')); } catch { return SKILLS; }
+  return [...new Set([...SKILLS, ...names.filter(n => /\.(?:json|md)$/u.test(n)).map(n => `examples/${n}`)])].sort(compare);
+}
 const PACKAGES = ['core', 'cli', 'mcp'];
 const compare = (a, b) => a < b ? -1 : a > b ? 1 : 0;
 const sha = data => createHash('sha256').update(data).digest('hex');
@@ -162,7 +168,7 @@ function expectedProduct(prefix) {
   // forbids calling dist paths, and the launcher is the public contract across versions.
   const cli = join(prefix, 'bin/mozak');
   const skill = join(prefix, 'skills/mozak');
-  for (const path of SKILLS) {
+  for (const path of skillFiles()) {
     const bytes = input(`skills/mozak/${path}`);
     let text;
     try { text = new TextDecoder('utf-8', { fatal: true }).decode(bytes); } catch { refuse('source-unavailable', 'invalid-template', path, 'Skill template is not UTF-8.'); }
