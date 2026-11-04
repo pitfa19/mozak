@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { applyMutation, contextView, reviewRows, reviewShow, specificationKey } from "../src/review.ts";
-import { discussionDigest } from "../src/understanding.ts";
+import { discussionDigest, validateScope } from "../src/understanding.ts";
 
 const NOW = "2026-10-12T09:00:00.000Z", LATER = "2026-10-12T10:00:00.000Z";
 let message = 0;
@@ -182,9 +182,52 @@ test("completed plans retain authority history but cannot execute or queue anoth
   assert.throws(() => grant(s));
 });
 
-test("direction approval message cannot double as implementation permission", () => {
+test("one owner message that names both may back the direction approval and the implementation approval it leads to", () => {
   const s = attach(accepted());
-  assert.throws(() => decide(s, "approve-implementation", environment(s), plan(s).decisions[0].ownerRef));
+  const shared = plan(s).decisions[0].ownerRef;
+  const granted = decide(s, "approve-implementation", environment(s), shared);
+  assert.equal(handoff(granted, environment(granted)).implementationAuthorized, true);
+  assert.deepEqual(plan(granted).decisions.map(d => [d.purpose, d.ownerRef]), [["approve-direction", shared], ["approve-implementation", shared]]);
+  // The shared message is now spent: no third decision, no revoke, no resume.
+  assert.throws(() => decide(granted, "revoke-implementation", undefined, shared));
+  const paused = decide(granted, "pause");
+  assert.throws(() => decide(paused, "resume", undefined, shared));
+});
+
+test("a message shared with an older direction approval cannot back implementation of a newer direction", () => {
+  let s = accepted(); const old = plan(s).decisions[0].ownerRef;
+  s = mutate(s, "revise", { planId: "p", pendingRevisionId: null, acceptedRevisionId: plan(s).accepted.id, content: content("Export v2") });
+  s = attach(decide(s, "approve-direction"));
+  assert.throws(() => decide(s, "approve-implementation", environment(s), old));
+});
+
+test("a message used for any other decision cannot also approve implementation", () => {
+  let s = decide(accepted(), "pause", undefined, "pause-msg");
+  s = attach(decide(s, "resume"));
+  assert.throws(() => decide(s, "approve-implementation", environment(s), "pause-msg"));
+});
+
+test("a message shared with another plan's direction approval cannot approve implementation", () => {
+  let s = accepted();
+  s = mutate(s, "propose", { planId: "q", content: content("Other") }, undefined, "agent");
+  const r = reviewShow(s, "q", "approve-direction");
+  s = mutate(s, "approve-direction", { planId: "q", revisionId: r.revisionId, reviewDigest: r.reviewDigest, ownerRef: "q-msg", ownerMessageAt: NOW, reason: "ok" }, undefined, "owner");
+  s = attach(s);
+  assert.throws(() => decide(s, "approve-implementation", environment(s), "q-msg"));
+});
+
+test("the scope validator accepts the direction-plus-implementation pair and refuses a third use of the message", () => {
+  const s = attach(accepted());
+  const granted = decide(s, "approve-implementation", environment(s), plan(s).decisions[0].ownerRef);
+  assert.doesNotThrow(() => validateScope(granted));
+  const tripled = structuredClone(granted);
+  const [direction, implementation] = plan(tripled).decisions;
+  plan(tripled).decisions.push({ ...structuredClone(implementation), id: "revoke-copy", purpose: "revoke-implementation", specificationId: undefined });
+  delete plan(tripled).decisions[2].specificationId;
+  assert.throws(() => validateScope(tripled), /owner message/);
+  const unpaired = structuredClone(granted);
+  plan(unpaired).decisions[0] = { ...direction, ownerRef: "other-msg" };
+  assert.doesNotThrow(() => validateScope(unpaired), "separate messages stay valid");
 });
 
 test("equivalent UTC spellings cannot reuse implementation provenance for revoke, approve or resume", () => {
@@ -262,4 +305,26 @@ test("attach-spec computes an omitted discussionDigest and still refuses a stale
   assert.throws(() => mutate(s, "attach-spec", { ...rest, discussionDigest: "0".repeat(64) }, attachmentEnv));
   const out = mutate(s, "attach-spec", rest, attachmentEnv);
   assert.equal(plan(out).specifications.at(-1).discussionDigest, discussionDigest(plan(s).discussion));
+});
+
+test("the write path refuses a consumed owner message with a stale-input before any validation", () => {
+  const consumed = /owner message already consumed for implementation decision/;
+  let s = attach(accepted()); const direction = plan(s).decisions[0].ownerRef;
+  s = decide(s, "approve-implementation", environment(s), "impl-msg");
+  assert.throws(() => decide(s, "revoke-implementation", undefined, "impl-msg"), consumed);
+  assert.throws(() => decide(s, "revoke-implementation", undefined, direction), consumed, "a direction message never backs a revoke");
+  assert.throws(() => decide(s, "pause", undefined, "impl-msg"), consumed);
+  const fresh = attach(decide(s, "revoke-implementation", undefined, "revoke-msg"));
+  assert.throws(() => decide(fresh, "approve-implementation", environment(fresh), direction), consumed, "the paired message is spent after one implementation approval");
+  let q = mutate(accepted(), "propose", { planId: "q", content: content("Other") }, undefined, "agent");
+  const r = reviewShow(q, "q", "approve-direction");
+  q = mutate(q, "approve-direction", { planId: "q", revisionId: r.revisionId, reviewDigest: r.reviewDigest, ownerRef: "q-msg", ownerMessageAt: NOW, reason: "ok" }, undefined, "owner");
+  q = attach(q);
+  assert.throws(() => decide(q, "approve-implementation", environment(q), "q-msg"), consumed);
+});
+
+test("non-implementation decisions keep sharing a message as before", () => {
+  const s = accepted(); const direction = plan(s).decisions[0].ownerRef;
+  const paused = decide(s, "pause", undefined, direction);
+  assert.equal(plan(paused).lifecycle.state, "paused");
 });

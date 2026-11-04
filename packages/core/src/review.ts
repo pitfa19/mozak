@@ -18,6 +18,7 @@ import {
   isDigest,
   isUtcTimestamp,
   ownerMessageKey,
+  sharesDirectionMessage,
   newRevision,
   validateContent,
   validateObservation,
@@ -868,6 +869,23 @@ function requireReviewDigest(state: ScopeState, plan: Plan, purpose: DecisionPur
   return review;
 }
 
+const isImplementationPurpose = (purpose: string) => purpose === "approve-implementation" || purpose === "revoke-implementation";
+
+/**
+ * An implementation decision needs an owner message no other decision used. The one exception: the message that
+ * approved the plan's current direction may also approve its implementation, when the owner said both.
+ */
+function requireUnconsumedOwnerMessage(state: ScopeState, action: MutationAction, p: Record<string, unknown>) {
+  const key = ownerMessageKey(p.ownerRef as string, p.ownerMessageAt as string);
+  const conflicts = state.plans.flatMap(other => other.decisions).filter(d =>
+    (isImplementationPurpose(action) || isImplementationPurpose(d.purpose)) && ownerMessageKey(d.ownerRef, d.ownerMessageAt) === key);
+  if (conflicts.length === 0) return;
+  const plan = findPlan(state, p.planId as string);
+  const candidate = { ...conflicts[0], id: "candidate", purpose: action as DecisionPurpose, ownerRef: p.ownerRef as string, ownerMessageAt: p.ownerMessageAt as string };
+  const paired = conflicts.length === 1 && conflicts[0].id === plan.accepted?.directionDecisionId && sharesDirectionMessage({ ...plan, decisions: [...plan.decisions, candidate] }, candidate);
+  if (!paired) throw stale("owner message already consumed for implementation decision");
+}
+
 // ---------- transitions ----------
 
 export function applyMutation(
@@ -884,15 +902,7 @@ export function applyMutation(
   const next = structuredClone(state);
   const p = structuredClone(payload) as Record<string, unknown>;
   const ids: string[] = [];
-  if (OWNER_ACTIONS.has(action)) {
-    const key = ownerMessageKey(p.ownerRef as string, p.ownerMessageAt as string);
-    const implementationAction = action === "approve-implementation" || action === "revoke-implementation";
-    if (next.plans.some(other => other.decisions.some(d =>
-      (implementationAction || d.purpose === "approve-implementation" || d.purpose === "revoke-implementation") &&
-      ownerMessageKey(d.ownerRef, d.ownerMessageAt) === key))) {
-      throw stale("owner message already consumed for implementation decision");
-    }
-  }
+  if (OWNER_ACTIONS.has(action)) requireUnconsumedOwnerMessage(next, action, p);
 
   switch (action) {
     case "save-discussion": {
